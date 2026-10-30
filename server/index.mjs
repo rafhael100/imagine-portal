@@ -1,0 +1,17 @@
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {openStore} from './store.mjs';
+import {createAsaas} from './asaas.mjs';
+import {createApp} from './app.mjs';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const production=process.env.NODE_ENV==='production';
+const port=Number(process.env.PORT||4173),origin=new URL(process.env.APP_URL||`http://127.0.0.1:${port}`).origin;
+if(production&&!origin.startsWith('https://'))throw Error('APP_URL precisa usar HTTPS em produção.');
+if(production&&(!process.env.ASAAS_WEBHOOK_TOKEN||process.env.ASAAS_WEBHOOK_TOKEN.length<32))throw Error('Configure ASAAS_WEBHOOK_TOKEN com pelo menos 32 caracteres.');
+if(process.env.ASAAS_WEBHOOK_TOKEN&&process.env.ASAAS_WEBHOOK_TOKEN===process.env.ASAAS_API_KEY)throw Error('Token do webhook deve ser diferente da chave Asaas.');
+const db=openStore(resolve(process.env.DATA_DIR||resolve(root,'var'),'portal.sqlite'));
+const asaas=createAsaas({environment:process.env.ASAAS_ENV||'sandbox',apiKey:process.env.ASAAS_API_KEY||''});
+const app=createApp({db,asaas,origin,production,publicDir:root,sellerName:process.env.SELLER_LEGAL_NAME||'',sellerDocument:process.env.SELLER_DOCUMENT||'',webhookToken:process.env.ASAAS_WEBHOOK_TOKEN||''});
+const timer=setInterval(()=>app.drainEvents(),10000);timer.unref();
+app.server.listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Imagine Portal: ${origin} | Asaas: ${asaas.environment}${asaas.configured?'':' (não configurado)'}`));
+function stop(){clearInterval(timer);app.server.close(()=>{db.close();process.exit(0)})}process.on('SIGTERM',stop);process.on('SIGINT',stop);
