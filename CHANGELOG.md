@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.2.0 — 2026-10-30
+
+- Briefing de Onepage liberado após confirmação do pagamento.
+- Materiais privados por pedido: logo, manual e dados da empresa.
+- Rascunho, envio, solicitação de complemento e aprovação administrativa.
+- Controle de versão para evitar sobrescrever dados de outra aba.
+- Validação de arquivos, limites e download autenticado; migração 2 preservando pedidos existentes.
+- Registro de solicitação de apoio da Imagine com IA, sem geração automática.
+- Condições confirmadas: 5 dias úteis, duas rodadas de ajustes, domínio do cliente e hospedagem incluída na manutenção.
+- 18 testes automatizados locais aprovados com pagamentos simulados.
+
+
 ## 0.1.0 — 2026-10-30
 
 Primeira versão em homologação, organizada no repositório privado da Imagine.

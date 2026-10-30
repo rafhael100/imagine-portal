@@ -15,7 +15,7 @@ Endereço planejado: `https://clientes.imaginecomunicacao.com.br/portal`. Admini
 - Cancelamento da manutenção pelo cliente ou administrador. Se houver falha de comunicação, o pedido é registrado e conciliado novamente. O portal só mostra cancelada após confirmação. Cobranças pagas não são estornadas automaticamente.
 - Webhooks autenticados, fila persistente e retentativas. Eventos duplicados não repetem atualizações. O estado financeiro é consultado no Asaas antes de atualizar o pedido.
 
-O financeiro cobre os pedidos deste portal: não representa o saldo bancário ou todo o extrato Asaas. Transferências, contas a pagar, notas fiscais, anexos, MFA e envio automático de e-mail não estão implementados. A recuperação de senha nesta versão é assistida pelo operador do servidor.
+O financeiro cobre os pedidos deste portal: não representa o saldo bancário ou todo o extrato Asaas. Transferências, contas a pagar, notas fiscais, MFA e envio automático de e-mail não estão implementados. A recuperação de senha nesta versão é assistida pelo operador do servidor.
 
 ## 1. Preparar o WHM/cPanel
 
@@ -114,3 +114,11 @@ Inclua banco e configuração privada no backup seguro da hospedagem. Use backup
 Monitore `/health`, fila de atividade do portal e logs do Asaas. Defina política de privacidade, retenção de dados e atendimento a solicitações dos clientes antes da abertura pública. A versão inclui sessões HttpOnly, CSRF, limitação de tentativas, hash scrypt e verificação de dono/perfil no servidor.
 
 Não copie a pasta `work/` desta conversa para o servidor: ela contém apenas tarefas intermediárias e testes locais.
+
+## Atualização v0.2.0 — briefing e arquivos
+
+O banco recebe a migração 2 na inicialização. Faça backup antes de atualizar. O processo precisa poder criar e gravar `DATA_DIR/uploads`; use armazenamento privado persistente, fora de `public_html`. Inclua a pasta de arquivos no backup, juntamente com o banco.
+
+O cliente envia materiais depois da confirmação do pagamento. Tipos aceitos: logo PNG/JPG/WebP/PDF e manual PDF. Limites: 10 MB/arquivo, 10 arquivos/pedido e 50 MB/pedido. Download autenticado como anexo, sem prévia. O portal valida extensão e assinatura inicial, mas não inclui antivírus; uma inspeção antimalware pode ser integrada à operação antes de abrir arquivos enviados.
+
+A solicitação de apoio para textos/imagens com IA é registrada no briefing. Não existe geração automática nesta versão.

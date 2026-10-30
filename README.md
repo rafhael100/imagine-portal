@@ -2,7 +2,7 @@
 
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
-**Versão 0.1.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
+**Versão 0.2.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
 
 ## Iniciar localmente
 
@@ -21,6 +21,7 @@ Abra `http://127.0.0.1:4173/portal`. Não há dependências externas para instal
 | --- | --- |
 | `index.html` | Site da empresa |
 | `portal.html`, `portal.css`, `portal.js` | Interface do cliente e administrador |
+| `briefing-ui.js` | Formulário de briefing, arquivos e revisão |
 | `server/` | Autenticação, permissões, pedidos, banco, fila e integração Asaas |
 | `tests/` | Testes automatizados |
 | `assets/` | Logomarca original |
@@ -45,3 +46,9 @@ O workflow está cadastrado no GitHub Actions para executar os testes em Node.js
 Não versionar `.env`, chaves, bancos SQLite, backups ou dados de clientes. Configurar os segredos no servidor; futuras automações podem usar GitHub Secrets. Manter somente `.env.example`, sem valores reais.
 
 O GitHub guarda o histórico do código. O banco de produção e os arquivos privados precisam de backup próprio, com teste de restauração.
+
+## Materiais após o pagamento
+
+O Onepage inclui briefing privado por pedido, com logomarca, manual, serviços, apresentação, links e contatos da empresa. O cliente pode salvar rascunhos e enviar para revisão. A Imagine aprova ou solicita complemento. A solicitação de apoio com IA fica registrada para a equipe; a geração automática não está implementada.
+
+Arquivos ficam em `DATA_DIR/uploads`, fora da raiz pública, com limite de 10 MB por arquivo e 50 MB por pedido. O backup precisa incluir banco e arquivos. A migração de esquema 2 acrescenta as tabelas de briefing sem alterar pedidos existentes.
