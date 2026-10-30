@@ -38,7 +38,7 @@ Abra `http://127.0.0.1:4173/portal`. Não há dependências externas para instal
 
 Manter o repositório privado na conta da Imagine. Usar `main` como base revisada e branches para alterações. Cada pull request deve descrever o que muda e passar nos testes. Versões aprovadas recebem tags e notas de versão.
 
-O workflow está preparado, mas só executará após a publicação no GitHub e a habilitação do Actions. Não há deploy automático nesta versão. Uma atualização do código não altera o servidor até uma implantação deliberada.
+O workflow está cadastrado no GitHub Actions para executar os testes em Node.js 22 e 24 a cada push e pull request. Consulte a aba Actions para o resultado de cada execução. Não há deploy automático nesta versão. Uma atualização do código não altera o servidor até uma implantação deliberada.
 
 ## Configurações privadas e dados
 

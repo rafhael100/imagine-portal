@@ -2,7 +2,7 @@
 
 ## 0.1.0 — 2026-10-30
 
-Primeira versão local, em homologação. A versão ainda não foi publicada como tag ou release no GitHub.
+Primeira versão em homologação, organizada no repositório privado da Imagine.
 
 - Site com logomarca original e identidade laranja, branco e preto.
 - Atuação destacada em todo o Brasil, Estados Unidos e Portugal.
@@ -15,4 +15,4 @@ Primeira versão local, em homologação. A versão ainda não foi publicada com
 - Doze testes automatizados, executados localmente com provedor financeiro simulado.
 - Workflow preparado para testar em Node.js 22 e 24 após publicação no GitHub.
 
-Pendente: repositório remoto, homologação Asaas Sandbox, configuração final de ofertas e implantação em servidor compatível.
+Pendente: homologação Asaas Sandbox, configuração final de ofertas e implantação em servidor compatível.
