@@ -11,7 +11,7 @@ if(production&&(!process.env.ASAAS_WEBHOOK_TOKEN||process.env.ASAAS_WEBHOOK_TOKE
 if(process.env.ASAAS_WEBHOOK_TOKEN&&process.env.ASAAS_WEBHOOK_TOKEN===process.env.ASAAS_API_KEY)throw Error('Token do webhook deve ser diferente da chave Asaas.');
 const db=openStore(resolve(process.env.DATA_DIR||resolve(root,'var'),'portal.sqlite'));
 const asaas=createAsaas({environment:process.env.ASAAS_ENV||'sandbox',apiKey:process.env.ASAAS_API_KEY||''});
-const app=createApp({db,asaas,origin,production,publicDir:root,sellerName:process.env.SELLER_LEGAL_NAME||'',sellerDocument:process.env.SELLER_DOCUMENT||'',webhookToken:process.env.ASAAS_WEBHOOK_TOKEN||''});
+const app=createApp({db,asaas,origin,production,publicDir:root,sellerName:process.env.SELLER_LEGAL_NAME||'',sellerDocument:process.env.SELLER_DOCUMENT||'',webhookToken:process.env.ASAAS_WEBHOOK_TOKEN||'',uploadDir:resolve(process.env.DATA_DIR||resolve(root,'var'),'uploads')});
 const timer=setInterval(()=>app.drainEvents(),10000);timer.unref();
 app.server.listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`Imagine Portal: ${origin} | Asaas: ${asaas.environment}${asaas.configured?'':' (não configurado)'}`));
 function stop(){clearInterval(timer);app.server.close(()=>{db.close();process.exit(0)})}process.on('SIGTERM',stop);process.on('SIGINT',stop);

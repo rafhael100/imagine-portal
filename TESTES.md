@@ -1,6 +1,6 @@
 # Verificação da primeira versão
 
-Resultado local: **12 testes automatizados passaram**, sem gerar pagamentos reais. Comando: `npm test`.
+Resultado local: **18 testes automatizados passaram**, sem gerar pagamentos reais. Comando: `npm test`.
 
 Cobertura:
 
@@ -22,3 +22,7 @@ Também conferidos: sintaxe JavaScript, âncoras internas e bloqueio HTTP a `.en
 No navegador local foram verificados cadastro, login, registro de pedido, detalhes, navegação administrativa e catálogo. As capturas contêm apenas dados de teste local, fora do pacote de produção.
 
 Limites: chamadas externas ao Asaas foram simuladas nos testes. Credenciais, comportamento da conta Sandbox, recorrência real, webhooks públicos, compatibilidade do runtime do seu cPanel, DNS e HTTPS ainda precisam de homologação no servidor. Não houve implantação nem movimentação de dinheiro.
+
+## Briefing e materiais (v0.2.0)
+
+Seis testes adicionais cobrem: acesso somente após pagamento e isolamento entre contas; rascunho/envio/complemento/aprovação e conflitos de versão; download privado, remoção e bloqueio após estorno; extensão, assinatura do arquivo, tamanho e CSRF; solicitação de apoio IA e validações; migração idempotente preservando pedidos.

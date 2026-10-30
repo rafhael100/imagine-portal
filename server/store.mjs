@@ -1,3 +1,4 @@
+import {migrateBriefing} from './briefing.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import {dirname} from 'node:path';
@@ -15,6 +16,6 @@ CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY AUTOINCREMENT,order_i
 CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY,type TEXT NOT NULL,resource_id TEXT,context TEXT NOT NULL DEFAULT '{}',attempts INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0,done INTEGER NOT NULL DEFAULT 0,error TEXT,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT,actor_id TEXT,action TEXT NOT NULL,resource_id TEXT,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,reset_at INTEGER NOT NULL);
-`);for(const [id,title,price] of [['site','Site Onepage',99000],['sistema','Desenvolvimento de sistema',null],['app','Desenvolvimento de aplicativo',null],['ia','Desenvolvimento de agente de IA',null]])db.prepare('INSERT OR IGNORE INTO products(id,title,price_cents) VALUES(?,?,?)').run(id,title,price);return db}
+`);migrateBriefing(db);for(const [id,title,price] of [['site','Site Onepage',99000],['sistema','Desenvolvimento de sistema',null],['app','Desenvolvimento de aplicativo',null],['ia','Desenvolvimento de agente de IA',null]])db.prepare('INSERT OR IGNORE INTO products(id,title,price_cents) VALUES(?,?,?)').run(id,title,price);return db}
 export const now=()=>new Date().toISOString();
 export function audit(db,actor,action,resource){db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)').run(actor||null,action,resource||null,now())}
