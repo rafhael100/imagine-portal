@@ -1,3 +1,10 @@
+# 0.16.0 — Central financeira do cliente
+
+- Resumo de valores pagos, abertos, vencidos e confirmados, sem misturar os status.
+- Cobrança prioritária, filtros combinados, paginação, detalhes e exportação CSV.
+- Recorrência por projeto a partir do cadastro existente; notas fiscais e cadastro fiscal na mesma tela.
+- 49 testes aprovados. Não altera a regra legada Asaas nem ativa cobranças ou emissão fiscal.
+
 # 0.15.0 — Jornada visual do cliente
 
 - Meus pedidos com próxima ação, etapas visuais, filtros e busca.
