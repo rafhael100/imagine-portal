@@ -11,4 +11,4 @@ export function validDocument(value){const doc=String(value||'').replace(/\D/g,'
 export const cleanText=(value,max=2000)=>typeof value==='string'?value.trim().slice(0,max):'';
 export const validEmail=value=>typeof value==='string'&&value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 export function safeAsaasUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&(u.hostname==='asaas.com'||u.hostname.endsWith('.asaas.com'))?u.href:null}catch{return null}}
-export const publicUser=u=>({id:u.id,name:u.name,email:u.email,role:u.role});
+export const publicUser=u=>({id:u.id,name:u.name,email:u.email,role:u.role,...(u.staff_profile?{staff_profile:u.staff_profile,permissions:u.permissions}:{})});
