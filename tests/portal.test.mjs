@@ -11,8 +11,10 @@ import {openStore,now} from '../server/store.mjs';
 import {hashPassword} from '../server/security.mjs';
 import {createApp,addDays} from '../server/app.mjs';
 import {createAsaas} from '../server/asaas.mjs';
+import {businessDue,migrateProduction} from '../server/production.mjs';
 const publicDir=fileURLToPath(new URL('../',import.meta.url));
 const fixed=new Date('2026-10-30T15:00:00Z');
+test('Previsão de sete dias úteis pula fins de semana e atravessa o ano',()=>{assert.equal(businessDue('2026-10-30T15:00:00Z'),'2026-11-10');assert.equal(businessDue('2026-12-28T15:00:00Z'),'2027-01-06')});
 function fakeAsaas(){const customers=[],payments=[],subscriptions=[],checkouts=[];return {configured:true,environment:'sandbox',customers,payments,subscriptions,checkouts,
  findCustomer:async ref=>customers.filter(c=>c.externalReference===ref),createCustomer:async d=>{const c={...d,id:'cus_'+randomUUID()};customers.push(c);return c},
  findPayments:async ref=>payments.filter(p=>p.externalReference===ref),createPayment:async d=>{const p={...d,id:'pay_'+randomUUID(),status:'PENDING',invoiceUrl:'https://sandbox.asaas.com/i/test'};payments.push(p);return p},getPayment:async id=>{const p=payments.find(p=>p.id===id);if(!p)throw Error('Not found');return p},
@@ -43,3 +45,36 @@ test('Upload privado, download autenticado, exclusão e estorno bloqueando acess
 test('Formatos, nomes, tamanho e CSRF são conferidos no upload',async t=>{const f=await fixture(t),c=await f.client(),o=await paidSite(f,c);assert.equal((await uploadFile(f,c,o.id,'logo.png',Buffer.from('<html>fake</html>'))).status,400);assert.equal((await uploadFile(f,c,o.id,'../logo.pdf',Buffer.from('%PDF-1.7'))).status,400);assert.equal((await uploadFile(f,c,o.id,'script.svg',Buffer.from('<svg/>'))).status,400);assert.equal((await uploadFile(f,c,o.id,'logo.pdf',Buffer.from('%PDF-1.7'),'logo',{'X-CSRF-Token':'errado'})).status,403);assert.equal((await uploadFile(f,c,o.id,'manual.pdf',Buffer.alloc(MAX_FILE_BYTES+1),'manual')).status,413);assert.equal((await readdir(f.uploadDir)).length,0)});
 test('Solicitação de apoio IA aceita apresentação ausente; campos e confirmação são exigidos',async t=>{const f=await fixture(t),c=await f.client(),o=await paidSite(f,c);let saved=await c.call('/api/orders/'+o.id+'/briefing',{data:{...briefingData,company_intro:'',ai_support:true},version:0});assert.equal(saved.status,200);assert.equal((await c.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:false})).status,400);assert.equal((await c.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true})).status,200);const second=await paidSite(f,c);saved=await c.call('/api/orders/'+second.id+'/briefing',{version:0,data:{...briefingData,company_intro:'',ai_support:false}});assert.equal((await c.call('/api/orders/'+second.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true})).status,400);assert.equal((await c.call('/api/orders/'+second.id+'/briefing',{version:saved.body.briefing.version,data:{...briefingData,current_site:'javascript:alert(1)'}})).status,400)});
 test('Migração de briefing é idempotente e preserva pedidos existentes',async t=>{const f=await fixture(t),c=await f.client(),o=await order(c);migrateBriefing(f.db);migrateBriefing(f.db);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM schema_version WHERE version=2').get().n,1);assert.equal(f.db.prepare('SELECT title FROM orders WHERE id=?').get(o.id).title,'Site Onepage')});
+
+test('Jornada exige materiais validados, titular e aprovação da versão antes de publicar',async t=>{
+ const f=await fixture(t),c=await f.client(),other=await f.client(),admin=await f.client('Gestor','admin'),o=await paidSite(f,c),path='/api/orders/'+o.id+'/production';
+ assert.equal((await other.call(path,{action:'start',version:0})).status,404);
+ assert.equal((await c.call(path,{action:'start',version:0})).status,403);
+ assert.equal((await admin.call(path,{action:'start',version:0})).status,409);
+ let b=(await c.call('/api/orders/'+o.id+'/briefing',{data:briefingData,version:0})).body.briefing;
+ b=(await c.call('/api/orders/'+o.id+'/submit-briefing',{version:b.version,confirmed:true})).body.briefing;
+ await admin.call('/api/orders/'+o.id+'/review-briefing',{status:'approved',version:b.version});
+ let r=await admin.call(path,{action:'start',version:0});assert.equal(r.status,200);let p=r.body.production;assert.equal(p.stage,'production');assert.ok(p.due_date);
+ assert.equal((await admin.call(path,{action:'progress',version:0,progress:25,note:'Estrutura concluída.'})).status,409);
+ assert.equal((await admin.call('/api/orders/'+o.id+'/phase',{phase:'entregue'})).status,409);
+ r=await admin.call(path,{action:'progress',version:p.version,progress:50,note:'Layout e conteúdo montados.'});assert.equal(r.status,200);p=r.body.production;
+ assert.equal((await admin.call(path,{action:'preview',version:p.version,url:'javascript:alert(1)',note:'Prévia pronta.'})).status,400);
+ r=await admin.call(path,{action:'preview',version:p.version,url:'https://preview.example.test/v1',note:'Primeira prévia disponível.'});assert.equal(r.status,200);p=r.body.production;
+ assert.equal((await admin.call(path,{action:'publish',version:p.version,url:'https://example.test'})).status,409);
+ assert.equal((await admin.call(path,{action:'approve',version:p.version,release:1,confirmed:true})).status,403);
+ assert.equal((await c.call(path,{action:'approve',version:p.version,release:0,confirmed:true})).status,409);
+ r=await c.call(path,{action:'request-changes',version:p.version,release:1,confirmed:true,note:'Trocar a imagem principal e revisar o telefone.'});assert.equal(r.status,200);p=r.body.production;assert.equal(p.adjustments,1);
+ r=await admin.call(path,{action:'preview',version:p.version,url:'https://preview.example.test/v2',note:'Ajustes da primeira rodada concluídos.'});p=r.body.production;assert.equal(p.release,2);
+ r=await c.call(path,{action:'approve',version:p.version,release:2,confirmed:true});assert.equal(r.status,200);p=r.body.production;assert.equal(p.approved_release,2);
+ r=await admin.call(path,{action:'publish',version:p.version,url:'https://example.test'});assert.equal(r.status,200);assert.equal(r.body.production.stage,'published');assert.equal((await c.call('/api/orders/'+o.id)).body.order.phase,'entregue');
+ assert.equal(r.body.production.events.filter(e=>e.type==='approve').length,1);migrateProduction(f.db);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM schema_version WHERE version=3').get().n,1);
+});
+test('Jornada bloqueia ações sem pagamento, após estorno e fora dos limites de ajustes',async t=>{
+ const f=await fixture(t),c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c),path='/api/orders/'+o.id+'/production';assert.equal((await admin.call(path,{action:'start',version:0})).status,409);
+ const po=await paidSite(f,c),pp='/api/orders/'+po.id+'/production';
+ f.db.prepare("INSERT INTO productions(order_id,stage,release,adjustments,updated_at) VALUES(?,'review',3,2,?)").run(po.id,now());
+ assert.equal((await c.call(pp,{action:'request-changes',version:0,release:3,confirmed:true,note:'Uma nova rodada de alterações.'})).status,409);
+ assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:false})).status,400);
+ f.db.prepare("UPDATE orders SET payment_status='REFUNDED' WHERE id=?").run(po.id);
+ assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:true})).status,409);
+});
