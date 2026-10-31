@@ -1,3 +1,5 @@
+> **Atualização comercial aprovada:** implantação promocional de R$ 2.490 por R$ 990, em R$ 330 nos dias 0, 30 e 60; assinatura obrigatória de R$ 79,90/mês a partir do dia 90, independentemente da publicação. Prazo: sete dias úteis após validar os materiais. Duas rodadas no contrato. A regra anterior de manutenção opcional de R$ 39,90/D+60 permanece apenas no código financeiro legado e NÃO deve ser ativada para a nova oferta. Checkout direto e aceite ainda são prévia; integração financeira e contrato definitivo pendentes.
+
 # Projeto e regras comerciais
 
 ## Identidade
@@ -6,7 +8,7 @@ Marca original da Imagine Comunicação Digital, preservada sem redesenho. Palet
 
 ## Serviços
 
-Desenvolvimento de sites, sistemas, aplicativos e agentes de IA. O Site Onepage custa R$ 990,00. Os demais serviços recebem propostas com escopo, valor e prazo. Prazo do Onepage: 5 dias úteis após o recebimento do briefing e dos materiais completos, com duas rodadas de ajustes. O cliente fornece o domínio para publicação. Textos e imagens podem ser enviados pelo cliente; quando faltar conteúdo, a Imagine pode apoiá-lo com IA. O escopo detalhado das seções ainda precisa de aprovação antes de liberar a oferta.
+Desenvolvimento de sites, sistemas, aplicativos e agentes de IA. O Site Onepage custa R$ 990,00. Os demais serviços recebem propostas com escopo, valor e prazo. Prazo do Onepage: 7 dias úteis após o recebimento do briefing e dos materiais completos, com duas rodadas de ajustes. O cliente fornece o domínio para publicação. Textos e imagens podem ser enviados pelo cliente; quando faltar conteúdo, a Imagine pode apoiá-lo com IA. O escopo detalhado das seções ainda precisa de aprovação antes de liberar a oferta.
 
 ## Manutenção
 

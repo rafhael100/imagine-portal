@@ -1,3 +1,5 @@
+> **Atualização comercial aprovada:** implantação promocional de R$ 2.490 por R$ 990, em R$ 330 nos dias 0, 30 e 60; assinatura obrigatória de R$ 79,90/mês a partir do dia 90, independentemente da publicação. Prazo: sete dias úteis após validar os materiais. Duas rodadas no contrato. A regra anterior de manutenção opcional de R$ 39,90/D+60 permanece apenas no código financeiro legado e NÃO deve ser ativada para a nova oferta. Checkout direto e aceite ainda são prévia; integração financeira e contrato definitivo pendentes.
+
 # Oferta Site Onepage — definição comercial
 
 **Estado: proposta de escopo em revisão.** Somente os itens da seção “Condições confirmadas” estão aprovados. As sugestões abaixo ainda não liberam vendas nem alteram o catálogo do portal.
@@ -8,7 +10,7 @@
 - Manutenção opcional para manter o site no ar: **R$ 39,90/mês**, recorrente no cartão.
 - A manutenção inclui hospedagem e não inclui modificações.
 - O cliente fornece o domínio para publicação.
-- Prazo de entrega: 5 dias úteis após receber o briefing e os materiais completos.
+- Prazo de entrega: 7 dias úteis após receber o briefing e os materiais completos.
 - Duas rodadas de ajustes.
 - O cliente pode enviar textos e imagens; quando não enviar, a Imagine apoiará a preparação com IA. A ferramenta de geração automática ainda não integra o portal.
 - A primeira cobrança de manutenção ocorre **60 dias após a contratação do site**, independentemente de ele já estar no ar.
@@ -35,7 +37,7 @@ Publicação, domínio, hospedagem, licenças e responsabilidades sobre conteúd
 
 ## Prazo e revisões confirmados
 
-- Prazo: **5 dias úteis após o recebimento completo dos materiais e do briefing**.
+- Prazo: **7 dias úteis após o recebimento completo dos materiais e do briefing**.
 - Revisões: **duas rodadas de ajustes**, consolidadas pelo cliente, dentro do escopo.
 - Novas funcionalidades, novas seções e mudança de direção após aprovação serão avaliadas em uma proposta adicional, caso essa regra seja aprovada.
 
@@ -54,7 +56,7 @@ O portal de clientes e os pagamentos Asaas da própria Imagine pertencem à plat
 | Aprovar quantidade de seções e funcionalidades incluídas | Pendente |
 | Textos e imagens | Cliente pode enviar; Imagine apoia com IA quando necessário |
 | Imagens: origem, fornecimento e eventuais licenças | Pendente |
-| Prazo de entrega | Confirmado: 5 dias úteis após materiais completos |
+| Prazo de entrega | Confirmado: 7 dias úteis após materiais completos |
 | Quantidade de revisões | Confirmado: duas rodadas; limites detalhados a definir |
 | Domínio | Fornecido pelo cliente; renovação deve ser detalhada na proposta |
 | Hospedagem | Incluída na manutenção opcional de R$ 39,90/mês |
