@@ -1,3 +1,12 @@
+# 0.18.0 — Assinatura mensal em destaque
+
+- Chamadas contextuais de assinatura na visão geral, pedidos, pagamentos e manutenção.
+- Tela única por projeto para configurar, continuar autorização, regularizar mensalidade ou solicitar ajuda/reativação.
+- Orientação calculada no servidor respeita pagamento, carência, expiração, conciliação e cancelamento, sem criar nova autorização para assinatura existente.
+- Cadastro de cartão permanece no Asaas; adesão exige confirmação explícita do cliente.
+- 53 testes aprovados; informações financeiras da orientação ocultas de atendimento e produção.
+- Não ativa Asaas nem migra a regra legada; reativação de planos existentes requer conferência da Imagine.
+
 # 0.17.0 — Manutenção e suporte do cliente
 
 - Área de cuidados do site com suporte técnico, alterações e condições do plano.
