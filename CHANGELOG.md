@@ -1,3 +1,10 @@
+# 0.15.0 — Jornada visual do cliente
+
+- Meus pedidos com próxima ação, etapas visuais, filtros e busca.
+- Atalhos para materiais, produção, prévia e aprovação; condições comerciais recolhidas.
+- Pendências calculadas dos materiais salvos, orientações da equipe e progresso por marcos reais.
+- Resumo privado por proprietário e perfil; 47 testes aprovados.
+
 # 0.14.1 — Regras fiscais comerciais aprovadas
 
 - Padrões: implantação pelo total do serviço na entrega e assinatura por competência da cobrança mensal.
