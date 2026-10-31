@@ -1,3 +1,11 @@
+# 0.17.0 — Manutenção e suporte do cliente
+
+- Área de cuidados do site com suporte técnico, alterações e condições do plano.
+- Sites publicados primeiro, filtros, situação do plano e última mensagem por projeto.
+- Formulário envia solicitações identificadas na conversa autenticada do pedido, sem autorizar custos adicionais.
+- Orientações de atendimento e acesso aos pagamentos; sem presumir monitoramento ou execução de backups.
+- 50 testes aprovados. Regras financeiras e integrações reais permanecem inalteradas.
+
 # 0.16.0 — Central financeira do cliente
 
 - Resumo de valores pagos, abertos, vencidos e confirmados, sem misturar os status.
