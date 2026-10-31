@@ -4,7 +4,7 @@
 - Prévia por versão, duas rodadas e publicação somente após aprovação do titular.
 - Marcos reais de evolução com histórico; prazo inicial de sete dias úteis após validação.
 - Migração aditiva 3, com controle de concorrência e autorização.
-- 21 testes automatizados aprovados com Asaas simulado.
+- 23 testes automatizados aprovados com Asaas simulado.
 - Novo checkout financeiro e ativação sem senha inicial continuam pendentes.
 
 # Histórico de versões
