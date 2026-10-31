@@ -2,7 +2,7 @@
 
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
-**Versão 0.2.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
+**Versão 0.3.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
 
 ## Iniciar localmente
 
@@ -52,3 +52,7 @@ O GitHub guarda o histórico do código. O banco de produção e os arquivos pri
 O Onepage inclui briefing privado por pedido, com logomarca, manual, serviços, apresentação, links e contatos da empresa. O cliente pode salvar rascunhos e enviar para revisão. A Imagine aprova ou solicita complemento. A solicitação de apoio com IA fica registrada para a equipe; a geração automática não está implementada.
 
 Arquivos ficam em `DATA_DIR/uploads`, fora da raiz pública, com limite de 10 MB por arquivo e 50 MB por pedido. O backup precisa incluir banco e arquivos. A migração de esquema 2 acrescenta as tabelas de briefing sem alterar pedidos existentes.
+
+## Jornada de produção do Onepage
+
+Preparação com briefing, produção com marcos reais, prévia versionada, duas rodadas de ajustes e autorização do cliente antes da publicação. Prazo para novas contratações: sete dias úteis após validar os materiais. [Regras e limites](docs/JORNADA-ONEPAGE.md). Migração aditiva 3 preserva os pedidos existentes.
