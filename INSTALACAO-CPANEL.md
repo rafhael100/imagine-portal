@@ -15,7 +15,7 @@ Endereço planejado: `https://clientes.imaginecomunicacao.com.br/portal`. Admini
 - Cancelamento da manutenção pelo cliente ou administrador. Se houver falha de comunicação, o pedido é registrado e conciliado novamente. O portal só mostra cancelada após confirmação. Cobranças pagas não são estornadas automaticamente.
 - Webhooks autenticados, fila persistente e retentativas. Eventos duplicados não repetem atualizações. O estado financeiro é consultado no Asaas antes de atualizar o pedido.
 
-O financeiro cobre os pedidos deste portal: não representa o saldo bancário ou todo o extrato Asaas. Transferências, contas a pagar, notas fiscais, MFA e envio automático de e-mail não estão implementados. A recuperação de senha nesta versão é assistida pelo operador do servidor.
+O financeiro cobre os pedidos deste portal: não representa o saldo bancário ou todo o extrato Asaas. Transferências, contas a pagar e MFA não estão implementados. Notas fiscais Focus NFe e envio manual de cobranças por e-mail/WhatsApp estão preparados na versão 0.14; veja docs/FISCAL-E-COBRANCAS.md para configuração e limites. A recuperação de senha nesta versão é assistida pelo operador do servidor.
 
 ## 1. Preparar o WHM/cPanel
 
@@ -53,7 +53,7 @@ SELLER_LEGAL_NAME=RAZAO_SOCIAL_DA_IMAGINE
 SELLER_DOCUMENT=CNPJ_DA_IMAGINE
 ```
 
-`DATA_DIR` deve ser gravável pela conta, em disco local persistente, fora da raiz pública e com acesso restrito. Não use disco temporário nem compartilhe SQLite entre máquinas. Não há dependências npm externas para instalar.
+`DATA_DIR` deve ser gravável pela conta, em disco local persistente, fora da raiz pública e com acesso restrito. Não use disco temporário nem compartilhe SQLite entre máquinas. Instale a dependência SMTP Nodemailer antes de iniciar: pnpm install --frozen-lockfile --ignore-scripts.
 
 Execute `npm test` na pasta da aplicação. Para executar diretamente, use `npm start`. No Passenger, o `app.js` também carrega o `.env` privado quando existir. Reinicie pelo painel após alterações. Permita HTTPS de saída ao Asaas.
 
@@ -84,7 +84,7 @@ Crie um webhook no Asaas com:
 
 O token é validado em `asaas-access-token`. O endpoint grava a referência mínima antes de responder HTTP 200. Não persiste CPF/CNPJ nem cartão do webhook. A fila é processada a cada 10 segundos com o processo ativo.
 
-Cada pedido tem um cadastro financeiro Asaas com referência própria. Isso isola assinaturas entre projetos, mas pode criar vários cadastros para o mesmo comprador. O CPF/CNPJ informado no portal é enviado ao Asaas e não é persistido localmente.
+Cada pedido tem um cadastro financeiro Asaas com referência própria. Isso isola assinaturas entre projetos, mas pode criar vários cadastros para o mesmo comprador. O CPF/CNPJ informado no portal é enviado ao Asaas no checkout. O cadastro fiscal separado, quando preenchido, persiste CPF/CNPJ e endereço em banco privado.
 
 Documentação oficial: [Sandbox](https://docs.asaas.com/docs/sandbox), [cobranças](https://docs.asaas.com/reference/criar-nova-cobranca), [assinatura no checkout](https://docs.asaas.com/docs/checkout-com-assinatura-recorrente), [webhooks](https://docs.asaas.com/docs/receive-asaas-events-at-your-webhook-endpoint).
 

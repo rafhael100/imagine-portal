@@ -1,3 +1,92 @@
+# 0.14.1 — Regras fiscais comerciais aprovadas
+
+- Padrões: implantação pelo total do serviço na entrega e assinatura por competência da cobrança mensal.
+- Automação e aprovação tributária permanecem desativadas; sem emissão retroativa ou geração de notas.
+- Migração 11 preserva configurações personalizadas e só atualiza o cadastro inicial nunca editado.
+
+# 0.14.0 — Comunicação financeira e Focus NFe
+
+- Prévia de cobrança, preparação para WhatsApp, envio SMTP idempotente e histórico.
+- Módulo de notas fiscais para administração/Financeiro e consulta própria do cliente.
+- Adaptador Focus NFe municipal/nacional, regras por entrega, competência ou recebimento, configuração administrativa e credenciais no servidor.
+- Referências estáveis, conciliação de timeout/webhook, rejeições e solicitação de cancelamento.
+- Migração aditiva 10, dependência Nodemailer instalada e sete novos testes (46 no total).
+- Emissão/envio real aguardam credenciais, validação fiscal e homologação; sem alteração na cobrança legada Asaas.
+
+# 0.13.0 — BI exclusivo de atividades
+
+- Indicadores, gráficos clicáveis e tabela por colaborador, cliente, serviço, jornada, situação, prioridade e datas.
+- Análise do banco completo, paginação, CSV integral filtrado e impressão.
+- Tempo de ciclo e pontualidade distinguem conclusões explícitas de datas históricas aproximadas.
+- Migração aditiva 9 registra as próximas conclusões automáticas em histórico próprio.
+- Acesso exclusivo do administrador validado no servidor; quatro novos testes, incluindo mais de mil tarefas.
+
+# 0.12.0 — Edição, cancelamento e arquivo de atividades
+
+- Edição completa com motivo, checklist e responsáveis conforme a função.
+- Cancelamento sem exclusão física; automação não recria ou reativa a tarefa cancelada.
+- Arquivamento de concluídas/canceladas e restauração pelo administrador.
+- Histórico de gestão com autor, motivo e snapshots antes/depois; migração aditiva 8.
+
+# 0.11.0 — Cadastro manual de atividades
+
+- Nova atividade para administrador ou colaborador, com pedido opcional, prioridade, prazo, instruções e checklist.
+- Administrador atribui a si ou a membro ativo e visualiza toda a equipe; colaborador cadastra para si e vê somente as próprias.
+- Atividades internas incluídas no resumo e carga operacional; sem criação de pedidos artificiais.
+- Cadastro idempotente, alterações auditadas e migração aditiva 7.
+
+# 0.10.0 — Atividade com foco na solicitação do cliente
+
+- Relato original, autor e data vinculados ao evento que gerou a atividade.
+- Ajustes referenciam a versão correta; mensagens e reclamações mantêm o conteúdo original.
+- Briefing e arquivos privados próximos à execução, respeitando as funções de acesso.
+- Orientações gerais no ícone de ajuda com hover, foco e clique; checklist recolhido.
+
+# 0.9.0 — Resumo diário da administração
+
+- Visão geral com alertas de atraso, mensagens, reclamações e bloqueios.
+- Recebimentos do dia, valores a receber e gráfico dos últimos sete dias no horário de Brasília.
+- Atalhos filtrados, próximas decisões e marcos registrados hoje.
+- Atualização de leitura automática a cada minuto; sem sincronização extra com Asaas.
+
+# 0.8.0 — Ambiente de execução das atividades
+
+- Fila de trabalho e detalhe com objetivo, instruções por tipo e checklist persistente.
+- Prioridades Urgente/Alta/Normal/Baixa, filtros de prazo e atalhos de atraso, hoje, execução e bloqueio.
+- Início rápido, acompanhamento e conclusão com conferência; alterações administrativas auditadas.
+- Migração aditiva 6 preserva atividades existentes e suas edições.
+
+# 0.7.0 — Controle de pedidos e reclamações
+
+- Filtros de jornada, serviço, responsáveis, prazos, pendências e pagamento.
+- Lista do banco completo com alertas, próxima ação e paginação.
+- Reclamações explícitas com autoria, prioridade, atendimento, resolução, reabertura e histórico.
+- Tarefas automáticas de reclamação, permissões no servidor e migração aditiva 5.
+
+# 0.6.0 — Carteira de clientes
+
+- Busca por responsável, empresa e contato; filtros e ordenação, com paginação de 25 clientes.
+- Total recebido acumulado desde o primeiro pagamento, independentemente do serviço filtrado.
+- Ficha com contatos por empresa, todos os pedidos e histórico financeiro, incluindo valores separados por status.
+- Fonte: banco completo do portal; Atendimento não recebe dados financeiros na API.
+
+# 0.5.0 — BI de gestão
+
+- BI exclusivo do administrador, calculado no banco completo.
+- Filtros de período e serviço; gráficos mensais e por serviço, comparação de recebimentos, carteira e previsão.
+- Situação atual da produção, carga da equipe, clientes e qualidade dos dados.
+- Custos e lucro permanecem indisponíveis até cadastro de despesas; demonstração continua fictícia.
+- Testes dos cálculos, períodos, serviços e ausência de dados financeiros.
+
+# 0.4.0 — Equipe, atividades e financeiro
+
+- Central de atividades com distribuição automática, responsáveis, prazos e estados.
+- Equipe com funções Atendimento, Produção e Financeiro; permissões verificadas na API e revogação de sessões.
+- Migração aditiva 4 e testes de isolamento, automação e acesso direto à API.
+- Painel financeiro com filtros, gráfico, previsão e CSV filtrado.
+- Orientações de materiais específicas para cliente e administrador.
+- Demonstração local; envio de convites e nova oferta financeira ainda não integrados.
+
 # 0.3.0 — Jornada do Onepage
 
 - Materiais, produção, considerações e aprovação no portal.

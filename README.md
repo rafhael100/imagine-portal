@@ -2,18 +2,19 @@
 
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
-**Versão 0.3.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
+**Versão 0.14.1 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
 
 ## Iniciar localmente
 
 Requer Node.js 22.16+ ou 24+, com `node:sqlite`.
 
 ```sh
+pnpm install --frozen-lockfile --ignore-scripts
 npm test
 npm start
 ```
 
-Abra `http://127.0.0.1:4173/portal`. Não há dependências externas para instalar. Sem configuração Asaas, é possível usar contas e pedidos, mas a geração de cobranças permanece desabilitada.
+Abra `http://127.0.0.1:4173/portal`. O envio SMTP usa Nodemailer; instale as dependências antes de iniciar. Sem configuração Asaas, é possível usar contas e pedidos, mas a geração de cobranças permanece desabilitada.
 
 ## Estrutura
 
@@ -33,6 +34,7 @@ Abra `http://127.0.0.1:4173/portal`. Não há dependências externas para instal
 - [Instalação e operação](INSTALACAO-CPANEL.md).
 - [Verificação e limites dos testes](TESTES.md).
 - [Regras comerciais e arquitetura](docs/PROJETO.md).
+- [Fiscal, Focus NFe e cobranças](docs/FISCAL-E-COBRANCAS.md).
 - [Histórico de versões](CHANGELOG.md).
 
 ## Fluxo de trabalho sugerido

@@ -25,6 +25,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
-      # Não há dependências npm externas. Os testes usam um Asaas simulado.
+      # Dependências fixadas; provedores de pagamento, fiscal e e-mail são simulados nos testes.
+      - name: Instalar dependências
+        run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
       - name: Testar aplicação sem credenciais ou cobranças reais
         run: npm test
