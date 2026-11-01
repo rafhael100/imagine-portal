@@ -349,9 +349,19 @@ Detalhamento comparativo em [HOSPEDAGEM-SITES-ANALISE.md](HOSPEDAGEM-SITES-ANALI
 
 O site pode permanecer estático; o formulário publicará somente dados em um endpoint de ingestão seguro da Imagine, com enfileiramento durável e integração servidor-servidor à API do CRM. O agente desenvolvedor usará componente homologado e não terá token privado do CRM no site publicado. A integração será vinculada à identidade autorizada da empresa, sem criar organizações duplicadas.
 
-**Pendências:** preço e condições da assinatura básica, limites e recursos do plano, consentimento de dados, ciclo de cancelamento/inadimplência, produto Landing Page, versão e disponibilidade das APIs do CRM e testes/homologação. Não alterar o preço atual do Onepage nem habilitar nova cobrança sem aprovação. O CRM está planejado como SaaS independente; não implementar o CRM ao programar o portal antes da finalização do planejamento do CRM.
+**IN-002 aprovada:** CRM Básico gratuito vinculado ao contrato ativo do site, sem cobrança própria; upgrade para CRM pago contratado e faturado no CRM, independente da mensalidade do site no Portal Imagine. **Pendências:** limites e recursos do Básico, mapeamento para planos CRM existentes, consentimento de dados, ciclo de cancelamento/inadimplência, produto Landing Page, APIs e homologação. Não alterar o preço atual do Onepage nem habilitar nova cobrança sem aprovação. O CRM está planejado como SaaS independente; não implementar o CRM ao programar o portal antes da finalização do planejamento do CRM.
 
 Detalhes: [INTEGRACAO-CRM-IMAGINE.md](INTEGRACAO-CRM-IMAGINE.md).
+
+## 22. Decisão IN-002 — CRM Básico gratuito com site; upgrades cobrados no CRM (APROVADA)
+
+**Aprovação:** 2026-11-01. A mensalidade do Onepage continua no **Portal Imagine** (R$ 79,90 desde D90 da contratação, além da implantação D0/D30/D60). Quem contrata Onepage ou futura Landing Page recebe **benefício de acesso ao CRM Básico com custo adicional R$ 0,00**, condicionado à assinatura do site. Quando contratar um plano CRM mais avançado, o próprio CRM processará a contratação e a mensalidade adicional; ambos os contratos e cobranças permanecem separados.
+
+O vínculo é por organização CRM autorizada e contrato do site, não por e-mail isolado. O cliente pode ter várias organizações no CRM. A oferta gratuita vinculada não implica que todos os usuários do CRM terão plano gratuito público; o trial de 14 dias permanece separado. Os planos CRM Essencial/Profissional/Empresarial já aprovados em conceito não são renomeados por esta decisão.
+
+**Pendente:** pacote de recursos/limites do Básico, correspondência com os planos pagos existentes, datas de elegibilidade/cancelamento, status financeiro de cada produto, retenção de dados e condições de Landing Page. Não implementar cobrança nova nem alterar rotinas do Asaas sem aprovação das condições aplicáveis.
+
+Detalhes no [documento de integração CRM](INTEGRACAO-CRM-IMAGINE.md).
 
 ---
 
