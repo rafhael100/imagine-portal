@@ -1,3 +1,11 @@
+# 0.18.3 — Portal, presença internacional e vídeo
+
+- Portal do cliente apresentado como benefício da contratação, com materiais, etapas, mensagens, prévias, aprovação e financeiro.
+- Destaque para pequenas, médias e grandes empresas, com atuação no Brasil, Estados Unidos e Portugal.
+- Vídeo animado original de aproximadamente 24 segundos, sem áudio ou autoplay; textos na tela e descrição textual acessível.
+- Logomarca original no vídeo; representação do fluxo identificada como ilustrativa. Sem imagens de terceiros ou dados de clientes.
+- Assets WebM/SVG públicos adicionados explicitamente à lista permitida do servidor e aos tipos MIME.
+- Reprodução, metadados, oferta e apresentação conferidos no navegador. Checkout e gateways reais continuam pendentes de configuração e homologação.
 # 0.18.2 — Site público orientado à contratação
 
 - Apresentação inicial focada em clareza, confiança e contato pelo WhatsApp.

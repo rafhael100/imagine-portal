@@ -2,7 +2,7 @@
 
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
-**Versão 0.18.2 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
+**Versão 0.18.3 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
 
 ## Iniciar localmente
 
