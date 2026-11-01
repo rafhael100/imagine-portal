@@ -374,9 +374,9 @@ Os agentes do site usarão componentes homologados do formulário e integrarão 
 
 ## 24. Decisão IN-004 — Agenda e Agendamentos no CRM Básico Cortesia (APROVADA)
 
-**Aprovação:** 2026-11-01. O CRM Básico gratuito concedido a contratantes elegíveis de Onepage/Landing Page deverá permitir **Agenda e Agendamentos** associados a leads e contatos. Regras específicas de calendário, limites, agendamento público a partir do site, integrações Google/Outlook e notificações externas estão pendentes. **IN-005 aprovada em 2026-11-01:** até **3 automações comerciais ativas por organização**, escolhidas de biblioteca de **modelos prontos**. O catálogo exato está em revisão; editor genérico e automações avançadas dos planos pagos não foram liberados.
+**Aprovação:** 2026-11-01. O CRM Básico gratuito concedido a contratantes elegíveis de Onepage/Landing Page deverá permitir **Agenda e Agendamentos exclusivamente internos/manuais** associados a leads e contatos, conforme decisão posterior **IN-007**. Página pública e autoagendamento pelo site são exclusividade dos planos pagos do CRM; quotas e detalhes operacionais continuam pendentes. **IN-005 aprovada em 2026-11-01:** até **3 automações comerciais ativas por organização**, escolhidas de biblioteca de **modelos prontos**. O catálogo exato está em revisão; editor genérico e automações avançadas dos planos pagos não foram liberados.
 
-A produção automática de sites deve preparar formulários seguros de lead e possibilidade futura de link/CTA para agendamento pela empresa, **sem afirmar que página de reservas está implementada ou incluída no contrato antes de aprovar o escopo exato**.
+A produção automática de sites deve oferecer formulário seguro de captação de lead, **sem publicar botão/link/iframe de autoagendamento para cliente com somente CRM Básico Cortesia**. Um CTA público de agendamento só pode ser oferecido a uma organização com plano CRM **pago, vigente, elegível e habilitado**, após autorização e verificação efetiva no backend.
 
 Inventário de automações já aprovadas no CRM geral e propostas para o Básico em [documentação CRM Imagine](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
@@ -398,6 +398,16 @@ Ver [especificação CRM — Agenda e Automações](https://github.com/rafhael10
 
 O Portal Imagine deve consultar direitos efetivos fornecidos pelo CRM; não duplicar biblioteca/quotas em lógica comercial hardcoded do site ou cobrar por automação sem autorização. Fonte: [Catálogo central de automações CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/10-biblioteca-automacoes-e-criterios-de-planos.md).
 
+
+## 27. Decisão IN-007 — Agenda manual no CRM Básico; autoagendamento exclusivo dos planos pagos (APROVADA)
+
+**Aprovação:** 2026-11-01. O benefício CRM Básico de quem contrata Onepage/Landing Page terá agenda e criação/edição/reagendamento/cancelamento de compromissos **somente por ação manual de usuário autorizado dentro do CRM**. O formulário público do Onepage continua recebendo leads e enviando ao CRM (IN-001), **sem criar automaticamente agendamento**.
+
+**Exclusivo dos planos pagos Essencial, Profissional e Empresarial:** página pública/rota de autoagendamento e botão no Onepage/Landing Page que permitem ao visitante consultar disponibilidade e reservar sem intervenção do operador. Devem exigir plano pago ativo e recurso habilitado, com validação de tenant/permissão/cotas, consentimento, proteção contra abuso e conflito de horários. Não basta esconder o botão no frontend: o backend CRM também bloqueia criação/consulta pública sem entitlement.
+
+No downgrade de plano CRM pago para o Básico, desativar novas reservas públicas, preservar e permitir administração manual das reservas existentes, e coordenar atualização do site sem alterar versão publicada indevidamente. Quantidade de usuários/profissionais/serviços, agendamentos manuais, canais de avisos, integrações Google/Outlook e outros recursos avançados permanecem pendentes.
+
+[Referência do CRM — Agenda e automações](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
 ---
 
