@@ -316,3 +316,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - A exclusão legítima de um anexo deve continuar efetiva mesmo se for restaurado um backup antigo. A arquitetura deverá manter registro durável e confiável das exclusões (por exemplo, tombstones, journal ou mecanismo equivalente), reaplicá-las na restauração **antes de disponibilizar o acesso a arquivos**, e testar a prevenção de reativação indevida.
 - Manter segregação de acesso e permissões, políticas de expurgo e preservação legal; evitar restaurar automaticamente versões deletadas a áreas acessíveis pelos usuários.
 - **Pendentes técnicos:** desenho de replicação, agendamento, armazenamento protegido, tempo de expurgo, testes de restauração e tratamento de obrigações legais. Nenhuma programação iniciada.
+
+
+## IN-044 — Replicação incremental assíncrona a cada 15 minutos (APROVADA em 01/11/2026)
+
+- Executar **replicação incremental assíncrona a cada 15 minutos** em **servidor separado** da aplicação CRM, copiando somente objetos/versões elegíveis ainda não replicados, sem bloquear o usuário enquanto a cópia de backup é feita.
+- Manter **fila persistente**, tratamento idempotente, controle de concorrência e limites de CPU, RAM e banda; **retentativas** de falhas e **verificação de integridade** nas cópias concluídas.
+- Monitorar o **atraso real** (idade do arquivo ainda não protegido mais antigo, falhas e backlog), não apenas o número de execuções. **RPO-alvo de 15 minutos** para anexos é meta de engenharia **dependente de testes**, não SLA/garantia assegurada simplesmente pela periodicidade. Planejar alertas e capacidade de processamento de pico.
+- Manter **retenção técnica de backups por 30 dias (IN-043)**; preservar trilha técnica de exclusões para que arquivos legitimamente apagados não reapareçam em restaurações (IN-042/043). Não usar replicação ingênua que restaure exclusões.
+- A escolha definitiva de fornecedor de armazenamento e preços dos adicionais (IN-038) continua pendente. O par B2 principal + R2 backup segue somente candidato em análise, não contratação aprovada.
+- **Somente planejamento e documentação; nenhuma programação autorizada.**
