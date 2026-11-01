@@ -1,3 +1,11 @@
+# 0.18.2 — Site público orientado à contratação
+
+- Apresentação inicial focada em clareza, confiança e contato pelo WhatsApp.
+- Benefícios do Onepage e desafios atendidos por sistemas, aplicativos e agentes de IA.
+- Oferta com implantação de R$ 990 em três pagamentos e assinatura de R$ 79,90 a partir de 90 dias, preservando as condições comerciais.
+- Jornada do projeto pelo portal, perguntas frequentes e chamadas para contratação em pontos da página.
+- Logomarca original e identidade de cores preservadas. Sem mudança na integração financeira; checkout público continua em prévia.
+- Sintaxe dos dois scripts verificada e conferência visual, modal da oferta e dúvidas frequentes no navegador.
 # 0.18.1 — Vitrine de novos projetos
 
 - Novo projeto apresenta benefícios, oferta do Onepage e soluções sob medida para sistemas, aplicativos e agentes de IA.
