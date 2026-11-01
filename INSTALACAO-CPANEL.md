@@ -1,3 +1,11 @@
+# Atualização 0.18 — recorrência e Minha conta
+
+Leia [o fluxo financeiro atual](docs/ASSINATURA-CLIENTE.md). Configure Asaas/tokenização, HTTPS, emitente, webhook e BILLING_TOKEN_KEY (32 bytes aleatórios representados por 64 caracteres hexadecimais) no servidor. Guarde a chave em backup privado; alterá-la sem recriptografar os tokens impede recuperar autorizações existentes. Não envie a chave no chat ou ao GitHub.
+
+APP_TRUST_PROXY=true somente com proxy no próprio servidor que sobrescreva X-Forwarded-For. Mantenha uma instância Node ativa para executar a fila D30/D60 e a conciliação; use supervisão do processo e relógio sincronizado. A recorrência mensal é executada pelo Asaas. Homologue aprovações, recusas, atualização de cartão e indisponibilidade antes de aceitar pagamentos reais.
+
+As instruções antigas abaixo descrevem também o modelo legacy. Para novos pedidos valem implantação em três pagamentos e recorrência incluída D90. Nenhuma implantação foi feita automaticamente.
+
 # Imagine — portal de clientes e administração
 
 ## Estado da entrega

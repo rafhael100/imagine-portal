@@ -1,11 +1,12 @@
-# 0.18.0 — Assinatura mensal em destaque
+# 0.18.0 — Recorrência automática e Minha conta
 
-- Chamadas contextuais de assinatura na visão geral, pedidos, pagamentos e manutenção.
-- Tela única por projeto para configurar, continuar autorização, regularizar mensalidade ou solicitar ajuda/reativação.
-- Orientação calculada no servidor respeita pagamento, carência, expiração, conciliação e cancelamento, sem criar nova autorização para assinatura existente.
-- Cadastro de cartão permanece no Asaas; adesão exige confirmação explícita do cliente.
-- 53 testes aprovados; informações financeiras da orientação ocultas de atendimento e produção.
-- Não ativa Asaas nem migra a regra legada; reativação de planos existentes requer conferência da Imagine.
+- Compra do Onepage inclui assinatura mensal de R$ 79,90, autorizada na contratação e com primeiro vencimento D+90.
+- Implantação em três cobranças de R$ 330 em D0/D30/D60; fila executa somente nas datas devidas.
+- Cliente atualiza cartão, retoma assinatura e autoriza regularização do valor vencido pelo portal, sem liberação da Imagine.
+- Tokenização Asaas, tokens opacos criptografados, conciliação de respostas inconclusivas, operações idempotentes e avisos de recusa. Número completo e CVV não são persistidos.
+- Minha conta reúne responsável, empresa, contatos, dados fiscais, endereço, informações por projeto e segurança.
+- Migrações aditivas 12/13; contratos legados preservados. Novos pedidos usam subscription-v2.
+- 64 testes automatizados aprovados na validação final, com provedores simulados; homologação bancária real e implantação ainda pendentes.
 
 # 0.17.0 — Manutenção e suporte do cliente
 
