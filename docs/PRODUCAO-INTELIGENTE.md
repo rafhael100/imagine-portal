@@ -374,11 +374,21 @@ Os agentes do site usarão componentes homologados do formulário e integrarão 
 
 ## 24. Decisão IN-004 — Agenda e Agendamentos no CRM Básico Cortesia (APROVADA)
 
-**Aprovação:** 2026-11-01. O CRM Básico gratuito concedido a contratantes elegíveis de Onepage/Landing Page deverá permitir **Agenda e Agendamentos** associados a leads e contatos. Regras específicas de calendário, limites, agendamento público a partir do site, integrações Google/Outlook e notificações externas estão pendentes. A liberação de **automações comerciais** no Básico encontra-se em revisão; não presumir que todas as automações dos planos pagos estarão disponíveis.
+**Aprovação:** 2026-11-01. O CRM Básico gratuito concedido a contratantes elegíveis de Onepage/Landing Page deverá permitir **Agenda e Agendamentos** associados a leads e contatos. Regras específicas de calendário, limites, agendamento público a partir do site, integrações Google/Outlook e notificações externas estão pendentes. **IN-005 aprovada em 2026-11-01:** até **3 automações comerciais ativas por organização**, escolhidas de biblioteca de **modelos prontos**. O catálogo exato está em revisão; editor genérico e automações avançadas dos planos pagos não foram liberados.
 
 A produção automática de sites deve preparar formulários seguros de lead e possibilidade futura de link/CTA para agendamento pela empresa, **sem afirmar que página de reservas está implementada ou incluída no contrato antes de aprovar o escopo exato**.
 
 Inventário de automações já aprovadas no CRM geral e propostas para o Básico em [documentação CRM Imagine](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
+
+## 25. Decisão IN-005 — Biblioteca de automações comerciais do CRM Básico Cortesia (APROVADA)
+
+**Aprovado em 2026-11-01:** até **3 automações comerciais ativas simultaneamente por empresa CRM**, selecionadas de modelos prontos homologados, para clientes elegíveis de Onepage/Landing Page. Instâncias pausadas/rascunhos não consomem slots ativos; a ativação deve conferir limite de forma transacional, com isolamento e histórico.
+
+Modelos sugeridos ainda não aprovados: avisar e criar tarefa ao chegar lead; lembrar contato não atendido; sinalizar oportunidade inativa; lembrete de agendamento; criar tarefa após atendimento. Notificações operacionais da agenda podem ser distintas da quota de automações comerciais, sujeito à definição da matriz.
+
+**Ainda a definir:** catálogo de modelos e parâmetros; integração pública de agendamento e botão no site; usuários/profissionais/serviços, quotas, integrações externas, comunicação transacional e regras de custo. **Não** liberar automaticamente editor completo, WhatsApp Business API nem agentes IA do CRM.
+
+Ver [especificação CRM — Agenda e Automações](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
 ---
 
