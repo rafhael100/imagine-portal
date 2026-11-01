@@ -445,9 +445,15 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 ## 34. Decisão IN-015 — Central de avisos da agenda do CRM Básico persistente (APROVADA)
 
-**Aprovação:** 2026-11-01. A central de notificações e lembretes internos do CRM Básico Cortesia deverá preservar avisos no servidor, mantendo estado **lido/não lido** por destinatário autorizado, inclusive lembretes cujo prazo chegou durante a ausência do usuário, disponíveis no retorno ao CRM. Aviso antigo deve mostrar data e situação real, sem ser apresentado como compromisso futuro. Ajustes/reagendamentos invalidam disparos futuros obsoletos, preservando o histórico pertinente. Não há notificações push, e-mails automáticos ao cliente nem WhatsApp oficial incluídos no Básico. **Pendentes:** forma de marcar lido, filtros, arquivamento/retencão e demais detalhes de interface.
+**Aprovação:** 2026-11-01. A central de notificações e lembretes internos do CRM Básico Cortesia deverá preservar avisos no servidor, mantendo estado **lido/não lido** por destinatário autorizado, inclusive lembretes cujo prazo chegou durante a ausência do usuário, disponíveis no retorno ao CRM. Aviso antigo deve mostrar data e situação real, sem ser apresentado como compromisso futuro. Ajustes/reagendamentos invalidam disparos futuros obsoletos, preservando o histórico pertinente. Não há notificações push, e-mails automáticos ao cliente nem WhatsApp oficial incluídos no Básico. **IN-016 aprovada:** abrir detalhes de uma notificação marca-a automaticamente como lida, com opção de marcar novamente como não lida; visualizar lista não modifica status. **Pendentes:** filtros, arquivamento/retenção, ações em lote e demais detalhes de interface.
 
 [Especificação da agenda no CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 35. Decisão IN-016 — Marcação automática como lida ao abrir detalhes de aviso (APROVADA)
+
+**Aprovação:** 2026-11-01. Na central interna persistente de notificações do CRM Básico Cortesia, abrir o detalhamento de uma notificação marca apenas ela como **lida**. O usuário autenticado pode marcá-la novamente como **não lida** em ação explícita. Apenas abrir a lista de avisos ou visualizar contagem/resumos não altera leitura. Os estados persistem no CRM por destinatário autorizado, sem excluir aviso nem disparar novamente o lembrete, sem consumir automações comerciais. Ações em lote, filtros, ordenação e retenção ainda serão discutidos.
+
+[Detalhes funcionais — CRM Agenda Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
