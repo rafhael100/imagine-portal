@@ -297,3 +297,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Os logs técnicos eventualmente podem conter metadados de requisições e identificadores necessários à segurança, mas **não devem se transformar em rastreamento funcional de leituras e downloads**.
 - A IN-041 **não altera** IN-039 (login, autorização por empresa/arquivo em cada acesso, sem links públicos transferíveis) nem IN-040 (permissão única para visualizar e baixar). Também não elimina trilhas de auditoria de mudanças, exclusões, permissões ou outras ações que já tenham regras específicas.
 - **Planejamento/documentação apenas**, nenhuma implementação autorizada.
+
+
+## IN-042 — Exclusão definitiva imediata de anexos sem lixeira (APROVADA em 01/11/2026)
+
+- Funcionário com permissão efetiva para excluir um anexo poderá solicitar **exclusão definitiva imediata, mediante confirmação explícita**, sem passagem por lixeira e **sem restauração funcional** do anexo excluído.
+- Após confirmação e verificação de permissões e obrigações de preservação, o arquivo deverá deixar de estar acessível imediatamente pelo CRM e a remoção definitiva no armazenamento principal deverá ser executada conforme os processos técnicos necessários, sem oferecer período de recuperação ao usuário.
+- Quando houver **obrigação legal/regulatória, bloqueio de preservação ou retenção aplicável**, impedir a exclusão indevida ou preservar a cópia obrigatória sob acesso restrito, de acordo com a política legal; informar o usuário da restrição sem divulgar informações indevidas.
+- **Backups técnicos, versionamento, replicação e propagação de exclusões** seguem política técnica a definir; não interpretar exclusão imediata da interface como eliminação instantânea de todas as cópias físicas. Não prometer irrecuperabilidade absoluta antes da definição desses prazos.
+- Continuam válidas as verificações de autenticação/autorização IN-039, permissão única de visualização/download IN-040 e a decisão IN-041 de não auditar cada leitura/download. Manter trilha de auditoria para a **ação de exclusão** conforme regras comerciais já aprovadas.
+- **Somente documentação; implementação não autorizada.**
