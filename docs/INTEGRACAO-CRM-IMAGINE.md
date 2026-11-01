@@ -780,3 +780,15 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Metas são **objetivos operacionais internos**, **não prazos de resolução nem SLA contratual** e não autorizam comunicar disponibilidade 24/7 sem equipe, escala e procedimento efetivamente definidos.
 - **Não consumir créditos comerciais de IA dos clientes** por tratamento obrigatório de segurança (IN-079/080). Preservar auditoria, autorizações, isolamento empresarial e históricos.
 - **Pendências:** dimensionamento de plantão 24/7, calendário oficial de expediente técnico, papéis de acionamento e substituição, mecanismo de medição e escalonamento, revisões e validação operacional. **Somente planejamento/documentação, nenhuma programação autorizada.**
+
+
+## IN-086 — Implantação futura de plantão técnico 24/7 (APROVADA em 01/11/2026)
+
+- **Não implantar nem considerar operacional neste momento plantão humano 24 horas por dia, 7 dias por semana**, seja por sobreaviso, seja por turnos dedicados. Essa cobertura fica para uma etapa futura de planejamento e validação operacional.
+- A **meta interna de primeira resposta humana de até 30 minutos para incidentes CRÍTICOS** da IN-085 permanece **condicionada** à efetiva implantação de cobertura técnica 24/7; **não está vigente**, não pode ser comunicada como garantia de atendimento, SLA contratual ou compromisso humano existente até a estrutura estar pronta e formalmente validada.
+- **Preservar monitoramento contínuo, geração de alertas técnicos, classificação automática de severidade e contenção/bloqueios automáticos de riscos**, independentemente do expediente ou da disponibilidade de uma pessoa, conforme IN-045–048 e IN-070–085. A ausência de plantão não pode remover restrições, desbloquear conteúdos não verificados, permitir exclusões ou comprometer históricos e permissões.
+- **Incidentes CRÍTICOS continuam gerando alertas técnicos imediatos** pelos canais já aprovados (painel Imagine e e-mail técnico em situações críticas/persistentes, IN-046/047). O recebimento de alerta não deve ser confundido com confirmação de resposta humana fora do horário coberto.
+- **Metas ALTA/MÉDIA/BAIXA de 4 horas úteis, 1 dia útil e 3 dias úteis** permanecem como metas internas condicionadas ao calendário técnico de expediente a detalhar; não prometer primeira resposta humana de 30 minutos fora dele.
+- A **ativação futura** do plantão 24/7 exigirá aprovação e documentação de equipe responsável e substituta, escala e disponibilidade real, canais de acionamento, escalonamento, treinamentos, dimensionamento, conformidade trabalhista aplicável e testes periódicos que comprovem a operação e a medição de resposta. Somente após essa validação a meta humana de 30 minutos poderá ser considerada em vigor.
+- Tratamento provisório de incidentes críticos detectados fora do expediente, critérios de comunicação e escalonamento até o próximo atendimento humano serão detalhados na proposta IN-087, respeitando os canais existentes e a ausência de garantia de resposta imediata.
+- **Somente documentação de planejamento; nenhuma programação autorizada.**
