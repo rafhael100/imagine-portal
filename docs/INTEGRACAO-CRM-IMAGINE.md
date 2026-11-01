@@ -307,3 +307,12 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Backups técnicos, versionamento, replicação e propagação de exclusões** seguem política técnica a definir; não interpretar exclusão imediata da interface como eliminação instantânea de todas as cópias físicas. Não prometer irrecuperabilidade absoluta antes da definição desses prazos.
 - Continuam válidas as verificações de autenticação/autorização IN-039, permissão única de visualização/download IN-040 e a decisão IN-041 de não auditar cada leitura/download. Manter trilha de auditoria para a **ação de exclusão** conforme regras comerciais já aprovadas.
 - **Somente documentação; implementação não autorizada.**
+
+
+## IN-043 — Retenção técnica de backups de anexos por 30 dias (APROVADA em 01/11/2026)
+
+- Manter as cópias técnicas de backup dos anexos por **30 dias**, observando exceções de retenção legal, obrigações regulatórias e preservações aplicáveis.
+- Os backups destinam-se à continuidade operacional e recuperação de desastre, **não são lixeira** e não autorizam recuperação funcional de anexos intencionalmente excluídos sob a IN-042.
+- A exclusão legítima de um anexo deve continuar efetiva mesmo se for restaurado um backup antigo. A arquitetura deverá manter registro durável e confiável das exclusões (por exemplo, tombstones, journal ou mecanismo equivalente), reaplicá-las na restauração **antes de disponibilizar o acesso a arquivos**, e testar a prevenção de reativação indevida.
+- Manter segregação de acesso e permissões, políticas de expurgo e preservação legal; evitar restaurar automaticamente versões deletadas a áreas acessíveis pelos usuários.
+- **Pendentes técnicos:** desenho de replicação, agendamento, armazenamento protegido, tempo de expurgo, testes de restauração e tratamento de obrigações legais. Nenhuma programação iniciada.
