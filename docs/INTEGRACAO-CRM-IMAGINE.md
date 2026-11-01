@@ -666,3 +666,15 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Bloquear o acesso indireto** via caches, índices, embeddings, extração, automações, integrações ou agentes de IA; interromper tarefas que tentem incorporar ou republicar os trechos bloqueados, em alinhamento à IN-075.
 - **Pendências de especificação:** granularidade e estrutura da proveniência, retroatividade para históricos antigos sem fontes registradas, reconstrução e revalidação após desbloqueio seguro, tratamento de fontes alteradas/deletadas, testes de autorização, custos de índices/metadados e possíveis riscos de texto misto impossível de separar.
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-077 — Recuperação controlada de derivados de IA após desbloqueio seguro (APROVADA em 01/11/2026)
+
+- Quando o anexo de origem for **desbloqueado pelos critérios aprovados na IN-072**, considerar elegíveis à recuperação os conteúdos de IA antes restritos por IN-075/076, **sem liberar automaticamente tudo apenas porque a fonte voltou a estar acessível**.
+- Antes de cada restabelecimento, **revalidar o estado atual de segurança da fonte, sua identidade e versão, proveniência dos trechos, integridade dos artefatos derivados e permissões atuais do usuário/organização/recurso**, inclusive no serviço de consulta/entrega. A validação da fonte deve respeitar as verificações de segurança e a autorização humana quando requerida na IN-072.
+- **Restabelecer o acesso apenas aos trechos e representações efetivamente verificados como seguros**, preservando partes independentes e proibindo acesso indireto a derivados ainda restritos por busca, índices, cache, integrações, exportação, automações ou agentes de IA (IN-074–076).
+- Se o conteúdo antigo estiver desatualizado, inconsistente com a versão atual da fonte ou não puder ser recuperado com segurança, **regenerar os trechos quando necessário e tecnicamente possível** a partir de fontes ainda existentes, aprovadas e autorizadas, sem sobrescrever silenciosamente versões anteriores; registrar nova versão e sua proveniência. A regeneração não pode ignorar limites, permissões, aprovações e controles de consumo de IA já definidos.
+- **Manter as versões históricas antigas com acesso restrito** quando sua segurança, correspondência de fonte ou integridade não puder ser confirmada. Preservar histórico legítimo e rastreabilidade, sem exclusão automática por falha de validação e **sem reintroduzir anexos legitimamente excluídos** (IN-042/043).
+- Registrar **auditoria técnica protegida** de bloqueio, condições de revalidação, fontes e versões utilizadas, regeneração, liberação de trechos e motivos de restrição, minimizando dados confidenciais e sem gerar logs comerciais de visualização/download (IN-041).
+- **Pendências:** políticas detalhadas de reconciliação, critérios objetivos de integridade de derivados, custo/aprovação de regenerações com IA, avisos aos usuários e política de tratamento de registros antigos sem proveniência suficiente (proposta IN-078).
+- **Apenas documentação de planejamento; nenhuma programação autorizada.**
