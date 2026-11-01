@@ -365,3 +365,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Quando a falha persistir ou for crítica, **escalonar à equipe técnica** por painel e e-mail de acordo com IN-045, IN-046 e IN-047, evitando notificações repetidas.
 - **Proibir ações destrutivas automáticas**: não excluir anexos, não sobrescrever backups íntegros, não enfraquecer retenções ou permissões, não restaurar arquivos legitimamente excluídos (IN-042/043).
 - **Pendências:** critérios operacionais exatos de retentativa/reinício, procedimentos manuais, limites de segurança e testes de recuperação. Somente planejamento; nenhuma programação autorizada.
+
+
+## IN-049 — Testes periódicos de recuperação de backups (APROVADA em 01/11/2026)
+
+- Executar **verificação de integridade a cada replicação** de anexos, validando a correspondência entre a origem elegível e o backup após a cópia.
+- Realizar **diariamente restauração de amostra** dos anexos ainda elegíveis, em ambiente isolado, com conferência de conteúdo, metadados e integridade.
+- Realizar **semanalmente teste ampliado de restauração**, cobrindo maior amostra, tipos de arquivos, tamanhos, falhas e cenários de recuperação.
+- Realizar **trimestralmente simulação completa de recuperação de desastre**, incluindo procedimentos de recuperação dos arquivos e dependências necessárias, mensurando tempos e validando objetivos RPO/RTO, sem alterar produção.
+- **Preservar exclusões legítimas** conforme IN-042 e IN-043: utilizar registros de exclusão/tombstones e controles de autorização para impedir reativação de documentos excluídos em qualquer restauração; testes não podem disponibilizar cópias de arquivos excluídos aos usuários.
+- Manter o **ambiente de testes isolado**, acesso técnico restrito, proteção da confidencialidade e eliminação segura de cópias temporárias de teste conforme política técnica futura. Falhas de integridade/restauração são tratadas e notificadas conforme IN-045, IN-046, IN-047 e IN-048.
+- **Pendências:** amostragem, duração, critérios de aceitação, procedimentos automatizados, proteção de dados de teste e custeio. Apenas documentação/planejamento; nenhuma programação autorizada.
