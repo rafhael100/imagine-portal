@@ -9,7 +9,7 @@ Quando um cliente contratar um **Site Onepage** ou, futuramente, uma **Landing P
 
 O site também continuará com botão para WhatsApp. **Formulário de leads e CRM são serviços diferentes de hospedagem de e-mail profissional**, que segue **excluída** da oferta conforme HD-001.
 
-**IN-004 aprovada em 2026-11-01:** benefício CRM Básico inclui **Agenda e Agendamentos**, com detalhes, integrações e cotas a definir. Há revisão em andamento para incluir também automações comerciais; nenhuma quota ou catálogo Básico foi aprovado. Ver [agenda e automações do CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
+**IN-004 aprovada em 2026-11-01:** benefício CRM Básico inclui **Agenda e Agendamentos**, com detalhes, integrações e cotas a definir. **IN-005 aprovada em 2026-11-01:** modelos prontos com até **3 automações comerciais ativas simultaneamente por empresa CRM**. O catálogo concreto e a agenda pública ainda dependem de aprovação; não significa liberar o construtor genérico de automações. Ver [agenda e automações do CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
 **IN-003 aprovada em 2026-11-01:** o CRM Básico vinculado ao site será uma **versão enxuta exclusiva**, diferente do plano Essencial do CRM; conjunto de recursos, limites e quotas ainda precisam de aprovação na documentação de produto do CRM. Proposta em [CRM Imagine — Plano Básico cortesia](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/08-plano-basico-cortesia.md).
 
