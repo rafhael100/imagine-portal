@@ -376,3 +376,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Preservar exclusões legítimas** conforme IN-042 e IN-043: utilizar registros de exclusão/tombstones e controles de autorização para impedir reativação de documentos excluídos em qualquer restauração; testes não podem disponibilizar cópias de arquivos excluídos aos usuários.
 - Manter o **ambiente de testes isolado**, acesso técnico restrito, proteção da confidencialidade e eliminação segura de cópias temporárias de teste conforme política técnica futura. Falhas de integridade/restauração são tratadas e notificadas conforme IN-045, IN-046, IN-047 e IN-048.
 - **Pendências:** amostragem, duração, critérios de aceitação, procedimentos automatizados, proteção de dados de teste e custeio. Apenas documentação/planejamento; nenhuma programação autorizada.
+
+
+## IN-050 — Contingência controlada de acesso a anexos em incidentes graves (APROVADA em 01/11/2026)
+
+- Em **incidente grave de indisponibilidade do armazenamento principal**, permitir à **equipe técnica autorizada** ativar uma contingência temporária para servir **arquivos íntegros disponíveis no backup**, sem convertê-lo em armazenamento principal permanente e sem alternância automática não autorizada.
+- Todo acesso aos arquivos durante a contingência deve permanecer condicionado a **sessão autenticada no CRM, organização correta e permissão efetiva por anexo**, com validação de cada requisição, sem links públicos ou URLs pré-assinadas compartilháveis (IN-039/040).
+- Antes de permitir acesso, conferir a integridade da cópia e a vigência das exclusões legítimas (IN-042/043), aplicando o registro durável de exclusões para **não reativar anexos apagados** por causa de versões antigas do backup.
+- Registrar tecnicamente a autorização, ativação, monitoramento e desativação da contingência, com controle restrito de responsáveis e segurança. Não criar auditoria funcional individual de visualizações/downloads (IN-041).
+- Contingência é **temporária e controlada**, sem autorizar automaticamente novos uploads no backup, substituição de arquivos íntegros ou sincronização destrutiva. Regras de escrita, retorno ao principal, gatilhos, limites e testes de failover ainda serão especificadas.
+- Permanecem válidas a replicação de 15 minutos (IN-044), monitoramento e alertas (IN-045–047), recuperação automática não destrutiva (IN-048) e testes isolados (IN-049).
+- Apenas documentação e planejamento; nenhuma programação iniciada.
