@@ -405,7 +405,7 @@ O Portal Imagine deve consultar direitos efetivos fornecidos pelo CRM; não dupl
 
 **Exclusivo dos planos pagos Essencial, Profissional e Empresarial:** página pública/rota de autoagendamento e botão no Onepage/Landing Page que permitem ao visitante consultar disponibilidade e reservar sem intervenção do operador. Devem exigir plano pago ativo e recurso habilitado, com validação de tenant/permissão/cotas, consentimento, proteção contra abuso e conflito de horários. Não basta esconder o botão no frontend: o backend CRM também bloqueia criação/consulta pública sem entitlement.
 
-No downgrade de plano CRM pago para o Básico, desativar novas reservas públicas, preservar e permitir administração manual das reservas existentes, e coordenar atualização do site sem alterar versão publicada indevidamente. **IN-008 já aprovou 1 profissional com agenda própria por organização Básico**, distinto do número de usuários CRM. Quantidade de usuários, serviços, agendamentos manuais, configurações de horários, canais de avisos, integrações Google/Outlook e outros recursos avançados permanecem pendentes.
+No downgrade de plano CRM pago para o Básico, desativar novas reservas públicas, preservar e permitir administração manual das reservas existentes, e coordenar atualização do site sem alterar versão publicada indevidamente. **IN-008 já aprovou 1 profissional com agenda própria por organização Básico** e **IN-009 aprovou até 10 serviços ativos para esse profissional**, distintos do número de usuários CRM. Quantidade de usuários, agendamentos manuais, configurações de horários, canais de avisos, integrações Google/Outlook e outros recursos avançados permanecem pendentes.
 
 [Referência do CRM — Agenda e automações](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
@@ -413,9 +413,17 @@ No downgrade de plano CRM pago para o Básico, desativar novas reservas pública
 
 **Aprovação:** 2026-11-01. Cada empresa/organização com benefício CRM Básico pode manter **1 profissional ativo com agenda própria**, independentemente de possuir um ou vários Onepages/Landing Pages Imagine. Essa quantidade de profissional agendável **não aprova** uma quota de usuários de login ao CRM.
 
-A agenda é operada **manualmente por usuário autenticado e autorizado** (IN-007); visitante do site não agenda automaticamente e o site não recebe botão/iframe público de reserva no benefício Básico. Serviços, duração, pausas, horários semanais, bloqueios, conflitos, calendário e reservas mensais estão sendo detalhados; propostas ainda **não aprovadas** em [CRM — Agenda Manual Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+A agenda é operada **manualmente por usuário autenticado e autorizado** (IN-007); visitante do site não agenda automaticamente e o site não recebe botão/iframe público de reserva no benefício Básico. **IN-009 aprova até 10 serviços ativos por organização**, sem que serviços inativos ocupem vagas; duração, pausas, horários semanais, bloqueios, conflitos, calendário e reservas mensais estão sendo detalhados e ainda **não aprovados** em [CRM — Agenda Manual Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 O limite de profissionais é validado pelo **CRM**, não apenas pelo Portal ou pela aparência do site. O upgrade para plano pago poderá habilitar mais profissionais conforme direitos do plano e autoagendamento público sem perder compromissos anteriores.
+
+## 29. Decisão IN-009 — Até 10 serviços ativos para a agenda única do CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. A organização com benefício CRM Básico Cortesia pode cadastrar e manter **até 10 serviços ativos** para seu **único profissional agendável** (IN-008), com criação/edição dos compromissos **manual e interna** (IN-007). Serviços inativos não ocupam quota ativa, mas seus históricos/agendamentos serão preservados. A ativação de 11º serviço deve ser negada com opção de inativar outro ou contratar upgrade elegível. Não criar quota por site contratado.
+
+**Pendências:** duração e intervalo por serviço, expediente semanal, pausas, exceções/feriados, conflitos e permissão para atendimentos fora de expediente, e quantidade de agendamentos manuais mensais (proposta: sem teto comercial rígido, com uso justo). A automação comercial de até 3 ativas de modelos prontos permanece assunto independente e terá revisão final da biblioteca.
+
+[Detalhamento e propostas de regras do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
