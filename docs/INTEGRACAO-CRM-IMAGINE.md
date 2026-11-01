@@ -19,7 +19,13 @@ O site também continuará com botão para WhatsApp. **Formulário de leads e CR
 
 **Aprovação em 2026-11-01:** o Administrador da Empresa único (IN-020/IN-021) pode consultar/atualizar dados cadastrais comuns da própria organização; alterar CNPJ/identificador fiscal somente por validação específica; alterar senha/e-mail e gerenciar MFA sob verificação de identidade (**MFA obrigatório**); consultar/encerrar sessões de seus outros dispositivos; ver plano e limites; consultar e contratar upgrade CRM com consentimento financeiro explícito. Não pode adicionar segundo usuário, acessar outras empresas ou usar superadmin Imagine. **O Portal não deverá alterar CNPJ ou credenciais do CRM por atalho, nem contratar upgrade CRM ou mudar a fatura do site automaticamente.** Identidade fiscal e recuperação requerem fluxos seguros a especificar. [Matriz de permissões Básico — IN-022](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
 
-**Próxima revisão:** permissões de Leads e Contatos no Básico (consulta, cadastro/edição, busca, notas, duplicidades, arquivamento e exportação) ainda propostas, sem aprovação automática de recursos premium ou quotas comerciais.
+### Decisão IN-023 — Operações de Leads e Contatos no CRM Básico (APROVADA)
+
+**Aprovação em 2026-11-01:** o Administrador da Empresa do Básico pode visualizar leads/contatos da empresa, cadastrar/editar manualmente, pesquisar/filtrar por informações básicas, registrar observações e histórico manual, identificar possíveis duplicidades com **alerta sem mesclagem automática** e **arquivar sem perder dados, origem, vínculos ou histórico**. A captação de leads pelo formulário do Onepage/Landing Page (IN-001) permanece integrada, com identificação da organização e origem; nunca confirmar envio sem persistir e depois descartar silenciosamente. Formulário não gera reserva automaticamente.
+
+**Não aprovado pela IN-023:** quantidade de leads/contatos, importação em lote, exportação comercial, mesclagem, exclusão definitiva, quotas de armazenamento/retenção, API pública, scoring avançado ou concessão de funcionalidades pagas. Atender acesso/portabilidade/eliminação de dados pela LGPD sem exigir upgrade comercial indevido. Detalhar em decisões próprias. [Matriz por módulo IN-023](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
+
+
 
 ### Decisão IN-020 — 1 usuário autenticado por empresa no CRM Básico (APROVADA)
 
