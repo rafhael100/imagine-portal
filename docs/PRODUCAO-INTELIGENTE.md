@@ -467,7 +467,13 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **Separação obrigatória:** essa janela de consulta da central **não reduz nem exclui** agendamentos/atendimentos, contatos/leads, alterações da agenda ou trilhas de auditoria. Também não altera a retenção de avisos do **Portal Imagine**, que são processos próprios. O CRM respeita obrigações legais e permissões por organização.
 
-**Pendências para decisão:** tratamento de notificações ainda não lidas ao fim do prazo, opção de arquivamento antes dos 90 dias e destino técnico/descartes, sem implicar eliminação de dados originais de negócio. Referência: [Agenda Manual CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+**IN-019 (2026-11-01) aprovada:** o usuário CRM pode arquivar e restaurar notificações lidas ou não lidas enquanto ainda estiverem dentro dos 90 dias, preservando leitura. Todas deixam a central aos 90 dias, independentemente do estado, sem eliminar agendamentos ou auditoria. **Pendentes:** descarte físico/backup e detalhes de UX. Referência: [Agenda Manual CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 38. Decisão IN-019 — Arquivamento e expiração de notificações do CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. A central de avisos internos da agenda do CRM Básico Cortesia permite ao usuário autorizado **arquivar manualmente avisos lidos e não lidos** e **restaurá-los antes de 90 dias** contados da criação. Arquivar retira o aviso da caixa principal sem modificar leitura ou reiniciar o prazo; a consulta às arquivadas mantém permissões por usuário/empresa. **Todas** as notificações, lidas, não lidas ou arquivadas, deixam de estar disponíveis na central aos **90 dias** (IN-018). A expiração não exclui nem modifica agendamentos, leads, contatos ou trilhas de auditoria, que têm retenções próprias.
+
+**Não decidido:** limpeza física e tratamento de backup, ações em lote, detalhes de filtros/aba arquivadas e pesquisa textual. Essas decisões não alteram a retenção da comunicação operacional própria do Portal Imagine. [CRM — especificação da agenda](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
