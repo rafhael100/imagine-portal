@@ -508,3 +508,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Respeitar idempotência, prevenção de duplicidades e confirmação somente após gravação íntegra (IN-055); um upload expirado, cancelado ou já concluído não pode ser reintroduzido como envio novo por erro de concorrência.
 - A **regra de retenção/liberação da reserva de capacidade de armazenamento durante a desconexão ainda precisa de definição específica**: a IN-062 define a liberação da vaga de processamento, mas não determina automaticamente a política dessa reserva de bytes, a ser tratada na IN-063.
 - Apenas planejamento e documentação; nenhuma programação autorizada.
+
+
+## IN-063 — Liberação da reserva após interrupção confirmada (APROVADA em 01/11/2026)
+
+- Após a **interrupção efetivamente confirmada** de um upload (por queda de conexão, fechamento de aba/navegador ou outra interrupção recuperável), **liberar a reserva temporária de capacidade** do arquivo, sem reter espaço indisponível aos demais funcionários durante a desconexão. A liberação deve ser coordenada, segura e idempotente, sem agir sobre gravações ainda efetivamente ativas.
+- Os **fragmentos e metadados temporários elegíveis à recuperação** podem ser preservados por **até 6 horas** desde o prazo aplicável da IN-056/061; ocupam recursos técnicos reais, mas **não são contabilizados como uso comercial efetivo de anexos confirmados**. Aplicar controles de consumo, isolamento, proteção e limpeza/expiração.
+- Antes de qualquer retomada, exigir **nova autenticação, verificação de permissões do usuário/empresa/recurso, elegibilidade, bloqueios operacionais, tamanho e capacidade disponível**, com **nova reserva atômica** conforme IN-057. Se a capacidade estiver indisponível, não retomar nem confirmar upload por conta da reserva antiga.
+- Após validações e nova reserva bem-sucedidas, o upload retomado **reentra no final da fila FIFO** conforme IN-059/062, respeitando até **5 uploads simultâneos por empresa** (IN-058); não reivindica a vaga nem a posição original.
+- Evitar dupla contagem, reservas órfãs, liberações prematuras, anexos duplicados e confirmações sem gravação íntegra (IN-055/060). A política para apresentar insuficiência de espaço no retorno será especificada separadamente (IN-064).
+- **Somente planejamento e documentação; nenhuma programação autorizada.**
