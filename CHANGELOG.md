@@ -6,7 +6,7 @@
 - Tokenização Asaas, tokens opacos criptografados, conciliação de respostas inconclusivas, operações idempotentes e avisos de recusa. Número completo e CVV não são persistidos.
 - Minha conta reúne responsável, empresa, contatos, dados fiscais, endereço, informações por projeto e segurança.
 - Migrações aditivas 12/13; contratos legados preservados. Novos pedidos usam subscription-v2.
-- 64 testes automatizados aprovados na validação final, com provedores simulados; homologação bancária real e implantação ainda pendentes.
+- 65 testes automatizados aprovados na validação final, com provedores simulados; homologação bancária real e implantação ainda pendentes.
 
 # 0.17.0 — Manutenção e suporte do cliente
 
