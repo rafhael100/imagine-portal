@@ -318,6 +318,7 @@ Autorização de ferramentas no backend, segregação por cliente, uploads antim
 
 - **Infraestrutura de hospedagem:** stack, provedor, quem mantém DNS e recursos por site; **HD-001 já aprovada exclui e-mail profissional do Onepage**, mas não seleciona provedor.
 - **Biblioteca de templates e critérios de QA:** primeiro conjunto de layouts, componentes, testes bloqueantes e revisão de conteúdo sensível.
+- **IN-001 aprovada como diretriz:** formulários dos Onepages e da futura Landing Page alimentarão o CRM Imagine automaticamente, com provisionamento/vínculo ao Plano Básico; arquitetura técnica e condições comerciais em [INTEGRACAO-CRM-IMAGINE.md](INTEGRACAO-CRM-IMAGINE.md).
 - **Limites de arquivos, custos/concorrência e políticas de retry:** valores numéricos e prioridades de escala.
 - **Canais e prazos de comunicação:** e-mail/WhatsApp, lembretes e atendimento humano.
 - **Políticas de domínio e entrega:** autorização DNS, domínio externo, portabilidade e acesso à hospedagem.
@@ -341,6 +342,16 @@ A decisão AD-001 aprova a **direção de alta automação**, não dispensa vali
 - **Pendente:** provedor de hosting, arquitetura do domínio raiz e `www`, política de backups (frequência, retenção, restauração), mecanismos de deploy e reversão.
 
 Detalhamento comparativo em [HOSPEDAGEM-SITES-ANALISE.md](HOSPEDAGEM-SITES-ANALISE.md).
+
+## 21. Decisão IN-001 — Formulários vinculados ao CRM Imagine (APROVADA COMO DIRETRIZ)
+
+**Aprovação:** 2026-11-01, responsável pelo projeto Imagine. O Onepage e a futura Landing Page terão formulário de captura integrado ao CRM Imagine; o contratante terá acesso à assinatura do **Plano Básico** do CRM, com os leads sendo enviados automaticamente à organização correta.
+
+O site pode permanecer estático; o formulário publicará somente dados em um endpoint de ingestão seguro da Imagine, com enfileiramento durável e integração servidor-servidor à API do CRM. O agente desenvolvedor usará componente homologado e não terá token privado do CRM no site publicado. A integração será vinculada à identidade autorizada da empresa, sem criar organizações duplicadas.
+
+**Pendências:** preço e condições da assinatura básica, limites e recursos do plano, consentimento de dados, ciclo de cancelamento/inadimplência, produto Landing Page, versão e disponibilidade das APIs do CRM e testes/homologação. Não alterar o preço atual do Onepage nem habilitar nova cobrança sem aprovação. O CRM está planejado como SaaS independente; não implementar o CRM ao programar o portal antes da finalização do planejamento do CRM.
+
+Detalhes: [INTEGRACAO-CRM-IMAGINE.md](INTEGRACAO-CRM-IMAGINE.md).
 
 ---
 
