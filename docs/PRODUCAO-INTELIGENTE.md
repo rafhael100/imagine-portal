@@ -459,7 +459,15 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **Aprovação:** 2026-11-01. A central interna persistente de avisos e lembretes do CRM Básico oferecerá filtros combináveis por estado **Todas, Não lidas e Lidas**, por tipo de evento (**agendamento criado, cancelamento, reagendamento, lembrete e conflito**) e por período, com ordenação padrão **mais recentes primeiro** baseada na data real da notificação. Filtrar não altera leitura (IN-016); os resultados são restritos ao tenant e ao usuário autorizado. Nenhum agendamento ou notificação será apagado ao filtrar.
 
-**Não aprova:** pesquisa textual por cliente/serviço, marcação em lote, arquivamento, exclusão, prazo de retenção ou mensagens externas. Esses pontos serão definidos depois. [CRM Imagine — documento principal de agenda](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+**IN-018 (2026-11-01) APROVADA POSTERIORMENTE:** histórico das notificações internas do CRM Básico retido por **90 dias**, separado do histórico de agendamentos e da auditoria, sem reiniciar a contagem ao ler ou filtrar. **Ainda pendentes:** tratamento de não lidas ao fim dos 90 dias, arquivamento/exclusão técnica, pesquisa textual, marcação em lote ou mensagens externas. [CRM Imagine — documento principal de agenda](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 37. Decisão IN-018 — Retenção de 90 dias na central de notificações internas do CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. O CRM Básico Cortesia manterá o histórico de suas **notificações e lembretes internos por 90 dias**, contando do momento em que o aviso foi gerado/registrado, inclusive se o usuário não o leu. Marcar como lido/não lido (IN-016), filtrar (IN-017) ou encerrar sessão não reinicia o prazo.
+
+**Separação obrigatória:** essa janela de consulta da central **não reduz nem exclui** agendamentos/atendimentos, contatos/leads, alterações da agenda ou trilhas de auditoria. Também não altera a retenção de avisos do **Portal Imagine**, que são processos próprios. O CRM respeita obrigações legais e permissões por organização.
+
+**Pendências para decisão:** tratamento de notificações ainda não lidas ao fim do prazo, opção de arquivamento antes dos 90 dias e destino técnico/descartes, sem implicar eliminação de dados originais de negócio. Referência: [Agenda Manual CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
