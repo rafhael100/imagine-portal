@@ -475,6 +475,12 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **Não decidido:** limpeza física e tratamento de backup, ações em lote, detalhes de filtros/aba arquivadas e pesquisa textual. Essas decisões não alteram a retenção da comunicação operacional própria do Portal Imagine. [CRM — especificação da agenda](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
+## 39. Decisão IN-020 — 1 usuário autenticado por empresa no CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. O CRM Básico Cortesia inclui **até 1 usuário autenticado por organização/empresa**, independente da quota de **1 profissional com agenda própria** (IN-008). O login pode pertencer ao profissional ou a outro responsável, conforme perfis e permissões pendentes. O número de sites/landing pages contratados não multiplica a quota de usuários do CRM. O CRM aplica controle de quota por empresa no backend; ao tentar segundo usuário, informar **1/1**, mostrar opções comerciais elegíveis sem contratação/cobrança automática (IN-010). Sem compartilhar credenciais entre pessoas.
+
+**Pendentes:** definir se o usuário único terá perfil de administrador da empresa ou perfil operacional, atribuições de cada papel, substituição de acesso e fluxo de convites/revogação. Esta decisão não muda direitos de contas do próprio Portal Imagine, nem os planos pagos CRM. [Documento de agenda e usuários do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
