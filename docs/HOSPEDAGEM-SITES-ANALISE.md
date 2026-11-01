@@ -1,12 +1,13 @@
 # Imagine — Análise comparativa de hospedagem dos Onepages
 
-> **Análise técnica preliminar · 2026-11-01 · HD-001 APROVADA; PROVEDOR DE HOSPEDAGEM AINDA PENDENTE**
+> **Análise técnica preliminar · 2026-11-01 · HD-001 e IN-001 APROVADAS; PROVEDOR DE HOSPEDAGEM AINDA PENDENTE**
 >
 > Este documento compara cPanel/WHM, VPS própria com deploy automatizado e plataforma estática gerenciada. Não autoriza migração, contratação, deploy ou alteração de DNS. Vinculado a `docs/PRODUCAO-INTELIGENTE.md`, decisão AD-001 de alta automação.
 
 ## 1. Premissas do negócio e da operação
 
 - Produto inicial: **Onepage responsivo**, com identidade visual, serviços, contatos e integração de WhatsApp; domínio fornecido pelo cliente.
+- **IN-001 APROVADA como diretriz de produto (2026-11-01):** Onepage e futura Landing Page deverão ter formulário de captação de leads integrado ao **CRM Imagine**, com provisionamento/vínculo do Plano Básico para o comprador. Recursos/preço/condições do pacote e produto Landing Page ainda pendentes. Não é hospedagem de caixa postal.
 - **HD-001 APROVADA em 2026-11-01:** a assinatura do Onepage inclui hospedagem do **site**, SSL, backup do projeto/site e suporte técnico conforme contrato; **não inclui hospedagem de e-mail profissional nem caixas de correio**. O cliente mantém seus e-mails onde preferir. Não confundir hospedagem de caixa postal com envios transacionais feitos pelo portal Imagine.
 - Implantação: R$ 990 em três cobranças de R$ 330 (D0/D30/D60); assinatura R$ 79,90/mês a partir do D90, independentemente de publicação. Site, hospedagem, SSL, backups e suporte conforme oferta; projetos legados preservados.
 - Agente de IA desenvolve e testa em ambiente **isolado**, sem executar código do cliente no servidor de produção.
@@ -77,6 +78,8 @@ Limitações reais: **Cloudflare Pages limita 100 projetos por conta** (document
 
 ## 5. Modelo de domínio e e-mail — risco crítico (HD-001 aprovado)
 
+**IN-001:** o formulário será incorporado ao site estático (HTML/JS) e enviará dados a um endpoint seguro de ingestão da Imagine; serviço de integração armazena/encaminha os leads à organização correta por API servidor-servidor do CRM Imagine. **Não é necessário hospedar e-mail para receber leads.** A captação exige backend/API separado e proteção antispam, fila persistente e LGPD. Detalhes em [INTEGRACAO-CRM-IMAGINE.md](INTEGRACAO-CRM-IMAGINE.md).
+
 **HD-001:** o serviço contratado não disponibiliza caixas postais, MX, webmail, IMAP/SMTP para os clientes. A presença de DNS/e-mails externos não impede a contratação nem a publicação do site. **O portal da Imagine pode utilizar o próprio serviço de e-mail transacional para informar status de pedidos**; esse envio não equivale a e-mail profissional do cliente.
 
 Separar **registrador**, **zona DNS**, **hosting do site**, **servidor de e-mail** e **portal Imagine**. O cliente fornece domínio; a Imagine apenas solicita alterações necessárias. Nunca alterar nameservers automaticamente sem autorização e inventário de MX/TXT/CAA; nem apagar configurações de serviços existentes. Para uma VPS/cPanel, `A`/ `AAAA` no domínio raiz e `CNAME` para `www` são caminhos típicos. Pages: apex exige zona/nameservers Cloudflare; subdomínio permite DNS externo por CNAME. Para domínio sem acesso do cliente, publicar só prévia e suspender a entrega no domínio definitivo.
@@ -101,14 +104,14 @@ O custo mensal de hosting do site não substitui o custo do ambiente de build. C
 
 ## 8. Matriz de decisão ainda pendente
 
-1. Sites Onepage serão **100% estáticos**, com contatos via WhatsApp, ou haverá formulários/e-mail do próprio domínio, área de login, CMS e banco?
+1. **IN-001 aprovou WhatsApp + formulário de leads ligado ao CRM Imagine**: site pode continuar estático, mas o formulário depende de API externa segura e da plataforma CRM separada. Permanecem pendentes: campos, recursos do plano e condições comerciais. Login/CMS/banco no Onepage não estão incluídos nesta decisão.
 2. Domínio raiz (`empresa.com.br`) deve funcionar com **DNS externo** sem trocar nameservers? **E-mails existentes permanecem externos por decisão HD-001**; preservar MX/TXT é obrigatório.
 3. Os clientes terão acesso individual ao cPanel/FTP, ou administração/hospedagem fica exclusivamente com a Imagine?
 4. Quantos Onepages ativos são a meta em 12–24 meses? (25, 100, 500+). Capacidade e custo devem considerar total de contas cPanel já existentes.
 5. É aceitável usar serviços gerenciados externos para sites estáticos, preservando dedicado para Talci, CRM, n8n e sistemas existentes?
 6. Qual limite operacional para atividades humanas de manutenção e resposta a incidentes da hospedagem?
 
-**Status:** HD-001 aprovado (sem hospedagem de e-mail profissional no Onepage). **Provedor, stack de publicação e regras de domínio continuam pendentes**. Nenhuma implantação, compra, domínio ou ambiente alterado.
+**Status:** HD-001 aprovado (sem hospedagem de e-mail profissional) e IN-001 aprovado como diretriz (formulário integrado ao CRM Básico). **Provedor, stack de publicação, regras de domínio e condições comerciais do CRM continuam pendentes**. Nenhuma implantação, compra, domínio ou ambiente alterado.
 
 ## 8A. Requisitos decorrentes da decisão HD-001 (aprovados)
 
