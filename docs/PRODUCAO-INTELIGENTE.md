@@ -451,9 +451,15 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 ## 35. Decisão IN-016 — Marcação automática como lida ao abrir detalhes de aviso (APROVADA)
 
-**Aprovação:** 2026-11-01. Na central interna persistente de notificações do CRM Básico Cortesia, abrir o detalhamento de uma notificação marca apenas ela como **lida**. O usuário autenticado pode marcá-la novamente como **não lida** em ação explícita. Apenas abrir a lista de avisos ou visualizar contagem/resumos não altera leitura. Os estados persistem no CRM por destinatário autorizado, sem excluir aviso nem disparar novamente o lembrete, sem consumir automações comerciais. Ações em lote, filtros, ordenação e retenção ainda serão discutidos.
+**Aprovação:** 2026-11-01. Na central interna persistente de notificações do CRM Básico Cortesia, abrir o detalhamento de uma notificação marca apenas ela como **lida**. O usuário autenticado pode marcá-la novamente como **não lida** em ação explícita. Apenas abrir a lista de avisos ou visualizar contagem/resumos não altera leitura. Os estados persistem no CRM por destinatário autorizado, sem excluir aviso nem disparar novamente o lembrete, sem consumir automações comerciais. **IN-017 (2026-11-01) aprovada:** filtros de avisos internos por estado (Todas/Não lidas/Lidas), tipo de evento e período, com ordenação padrão da mais recente para a mais antiga. Retenção, arquivamento, pesquisa textual e ações em lote ainda serão discutidos.
 
 [Detalhes funcionais — CRM Agenda Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 36. Decisão IN-017 — Filtros e ordenação na central de notificações do CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. A central interna persistente de avisos e lembretes do CRM Básico oferecerá filtros combináveis por estado **Todas, Não lidas e Lidas**, por tipo de evento (**agendamento criado, cancelamento, reagendamento, lembrete e conflito**) e por período, com ordenação padrão **mais recentes primeiro** baseada na data real da notificação. Filtrar não altera leitura (IN-016); os resultados são restritos ao tenant e ao usuário autorizado. Nenhum agendamento ou notificação será apagado ao filtrar.
+
+**Não aprova:** pesquisa textual por cliente/serviço, marcação em lote, arquivamento, exclusão, prazo de retenção ou mensagens externas. Esses pontos serão definidos depois. [CRM Imagine — documento principal de agenda](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
