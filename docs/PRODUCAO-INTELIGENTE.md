@@ -529,6 +529,12 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **PENDENTES:** tratamento da referência histórica do cadastro secundário, consentimentos divergentes, eventual desfazer/reversão, validação de conflitos, concorrência e transação, retenção, armazenamento e UX técnico. **Próximo ponto:** política de armazenamento dos registros estruturados, anexos e arquivos temporários no Básico, depois retenção e recuperação. [Matriz IN-028 no CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
 
+## 48. Decisão IN-029 — Dados estruturados do CRM Básico fora da franquia comercial de arquivos (APROVADA)
+
+**Aprovação:** 2026-11-01. Os **dados estruturados de leads, contatos e históricos** do CRM Básico Cortesia **não consomem franquia comercial fixa de armazenamento de anexos/arquivos**, em harmonia com a IN-024 (número de leads e contatos sem teto comercial rígido, uso justo e segurança). Não bloquear o recebimento de leads legítimos pelo formulário Onepage porque um eventual espaço de anexos tenha sido esgotado; leads confirmados devem ser persistidos e não podem desaparecer silenciosamente. Isso **não promete capacidade computacional infinita** nem revoga controles de proteção contra abuso.
+
+**Separação de escopo:** anexos permanentes (imagens, PDFs e documentos), sua eventual inclusão no Básico e sua franquia, limites de tamanho por arquivo e pacotes extras seguem **PENDENTES**, assim como armazenamento transitório dos uploads CSV/XLSX de importação, downloads de exportação, expiração/limpeza de arquivos temporários, retenção e recuperação de registros. As quotas de armazenamento dos planos CRM pagos (Essencial 1 GB, Profissional 5 GB, Empresarial 10 GB) **não foram alteradas nem atribuídas ao Básico**; as assinaturas do Onepage no Portal também seguem independentes. **Próxima decisão:** inclusão funcional de anexos/documentos no Básico; se aprovada, depois definir a franquia de arquivos. [Matriz IN-029 no CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
