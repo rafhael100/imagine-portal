@@ -529,3 +529,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Se o prazo de recuperação expirar, **cancelar a recuperação e limpar com segurança os fragmentos e metadados temporários**, conforme IN-056/060/061, sem consumir franquia comercial como anexo confirmado.
 - Não criar cobrança automática de armazenamento nem obrigar upgrade: capacidade adicional continua sujeita a consentimento comercial explícito (IN-033–037). Operações simultâneas podem esgotar novamente o espaço; reserva atômica evita sobrealocação.
 - **Pendências:** mensagens de interface, exibição opcional de tempo restante, detalhes de corrida entre disponibilidade e reserva, tratamento técnico de fragmentos órfãos. Apenas planejamento/documentação; nenhuma programação autorizada.
+
+
+## IN-065 — Validação rigorosa do tamanho real dos arquivos (APROVADA em 01/11/2026)
+
+- Para cada upload, comparar o **tamanho real dos bytes recebidos e verificados no servidor** com (a) a **reserva temporária atômica** concedida para a empresa conforme IN-057/063 e (b) o **limite máximo de 5 MB por arquivo** vigente na IN-030. Não confiar apenas no tamanho declarado pelo navegador, extensão ou cabeçalhos do pedido.
+- **Rejeitar sem aumento automático de reserva** qualquer arquivo que ultrapasse o tamanho reservado ou o limite de 5 MB, mesmo se a empresa ainda possuir franquia disponível. Interromper o processamento de modo seguro quando o excesso for identificado; não confirmar, publicar ou vincular como anexo válido.
+- Quando o tamanho real for **menor que a reserva**, reconciliar a diferença e **liberar de modo atômico a capacidade excedente**, após a validação adequada, sem causar dupla liberação. Se o arquivo estiver dentro do espaço reservado, só converter a quantidade efetivamente confirmada em **uso comercial** após gravação íntegra, validação e vínculo idempotente (IN-055/057).
+- Em qualquer rejeição, **limpar com segurança fragmentos/objetos temporários e sessões incompletas e liberar reservas e vagas** quando a interrupção estiver efetivamente confirmada, respeitando IN-056/058/060. Registrar eventos técnicos essenciais, sem exibir arquivo inválido como concluído.
+- Manter controles de autenticação, autorização, isolamento por empresa, quotas, bloqueios de contingência e fila FIFO (IN-032/039/051/054/059/062). Não permitir que dados de cliente tenham seu tamanho declarado manipulado para superar limite ou reserva.
+- **Detalhes pendentes:** convenção exata de MB (decimal/binária), implementação de verificação de tamanho em fluxo e mensagens da interface. Somente planejamento/documentação; nenhuma programação autorizada.
