@@ -439,9 +439,15 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 ## 33. Decisão IN-013 — Apenas notificações e lembretes internos da agenda no CRM Básico (APROVADA)
 
-**Aprovação:** 2026-11-01. A agenda manual do CRM Básico Cortesia permite **somente notificações e lembretes operacionais internos na interface autenticada do CRM**, sem consumir quota de modelos de automações comerciais ativas. E-mail **automático ao cliente agendado** e WhatsApp Business API oficial para confirmações/lembretes são exclusivos de planos CRM pagos ou adicionais elegíveis, com contrato, canal, custos e consentimentos próprios. Não confundir avisos operacionais do Portal Imagine com os avisos da agenda CRM. **IN-014 (2026-11-01) aprovada:** agenda Básico com dois lembretes internos por padrão, **24h e 1h antes**, que podem ser ajustados ou desativados individualmente pelo profissional, sem ocupar automações comerciais. A persistência, marcação de leitura, soneca e UX da central ainda serão detalhadas.
+**Aprovação:** 2026-11-01. A agenda manual do CRM Básico Cortesia permite **somente notificações e lembretes operacionais internos na interface autenticada do CRM**, sem consumir quota de modelos de automações comerciais ativas. E-mail **automático ao cliente agendado** e WhatsApp Business API oficial para confirmações/lembretes são exclusivos de planos CRM pagos ou adicionais elegíveis, com contrato, canal, custos e consentimentos próprios. Não confundir avisos operacionais do Portal Imagine com os avisos da agenda CRM. **IN-014 (2026-11-01) aprovada:** agenda Básico com dois lembretes internos por padrão, **24h e 1h antes**, que podem ser ajustados ou desativados individualmente pelo profissional, sem ocupar automações comerciais. **IN-015 aprovada:** a central é persistente e guarda lembretes internos mesmo quando a sessão estiver fechada, com estados lido/não lido, para consulta quando o usuário retornar. Como marcar como lido, soneca, retenção e UX ainda serão detalhados.
 
 [Detalhes e próximos parâmetros na agenda CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 34. Decisão IN-015 — Central de avisos da agenda do CRM Básico persistente (APROVADA)
+
+**Aprovação:** 2026-11-01. A central de notificações e lembretes internos do CRM Básico Cortesia deverá preservar avisos no servidor, mantendo estado **lido/não lido** por destinatário autorizado, inclusive lembretes cujo prazo chegou durante a ausência do usuário, disponíveis no retorno ao CRM. Aviso antigo deve mostrar data e situação real, sem ser apresentado como compromisso futuro. Ajustes/reagendamentos invalidam disparos futuros obsoletos, preservando o histórico pertinente. Não há notificações push, e-mails automáticos ao cliente nem WhatsApp oficial incluídos no Básico. **Pendentes:** forma de marcar lido, filtros, arquivamento/retencão e demais detalhes de interface.
+
+[Especificação da agenda no CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
