@@ -372,6 +372,14 @@ Detalhes no [documento de integração CRM](INTEGRACAO-CRM-IMAGINE.md).
 
 Os agentes do site usarão componentes homologados do formulário e integrarão leads pela API do CRM autorizada, respeitando as cotas efetivas aprovadas posteriormente e sem perda silenciosa de formulários aceitos.
 
+## 24. Decisão IN-004 — Agenda e Agendamentos no CRM Básico Cortesia (APROVADA)
+
+**Aprovação:** 2026-11-01. O CRM Básico gratuito concedido a contratantes elegíveis de Onepage/Landing Page deverá permitir **Agenda e Agendamentos** associados a leads e contatos. Regras específicas de calendário, limites, agendamento público a partir do site, integrações Google/Outlook e notificações externas estão pendentes. A liberação de **automações comerciais** no Básico encontra-se em revisão; não presumir que todas as automações dos planos pagos estarão disponíveis.
+
+A produção automática de sites deve preparar formulários seguros de lead e possibilidade futura de link/CTA para agendamento pela empresa, **sem afirmar que página de reservas está implementada ou incluída no contrato antes de aprovar o escopo exato**.
+
+Inventário de automações já aprovadas no CRM geral e propostas para o Básico em [documentação CRM Imagine](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
