@@ -9,6 +9,8 @@ Quando um cliente contratar um **Site Onepage** ou, futuramente, uma **Landing P
 
 O site também continuará com botão para WhatsApp. **Formulário de leads e CRM são serviços diferentes de hospedagem de e-mail profissional**, que segue **excluída** da oferta conforme HD-001.
 
+**IN-003 aprovada em 2026-11-01:** o CRM Básico vinculado ao site será uma **versão enxuta exclusiva**, diferente do plano Essencial do CRM; conjunto de recursos, limites e quotas ainda precisam de aprovação na documentação de produto do CRM. Proposta em [CRM Imagine — Plano Básico cortesia](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/08-plano-basico-cortesia.md).
+
 **Decisão IN-002 aprovada em 2026-11-01:** o CRM Básico será disponibilizado como **benefício gratuito vinculado à contratação ativa de Onepage ou, futuramente, Landing Page**; não cria segunda mensalidade no CRM. O site continua com cobrança própria pelo Portal Imagine. **Quando o cliente contratar um plano superior diretamente no CRM**, a assinatura paga e o faturamento desse plano ocorrerão no CRM, mantendo a assinatura do site no Portal. A gratuidade não é um plano gratuito público aberto a qualquer usuário. **Ainda pendentes:** matriz de recursos/cotas do Básico, correspondência com planos Essencial/Profissional/Empresarial, preço da Landing Page, estados exatos da elegibilidade em cancelamento/inadimplência, e implementação/homologação. O catálogo implementado no portal atualmente possui o serviço `site` (Onepage), **não um produto Landing Page independente**. O CRM Imagine está em planejamento; não marcar como funcionalidade já ativa no checkout antes de integração testada/homologada e condições comerciais aprovadas.
 
 ## 2. Objetivos
@@ -145,7 +147,7 @@ Contratos de API futuros: `POST /integrations/v1/organizations/provision`, `POST
 
 ## 10. Próximas decisões para aprovação
 
-1. **IN-002 já aprovou:** CRM Básico gratuito vinculado ao site, cobrança do site apenas no Portal Imagine e upgrade pago apenas no CRM. **Ainda definir:** elegibilidade de cancelamento/inadimplência, quotas/recursos, correspondência com os planos existentes e detalhes de ativação.
+1. **IN-002 já aprovou:** CRM Básico gratuito vinculado ao site, cobrança do site apenas no Portal Imagine e upgrade pago apenas no CRM. **IN-003 já definiu:** Básico mais enxuto e exclusivo do contratante de site/landing page, não o Essencial gratuito. **Ainda definir:** elegibilidade de cancelamento/inadimplência, quotas/recursos concretos e detalhes de ativação.
 2. **Provisionamento multiempresa**: criar organização nova, vincular existente ou permitir seleção pelo cliente, e quando disparar convite/acesso.
 3. **Funcionalidades mínimas do Plano Básico**: leads, funil, contatos, atividades, automações e limites; agentes de IA do CRM apenas se contratados conforme plano.
 4. **Formulário-padrão**: campos obrigatórios/opcionais, antispam, registro de consentimento/aviso de privacidade, configuração por site.
