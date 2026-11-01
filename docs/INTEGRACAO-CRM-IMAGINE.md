@@ -727,3 +727,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Registrar **auditoria técnica protegida** de tentativas, falhas, retomadas, versões de modelo/procedimento quando aplicável e resultados, sem exposição do conteúdo protegido nos logs. Alertas técnicos seguem IN-045–047 no que for compatível com essa rotina.
 - **Pendências:** número máximo de tentativas, estratégia de retentativa, critérios de recuperação funcional, limites operacionais e tratamento dos itens que esgotarem as tentativas (proposta IN-082).
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-082 — Fila técnica para falhas persistentes da reconstrução obrigatória de proveniência por IA (APROVADA em 01/11/2026)
+
+- Após **esgotar o número limitado de retentativas automáticas** permitido pela IN-081, **suspender automaticamente somente a tarefa de reconstrução de proveniência afetada**, evitando repetições indefinidas, loops de custo ou bloqueio de outras tarefas independentes.
+- **Encaminhar a tarefa a uma fila técnica de falhas persistentes**, com estado explícito, prioridade de segurança, registro do erro/causa conhecida, contagem de tentativas, identificadores técnicos mínimos e horários relevantes; proteger a fila por autenticação e autorização da equipe técnica Imagine e por isolamento entre empresas, minimizando conteúdo sensível.
+- **Alertar a equipe técnica Imagine** de acordo com a gravidade e regras de monitoramento, evitando alertas duplicados; permitir diagnóstico e tratamento das causas com trilha de **auditoria técnica** de alterações, responsáveis, justificativas e resultados.
+- **Preservar imediatamente os bloqueios e restrições já aplicados** a anexos, trechos e resumos com risco não resolvido (IN-070–078). Falha persistente não transforma origem desconhecida em verificada, **não autoriza desbloqueio** e não exclui automaticamente arquivos, resumos, versões ou históricos legítimos (IN-042/043/075–079).
+- Permitir **reprocessamento controlado da tarefa após correção comprovada da causa ou intervenção/autorização da equipe técnica habilitada**, sempre com novas verificações de permissões, estado de segurança das fontes e idempotência. Autorização técnica é para reiniciar o processamento, **não para contornar detecções, ignorar falhas sem solução ou liberar conteúdos sem verificação**; preservar fila e prioridades da IN-079/081.
+- **Não consumir créditos comerciais de IA do cliente** por diagnósticos, retentativas e reconstruções obrigatórias de segurança (IN-079/080). Aplicar controles internos de infraestrutura, concorrência e custo, sem provocar cobrança automática.
+- **Pendências:** classificação das causas e severidades, prazos de triagem, critérios exatos de correção e reentrada em fila, limites de novas tentativas após reprocessamento e notificações técnicas. Apenas documentação e planejamento; nenhuma programação autorizada.
