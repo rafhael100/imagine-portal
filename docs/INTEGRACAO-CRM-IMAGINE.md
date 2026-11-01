@@ -751,3 +751,17 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Essas tarefas são controles obrigatórios de segurança e **não consomem créditos comerciais de IA dos clientes** (IN-079/080). Aplicar limites internos de custo e capacidade.
 - **Pendências:** regras objetivas de severidade e prioridade, catálogo versionado de códigos de falha, limiares de encaminhamento, critérios de correção verificada e prazos de triagem (próxima proposta IN-084).
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-084 — Severidade e escalonamento automáticos baseados em risco (APROVADA em 01/11/2026)
+
+- Classificar as falhas persistentes da reconstrução obrigatória de proveniência por IA (IN-081–083) em **quatro níveis: CRÍTICA, ALTA, MÉDIA e BAIXA**. Considerar **evidências verificáveis, risco real ou potencial de exposição, impacto sobre integridade e proteção dos conteúdos, urgência e persistência**, com justificativa compreensível e histórico da classificação. Não inventar causa, risco ou impacto.
+- **CRÍTICA:** sinais concretos de risco ativo ou grave de exposição de conteúdos protegidos, falha grave dos controles de segurança ou incidente de elevada urgência; **alerta técnico imediato**, triagem prioritária e escalonamento à equipe Imagine autorizada, sem aguardar a rotina comum.
+- **ALTA:** falha significativa de integridade, proteção importante comprometida ou incidente relevante ainda não resolvido que demande atenção prioritária; encaminhamento e escalonamento técnico proporcionais.
+- **MÉDIA:** falha persistente que exija intervenção, sem sinais que justifiquem urgência maior; atendimento na fila técnica conforme prioridade.
+- **BAIXA:** reconstrução legada ou outra tarefa sem impacto imediato ou risco identificado, sujeita a processamento/tratamento gradual segundo a capacidade técnica.
+- **Inconclusão não equivale automaticamente a severidade crítica**: classificar provisoriamente conforme sinais disponíveis, solicitar revisão humana quando necessário e reavaliar à luz de novas evidências. A classificação baixa/média ou inconclusiva **jamais remove bloqueios de segurança** já aplicados nem transforma proveniência desconhecida em fonte verificada.
+- Permitir à equipe técnica Imagine autorizada **revisar a severidade mediante justificativa e trilha de auditoria**, sem alterar ou contornar as condições independentes de bloqueio/desbloqueio definidas nas IN-070–077. Registrar alterações de prioridade, evidências, notificações, responsáveis e transições, com proteção e minimização de dados sensíveis.
+- **Alertar imediatamente incidentes críticos** via canais internos técnicos da Imagine; escalonar ocorrências altas, médias e baixas de forma proporcional à gravidade e persistência, com deduplicação e sem envio indiscriminado de informações ao cliente. Preservar isolamento por organização, históricos legítimos, recursos técnicos e idempotência (IN-079–083).
+- Estes controles permanecem **sem consumo de créditos comerciais de IA dos clientes** (IN-079/080). **Pendentes:** limiares quantitativos, prazos de primeira resposta e resolução, gatilhos de reescalonamento e rota de plantão (proposta IN-085).
+- **Somente planejamento/documentação; nenhuma programação autorizada.**
