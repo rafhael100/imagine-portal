@@ -1,3 +1,10 @@
+# 0.18.1 — Vitrine de novos projetos
+
+- Novo projeto apresenta benefícios, oferta do Onepage e soluções sob medida para sistemas, aplicativos e agentes de IA.
+- Condições comerciais atualizadas: implantação em três pagamentos de R$ 330 e assinatura obrigatória de R$ 79,90/mês a partir de 90 dias.
+- Chamadas abrem o fluxo existente com o serviço selecionado, sem criar pedido ou cobrança automaticamente.
+- Layout responsivo, exemplo visual identificado como ilustrativo, etapas da contratação e dúvidas frequentes.
+- Validação visual e seleção dos quatro serviços no navegador; sintaxe JavaScript verificada. Sem alterações na integração financeira.
 # 0.18.0 — Recorrência automática e Minha conta
 
 - Compra do Onepage inclui assinatura mensal de R$ 79,90, autorizada na contratação e com primeiro vencimento D+90.
