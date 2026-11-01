@@ -467,3 +467,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Respeitar reserva atômica de capacidade e prevenção de excesso (IN-057), limite atual de 5 MB por arquivo (IN-030), validação de integridade e idempotência (IN-055) e limpeza de uploads temporários incompletos em até 6 horas (IN-056). Não confirmar arquivo antes da gravação íntegra e não permitir uploads durante contingência bloqueada (IN-051/053/054).
 - **A definir separadamente:** ordenação e política de prioridade da fila, cancelamento, limite de espera, tratamento de queda de sessão, momento de reserva de capacidade para itens aguardando e experiência do usuário. Não presumir contratação automática ou cobrança por esse controle.
 - Exclusivamente planejamento/documentação; nenhuma programação autorizada.
+
+
+## IN-059 — Fila FIFO de uploads por organização (APROVADA em 01/11/2026)
+
+- Processar uploads de anexos **pela ordem de chegada (FIFO — First In, First Out) à fila de cada empresa/organização**, independentemente do funcionário que solicitou o envio. Não aplicar rodízio por usuário nem prioridade configurável sem aprovação futura.
+- Respeitar **até 5 uploads em processamento simultâneo por empresa** (IN-058). Quando uma vaga é liberada, o próximo item **elegível** na ordem de chegada pode iniciar, com controle centralizado entre todos os usuários, sessões e instâncias.
+- Garantir **ordenação consistente no backend**, inclusive sob concorrência; filas de diferentes empresas ficam isoladas. Uma tarefa bloqueada ou inválida não deve permitir estouro de limite, desrespeito a permissões ou confirmação indevida de upload.
+- Preservar reserva atômica de capacidade (IN-057), gravação íntegra e idempotente (IN-055), retenção temporária por até 6 horas para uploads incompletos (IN-056), regras de quotas e bloqueio em contingência (IN-032/051/054).
+- **Pendências:** como lidar com cancelamentos, expiração e desconexão de itens aguardando, retentativas/reentrada na fila, quando reservar espaço de itens em espera e tratamento de uploads que não podem iniciar. Não presumir prazo de fila ou direito de ultrapassagem.
+- **Somente planejamento/documentação; nenhuma programação autorizada.**
