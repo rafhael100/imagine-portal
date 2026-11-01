@@ -363,6 +363,15 @@ O vínculo é por organização CRM autorizada e contrato do site, não por e-ma
 
 Detalhes no [documento de integração CRM](INTEGRACAO-CRM-IMAGINE.md).
 
+
+## 23. Decisão IN-003 — CRM Básico mais enxuto e exclusivo (APROVADA)
+
+**Aprovação:** 2026-11-01. O benefício de CRM Básico liberado a clientes de Onepage/Landing Page deve utilizar um **perfil de recursos próprio e mais enxuto que o Essencial pago**; não é o plano Essencial oferecido gratuitamente. Preservar a cortesia do IN-002 e as assinaturas independentes entre site e upgrade do CRM.
+
+**Ainda não aprovados:** quantidade de usuários/funis/leads, recursos efetivos, quota de armazenamento, integração com automações/agentes, regras de retenção, prazo do benefício e gradação dos planos pagos. Uma proposta inicial, sem caráter vinculante, está registrada no [CRM Imagine — Plano Básico cortesia](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/08-plano-basico-cortesia.md).
+
+Os agentes do site usarão componentes homologados do formulário e integrarão leads pela API do CRM autorizada, respeitando as cotas efetivas aprovadas posteriormente e sem perda silenciosa de formulários aceitos.
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
