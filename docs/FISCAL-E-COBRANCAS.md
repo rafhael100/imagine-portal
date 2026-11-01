@@ -70,3 +70,10 @@ Faltam testes com credenciais da conta de homologação da Imagine, SMTP real, w
 - [Focus NFe: webhooks](https://doc.focusnfe.com.br/reference/criar_webhook)
 - [SEFIN Fortaleza: decreto sobre emissão por prestação do serviço](https://www.sefin.fortaleza.ce.gov.br/anexoCT/25/f5dpqhniz.erg136/pdf/Decreto)
 - [Nodemailer: SMTP](https://nodemailer.com/smtp)
+
+
+## IN-115 — Planejamento da aba de Orçamentos e pagamentos de serviços extras (APROVADO em 01/11/2026)
+
+A nova **aba Orçamentos** será independente na navegação do Portal Imagine (visão de administração e visão autorizada de cada cliente), mas **não criará um segundo sistema financeiro**: propostas e seus aceites remetem à fonte canônica de cobranças, parcelas, estornos, notas e liquidação da **Central Financeira**. Para serviços adicionais pequenos, **pagamento integral antes da execução**; para projetos maiores, **parcelamento por orçamento específico aceito**, com entrada/marcos/condições explicitados. A distinção objetivo de pequeno e grande, meios e taxas ainda não foram aprovadas. O cliente deverá validar o orçamento no Portal e **autorizar os pagamentos aplicáveis separadamente**, sem emissão automática por simples aceite; status de pago depende de conciliação comprovada. As cobranças extras de sites pertencem ao Portal, não à assinatura paga do CRM Imagine. O aceite de orçamento não substitui o aceite de publicação da versão exata do site (IN-109). A criação da aba e dos fluxos financeiros depende de planejamento integral e posterior programação e homologação autorizadas.
+
+[Documento da Central de Orçamentos](https://github.com/rafhael100/imagine-portal/blob/docs/producao-inteligente-v01/docs/ORCAMENTOS-SERVICOS-ADICIONAIS.md). **Nenhuma cobrança real ou mudança de produção foi realizada**.
