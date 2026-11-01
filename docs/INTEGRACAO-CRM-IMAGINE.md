@@ -336,3 +336,12 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - A frequência de execução de 15 minutos não garante o RPO; aferir o atraso efetivo e reportar violações. Preservar retenção técnica de 30 dias (IN-043) e impedir reativação de arquivos excluídos (IN-042).
 - **Pendências para decisões futuras:** canais e destinatários, gravidade/escalonamento, períodos de silêncio, retenção das métricas/logs e políticas de resposta a incidentes. Não aprovar notificações externas ao cliente por esta decisão.
 - **Somente documentação e planejamento; nenhuma programação iniciada.**
+
+
+## IN-046 — Canais de alertas da replicação (APROVADA em 01/11/2026)
+
+- Apresentar os alertas operacionais de replicação no **painel administrativo interno da Imagine**, acessível apenas à equipe autorizada, nos termos da IN-045.
+- Enviar **e-mails aos responsáveis técnicos** quando ocorrerem **falhas persistentes ou incidentes críticos**. Falhas transitórias recuperadas automaticamente não geram e-mails repetitivos; aplicar agrupamento/deduplicação e estado de resolução.
+- **Não enviar aos clientes das empresas** mensagens automáticas de alerta de backups/replicação. O e-mail técnico deve conter somente informações operacionais mínimas, sem anexos, conteúdo dos documentos ou dados pessoais desnecessários.
+- Preservar verificações e monitoramento de RPO-alvo de 15 minutos, filas, integridade e retentativas (IN-044/IN-045). A definição dos critérios objetivos de gravidade/persistência, lista de responsáveis, escalonamento e prazos será realizada separadamente.
+- **Somente planejamento e documentação. Nenhuma programação autorizada.**
