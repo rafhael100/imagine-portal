@@ -498,3 +498,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Arquivos já confirmados com gravação íntegra permanecem como anexos válidos; nenhuma ação de reconexão pode confirmar um envio incompleto, criar duplicidade ou contornar quotas e bloqueios de contingência (IN-032/051/054/055).
 - **Detalhes pendentes:** token de sessão retomável, proteção de fragmentos, ordem de retorno à fila, estado e tempo de reserva, limites de tentativas, mensagens da interface e implementação de upload retomável no navegador.
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-062 — Upload recuperado retorna ao fim da fila FIFO (APROVADA em 01/11/2026)
+
+- Se um upload interrompido por perda de conexão ou encerramento do navegador puder ser recuperado dentro do prazo máximo de **6 horas** (IN-056/061), ele **não preserva sua antiga posição** e **volta ao final da fila FIFO da própria organização** (IN-059), após as verificações exigidas.
+- Enquanto a transmissão estiver efetivamente interrompida/desconectada, o upload **não reserva uma das 5 vagas de processamento simultâneo** da empresa (IN-058); a vaga desocupada pode ser destinada ao próximo upload elegível pela ordem FIFO. A vaga só é liberada quando o processamento anterior estiver efetivamente interrompido, sem contagem dupla em situações de corrida.
+- Antes de permitir recuperação e reenfileiramento, **revalidar sessão autenticada, permissões por usuário/empresa/recurso, integridade e elegibilidade do upload, bloqueios de contingência e capacidade disponível** (IN-032/039/051/054/057/061). Nenhuma credencial antiga ou identificador de upload dispensa a autorização atual.
+- Respeitar idempotência, prevenção de duplicidades e confirmação somente após gravação íntegra (IN-055); um upload expirado, cancelado ou já concluído não pode ser reintroduzido como envio novo por erro de concorrência.
+- A **regra de retenção/liberação da reserva de capacidade de armazenamento durante a desconexão ainda precisa de definição específica**: a IN-062 define a liberação da vaga de processamento, mas não determina automaticamente a política dessa reserva de bytes, a ser tratada na IN-063.
+- Apenas planejamento e documentação; nenhuma programação autorizada.
