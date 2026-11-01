@@ -407,3 +407,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Havendo qualquer falha na validação, **manter a contingência somente leitura**, permanecer com novos uploads bloqueados e registrar/escalonar o problema via logs e alertas técnicos IN-045–048.
 - Registrar tecnicamente testes, decisão humana, data/hora e transição; preservar opção de reversão segura se a retomada falhar. Critérios exatos de aceitação, duração da estabilização e rollback ainda pendentes.
 - Somente planejamento/documentação; não iniciar programação.
+
+
+## IN-053 — Proteção automática contra nova falha grave após reativação (APROVADA em 01/11/2026)
+
+- Se o armazenamento principal voltar a apresentar **falha grave após o retorno controlado da IN-052**, o CRM deve **suspender preventivamente novos uploads de anexos** para evitar inconsistência, confirmação indevida de envio ou perda de dados.
+- Emitir alertas técnicos pelo painel e, para incidentes críticos, por e-mail aos responsáveis conforme IN-045, IN-046 e IN-047; manter deduplicação e registros técnicos.
+- **Não alternar automaticamente ao backup:** a reativação da contingência de leitura da IN-050/051 exige **nova autorização explícita de membro autorizado da equipe técnica**, após checagens de segurança, integridade e exclusões legítimas.
+- Proteger os arquivos existentes, permissões por empresa e por recurso, autenticação obrigatória e exclusões legítimas (IN-039–043); não criar mecanismos de upload temporário nem escrita no backup de contingência.
+- O restante do CRM continua operacional sempre que seus serviços estiverem disponíveis. Não afirmar sucesso de uploads que foram bloqueados ou não concluídos.
+- **Pendências:** sinais objetivos de falha grave, janela de estabilização, comportamento do acesso a arquivos enquanto aguarda contingência e roteiro de retomada. Apenas documentação, sem programação.
