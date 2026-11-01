@@ -11,7 +11,7 @@
 | Parcelas da implantação | **3 cobranças de R$ 430,00**, nos marcos D0, D+30 e D+60 da contratação |
 | Mensalidade | **R$ 79,90/mês** |
 | Início da mensalidade | **D+90 da contratação**, na mesma lógica comercial do Onepage, independente do momento de publicação; sujeito à formalização contratual/homologação da cobrança |
-| Produção e aceitação | Site criado por agentes de IA, prévia privada e **aprovação expressa e documentada do cliente para versão/artefato exatos antes de qualquer publicação**, segundo IN-095/109/110 |
+| Prazo inicial de produção | **7 dias úteis após a validação dos materiais e briefing necessários**, nos mesmos parâmetros de prazo-base do Onepage; regras detalhadas para feriados, pendências do cliente, interrupções e rodadas de revisão serão formalizadas sem alterar o prazo-base aprovado |\n| Produção e aceitação | Site criado por agentes de IA, prévia privada e **aprovação expressa e documentada do cliente para versão/artefato exatos antes de qualquer publicação**, segundo IN-095/109/110 |
 | Ajustes de produção | **Duas rodadas de ajustes incluídas**, aplicadas à versão em revisão; trabalhos adicionais sujeitos a proposta/aceite próprio |
 | Benefício CRM | **CRM Básico Cortesia vinculado à assinatura do site**, sem segunda mensalidade para o Básico, respeitando IN-001/002/003 e elegibilidade futura aprovada; CRM pago é contratação independente |
 | Tipo de entrega | Uma Landing Page personalizada para campanha/oferta, orientada à conversão; não inclui gestão recorrente de anúncios, campanhas, testes A/B contínuos nem otimização comercial contínua sem contratação específica |
@@ -26,9 +26,13 @@
 6. **Novo serviço no site e catálogo Imagine:** planejar card/vitrine/página comercial própria de “Landing Page”, distinção clara em relação ao “Onepage”, descrição verdadeira do escopo, preço de implantação, parcelas e assinatura, termos, inclusão do CRM Básico, fluxo de contratação, briefing, produção, revisões e prévias, além de integração financeira e de pedidos no Portal. O catálogo técnico e o checkout devem prever um **produto separado** de Onepage, sem ativar cobrança ou serviço antes da implementação e homologação.
 7. **Sem conflito com o Onepage:** preservar implantação R$ 990 em 3 × R$ 330 e mensalidade R$ 79,90 a partir de D+90, prazo de produção de 7 dias úteis após validação de materiais, duas rodadas incluídas e demais condições aprovadas desse produto; contratos antigos não são alterados.
 
+## Prazo de entrega aprovado (IN-115)
+
+A produção da Landing Page terá **prazo-base de 7 dias úteis depois da validação de briefing e materiais necessários**. A contagem de feriados, complementações de material, bloqueios por cliente e a duração das revisões serão detalhadas contratualmente. A conclusão da produção não autoriza publicar sem o aceite documental exato da IN-109.
+
 ## Pendências ainda abertas
 
-- Prazo comercial específico da Landing Page, tratamento de feriados, bloqueios, ausência de material e tempo de revisão; **não presumir automaticamente os 7 dias úteis do Onepage**.
+- **Prazo-base da Landing Page já aprovado: 7 dias úteis após a validação dos materiais**. Permanecem pendentes somente os critérios de contagem, feriados, bloqueios atribuíveis ao cliente, ausência/complementação de material e prazos das rodadas de revisão; nenhum desses detalhamentos pode substituir silenciosamente o prazo-base aprovado.
 - Política detalhada de escopo, número de variantes/etapas, conteúdo/idiomas/integradores, critérios de alteração incluída e orçamento de pedidos adicionais.
 - Texto definitivo da oferta e contrato, política de duração/cancelamento, suporte, domínio, responsabilidade e riscos de alegações de conversão, LGPD e direitos de imagem; validação jurídica/fiscal/comercial.
 - Homologação do checkout e criação do serviço no catálogo do Portal, identificação e direitos do produto, conciliação de implantação/assinatura, regras de repasse ao CRM Básico e eventuais tratamentos de inadimplência/estorno.
