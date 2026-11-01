@@ -1,0 +1,132 @@
+# Imagine — Integração Onepage/Landing Page × CRM Imagine
+
+> **Planejamento v0.1 · 2026-11-01 · Decisão IN-001 aprovada (diretriz de produto), detalhes comerciais e técnicos pendentes**  
+> Repositório de origem: `rafhael100/imagine-portal`. Documento em branch de planejamento. **Sem implementação, contratação de serviço, cobrança ou alteração em produção.**
+
+## 1. Decisão IN-001 — integração entre produtos (APROVADA)
+
+Quando um cliente contratar um **Site Onepage** ou, futuramente, uma **Landing Page** da Imagine, deverá contar com acesso à assinatura do **Plano Básico do CRM Imagine**, com integração automática do formulário de captação de contatos para a organização correta no CRM.
+
+O site também continuará com botão para WhatsApp. **Formulário de leads e CRM são serviços diferentes de hospedagem de e-mail profissional**, que segue **excluída** da oferta conforme HD-001.
+
+**Atenção aos limites:** a aprovação é da **diretriz** (ofertar CRM Básico com site e capturar leads de modo integrado), não de valores, gratuidades, precificação conjunta, limites de usuários/leads, funcionalidades específicas do plano, datas de cobrança, política de cancelamento ou disponibilidade imediata. O catálogo implementado no portal atualmente possui o serviço `site` (Onepage), **não um produto Landing Page independente**. O CRM Imagine está em planejamento; não marcar como funcionalidade já ativa no checkout antes de integração testada/homologada e condições comerciais aprovadas.
+
+## 2. Objetivos
+
+- Cliente conclui contratação do site sem duplicar cadastro para usar CRM.
+- Backend da Imagine cria ou vincula **organização CRM** de forma idempotente e segura quando contratação elegível é confirmada.
+- O site publicado traz formulário associado a um `site_id` e `form_id` do pedido e à organização CRM; a associação é feita pelo **backend**, não por dados arbitrários enviados pelo visitante.
+- Cada envio validado produz um registro de entrada de lead associado à organização, à página/campanha e à data/hora, com controles antifraude e rastreabilidade.
+- Portal e CRM mantêm responsabilidades de negócio separadas, sem exigir que o código do site se conecte diretamente ao banco de dados ou à API administrativa do CRM.
+- O cliente acompanha leads no CRM, com possibilidade futura de funil, automações e serviços adicionais conforme o plano contratado.
+
+## 3. Relação entre dois produtos e estado de cada projeto
+
+**Imagine Portal:** Node.js, banco SQLite e pagamentos por Asaas em homologação; pedidos/contratos e produção do Onepage já têm modelos implementados. A emissão fiscal e cobrança real ainda não estão ativadas.
+
+**CRM Imagine:** produto SaaS multiempresa independente, em fase de **planejamento antes da programação**. Diretrizes anteriores: Laravel, PostgreSQL, API REST versionada, autenticação, filas/Redis, isolamento por organização; usuário pode participar de várias organizações. Os módulos/planos e a integração comercial ainda precisam ser documentados e aprovados no planejamento próprio do CRM. O repositório `rafhael100/imagine-crm` contém atualmente apenas um README inicial; não presumir que endpoints, tabelas ou plano básico já estejam implementados.
+
+### Responsabilidades
+
+| Sistema | Responsabilidade |
+| --- | --- |
+| Portal Imagine | Contratos do site, cliente, pagamento, produção por IA, domínio, hospedagem, suporte; evento de elegibilidade e vínculo do pacote CRM |
+| CRM Imagine | Organização/empresa, usuários/permissões, plano/entitlement de CRM, lead, origem, oportunidades/funil e regras comerciais específicas |
+| Integração de produtos | Provisionamento, vínculo, reconciliador de estados, IDs externos/idempotência, auditoria e mapeamento de contratos |
+| Serviço de captura de leads | Recepção segura do formulário público, validação/antispam, persistência durável, entrega à API CRM, tentativas e conciliação |
+
+## 4. Jornada proposta — contratação do site até receber leads
+
+1. **Pedido e contrato:** cliente contrata Onepage (ou futura Landing Page). O checkout mostra claramente os termos do pacote CRM **quando forem definidos/aprovados**, sem criar cobrança CRM separada não autorizada.
+2. **Pagamento:** somente confirmação conciliada do pagamento elegível gera evento `crm.entitlement.provision_requested`, idempotente por pedido + regra comercial vigente.
+3. **Localizar identidade:** serviço busca vínculo pré-existente do titular e sua(s) organização(ões) autorizada(s). **Não** cria organização duplicada para empresa já vinculada. Se houver várias, exigir escolha/autorização verificada de qual será ligada ao site.
+4. **Criar/vincular organização:** CRM provisiona tenant/organização e entitlement ao Plano Básico com referência externa do pedido; caso já existente, vincula a organização correta e atualiza direitos segundo regras aprovadas.
+5. **Acesso:** cliente entra por convite seguro/fluxo de vinculação a conta existente. Não compartilhar senhas nem transportar sessão do portal para CRM. SSO futuro é decisão separada.
+6. **Construção do site:** agente de IA recebe esquema e componentes oficiais do formulário; o build contém apenas `form_public_id` e campos permitidos; **nenhum segredo ou token da API do CRM é exposto no HTML/JS**.
+7. **Publicação:** backend registra mapeamento `order_id/site_id/form_id -> crm_organization_id` e ativa o formulário apenas após domínio, versão e ambiente verificados.
+8. **Envio visitante:** browser envia formulário a endpoint público de ingestão Imagine; backend verifica origem e configurações do formulário, valida payload, aplica antispam e grava aceitação durável.
+9. **Entrega de lead:** worker autenticado entrega via API privada versionada do CRM, com chave idempotente e identificador externo imutável. CRM responde ID de lead criado ou evento já processado; falhas transitórias usam retry com backoff e alerta.
+10. **Operação:** cliente vê lead, origem e dados autorizados no CRM. Imagine vê status técnico (aceito/pendente/entregue/erro), sem exposição indiscriminada dos dados pessoais.
+
+## 5. Arquitetura e segurança de formulário
+
+```text
+Site estático publicado (Cloudflare Pages / VPS / cPanel)
+  formulário sem secrets
+      ↓ HTTPS
+Ingestão de Leads Imagine (endpoint público com proteção antiabuso)
+      ↓ validação por form_public_id → organização/site no backend
+Fila persistente / Outbox + status por evento
+      ↓ canal servidor-servidor com autenticação, escopo e idempotência
+CRM Imagine API v1 (isolamento por empresa, plano, origem)
+      ↓
+Lead pertencente à organização correta
+```
+
+- O backend escolhe o tenant com base no registro do formulário em banco: **nunca confiar no `crm_organization_id`, `company_id` ou `plan_id` enviados pelo navegador**.
+- Cada site pode ter múltiplos formulários no futuro, com ID público aleatório, configuração por versão e trilha de auditoria.
+- Aplicar limites de tamanho/campos, validação de telefone/e-mail, antifraude (rate limit, honeypot e desafio adaptativo), logs mínimos e restrição de conteúdo. CORS/Referer sozinhos não constituem autenticação.
+- Consentimento e aviso de privacidade quando aplicável, finalidade da coleta, retenção, direitos dos titulares e acordo de tratamento de dados entre Imagine e a empresa cliente. Evitar capturar dados sensíveis desnecessários.
+- Proteção contra conteúdo malicioso, HTML/script no campo livre, uso de formulários para spam, enumeração de IDs, replay e injeção em ferramentas de IA.
+- Disponibilidade: gravar na fila/outbox **antes** de responder sucesso. Se CRM estiver indisponível, manter pendente e tentar novamente, com alertas operacionais; falha de persistência não deve afirmar recebimento.
+- Deduplicação técnica do **evento** com `submission_id` e idempotency key; deduplicar leads por e-mail/telefone é uma **regra comercial separada** e não deve apagar contatos recorrentes ou sobrescrever estágios automaticamente.
+- Dados publicitários como `utm_source`, `utm_medium`, `utm_campaign`, landing page e URL de origem podem ser incluídos com validação e regras de privacidade; não prometer rastreamento sem consentimento/implementação.
+
+## 6. Entidades e contratos propostos (não implementados)
+
+- `site_crm_links`: `order_id`, `site_id`, `crm_org_id`, `crm_subscription_entitlement_id`, estado, origem do vínculo, datas e auditoria.
+- `lead_forms`: `form_public_id`, `site_id`, `order_id`, `config_version`, campos habilitados, destino vinculado no servidor, rate-limits e estado ativo/suspenso.
+- `lead_submissions`: `submission_id`, `form_public_id`, `received_at`, payload validado/protegido, versão, status de entrega, tentativas, ID de lead CRM e rastreamento da origem.
+- `crm_provisioning_jobs`: `order_id`, motivo, idempotency key, estado, resultado, tentativas, erro sanitizado.
+- `contract_entitlements` (ou equivalente no CRM): vínculo contratual entre assinatura do site e direito de usar o Plano Básico; preços, ciclo e limites aguardam aprovação.
+
+Contratos de API futuros: `POST /integrations/v1/organizations/provision`, `POST /integrations/v1/entitlements/sync`, `POST /integrations/v1/leads/ingest` são **nomes ilustrativos** a revisar na documentação de APIs do CRM, não endpoints implementados nem aprovados. Proteger com service identities, tokens restritos por finalidade e rotação de secrets. Separar endpoint público de captura do endpoint servidor-servidor do CRM.
+
+## 7. Interações do cliente e do agente de IA
+
+- Cliente terá um acesso explícito **“Abrir meu CRM”** no portal quando o provisionamento estiver confirmado; durante atraso, mostrar `Ativando seu CRM` com status verdadeiro.
+- Se já for usuário do CRM, o fluxo vincula a conta/organização autorizada, sem criar e-mails/senhas duplicados. O CRM suporta conceitualmente várias organizações por usuário; não escolher uma empresa arbitrariamente.
+- Agente da Imagine pode orientar o cliente sobre formulário e acesso, mas não ler leads confidenciais nem dados CRM de outras organizações por padrão.
+- No painel administrativo, acompanhar `formulário ativo`, `último envio`, `fila pendente`, `erros`, `organização vinculada` e `plano autorizado`; acesso a dados de leads deve seguir papéis e necessidade.
+- Botão WhatsApp permanece no site. Clique em WhatsApp **não cria lead automaticamente** salvo decisão futura sobre consentimento/rastreamento.
+- Se o cliente alterar domínio, editar conteúdo ou mudar de plano, revalidar o vínculo e a configuração do formulário antes do deploy.
+
+## 8. Política financeira e de ciclo de vida — PENDENTE
+
+A diretiva aprovada é disponibilizar o Plano Básico com o site/landing page. **Ainda não foi aprovado** se o CRM Básico:
+- está integralmente incluído na mensalidade vigente do Onepage de R$ 79,90 sem pagamento adicional;
+- tem preço de pacote distinto ou benefício promocional por um período; ou
+- constitui uma assinatura separada (caso em que a contratação e o consentimento precisam ser explícitos).
+
+Também ficam pendentes: preço de landing page, limites de leads/usuários/empresas, upgrades, recursos de IA do CRM (opcionais conforme plano), inadimplência, cancelamento, portabilidade e exportação de dados, suspensão do site versus direito de acesso a leads e diferenciação entre contrato legado/atual. **Nunca emitir cobrança CRM automaticamente nem desligar o acesso aos dados antes de aprovar estas regras.**
+
+A conta CRM deve ser vinculada ao contrato sem misturar os bancos de dados dos dois produtos e sem romper segurança/isolamento do SaaS multiempresa.
+
+## 9. Testes de aceitação propostos
+
+1. Mesma confirmação financeira entregue duas vezes cria no máximo um entitlement e um vínculo do site.
+2. Cliente com conta CRM pré-existente acessa sua organização autorizada sem organizações duplicadas.
+3. Um usuário com várias organizações pode selecionar/vincular a organização correta; o formulário não decide sozinho.
+4. Formulário de cliente A não consegue criar lead na organização B, mesmo alterando parâmetros do navegador.
+5. O HTML/JS publicado não inclui token privado de API ou credenciais CRM.
+6. Sites ainda não publicados ou formulário suspenso não recebem novos envios aceitos.
+7. CRM fora do ar não perde submissões aceitas duravelmente; retries não duplicam evento.
+8. Payload malicioso, spam repetido e arquivos não permitidos são bloqueados/registrados.
+9. URL/UTM de origem respeitam validação, finalidades e retenção.
+10. Alteração de domínio/site/tenant exige revalidação e não redireciona leads antigos indevidamente.
+11. Cancelamento ou inadimplência seguem política contratual aprovada, sem apagar leads.
+12. Regressão financeira: compra do Onepage mantém D0/D30/D60 e D90 até revisão comercial aprovada.
+13. Formulário e integração funcionam sem serviço de hospedagem de e-mail para o cliente.
+14. O site continua útil e exibindo contato WhatsApp se a captação via CRM estiver temporariamente indisponível, com tratamento transparente do formulário.
+
+## 10. Próximas decisões para aprovação
+
+1. **Pacote comercial CRM Básico**: preço incluso ou assinatura distinta, regras de upgrade, quantidade de usuários/leads e data de início.
+2. **Provisionamento multiempresa**: criar organização nova, vincular existente ou permitir seleção pelo cliente, e quando disparar convite/acesso.
+3. **Funcionalidades mínimas do Plano Básico**: leads, funil, contatos, atividades, automações e limites; agentes de IA do CRM apenas se contratados conforme plano.
+4. **Formulário-padrão**: campos obrigatórios/opcionais, antispam, registro de consentimento/aviso de privacidade, configuração por site.
+5. **Landing Page**: se será novo produto/catálogo e como funcionará valor, contrato, prazo e assinatura.
+6. **Integração e resiliência**: contrato API v1, autenticação servidor-servidor, fila, RPO/RTO e retenção de dados pessoais.
+7. **Ciclo de vida**: cancelamento, inadimplência, solicitação de exclusão e exportação dos dados do CRM sem perda indevida.
+
+**Status:** IN-001 aprovada como diretriz; regras comerciais e recursos do Plano Básico aguardam aprovação. O CRM continua em planejamento; nenhuma API, assinatura ou formulário foi implementado.
