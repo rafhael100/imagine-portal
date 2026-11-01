@@ -447,3 +447,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Não declarar sucesso nem criar vínculo definitivo antes da confirmação de integridade, e não contornar bloqueios de uploads durante contingência (IN-051/053/054).
 - A retenção temporária de 6 horas **não altera** os 30 dias de retenção técnica de backups (IN-043) nem a política de exclusão definitiva (IN-042).
 - **Pendências:** contagem do prazo inicial, política de reserva de capacidade, limiares técnicos, gestão de uploads multipart/órfãos e rotinas de limpeza. Somente documentação, sem programação.
+
+
+## IN-057 — Reserva temporária de espaço para uploads concorrentes (APROVADA em 01/11/2026)
+
+- Antes do início do upload de anexo, verificar a **capacidade efetiva da empresa** (franquia base IN-031 + extras ativos IN-033–035) e criar **reserva temporária atômica** para o tamanho do arquivo, respeitando limite de 5 MB por arquivo (IN-030), autorizações e bloqueios de IN-032/051/053/054.
+- Aplicar **controle de concorrência por organização**, impedindo que uploads simultâneos reservem mais bytes do que a disponibilidade calculada como capacidade total menos arquivos efetivamente ocupados menos reservas ativas. As reservas diminuem o espaço **disponível para novos uploads**, mas **não são contabilizadas como arquivos efetivamente utilizados** na franquia comercial.
+- **Confirmar e contabilizar uso efetivo somente após gravação íntegra, verificação e vínculo válido do anexo** (IN-055); efetuar conversão idempotente da reserva em uso efetivo, sem dupla contagem nem anexos duplicados.
+- **Liberar reserva** quando houver falha, cancelamento ou expiração; a retenção máxima dos uploads temporários incompletos permanece de **6 horas (IN-056)**. Conciliar reservas órfãs e fragmentos com limpeza segura e monitoramento técnico, sem liberar prematuramente reservas de uploads ainda válidos.
+- Preservar isolamento entre empresas e impedir uso de metadados de tamanho manipulados para ultrapassar a franquia. Detalhes exatos de validação de tamanho, renovação da reserva, transações, expiração e reconciliação serão definidos tecnicamente.
+- Planejamento/documentação somente; nenhuma programação autorizada.
