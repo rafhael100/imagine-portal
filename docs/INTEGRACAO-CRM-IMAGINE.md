@@ -539,3 +539,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Em qualquer rejeição, **limpar com segurança fragmentos/objetos temporários e sessões incompletas e liberar reservas e vagas** quando a interrupção estiver efetivamente confirmada, respeitando IN-056/058/060. Registrar eventos técnicos essenciais, sem exibir arquivo inválido como concluído.
 - Manter controles de autenticação, autorização, isolamento por empresa, quotas, bloqueios de contingência e fila FIFO (IN-032/039/051/054/059/062). Não permitir que dados de cliente tenham seu tamanho declarado manipulado para superar limite ou reserva.
 - **Detalhes pendentes:** convenção exata de MB (decimal/binária), implementação de verificação de tamanho em fluxo e mensagens da interface. Somente planejamento/documentação; nenhuma programação autorizada.
+
+
+## IN-066 — Verificação rigorosa do formato real dos anexos (APROVADA em 01/11/2026)
+
+- Para uploads de anexos, **validar no servidor o tipo real e a consistência do conteúdo**, considerando conjuntamente **extensão**, **tipo MIME detectado do conteúdo** (não apenas o MIME informado pelo navegador), **assinatura/magic bytes** e **estrutura interna quando aplicável** ao formato.
+- Manter estritamente o **conjunto de formatos permitidos já aprovado na IN-030** para todos os planos; esta decisão não amplia os tipos aceitos nem altera o limite de **5 MB por arquivo**.
+- **Rejeitar com segurança** arquivos disfarçados por extensão renomeada, arquivos malformados, incompatíveis ou cuja combinação de indicadores/estrutura não seja aceita pelos validadores do formato. Em falha ou resultado inconclusivo, **não confirmar, vincular nem disponibilizar** o upload como anexo válido.
+- Implementar verificadores adequados por classe de arquivo, com limites seguros de análise para conteúdo comprimido/incorporado; **uma assinatura compatível ou MIME aparentemente correto não comprovam, por si sós, ausência de malware**, de conteúdo ativo ou de arquivos poliglotas. A política de varredura antimalware será tratada em decisão separada (proposta IN-067).
+- Ao rejeitar, **interromper e limpar fragmentos/objetos temporários com segurança, liberar a reserva de capacidade e a vaga de processamento somente após encerramento efetivo**, sem dupla liberação, seguindo IN-056–060 e IN-063–065. Registrar dados técnicos mínimos necessários à análise e incidentes, sem expor conteúdo sensível.
+- Preservar autenticação, permissões e isolamento por empresa (IN-039/040), limites de franquia, suspensão em contingência, fila FIFO, idempotência e **confirmação somente após gravação íntegra e verificações concluídas** (IN-032/051/054/055/057/059/062).
+- **Detalhes pendentes:** matriz exata de validadores por formato, critérios para assinaturas ambíguas e arquivos compostos, mensagens da interface, processos de testes e análise de ameaças. **Somente documentação de planejamento; nenhuma programação autorizada.**
