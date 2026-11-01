@@ -427,3 +427,12 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Falhas isoladas não devem disparar bloqueio indiscriminado de todos os uploads ou do CRM. Falhas de integridade relevantes exigem investigação e proteção dos objetos afetados.
 - Preservar **IN-050 a IN-053**: contingência somente leitura, retorno validado com aprovação humana e nova ativação da contingência somente por responsável autorizado. Alertas e recuperação técnica conforme IN-045 a IN-049.
 - **Pendências:** sinais e limiares objetivos, janelas de detecção, escopo de suspensões e testes de aceitação. Apenas documentação; nenhuma implementação autorizada.
+
+
+## IN-055 — Recuperação inteligente de uploads interrompidos (APROVADA em 01/11/2026)
+
+- Diante de queda de conexão, timeout ou falha transitória no envio de anexo, aplicar **retentativas automáticas seguras e limitadas**, quando tecnicamente viáveis, com prevenção de duplicidades por operação idempotente (sem criar duas cópias/vínculos por reenvio).
+- **Conferir gravação e integridade** do objeto no armazenamento antes de confirmar o upload como concluído ao usuário e antes de estabelecer o vínculo definitivo com o registro no CRM.
+- Quando a recuperação automática não for possível, **informar claramente a falha e permitir o reenvio manual**. Não prometer retomada de bytes parcial sem suporte técnico; a estratégia de upload fracionado/retomável será detalhada separadamente.
+- Não marcar como bem-sucedido um upload interrompido ou com estado incerto; não contornar quotas de anexos (IN-031/032), controles de segurança, indisponibilidade do armazenamento nem bloqueio durante contingência (IN-039/051/053/054).
+- **Pendências:** políticas de timeout e novas tentativas, gestão/validade/limpeza de arquivos temporários, proteção contra uploads órfãos e detalhamento de UX. Apenas documentação; nenhuma programação autorizada.
