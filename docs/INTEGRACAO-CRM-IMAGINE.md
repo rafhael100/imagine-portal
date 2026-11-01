@@ -355,3 +355,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Usar o atraso **efetivamente medido**, não somente a periodicidade de agendamento. Aplicar deduplicação, agrupamento, registro de recuperação e prevenção de alertas repetitivos conforme IN-045/IN-046.
 - **Pendências:** definição dos sinais objetivos de paralisação e integridade, tempos de detecção, destinatários e reenvios, escalonamento, plantão e encerramento de incidentes. Não enviar alertas de backup a clientes finais.
 - Planejamento/documentação apenas; nenhuma programação autorizada.
+
+
+## IN-048 — Recuperação automática controlada da replicação (APROVADA em 01/11/2026)
+
+- Permitir **reinicialização segura de processos de replicação**, reconexão aos provedores, **retentativas controladas de transferências** e **reprocessamento idempotente das filas persistentes**, sem bloquear o uso normal do CRM.
+- Impor **limites de tentativas, concorrência, CPU, RAM, banda e ciclos de reinício**; aplicar backoff e mecanismos contra tempestades de reprocessamento. Evitar duplicação, inconsistências e loops infinitos.
+- Registrar ações automáticas em **auditoria técnica restrita**, preservando a decisão IN-041 de não auditar individualmente visualizações/downloads de anexos.
+- Quando a falha persistir ou for crítica, **escalonar à equipe técnica** por painel e e-mail de acordo com IN-045, IN-046 e IN-047, evitando notificações repetidas.
+- **Proibir ações destrutivas automáticas**: não excluir anexos, não sobrescrever backups íntegros, não enfraquecer retenções ou permissões, não restaurar arquivos legitimamente excluídos (IN-042/043).
+- **Pendências:** critérios operacionais exatos de retentativa/reinício, procedimentos manuais, limites de segurança e testes de recuperação. Somente planejamento; nenhuma programação autorizada.
