@@ -437,6 +437,12 @@ O limite de profissionais é validado pelo **CRM**, não apenas pelo Portal ou p
 
 O CRM não poderá apresentar upgrade como solução obrigatória para quantidade de agendamentos manuais, já que não há teto comercial; restrições técnicas ou de segurança devem ser comunicadas com motivo real e suporte, conforme IN-010. **Pendentes** as regras específicas de notificações e lembretes operacionais versus automações comerciais. Documento principal: [Agenda Manual CRM Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
+## 33. Decisão IN-013 — Apenas notificações e lembretes internos da agenda no CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. A agenda manual do CRM Básico Cortesia permite **somente notificações e lembretes operacionais internos na interface autenticada do CRM**, sem consumir quota de modelos de automações comerciais ativas. E-mail **automático ao cliente agendado** e WhatsApp Business API oficial para confirmações/lembretes são exclusivos de planos CRM pagos ou adicionais elegíveis, com contrato, canal, custos e consentimentos próprios. Não confundir avisos operacionais do Portal Imagine com os avisos da agenda CRM. A antecedência e periodicidade dos lembretes internos ainda serão especificadas.
+
+[Detalhes e próximos parâmetros na agenda CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
