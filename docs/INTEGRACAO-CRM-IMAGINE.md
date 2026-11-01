@@ -436,3 +436,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Quando a recuperação automática não for possível, **informar claramente a falha e permitir o reenvio manual**. Não prometer retomada de bytes parcial sem suporte técnico; a estratégia de upload fracionado/retomável será detalhada separadamente.
 - Não marcar como bem-sucedido um upload interrompido ou com estado incerto; não contornar quotas de anexos (IN-031/032), controles de segurança, indisponibilidade do armazenamento nem bloqueio durante contingência (IN-039/051/053/054).
 - **Pendências:** políticas de timeout e novas tentativas, gestão/validade/limpeza de arquivos temporários, proteção contra uploads órfãos e detalhamento de UX. Apenas documentação; nenhuma programação autorizada.
+
+
+## IN-056 — Uploads temporários por até 6 horas (APROVADA em 01/11/2026)
+
+- **Reter por no máximo 6 horas** os arquivos ou fragmentos temporários de uploads interrompidos/incompletos, exclusivamente para permitir recuperação segura da operação quando viável (IN-055).
+- Após esse prazo, efetuar **limpeza automática segura** de fragmentos, sessões e objetos temporários, com retentativas e monitoramento técnico da limpeza quando necessário; não oferecer recuperação do upload expirado.
+- **Não contabilizar o arquivo incompleto/não confirmado na franquia comercial de anexos da empresa**; somente arquivos com gravação íntegra validada e efetivamente aceitos como anexos passam a ocupar franquia, respeitando IN-031/032.
+- Os arquivos temporários podem gerar custos reais de infraestrutura, portanto aplicar quotas técnicas, isolamento por organização, autenticação, permissões, proteção contra abuso e controles de concorrência e armazenamento temporário. Não confundir ausência de cobrança de franquia com armazenamento ilimitado de fragmentos.
+- Não declarar sucesso nem criar vínculo definitivo antes da confirmação de integridade, e não contornar bloqueios de uploads durante contingência (IN-051/053/054).
+- A retenção temporária de 6 horas **não altera** os 30 dias de retenção técnica de backups (IN-043) nem a política de exclusão definitiva (IN-042).
+- **Pendências:** contagem do prazo inicial, política de reserva de capacidade, limiares técnicos, gestão de uploads multipart/órfãos e rotinas de limpeza. Somente documentação, sem programação.
