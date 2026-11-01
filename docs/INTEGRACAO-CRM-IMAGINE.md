@@ -397,3 +397,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Informar de maneira clara aos usuários a indisponibilidade temporária de envio de anexos, sem afirmar que um upload bloqueado foi aceito.
 - Contingência continua temporária, de ativação técnica humana e com backup em modo estritamente de leitura. Critérios de retorno ao principal, verificações e UX serão detalhados depois.
 - Apenas planejamento e documentação; nenhuma programação autorizada.
+
+
+## IN-052 — Retorno controlado ao armazenamento principal (APROVADA em 01/11/2026)
+
+- Após a recuperação aparente do provedor principal, executar **verificações automáticas de disponibilidade, integridade dos objetos, isolamento e permissões por empresa/arquivo, exclusões legítimas e testes seguros de upload/download** no armazenamento principal.
+- **Exigir autorização explícita de responsável técnico autorizado** para encerrar a contingência da IN-050/IN-051 e reabilitar uploads de anexos. A recuperação do provedor e o sucesso dos testes **não fazem a transição automática**.
+- A validação não deve expor arquivos a links públicos, enfraquecer a IN-039/040 ou reativar anexos legitimamente excluídos (IN-042/043). Testes usarão objetos técnicos isolados e não sobrescreverão arquivos de clientes.
+- Havendo qualquer falha na validação, **manter a contingência somente leitura**, permanecer com novos uploads bloqueados e registrar/escalonar o problema via logs e alertas técnicos IN-045–048.
+- Registrar tecnicamente testes, decisão humana, data/hora e transição; preservar opção de reversão segura se a retomada falhar. Critérios exatos de aceitação, duração da estabilização e rollback ainda pendentes.
+- Somente planejamento/documentação; não iniciar programação.
