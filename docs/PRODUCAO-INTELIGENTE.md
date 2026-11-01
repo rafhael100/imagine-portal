@@ -157,7 +157,7 @@ Cada site terá código/artefatos isolados e versionados; a prévia tem URL HTTP
 - Assinatura obrigatória R$ 79,90/mês, primeiro vencimento em D+90, independente da publicação; contrato legado mantém suas condições.
 - Prazo anunciado: 7 dias úteis após validação dos materiais, sujeito a regras de bloqueios/feriados a detalhar sem mudar unilateralmente o contrato.
 - Duas rodadas de ajustes incluídas.
-- Cliente fornece domínio. Hospedagem, SSL, backup, suporte e licença seguem o contrato da oferta.
+- Cliente fornece domínio. Hospedagem do **site**, SSL, backup, suporte e licença seguem o contrato da oferta. **HD-001 aprovada em 2026-11-01: hospedagem de e-mail profissional e caixas postais não estão incluídas no Onepage**; preservar servidores e registros de e-mail existentes do titular.
 - Publicação somente após aprovação explícita da versão atual pelo titular.
 - Integrações Asaas e Focus NFe ainda exigem homologação/configuração real e aprovação fiscal; automação IA nunca antecipa estas ativações.
 
@@ -316,7 +316,7 @@ Autorização de ferramentas no backend, segregação por cliente, uploads antim
 
 ## 19. Próximas decisões ainda não tomadas
 
-- **Infraestrutura de hospedagem:** stack, provedor, quem mantém DNS e recursos por site; esse é o próximo ponto para deliberação.
+- **Infraestrutura de hospedagem:** stack, provedor, quem mantém DNS e recursos por site; **HD-001 já aprovada exclui e-mail profissional do Onepage**, mas não seleciona provedor.
 - **Biblioteca de templates e critérios de QA:** primeiro conjunto de layouts, componentes, testes bloqueantes e revisão de conteúdo sensível.
 - **Limites de arquivos, custos/concorrência e políticas de retry:** valores numéricos e prioridades de escala.
 - **Canais e prazos de comunicação:** e-mail/WhatsApp, lembretes e atendimento humano.
@@ -325,6 +325,22 @@ Autorização de ferramentas no backend, segregação por cliente, uploads antim
 - **Piloto operacional:** número de pedidos internos, critérios para liberar produção automática a clientes reais e procedimentos de rollback.
 
 A decisão AD-001 aprova a **direção de alta automação**, não dispensa validação de segurança, testes, homologação da conta financeira/fiscal ou deliberação sobre os pontos acima.
+
+## 20. Decisão HD-001 — Escopo de hospedagem do Onepage (APROVADA)
+
+**Aprovação:** 2026-11-01, responsável pela Imagine durante o planejamento.
+
+**Incluído na assinatura Onepage:** hospedagem do site, certificado SSL/HTTPS, backup do projeto/site e suporte técnico conforme condições contratuais. **Excluído:** serviço de hospedagem de e-mail profissional, provisionamento de contas postais, webmail e operação de e-mail do domínio do cliente.
+
+**Repercussões:**
+
+- Sites Onepage poderão usar hospedagem estática gerenciada, desde que atendam aos requisitos do produto e dos domínios.
+- O domínio permanece do cliente. MX/SPF/DKIM/DMARC e servidores de e-mail externos não podem ser alterados pelo agente de publicação sem autorização e avaliação específicas; preferencialmente, não tocá-los.
+- E-mails transacionais usados pelo **portal da Imagine** para avisos de pagamento, briefing e entrega são uma função administrativa distinta e continuam sujeitos à configuração e homologação do SMTP de saída.
+- A decisão não restringe, por si só, a possibilidade de o site ter um **formulário de contato** ligado a um endpoint ou serviço externo; isso exige deliberação própria sobre escopo comercial, antispam, privacidade e entrega.
+- **Pendente:** provedor de hosting, arquitetura do domínio raiz e `www`, política de backups (frequência, retenção, restauração), mecanismos de deploy e reversão.
+
+Detalhamento comparativo em [HOSPEDAGEM-SITES-ANALISE.md](HOSPEDAGEM-SITES-ANALISE.md).
 
 ---
 
