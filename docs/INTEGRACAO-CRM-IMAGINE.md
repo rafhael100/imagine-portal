@@ -417,3 +417,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Proteger os arquivos existentes, permissões por empresa e por recurso, autenticação obrigatória e exclusões legítimas (IN-039–043); não criar mecanismos de upload temporário nem escrita no backup de contingência.
 - O restante do CRM continua operacional sempre que seus serviços estiverem disponíveis. Não afirmar sucesso de uploads que foram bloqueados ou não concluídos.
 - **Pendências:** sinais objetivos de falha grave, janela de estabilização, comportamento do acesso a arquivos enquanto aguarda contingência e roteiro de retomada. Apenas documentação, sem programação.
+
+
+## IN-054 — Detecção inteligente e proporcional de falhas do armazenamento (APROVADA em 01/11/2026)
+
+- Diferenciar **falhas isoladas/transitórias** de **incidentes sistêmicos** mediante verificações técnicas de disponibilidade, integridade, resposta do provedor e confirmação de gravação; retentar operações recuperáveis com limites e segurança.
+- Em **risco confirmado de indisponibilidade, perda ou corrupção**, **suspender automaticamente novos uploads de anexos**, proporcionalmente ao escopo da falha e sem afetar indevidamente leads, contatos, agenda ou outros dados estruturados.
+- **Nunca exibir sucesso em upload cuja gravação íntegra não tenha sido confirmada**. Erros e estados incertos devem ser tratados de modo seguro e transparente, sem perda silenciosa.
+- Falhas isoladas não devem disparar bloqueio indiscriminado de todos os uploads ou do CRM. Falhas de integridade relevantes exigem investigação e proteção dos objetos afetados.
+- Preservar **IN-050 a IN-053**: contingência somente leitura, retorno validado com aprovação humana e nova ativação da contingência somente por responsável autorizado. Alertas e recuperação técnica conforme IN-045 a IN-049.
+- **Pendências:** sinais e limiares objetivos, janelas de detecção, escopo de suspensões e testes de aceitação. Apenas documentação; nenhuma implementação autorizada.
