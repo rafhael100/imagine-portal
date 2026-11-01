@@ -620,3 +620,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Não restaurar, reabrir ou reintroduzir anexos legitimamente excluídos**, inclusive a partir de backup (IN-042/043); o desbloqueio limita-se a arquivos ainda existentes de forma legítima.
 - **A detalhar posteriormente:** critérios técnicos específicos de confirmação de resultado seguro, perfil e dupla checagem de autorização, prazos, mensagens de estado e comunicação de bloqueio/desbloqueio à empresa.
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-073 — Notificações direcionadas sobre bloqueio e desbloqueio de anexos (APROVADA em 01/11/2026)
+
+- Em **bloqueio preventivo, confirmação de ameaça ou desbloqueio de segurança** de um anexo já armazenado (IN-070–072), produzir **notificação interna direcionada** ao **administrador autorizado da organização** e ao **funcionário responsável pelo anexo**, caso ainda tenha permissão atual para conhecer o arquivo e seu estado. Evitar notificação em massa aos demais funcionários.
+- A notificação deve informar de maneira clara o **estado do anexo (acesso suspenso por segurança ou acesso restabelecido)** e orientar o usuário sobre a indisponibilidade, **sem revelar assinatura de malware, dados de investigação, indicadores técnicos sensíveis ou conteúdo do anexo**. Exibir o próprio arquivo somente quando a autorização atual e o estado de segurança permitirem.
+- **Checar permissões no momento de direcionar e de consultar a notificação**, preservando fronteiras entre empresas; retirar ou ocultar detalhes de notificações quando a pessoa perder acesso ao registro. O papel de administrador não deve suprimir restrições específicas de segurança do arquivo.
+- Alertas sobre ameaças, falhas de varredura e decisões de bloqueio/desbloqueio permanecem no **painel e nos canais técnicos da Imagine**, de acordo com os controles já aprovados (IN-045–047/067–072), sem exposição de dados desnecessários ao cliente.
+- Registrar transições e comunicações essenciais em **auditoria técnica protegida**, sem criar auditoria comercial individual de visualizações e downloads (IN-041). Integrar notificações à infraestrutura existente do CRM e preservar regras já aprovadas de retenção e arquivamento de notificações, sem inventar novos prazos nesta decisão.
+- **Pendências:** identificação e transferência de responsabilidade do anexo, deduplicação e agregação de eventos, mudanças de permissão/conta desativada, mensagens e experiência da interface, critérios de status da notificação.
+- **Somente documentação de planejamento; nenhuma programação autorizada.**
