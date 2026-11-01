@@ -1,12 +1,13 @@
 # Imagine — Análise comparativa de hospedagem dos Onepages
 
-> **Análise técnica preliminar · 2026-11-01 · DECISÃO PENDENTE**
+> **Análise técnica preliminar · 2026-11-01 · HD-001 APROVADA; PROVEDOR DE HOSPEDAGEM AINDA PENDENTE**
 >
 > Este documento compara cPanel/WHM, VPS própria com deploy automatizado e plataforma estática gerenciada. Não autoriza migração, contratação, deploy ou alteração de DNS. Vinculado a `docs/PRODUCAO-INTELIGENTE.md`, decisão AD-001 de alta automação.
 
 ## 1. Premissas do negócio e da operação
 
 - Produto inicial: **Onepage responsivo**, com identidade visual, serviços, contatos e integração de WhatsApp; domínio fornecido pelo cliente.
+- **HD-001 APROVADA em 2026-11-01:** a assinatura do Onepage inclui hospedagem do **site**, SSL, backup do projeto/site e suporte técnico conforme contrato; **não inclui hospedagem de e-mail profissional nem caixas de correio**. O cliente mantém seus e-mails onde preferir. Não confundir hospedagem de caixa postal com envios transacionais feitos pelo portal Imagine.
 - Implantação: R$ 990 em três cobranças de R$ 330 (D0/D30/D60); assinatura R$ 79,90/mês a partir do D90, independentemente de publicação. Site, hospedagem, SSL, backups e suporte conforme oferta; projetos legados preservados.
 - Agente de IA desenvolve e testa em ambiente **isolado**, sem executar código do cliente no servidor de produção.
 - Cliente aprova versão/artefato exato, backend verifica gates e serviço técnico efetua deploy; apenas depois de teste real da URL registra `published`.
@@ -74,7 +75,9 @@ Limitações reais: **Cloudflare Pages limita 100 projetos por conta** (document
 - Workers for Platforms em arquitetura própria para escala: base US$ 25/mês, com uso adicional; Cloudflare for SaaS cobra custom hostnames acima de 100 a US$ 0,10 por mês cada. Exemplo **apenas de componente de hostname**, 500 clientes com 1 hostname cada = 400 excedentes = US$ 40/mês, além do Workers e outros serviços. Com `www` + apex, a contagem e complexidade podem aumentar.
 - Custos **não incluídos**: execução Codex/IA, criação de templates, revisões, armazenamento dos originais, backup de código e arquivos, notificações, suporte, antifraude/abuso, observabilidade, migrações, serviços extras, tributos e mão de obra.
 
-## 5. Modelo de domínio e e-mail — risco crítico
+## 5. Modelo de domínio e e-mail — risco crítico (HD-001 aprovado)
+
+**HD-001:** o serviço contratado não disponibiliza caixas postais, MX, webmail, IMAP/SMTP para os clientes. A presença de DNS/e-mails externos não impede a contratação nem a publicação do site. **O portal da Imagine pode utilizar o próprio serviço de e-mail transacional para informar status de pedidos**; esse envio não equivale a e-mail profissional do cliente.
 
 Separar **registrador**, **zona DNS**, **hosting do site**, **servidor de e-mail** e **portal Imagine**. O cliente fornece domínio; a Imagine apenas solicita alterações necessárias. Nunca alterar nameservers automaticamente sem autorização e inventário de MX/TXT/CAA; nem apagar configurações de serviços existentes. Para uma VPS/cPanel, `A`/ `AAAA` no domínio raiz e `CNAME` para `www` são caminhos típicos. Pages: apex exige zona/nameservers Cloudflare; subdomínio permite DNS externo por CNAME. Para domínio sem acesso do cliente, publicar só prévia e suspender a entrega no domínio definitivo.
 
@@ -99,13 +102,23 @@ O custo mensal de hosting do site não substitui o custo do ambiente de build. C
 ## 8. Matriz de decisão ainda pendente
 
 1. Sites Onepage serão **100% estáticos**, com contatos via WhatsApp, ou haverá formulários/e-mail do próprio domínio, área de login, CMS e banco?
-2. Domínio raiz (`empresa.com.br`) deve funcionar com **DNS externo** sem trocar nameservers? O cliente poderá manter e-mail existente?
+2. Domínio raiz (`empresa.com.br`) deve funcionar com **DNS externo** sem trocar nameservers? **E-mails existentes permanecem externos por decisão HD-001**; preservar MX/TXT é obrigatório.
 3. Os clientes terão acesso individual ao cPanel/FTP, ou administração/hospedagem fica exclusivamente com a Imagine?
 4. Quantos Onepages ativos são a meta em 12–24 meses? (25, 100, 500+). Capacidade e custo devem considerar total de contas cPanel já existentes.
 5. É aceitável usar serviços gerenciados externos para sites estáticos, preservando dedicado para Talci, CRM, n8n e sistemas existentes?
 6. Qual limite operacional para atividades humanas de manutenção e resposta a incidentes da hospedagem?
 
-**Status:** análise documentada; nenhum provedor ou arquitetura aprovado nesta etapa.
+**Status:** HD-001 aprovado (sem hospedagem de e-mail profissional no Onepage). **Provedor, stack de publicação e regras de domínio continuam pendentes**. Nenhuma implantação, compra, domínio ou ambiente alterado.
+
+## 8A. Requisitos decorrentes da decisão HD-001 (aprovados)
+
+- A Imagine é responsável por hospedar o site do Onepage, disponibilizar HTTPS/SSL, manter cópias restauráveis do projeto/site e prestar suporte técnico conforme condições da assinatura.
+- E-mail profissional não integra o Onepage. O site não recebe contas postais, webmail, SMTP/IMAP do cliente ou transferência de e-mails.
+- O cliente poderá manter e-mail em Microsoft 365, Google Workspace, serviço próprio ou outro prestador; DNS MX, SPF, DKIM e DMARC existentes devem ser preservados quando houver mudanças autorizadas no DNS do site.
+- Avisos de contratação, briefing e aprovação são mensagens transacionais do **portal Imagine**; não caracterizam serviço de correio eletrônico do domínio do cliente.
+- O modo de captação de contatos do Onepage (**apenas botão WhatsApp ou também formulário**) permanece em aberto: receber um formulário de contato não significa hospedar caixa postal e pode exigir endpoint/API e serviço de entrega seguros.
+- Política operacional de backup ainda requer definição de periodicidade, retenção, local offsite, procedimento/testes de restauração e eventual RPO/RTO. Não afirmar garantias de recuperação sem validação técnica.
+- A decisão HD-001 **não seleciona Cloudflare, VPS nem cPanel** e não autoriza migração ou delegação dos nameservers de terceiros.
 
 ## 9. Fontes de preços e limites
 
