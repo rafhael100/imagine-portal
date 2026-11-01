@@ -690,3 +690,16 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Registrar **auditoria técnica** sobre evidências utilizadas, alterações de status de proveniência, restrições e decisões, minimizando dados sensíveis. O procedimento deve ter limites de recursos e consumo de IA, sem presumir processamento ilimitado, cobrança extra ou uso de créditos sem política aprovada.
 - **Pendências:** padrões de evidência e níveis de confiança, ordem de priorização dos legados, gatilhos de reconstrução, necessidade de revisão humana em casos inconclusivos, custo/consumo de IA, política para fontes alteradas ou excluídas, testes de segregação.
 - **Somente documentação de planejamento; nenhuma programação autorizada.**
+
+
+## IN-079 — Reconstrução gradual de proveniência com prioridade de segurança (APROVADA em 01/11/2026)
+
+- A reconstrução de proveniência de resumos antigos e importados definida na IN-078 será **gradual**, sem exigir processamento integral e imediato de todo o histórico. A prioridade será determinada sobretudo por **risco concreto de segurança e necessidade autorizada**.
+- **Prioridade elevada:** conteúdos potencialmente associados a anexos bloqueados, incidentes de segurança, suspeitas relevantes de exposição ou outras necessidades de contenção. Aplicar imediatamente restrições necessárias de IN-070–078, **independentemente** de a reconstrução detalhada das fontes ainda estar pendente.
+- **Prioridade intermediária:** solicitações de reconstrução por usuários e responsáveis técnicos **devidamente autorizados**, após validação de permissões por organização, resumo e fontes. Sem tratamento privilegiado que comprometa contenção de riscos elevados.
+- **Prioridade baixa:** resumos legados sem risco conhecido e sem solicitação específica, processados progressivamente conforme capacidade técnica disponível. Na ausência de evidência confiável, classificar a proveniência como desconhecida/não verificada; não atribuir origens inventadas nem liberar dados restritos.
+- Aplicar **limites técnicos de carga, CPU, memória, concorrência, orçamento e processamento** para evitar saturação do CRM, prejuízo às operações e consumo descontrolado. Mecanismos e quotas exatos ficam pendentes de especificação.
+- **Não debitar automaticamente créditos comerciais de IA do cliente por verificações, contenções e rastreabilidade indispensáveis à segurança da plataforma.** Manter rastreabilidade de custos operacionais internos; eventuais análises ou regenerações opcionais que gerem cobrança/créditos exigirão política comercial e autorização explícitas, sem alteração implícita dos contratos. Não presumir processamento de IA irrestrito ou gratuito para solicitações opcionais.
+- Preservar **auditoria técnica protegida**, controles de acesso e isolamento entre empresas, versões e históricos legítimos, restrições proporcionais e exclusão somente sob a política aplicável (IN-039–043/070–078). Não permitir acesso por IA, busca, exportação ou integrações a conteúdo bloqueado.
+- **Pendências:** dimensionamento de filas/prioridades, limites e orçamentos, responsabilidade por custos de reconstruções opcionais, critérios de autorização e transparência de status ao usuário.
+- **Somente documentação de planejamento; nenhuma programação autorizada.**
