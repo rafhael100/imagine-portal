@@ -518,3 +518,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Após validações e nova reserva bem-sucedidas, o upload retomado **reentra no final da fila FIFO** conforme IN-059/062, respeitando até **5 uploads simultâneos por empresa** (IN-058); não reivindica a vaga nem a posição original.
 - Evitar dupla contagem, reservas órfãs, liberações prematuras, anexos duplicados e confirmações sem gravação íntegra (IN-055/060). A política para apresentar insuficiência de espaço no retorno será especificada separadamente (IN-064).
 - **Somente planejamento e documentação; nenhuma programação autorizada.**
+
+
+## IN-064 — Insuficiência de espaço na recuperação de upload (APROVADA em 01/11/2026)
+
+- Quando um upload interrompido for elegível à recuperação, mas **não houver capacidade disponível para nova reserva** (IN-057/063), comunicar claramente ao usuário a falta de espaço, sem iniciar transmissão, sem declarar upload concluído e sem utilizar a reserva antiga já liberada.
+- **Preservar os fragmentos temporários recuperáveis somente até o fim do prazo original máximo de 6 horas** definido em IN-056/061, **sem renovar ou reiniciar esse período** por tentativas de recuperação, falta de espaço, fechamento de navegador ou reconexão.
+- O funcionário poderá **solicitar manualmente nova tentativa** enquanto o prazo original estiver válido, após liberar espaço na franquia ou ativar capacidade adicional devidamente contratada. Em cada tentativa exigir **nova autenticação válida, autorização de usuário/organização/recurso, checagem de integridade e elegibilidade, limites técnicos, bloqueios operacionais e reserva atômica da capacidade necessária** (IN-032/039/051/054/057/063).
+- Enquanto aguarda espaço ou ação do usuário, o upload **não ocupa nenhuma das cinco vagas de transmissão** (IN-058) e **não tem posição garantida na fila FIFO**. Após nova validação e reserva bem-sucedida, **reentra no fim da fila** (IN-059/062), sem ultrapassar uploads já aguardando.
+- Se o prazo de recuperação expirar, **cancelar a recuperação e limpar com segurança os fragmentos e metadados temporários**, conforme IN-056/060/061, sem consumir franquia comercial como anexo confirmado.
+- Não criar cobrança automática de armazenamento nem obrigar upgrade: capacidade adicional continua sujeita a consentimento comercial explícito (IN-033–037). Operações simultâneas podem esgotar novamente o espaço; reserva atômica evita sobrealocação.
+- **Pendências:** mensagens de interface, exibição opcional de tempo restante, detalhes de corrida entre disponibilidade e reserva, tratamento técnico de fragmentos órfãos. Apenas planejamento/documentação; nenhuma programação autorizada.
