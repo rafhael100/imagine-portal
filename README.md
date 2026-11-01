@@ -2,7 +2,7 @@
 
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
-**Versão 0.17.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
+**Versão 0.18.0 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
 
 ## Iniciar localmente
 
@@ -35,6 +35,8 @@ Abra `http://127.0.0.1:4173/portal`. O envio SMTP usa Nodemailer; instale as dep
 - [Verificação e limites dos testes](TESTES.md).
 - [Regras comerciais e arquitetura](docs/PROJETO.md).
 - [Fiscal, Focus NFe e cobranças](docs/FISCAL-E-COBRANCAS.md).
+- [Assinatura automática e atualização de cartão](docs/ASSINATURA-CLIENTE.md).
+- [Minha conta e cadastro](docs/MINHA-CONTA.md).
 - [Histórico de versões](CHANGELOG.md).
 
 ## Fluxo de trabalho sugerido
@@ -58,3 +60,9 @@ Arquivos ficam em `DATA_DIR/uploads`, fora da raiz pública, com limite de 10 MB
 ## Jornada de produção do Onepage
 
 Preparação com briefing, produção com marcos reais, prévia versionada, duas rodadas de ajustes e autorização do cliente antes da publicação. Prazo para novas contratações: sete dias úteis após validar os materiais. [Regras e limites](docs/JORNADA-ONEPAGE.md). Migração aditiva 3 preserva os pedidos existentes.
+
+## Recorrência e dados cadastrais
+
+Novos pedidos incluem recorrência autorizada na compra, com mensalidade de R$ 79,90 a partir do 90º dia. A implantação usa três cobranças de R$ 330 em D0/D30/D60. O cliente atualiza o cartão e retoma a recorrência pelo portal, sem aprovação da Imagine. Contratos legados preservam suas condições. A configuração real e homologação ainda são necessárias.
+
+Configure BILLING_TOKEN_KEY de 64 caracteres hexadecimais no ambiente privado para criptografar tokens Asaas. Não grave o cartão completo ou CVV. Uma instância da aplicação precisa permanecer ativa para a fila de parcelas e conciliação. Dados de conta e cadastro fiscal têm validação e isolamento por titular.

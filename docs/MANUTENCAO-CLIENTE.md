@@ -8,6 +8,6 @@ O formulário seleciona projeto e tipo (suporte, alteração ou dúvida), exige 
 
 Alterações de conteúdo ou funcionalidades são avaliadas à parte. Hospedagem, SSL, backup e suporte dependem das condições do contrato. A interface não afirma disponibilidade em tempo real nem execução de backup.
 
-Condições do plano abrem a proposta e pagamentos do pedido. As regras financeiras legadas não foram modificadas: a migração para a oferta comercial nova continua pendente antes da ativação.
+Condições do plano abrem a proposta e pagamentos do pedido. A assinatura dos novos pedidos é autorizada na compra, com primeira mensalidade após 90 dias; atualização e retomada são feitas pelo cliente, sem aprovação da Imagine. Contratos antigos preservam suas condições.
 
 Validação: 50 testes aprovados, incluindo situações de publicação/plano/cancelamento e acesso ao script. Navegação e formulário conferidos localmente sem enviar solicitação fictícia nem alterar contratação.
