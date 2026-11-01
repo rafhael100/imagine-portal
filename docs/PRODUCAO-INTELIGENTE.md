@@ -421,7 +421,7 @@ O limite de profissionais é validado pelo **CRM**, não apenas pelo Portal ou p
 
 **Aprovação:** 2026-11-01. A organização com benefício CRM Básico Cortesia pode cadastrar e manter **até 10 serviços ativos** para seu **único profissional agendável** (IN-008), com criação/edição dos compromissos **manual e interna** (IN-007). Serviços inativos não ocupam quota ativa, mas seus históricos/agendamentos serão preservados. A ativação de 11º serviço deve ser negada com opção de inativar outro ou contratar upgrade elegível. Não criar quota por site contratado.
 
-**Pendências:** duração e intervalo por serviço, expediente semanal, pausas, exceções/feriados, conflitos e permissão para atendimentos fora de expediente, e quantidade de agendamentos manuais mensais (proposta: sem teto comercial rígido, com uso justo). A automação comercial de até 3 ativas de modelos prontos permanece assunto independente e terá revisão final da biblioteca.
+**IN-011 aprovada (2026-11-01):** expediente semanal flexível e múltiplos períodos diários, pausas/intervalos, duração por serviço, bloqueios manuais de folgas/férias/feriados e agendamento manual excepcional fora do expediente com aviso e confirmação expressa de usuário autorizado, sempre sem sobreposição. **Pendente:** quantidade mensal de agendamentos manuais no Básico, detalhes das justificativas e integrações externas. A automação comercial de até 3 ativas de modelos prontos permanece assunto independente e terá revisão final da biblioteca.
 
 [Detalhamento e propostas de regras do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
