@@ -511,6 +511,12 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **IN-024 preservada:** sem teto comercial rígido para quantidade total de leads/contatos, respeitando uso justo. **Pendentes:** tamanho/quantidade de linhas por arquivo, tratamentos de duplicidade/erros, resultado da importação, armazenamento dos uploads, regras de exportação comercial e exclusão definitiva. A importação por arquivo é diferente da captura pública de leads dos formulários Imagine e não altera o contrato do site. [Matriz IN-025](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
 
+## 45. Decisão IN-026 — Exportação CSV/XLSX de leads e contatos do CRM Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. No CRM Básico Cortesia, o único **Administrador da Empresa** pode exportar **todos os leads e contatos autorizados da sua empresa ou somente os registros filtrados**, em **CSV e XLSX**. A operação exige verificação de permissões e isolamento por organização, downloads/arquivos protegidos, auditoria e controles técnicos proporcionais de processamento. O Portal Imagine não ganha acesso a esses dados simplesmente por administrar a assinatura do site; o cliente acessa a exportação dentro do próprio CRM.
+
+**Não concedido pela IN-026:** relatórios gerenciais avançados, API pública, exportação de outros módulos, exportações programáticas externas ou uso de dados por pessoal não autorizado. **Pendente:** colunas e campos sensíveis exportáveis, critérios de filtros aplicados, tamanho/lotes, link seguro e prazo de expiração, armazenamento temporário, políticas de retenção e detalhes do processamento assíncrono. Direitos LGPD de acesso e portabilidade devem ser respeitados sem exigir upgrade indevido. **Próxima decisão:** exclusão definitiva e mesclagem de leads/contatos, separadas do arquivamento comum (IN-023). [Matriz IN-026](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
