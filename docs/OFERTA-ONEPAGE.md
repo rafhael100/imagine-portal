@@ -10,4 +10,8 @@ Assinatura inclui licença de uso, **hospedagem do site**, SSL, backup do projet
 
 Pagamento integrado disponível no pedido autenticado quando Asaas e tokenização estiverem configurados. Checkout público direto permanece prévia. Homologação real e implantação pendentes. Contratos legados conservam seus valores e regras originais.
 
-A ideia de **Landing Page** como produto próprio e o mapeamento de recursos/limites do CRM Básico, bem como as regras de perda do benefício, continuam pendentes; a decisão de integração não altera unilateralmente os valores atuais do Onepage nem cria uma segunda cobrança sem consentimento.
+**O serviço Landing Page como produto independente do Onepage foi aprovado para inclusão futura no catálogo comercial Imagine (IN-115): implantação R$ 1.290 (3 × R$ 430 em D0/D30/D60) e mensalidade R$ 79,90 desde D+90.** Consultar [Oferta Landing Page Imagine](OFERTA-LANDING-PAGE.md). Seu novo catálogo, checkout e contratação estão pendentes de implementação/homologação. O mapeamento final de recursos/limites e as regras de perda do benefício CRM Básico continuam pendentes; a integração não altera unilateralmente os valores atuais do Onepage nem cria segunda cobrança CRM sem consentimento.
+
+## Relação comercial com o novo serviço Landing Page
+
+O Onepage permanece com seu escopo, valores, prazo de 7 dias úteis depois da validação de materiais e duas rodadas de ajustes, sem alterações por esta decisão. O novo produto **Landing Page** terá oferta independente e somente passará a ser exibido/contratável no site/Portal Imagine após planejamento integral, programação expressamente autorizada e homologação. Preços e condições aprovados exclusivamente para o planejamento em [OFERTA-LANDING-PAGE.md](OFERTA-LANDING-PAGE.md). Não ativar automaticamente serviço, SKU, checkout ou cobrança.
