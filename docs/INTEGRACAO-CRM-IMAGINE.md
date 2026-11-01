@@ -387,3 +387,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Contingência é **temporária e controlada**, sem autorizar automaticamente novos uploads no backup, substituição de arquivos íntegros ou sincronização destrutiva. Regras de escrita, retorno ao principal, gatilhos, limites e testes de failover ainda serão especificadas.
 - Permanecem válidas a replicação de 15 minutos (IN-044), monitoramento e alertas (IN-045–047), recuperação automática não destrutiva (IN-048) e testes isolados (IN-049).
 - Apenas documentação e planejamento; nenhuma programação iniciada.
+
+
+## IN-051 — Contingência somente leitura, sem novos uploads (APROVADA em 01/11/2026)
+
+- Com a contingência controlada de IN-050 ativada em falha do armazenamento principal, o backup poderá atender **somente visualização, pré-visualização e download de anexos já existentes, íntegros e autorizados**; cumprir obrigatoriamente autenticação e permissões IN-039/040 e impedir reativação de arquivos excluídos (IN-042/043).
+- **Bloquear temporariamente todos os novos uploads de anexos** enquanto o armazenamento principal estiver indisponível. Não gravar arquivos de clientes no destino de backup, nem receber novos anexos em buffer/armazenamento temporário como alternativa implícita.
+- O **restante do CRM** (leads, contatos, observações, agenda e demais dados estruturados) permanece operacional **desde que os respectivos serviços estejam disponíveis** e suas próprias permissões/limites sejam respeitados.
+- Informar de maneira clara aos usuários a indisponibilidade temporária de envio de anexos, sem afirmar que um upload bloqueado foi aceito.
+- Contingência continua temporária, de ativação técnica humana e com backup em modo estritamente de leitura. Critérios de retorno ao principal, verificações e UX serão detalhados depois.
+- Apenas planejamento e documentação; nenhuma programação autorizada.
