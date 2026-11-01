@@ -1,6 +1,6 @@
 # Imagine — Integração Onepage/Landing Page × CRM Imagine
 
-> **Planejamento v0.1 · 2026-11-01 · Decisão IN-001 aprovada (diretriz de produto), detalhes comerciais e técnicos pendentes**  
+> **Planejamento v0.2 · 2026-11-01 · IN-001 e IN-002 aprovadas; implementação e detalhes do benefício ainda pendentes**  
 > Repositório de origem: `rafhael100/imagine-portal`. Documento em branch de planejamento. **Sem implementação, contratação de serviço, cobrança ou alteração em produção.**
 
 ## 1. Decisão IN-001 — integração entre produtos (APROVADA)
@@ -9,7 +9,7 @@ Quando um cliente contratar um **Site Onepage** ou, futuramente, uma **Landing P
 
 O site também continuará com botão para WhatsApp. **Formulário de leads e CRM são serviços diferentes de hospedagem de e-mail profissional**, que segue **excluída** da oferta conforme HD-001.
 
-**Atenção aos limites:** a aprovação é da **diretriz** (ofertar CRM Básico com site e capturar leads de modo integrado), não de valores, gratuidades, precificação conjunta, limites de usuários/leads, funcionalidades específicas do plano, datas de cobrança, política de cancelamento ou disponibilidade imediata. O catálogo implementado no portal atualmente possui o serviço `site` (Onepage), **não um produto Landing Page independente**. O CRM Imagine está em planejamento; não marcar como funcionalidade já ativa no checkout antes de integração testada/homologada e condições comerciais aprovadas.
+**Decisão IN-002 aprovada em 2026-11-01:** o CRM Básico será disponibilizado como **benefício gratuito vinculado à contratação ativa de Onepage ou, futuramente, Landing Page**; não cria segunda mensalidade no CRM. O site continua com cobrança própria pelo Portal Imagine. **Quando o cliente contratar um plano superior diretamente no CRM**, a assinatura paga e o faturamento desse plano ocorrerão no CRM, mantendo a assinatura do site no Portal. A gratuidade não é um plano gratuito público aberto a qualquer usuário. **Ainda pendentes:** matriz de recursos/cotas do Básico, correspondência com planos Essencial/Profissional/Empresarial, preço da Landing Page, estados exatos da elegibilidade em cancelamento/inadimplência, e implementação/homologação. O catálogo implementado no portal atualmente possui o serviço `site` (Onepage), **não um produto Landing Page independente**. O CRM Imagine está em planejamento; não marcar como funcionalidade já ativa no checkout antes de integração testada/homologada e condições comerciais aprovadas.
 
 ## 2. Objetivos
 
@@ -91,16 +91,40 @@ Contratos de API futuros: `POST /integrations/v1/organizations/provision`, `POST
 - Botão WhatsApp permanece no site. Clique em WhatsApp **não cria lead automaticamente** salvo decisão futura sobre consentimento/rastreamento.
 - Se o cliente alterar domínio, editar conteúdo ou mudar de plano, revalidar o vínculo e a configuração do formulário antes do deploy.
 
-## 8. Política financeira e de ciclo de vida — PENDENTE
+## 8. Política financeira e vínculo entre assinaturas — IN-002 APROVADA (com pendências operacionais)
 
-A diretiva aprovada é disponibilizar o Plano Básico com o site/landing page. **Ainda não foi aprovado** se o CRM Básico:
-- está integralmente incluído na mensalidade vigente do Onepage de R$ 79,90 sem pagamento adicional;
-- tem preço de pacote distinto ou benefício promocional por um período; ou
-- constitui uma assinatura separada (caso em que a contratação e o consentimento precisam ser explícitos).
+### 8.1 Regras comerciais aprovadas
 
-Também ficam pendentes: preço de landing page, limites de leads/usuários/empresas, upgrades, recursos de IA do CRM (opcionais conforme plano), inadimplência, cancelamento, portabilidade e exportação de dados, suspensão do site versus direito de acesso a leads e diferenciação entre contrato legado/atual. **Nunca emitir cobrança CRM automaticamente nem desligar o acesso aos dados antes de aprovar estas regras.**
+- A contratação de **Onepage** (ou da futura Landing Page) concede acesso ao **CRM Básico sem mensalidade adicional**, condicionado ao vínculo contratual com o site; não criar cobrança recorrente do Básico no CRM.
+- **Portal Imagine** continua como fonte de cobrança e contrato do site. Para o Onepage atual: implantação R$ 990 em D0/D30/D60, assinatura mensal do site R$ 79,90 a partir de D90, independentemente da publicação. Esses valores e ciclos não são alterados pela integração.
+- Se o cliente fizer **upgrade para plano CRM pago**, ele contrata no **CRM Imagine**, sob termos e preço do plano escolhido, e passa a pagar **duas mensalidades separadas**: uma pelo site no Portal Imagine e outra pelo plano avançado no CRM Imagine.
+- Upgrade de CRM **não cancela, substitui, desconta nem transfere** a assinatura do site.
+- O benefício de CRM Básico não é o **trial público de 14 dias** nem cria um plano gratuito permanente aberto a usuários que não contratam site. O teste gratuito existente do CRM permanece com regras próprias.
+- O CRM já possui três planos comerciais aprovados em conceito: **Essencial, Profissional e Empresarial**. A expressão **CRM Básico vinculado ao site** designa inicialmente um **benefício/entitlement gratuito por vínculo**, e não a aprovação de um quarto plano comercial público ou a renomeação automática do Essencial. Definir, na especificação do CRM, se o benefício usa o conjunto de recursos do Essencial ou um perfil próprio, com limites explicitamente aprovados.
+- O usuário pode participar de mais de uma empresa no CRM. O benefício e o plano pago pertencem à **organização/empresa elegível** vinculada ao pedido, não automaticamente a todas as organizações do login.
 
-A conta CRM deve ser vinculada ao contrato sem misturar os bancos de dados dos dois produtos e sem romper segurança/isolamento do SaaS multiempresa.
+### 8.2 Regras de operação recomendadas para detalhamento (não aprovadas além da diretriz)
+
+1. Criar `site_bundle_basic_entitlement` por `site_order_id + crm_org_id`, associado à versão dos termos comerciais e aos eventos de contrato.
+2. Após confirmação conciliada do primeiro pagamento, provisionar ou vincular a organização CRM sem cobrar o Básico. É necessária verificação de vínculo e escolha quando titular participa de múltiplas empresas; não presumir pelo e-mail.
+3. O **plano efetivo** do CRM é o plano pago vigente quando existir; caso contrário, pode ser o Básico por benefício do site enquanto o vínculo estiver elegível. Nunca somar cotas automaticamente sem regra comercial.
+4. Quando o upgrade pago é confirmado, trocar recursos efetivos para o plano contratado. O benefício gratuito permanece registrado como direito de retorno, sem cobrança paralela.
+5. O CRM já prevê **upgrade self-service com pró-rata e ativação após confirmação do pagamento**, e **downgrade no próximo ciclo** com regularização dos recursos excedentes. A implementação do benefício deve respeitar essas regras; cancelamento de plano pago não deve apagar registros.
+6. Se o plano avançado terminar e o site continuar elegível, **retornar ao Básico na data contratual apropriada**, respeitando o ciclo e os limites do destino. Recursos excedentes devem ser preservados com bloqueio/restrição de criação/uso, não apagados automaticamente.
+7. Se o site for cancelado, suspenso ou inadimplente, **não encerrar automaticamente a assinatura avançada paga do CRM**. Política exata de perda/suspensão do benefício Básico, prazos, avisos e retenção dos dados depende de aprovação; nunca apagar leads de forma silenciosa.
+8. Se uma organização possui múltiplos sites qualificados, registrar múltiplas origens do benefício sem gerar duplicidade de tenant, assinatura Básico ou cobrança; após término de um site, continuar benefício se outro vínculo elegível existir.
+9. Conciliação **servidor-servidor autenticada** entre Portal e CRM, com IDs de contratos, idempotência, auditoria, retentativa e ações de suporte para incidentes. Nenhum sistema deve atualizar diretamente o banco do outro.
+10. Faturas do site no Portal e do plano avançado no CRM possuem provedores/identificadores separados e histórico explícito, evitando cobrança dupla e impedindo autorização tácita da assinatura paga.
+
+### 8.3 Pendências comerciais e de ciclo de vida
+
+- Recursos e quotas do **Básico cortesia**: usuários incluídos, leads, automações, armazenamento, API, agentes e limites do formulário; não copiar quotas do trial de 14 dias sem decisão.
+- Mapear formalmente Básico × Essencial × Profissional × Empresarial e preços finais dos planos pagos (ainda não aprovados).
+- Condições exatas de elegibilidade durante inadimplência do site; datas de início, fim e comunicação da cortesia.
+- Cancelamento do site com assinatura CRM avançada ativa; cancelamento do CRM pago com benefício do site elegível; recontratação; portabilidade e retenção, respeitando a LGPD e os prazos de assinatura do CRM aprovados.
+- Contrato/preço da futura Landing Page e extensão das regras de elegibilidade.
+- Regras fiscais e faturamento de benefícios gratuitos e planos pagos quando a documentação tributária for aprovada.
+
 
 ## 9. Testes de aceitação propostos
 
@@ -121,7 +145,7 @@ A conta CRM deve ser vinculada ao contrato sem misturar os bancos de dados dos d
 
 ## 10. Próximas decisões para aprovação
 
-1. **Pacote comercial CRM Básico**: preço incluso ou assinatura distinta, regras de upgrade, quantidade de usuários/leads e data de início.
+1. **IN-002 já aprovou:** CRM Básico gratuito vinculado ao site, cobrança do site apenas no Portal Imagine e upgrade pago apenas no CRM. **Ainda definir:** elegibilidade de cancelamento/inadimplência, quotas/recursos, correspondência com os planos existentes e detalhes de ativação.
 2. **Provisionamento multiempresa**: criar organização nova, vincular existente ou permitir seleção pelo cliente, e quando disparar convite/acesso.
 3. **Funcionalidades mínimas do Plano Básico**: leads, funil, contatos, atividades, automações e limites; agentes de IA do CRM apenas se contratados conforme plano.
 4. **Formulário-padrão**: campos obrigatórios/opcionais, antispam, registro de consentimento/aviso de privacidade, configuração por site.
@@ -129,4 +153,4 @@ A conta CRM deve ser vinculada ao contrato sem misturar os bancos de dados dos d
 6. **Integração e resiliência**: contrato API v1, autenticação servidor-servidor, fila, RPO/RTO e retenção de dados pessoais.
 7. **Ciclo de vida**: cancelamento, inadimplência, solicitação de exclusão e exportação dos dados do CRM sem perda indevida.
 
-**Status:** IN-001 aprovada como diretriz; regras comerciais e recursos do Plano Básico aguardam aprovação. O CRM continua em planejamento; nenhuma API, assinatura ou formulário foi implementado.
+**Status:** IN-001 e IN-002 aprovadas; benefício comercial do Básico gratuito e faturamento separado para upgrade aprovados. Limites/recursos do Básico, exceções e implementação aguardam aprovação. O CRM continua em planejamento; nenhuma API, assinatura ou formulário foi implementado.
