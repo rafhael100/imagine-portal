@@ -83,7 +83,7 @@ A evolução 0/25/50/75/100 decorre de marcos efetivos, nunca de timer. A public
 - Cliente sem domínio configurado: permitir prévia, manter publicação pendente e informar exatamente os registros necessários.
 - Site aprovado mas novo código foi gerado: invalidar autorização anterior e solicitar aprovação da nova versão.
 - Falha após deploy: manter fase de publicação pendente, executar rollback quando possível e registrar diagnóstico; não declarar entrega concluída.
-- Pedido de alteração após publicação: encaminhar à área atual de manutenção/suporte, com orçamento quando cabível.
+- Pedido de alteração após publicação: encaminhar à área atual de manutenção/suporte. **Alterações de conteúdo nos blocos existentes estão incluídas na mensalidade das novas ofertas Onepage/Landing Page (IN-115)**, nos limites contratuais de volume/uso justo ainda a detalhar; **alterações de layout, novos blocos/seções e novas ou modificadas funcionalidades exigem orçamento e aceite comercial explícito**. Em todos os casos, a publicação requer aprovação documental do cliente para a versão exata (IN-109).
 
 ## 6. Papéis e limites de autorização
 
@@ -556,3 +556,16 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
+
+
+### IN-115 — Complemento aprovado: alterações de conteúdo incluídas; mudanças estruturais sob orçamento (01/11/2026)
+
+**Decisão comercial aprovada para novas ofertas Onepage e Landing Page:** a assinatura mensal **inclui solicitações de alteração e atualização do conteúdo do site já existente**, sem cobrança avulsa por simples alteração de conteúdo dentro da estrutura contratada. Exemplos indicativos: atualizar informações de contato e horário, substituir ou corrigir textos, trocar imagens e atualizar informações de produtos, serviços ou ofertas **nos espaços/blocos já existentes**, quando tecnicamente compatíveis com a estrutura original e respeitadas veracidade, direitos de uso e segurança. **Não foi aprovada uma quota numérica ou promessa de volume ilimitado de alterações:** frequência, volume por solicitação, regras de uso justo e prazo de atendimento ainda exigem detalhamento antes do lançamento.
+
+**Alterações que exigem orçamento e aprovação comercial específicos:** redesenhar ou mudar o **layout**, acrescentar **novos blocos, seções, páginas ou estruturas**, acrescentar/modificar **funcionalidades**, novos formulários/integrações ou recursos não contratados, e mudanças que demandem reorganização estrutural relevante. O cliente deve receber escopo, valor e condições antes de contratar; não criar cobrança, upgrade ou trabalho adicional pago por interpretação automática da IA ou por simples solicitação. Quando uma solicitação misturar alteração de conteúdo incluída com mudança estrutural, separar itens abrangidos e itens sujeitos a orçamento, sem bloquear indevidamente os ajustes incluídos.
+
+**Relação com suporte e revisões de implantação:** hospedagem do site, SSL, backups e suporte técnico permanecem incluídos conforme condições contratuais, mas suporte não equivale a redesign ou desenvolvimento de novos recursos. As **duas rodadas de revisão durante a criação inicial** do Onepage e da Landing Page permanecem distintas das alterações de conteúdo posteriores à entrega; não debitar ou misturar cotas entre etapas. Aplicar as novas condições ao planejamento das ofertas futuras; contratos legados mantêm os termos efetivamente aceitos, sem ampliação ou redução unilateral.
+
+**Fluxo e autorização de publicação:** todas as solicitações, incluídas ou orçadas, entram na Central de Evolução/Manutenção (IN-107), são triadas por agentes com controles de contrato, segurança e autonomia (IN-098/110), preparadas em versão/prévia privada e **somente podem ser publicadas após aprovação prévia, expressa e documentada do cliente/representante autorizado para a versão exata** (IN-109). O fato de uma alteração ser gratuita ou tecnicamente simples **nunca autoriza publicação automática sem aceite**. Preservar histórico, direitos autorais, LGPD, backups, isolamento de tenants e acesso restrito ao CRM.
+
+**Pendências remanescentes:** limites proporcionais e política de uso justo; volume/tamanho por pedido; prazos/janelas e prioridades de atendimento; critérios técnicos para classificar troca de imagem/texto versus mudança estrutural; preços/regras de orçamento de blocos, layouts e funcionalidades; exceções e conflitos; homologação/contratos. **Nenhum código, preço adicional ou canal de atendimento foi ativado por esta decisão.**
