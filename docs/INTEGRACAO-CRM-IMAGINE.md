@@ -487,3 +487,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Tratar de maneira **idempotente a disputa entre cancelamento e conclusão**: se o arquivo tiver sido finalizado/confirmado antes da efetivação do cancelamento, informar isso ao usuário e encaminhar eventual remoção à **IN-042** (exclusão definitiva, sob autorização e confirmação), sem apagá-lo silenciosamente pelo processo de cancelamento.
 - Preservar autenticação, permissão por empresa, prevenção de duplicidades, confirmação apenas após integridade verificada (IN-039/055) e o bloqueio de uploads em contingência (IN-051/053/054).
 - **Pendências técnicas:** estado exato de cancelamento, UX, sincronização entre servidores, corrida cancelamento × conclusão, forma de interromper multipart upload e tempo operacional de limpeza. Somente planejamento/documentação; nenhuma programação iniciada.
+
+
+## IN-061 — Recuperação segura de uploads interrompidos após saída do navegador (APROVADA em 01/11/2026)
+
+- Ao fechar a aba/navegador, perder conectividade ou sair do CRM, a transmissão que depende da conexão do navegador pode ser interrompida, **sem considerar a operação automaticamente concluída**. Preservar dados temporários elegíveis para recuperação, conforme IN-055 e IN-056, por **até 6 horas**; o prazo não é renovado indefinidamente por novas tentativas.
+- Qualquer tentativa de **retomada exige sessão autenticada válida, verificação renovada de permissões do usuário, organização, recurso, capacidade e bloqueios operacionais**, antes de ler ou completar os dados enviados; não retomar apenas com um identificador ou link compartilhável.
+- Quando a retomada parcial não for tecnicamente possível ou o navegador perder acesso ao arquivo local, **permitir reenvio manual com nova seleção do arquivo**, usando prevenção de duplicidade e conferência de integridade. Não prometer que o navegador guarda acesso ao arquivo original após fechamento.
+- **Cancelar com segurança itens pendentes não recuperáveis**, liberar vagas e reservas somente quando a tarefa correspondente deixar de estar ativa, reconciliar concorrência e fila FIFO (IN-057 a IN-060), e limpar automaticamente dados temporários expirados (IN-056).
+- Arquivos já confirmados com gravação íntegra permanecem como anexos válidos; nenhuma ação de reconexão pode confirmar um envio incompleto, criar duplicidade ou contornar quotas e bloqueios de contingência (IN-032/051/054/055).
+- **Detalhes pendentes:** token de sessão retomável, proteção de fragmentos, ordem de retorno à fila, estado e tempo de reserva, limites de tentativas, mensagens da interface e implementação de upload retomável no navegador.
+- **Somente documentação de planejamento; nenhuma programação autorizada.**
