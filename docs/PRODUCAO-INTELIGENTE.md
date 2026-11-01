@@ -487,6 +487,12 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **Pendente:** matriz de ações por módulo (empresa/segurança, leads/contatos, funis, agenda, automações comerciais, relatórios e cobrança), titularidade, convite, troca/recuperação da conta. Nada foi programado. Documento de referência: [CRM Imagine — agenda e usuários](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
+## 41. Decisão IN-022 — Permissões Administração da Empresa e Segurança para o CRM Básico (APROVADA)
+
+**Aprovação em 2026-11-01:** o único Administrador da Empresa do CRM Básico Cortesia poderá consultar/atualizar dados cadastrais comuns da própria empresa; alterar CNPJ/identificador fiscal apenas mediante **validação específica**; alterar senha/e-mail e configurações de MFA somente após verificação de identidade (**MFA obrigatório permanece**); consultar sessões e encerrar as de outros dispositivos; consultar plano e direitos contratados; conhecer opções de upgrade e contratar plano pago CRM apenas com aceite financeiro expresso. Não poderá habilitar segundo usuário no Básico, acessar outras organizações nem administrar a plataforma Imagine como superadministrador. Segurança, auditoria, permissões, proteção contra tomada de conta e segregação entre Portal e CRM são mandatórias. O fluxo exato de validação fiscal e de recuperação de acesso segue pendente.
+
+**Próximo módulo: Leads e Contatos**, matriz de permissões do Básico em análise e **ainda não aprovada**. O formulário Onepage já gera leads no CRM, mas não se deve presumir inclusão de importação em massa, API pública, lead scoring avançado ou outras funções premium no Básico. [Especificação por módulo](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/13-matriz-permissoes-basico-cortesia.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
