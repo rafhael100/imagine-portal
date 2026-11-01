@@ -585,3 +585,15 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Se a avaliação indicar possível falso positivo e houver caminho seguro, orientar o funcionário a realizar **um novo upload**, após eventual correção legítima do problema de detecção/configuração. O novo arquivo deve cumprir **todas as etapas normalmente exigidas**, inclusive autorização, tamanho de até 5 MB, validação real de formato, integridade, reserva/capacidade, análise antimalware positiva e confirmação após gravação íntegra (IN-030/055/057/065–068).
 - O processo de revisão **não altera nem renova** o prazo de retenção de temporários incompletos de **até 6 horas** (IN-056/061) e não autoriza resgate de arquivos que já foram eliminados.
 - **Pendências:** canal de solicitação, perfis técnicos, níveis de urgência e prazo de resposta, orientações ao usuário e retenção da auditoria técnica. Apenas planejamento e documentação; nenhuma programação autorizada.
+
+
+## IN-070 — Reanálise inteligente de segurança de anexos armazenados (APROVADA em 01/11/2026)
+
+- Anexos anteriormente aprovados e armazenados poderão passar por **reanálise antimalware direcionada e baseada em risco**, quando houver atualizações relevantes de segurança, indicadores de novas ameaças, novas informações de detecção ou outros riscos concretos identificados.
+- **Identificar e selecionar os arquivos potencialmente afetados** conforme as evidências técnicas disponíveis, em vez de impor indiscriminadamente uma nova varredura completa de todo o acervo a cada atualização. A reanálise será executada de modo seguro, com respeito a isolamento por empresa, recursos técnicos e integridade de objetos.
+- Se uma **ameaça for confirmada em arquivo já armazenado**, **suspender o acesso ao arquivo afetado** (visualização, pré-visualização e download, inclusive por fluxos internos), sem expor seu conteúdo a funcionários; gerar alerta técnico, registrar evento e justificativa em **auditoria técnica protegida**, e encaminhar o caso para análise/remediação.
+- A reanálise e o bloqueio **não autorizam exclusão automática** de um anexo já concluído. Qualquer exclusão deverá seguir a IN-042 e demais exigências legais/contratuais. Não restaurar objetos excluídos legitimamente (IN-043) nem criar exceções de disponibilização para arquivos identificados como perigosos (IN-067/069).
+- **Preservar o acesso normal dos demais arquivos não afetados**, sempre sob sessão autenticada, autorização atual por organização/arquivo e controles de IN-039/040; não revogar em massa anexos sem indicação de risco.
+- Minimizar dados pessoais nos alertas e registros técnicos, preservando evidências relevantes, identificação do mecanismo e resultado, responsáveis e momentos das mudanças de estado; não registrar visualizações/downloads no log de auditoria comercial (IN-041).
+- **Pendências para próximas IN:** critérios detalhados de gatilho e seleção, prioridade e ritmo da reanálise, decisões sobre suspeita ainda não confirmada, triagem e desbloqueio de arquivos, controles de custo e desempenho. O mecanismo antivírus continua em aberto.
+- Somente planejamento/documentação. **Nenhuma programação autorizada.**
