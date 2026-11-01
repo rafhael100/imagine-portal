@@ -477,3 +477,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Preservar reserva atômica de capacidade (IN-057), gravação íntegra e idempotente (IN-055), retenção temporária por até 6 horas para uploads incompletos (IN-056), regras de quotas e bloqueio em contingência (IN-032/051/054).
 - **Pendências:** como lidar com cancelamentos, expiração e desconexão de itens aguardando, retentativas/reentrada na fila, quando reservar espaço de itens em espera e tratamento de uploads que não podem iniciar. Não presumir prazo de fila ou direito de ultrapassagem.
 - **Somente planejamento/documentação; nenhuma programação autorizada.**
+
+
+## IN-060 — Cancelamento seguro de uploads em fila e em transmissão (APROVADA em 01/11/2026)
+
+- Permitir ao usuário autorizado **cancelar uploads ainda aguardando na fila FIFO** (IN-059) ou **em transmissão**, antes da conclusão definitiva. Remover o item pendente ou interromper com segurança o envio em andamento.
+- Liberar a **reserva de capacidade** do upload cancelado (IN-057) e a **vaga de concorrência** quando efetivamente desocupada (IN-058), permitindo iniciar o próximo item elegível pela ordem FIFO. Evitar liberações prematuras enquanto a operação não foi efetivamente interrompida.
+- Executar **limpeza segura dos arquivos, fragmentos e sessões temporárias**, com controle de objetos órfãos, retentativas e respeito à política de temporários (IN-056). Não manter lixo técnico ou consumo comercial de um upload não confirmado.
+- Tratar de maneira **idempotente a disputa entre cancelamento e conclusão**: se o arquivo tiver sido finalizado/confirmado antes da efetivação do cancelamento, informar isso ao usuário e encaminhar eventual remoção à **IN-042** (exclusão definitiva, sob autorização e confirmação), sem apagá-lo silenciosamente pelo processo de cancelamento.
+- Preservar autenticação, permissão por empresa, prevenção de duplicidades, confirmação apenas após integridade verificada (IN-039/055) e o bloqueio de uploads em contingência (IN-051/053/054).
+- **Pendências técnicas:** estado exato de cancelamento, UX, sincronização entre servidores, corrida cancelamento × conclusão, forma de interromper multipart upload e tempo operacional de limpeza. Somente planejamento/documentação; nenhuma programação iniciada.
