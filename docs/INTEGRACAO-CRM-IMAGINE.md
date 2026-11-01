@@ -597,3 +597,14 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Minimizar dados pessoais nos alertas e registros técnicos, preservando evidências relevantes, identificação do mecanismo e resultado, responsáveis e momentos das mudanças de estado; não registrar visualizações/downloads no log de auditoria comercial (IN-041).
 - **Pendências para próximas IN:** critérios detalhados de gatilho e seleção, prioridade e ritmo da reanálise, decisões sobre suspeita ainda não confirmada, triagem e desbloqueio de arquivos, controles de custo e desempenho. O mecanismo antivírus continua em aberto.
 - Somente planejamento/documentação. **Nenhuma programação autorizada.**
+
+
+## IN-071 — Bloqueio preventivo de anexos proporcional ao risco (APROVADA em 01/11/2026)
+
+- Na **reanálise de segurança de anexos já armazenados** (IN-070), manter disponíveis para usuários devidamente autorizados os arquivos submetidos a **reanálise rotineira sem indícios concretos de ameaça elevada**; não bloquear todo o acervo nem todos os arquivos em análise.
+- Se surgirem **indícios técnicos concretos de risco elevado**, aplicar **bloqueio preventivo temporário ao arquivo especificamente afetado**, abrangendo visualização, pré-visualização e download, inclusive em fluxos internos e eventuais acessos por backup/contingência. Bloquear acesso antes da conclusão da reanálise quando o risco justificar essa proteção.
+- Quando uma reanálise com resultado **confiável e verificações de segurança concluídas descartar a suspeita**, **restabelecer o acesso normal** sujeito a autenticação e permissões atuais (IN-039/040). A reanálise isoladamente inconclusiva não autoriza desbloqueio de arquivo previamente bloqueado por risco elevado.
+- Se houver **ameaça confirmada ou suspeita grave ainda não resolvida**, manter o bloqueio, notificar os responsáveis técnicos, registrar os resultados e submeter a investigação a fluxo técnico controlado; não criar exceção manual para liberar arquivo reconhecidamente perigoso.
+- Preservar **auditoria técnica protegida** de indícios, gatilhos, estados, resultados, responsável/serviço, horários e decisões, minimizando dados sensíveis e sem criar registro comercial de visualização/download (IN-041).
+- **Não excluir arquivos automaticamente** em razão de suspeita, reanálise ou confirmação; respeitar IN-042, retenções aplicáveis e exclusões legítimas, sem restaurar objetos excluídos. Arquivos não afetados continuam disponíveis conforme permissões vigentes.
+- **A detalhar:** critérios técnicos objetivos de risco elevado, validação do resultado seguro, aprovação humana ou automática para desbloqueio e tratamento da análise inconclusiva. Apenas planejamento e documentação; nenhuma programação autorizada.
