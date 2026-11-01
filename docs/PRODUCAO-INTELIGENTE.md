@@ -479,7 +479,13 @@ O CRM não poderá apresentar upgrade como solução obrigatória para quantidad
 
 **Aprovação:** 2026-11-01. O CRM Básico Cortesia inclui **até 1 usuário autenticado por organização/empresa**, independente da quota de **1 profissional com agenda própria** (IN-008). O login pode pertencer ao profissional ou a outro responsável, conforme perfis e permissões pendentes. O número de sites/landing pages contratados não multiplica a quota de usuários do CRM. O CRM aplica controle de quota por empresa no backend; ao tentar segundo usuário, informar **1/1**, mostrar opções comerciais elegíveis sem contratação/cobrança automática (IN-010). Sem compartilhar credenciais entre pessoas.
 
-**Pendentes:** definir se o usuário único terá perfil de administrador da empresa ou perfil operacional, atribuições de cada papel, substituição de acesso e fluxo de convites/revogação. Esta decisão não muda direitos de contas do próprio Portal Imagine, nem os planos pagos CRM. [Documento de agenda e usuários do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+**IN-021 aprovada em 2026-11-01:** o único login do Básico terá perfil **Administrador da Empresa**, **MFA obrigatório**, autorizado a administrar somente os recursos incluídos no plano e sem poderes de superadministrador da plataforma. **Pendentes:** ações específicas de cada módulo, substituição de acesso e fluxo de convites/revogação. Esta decisão não muda direitos de contas do próprio Portal Imagine, nem os planos pagos CRM. [Documento de agenda e usuários do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+## 40. Decisão IN-021 — Administrador da Empresa como único perfil do Básico (APROVADA)
+
+**Aprovação:** 2026-11-01. O único usuário autenticado por empresa no CRM Básico Cortesia (IN-020) terá perfil **Administrador da Empresa**, com administração dos **módulos e operações efetivamente incluídos no benefício**, respeitando **MFA obrigatório para administradores**, separação de tenants, controles de autorização, auditoria e direitos contratados. Não é superadministrador do SaaS, não acessa outras empresas e não desbloqueia recursos pagos ou quotas além do Básico. O Portal Imagine não cria login administrativo adicional nem substitui autenticação/MFA do CRM.
+
+**Pendente:** matriz de ações por módulo (empresa/segurança, leads/contatos, funis, agenda, automações comerciais, relatórios e cobrança), titularidade, convite, troca/recuperação da conta. Nada foi programado. Documento de referência: [CRM Imagine — agenda e usuários](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
 ---
 
