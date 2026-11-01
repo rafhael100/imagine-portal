@@ -765,3 +765,18 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Alertar imediatamente incidentes críticos** via canais internos técnicos da Imagine; escalonar ocorrências altas, médias e baixas de forma proporcional à gravidade e persistência, com deduplicação e sem envio indiscriminado de informações ao cliente. Preservar isolamento por organização, históricos legítimos, recursos técnicos e idempotência (IN-079–083).
 - Estes controles permanecem **sem consumo de créditos comerciais de IA dos clientes** (IN-079/080). **Pendentes:** limiares quantitativos, prazos de primeira resposta e resolução, gatilhos de reescalonamento e rota de plantão (proposta IN-085).
 - **Somente planejamento/documentação; nenhuma programação autorizada.**
+
+
+## IN-085 — Metas internas de primeira resposta e escalonamento por severidade (APROVADA em 01/11/2026)
+
+- Definir **metas internas de primeira resposta humana (triagem inicial)** para falhas persistentes de reconstrução de proveniência por IA (IN-081–084), distintas de resolução do incidente e de garantias contratuais:
+  - **CRÍTICA:** meta de **até 30 minutos**, **somente quando estiver estruturada e efetivamente ativa uma cobertura técnica 24 horas por dia, 7 dias por semana**. Até lá, registrar a meta planejada, lacuna de cobertura e necessidade de implantação, **sem afirmar um plantão existente ou resposta garantida em 30 minutos**.
+  - **ALTA:** meta de **até 4 horas úteis**.
+  - **MÉDIA:** meta de **até 1 dia útil**.
+  - **BAIXA:** meta de **até 3 dias úteis**.
+- Contabilizar a primeira resposta humana a partir de um marco auditável de registro e classificação acionável, sujeito a especificação dos detalhes de contagem, calendário de horas úteis, mudanças de severidade, feriados, contatos e responsabilidades de plantão.
+- Utilizar **avisos internos e escalonamento técnico proporcionais** à gravidade, prioridade e extrapolação de metas, com deduplicação e histórico protegido do momento da detecção, classificação, acionamentos, primeira resposta e eventuais atrasos. Manter alertas **imediatos** para incidentes críticos conforme IN-084, independentemente da cobertura humana já ter sido implantada.
+- **Bloqueios, contenção e regras de não liberação de conteúdo inseguro permanecem automáticos** e independentes da resposta humana (IN-070–084). A ausência de plantão ou atraso de triagem não autoriza desbloqueios, exclusões ou alteração de proveniência não comprovada.
+- Metas são **objetivos operacionais internos**, **não prazos de resolução nem SLA contratual** e não autorizam comunicar disponibilidade 24/7 sem equipe, escala e procedimento efetivamente definidos.
+- **Não consumir créditos comerciais de IA dos clientes** por tratamento obrigatório de segurança (IN-079/080). Preservar auditoria, autorizações, isolamento empresarial e históricos.
+- **Pendências:** dimensionamento de plantão 24/7, calendário oficial de expediente técnico, papéis de acionamento e substituição, mecanismo de medição e escalonamento, revisões e validação operacional. **Somente planejamento/documentação, nenhuma programação autorizada.**
