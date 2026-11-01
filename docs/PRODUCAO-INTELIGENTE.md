@@ -390,6 +390,15 @@ Modelos sugeridos ainda não aprovados: avisar e criar tarefa ao chegar lead; le
 
 Ver [especificação CRM — Agenda e Automações](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
 
+## 26. Decisão IN-006 — Biblioteca segmentada e revisão de quotas após documentação
+
+**Diretriz registrada em 2026-11-01:** documentar primeiro toda a biblioteca de automações do CRM Imagine e sua classificação por tipo/complexidade. Automações básicas devem trazer valor ao CRM Cortesia; modelos de maior poder/complexidade serão reservados a planos pagos. A atribuição individual de cada modelo ainda é proposta.
+
+**Sequência:** inventário completo de templates e operações de sistema → descrição de gatilhos/condições/ações → dependências e custos → elegibilidade de cada plano → **somente ao final revisar e aprovar os números de slots ativos**. Os números anteriores continuam referências, sem alteração automática: Básico 3, Essencial 5, Profissional 20, Empresarial 50.
+
+O Portal Imagine deve consultar direitos efetivos fornecidos pelo CRM; não duplicar biblioteca/quotas em lógica comercial hardcoded do site ou cobrar por automação sem autorização. Fonte: [Catálogo central de automações CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/10-biblioteca-automacoes-e-criterios-de-planos.md).
+
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
