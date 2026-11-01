@@ -326,3 +326,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Manter **retenção técnica de backups por 30 dias (IN-043)**; preservar trilha técnica de exclusões para que arquivos legitimamente apagados não reapareçam em restaurações (IN-042/043). Não usar replicação ingênua que restaure exclusões.
 - A escolha definitiva de fornecedor de armazenamento e preços dos adicionais (IN-038) continua pendente. O par B2 principal + R2 backup segue somente candidato em análise, não contratação aprovada.
 - **Somente planejamento e documentação; nenhuma programação autorizada.**
+
+
+## IN-045 — Monitoramento completo da replicação de anexos (APROVADA em 01/11/2026)
+
+- Disponibilizar **painel técnico de monitoramento** de replicação de anexos, restrito à equipe operacional autorizada, com status das execuções, atraso real do arquivo pendente mais antigo, backlog de filas, falhas e integridade.
+- Gerar alertas quando o **atraso real de proteção ultrapassar o RPO-alvo de 15 minutos** (IN-044), em caso de **falhas persistentes**, crescimento/acúmulo de filas e **falhas de integridade** das cópias.
+- Executar **retentativas e recuperação automáticas** quando seguras, com controle para evitar processamento duplicado. Evitar alertas repetitivos por falhas transitórias resolvidas automaticamente: agrupar eventos relacionados, deduplicar notificações e sinalizar resolução.
+- A frequência de execução de 15 minutos não garante o RPO; aferir o atraso efetivo e reportar violações. Preservar retenção técnica de 30 dias (IN-043) e impedir reativação de arquivos excluídos (IN-042).
+- **Pendências para decisões futuras:** canais e destinatários, gravidade/escalonamento, períodos de silêncio, retenção das métricas/logs e políticas de resposta a incidentes. Não aprovar notificações externas ao cliente por esta decisão.
+- **Somente documentação e planejamento; nenhuma programação iniciada.**
