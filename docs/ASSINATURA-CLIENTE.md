@@ -1,13 +1,23 @@
-# Assinatura mensal no portal
+# Assinatura incluída na compra
 
-Chamadas destacadas nas áreas de visão geral, pedidos, pagamentos e manutenção. Cada site apresenta a ação adequada. Mais de um projeto pendente abre um seletor; o cliente não autoriza todos de uma vez.
+Novos pedidos Onepage usam o modelo subscription-v2. A contratação autoriza R$ 330 imediatamente, R$ 330 em D+30 e R$ 330 em D+60, além de assinatura mensal de R$ 79,90 com primeiro vencimento em D+90, independentemente da publicação. Os dias são calculados a partir da contratação e conferidos no fuso de Brasília. As três cobranças são transações separadas programadas no cartão, e não um parcelamento bancário que compromete o limite total.
 
-O servidor calcula subscription_action: primeira configuração elegível, continuar checkout não expirado, consultar ativo, regularizar mensalidade ou solicitar conferência. Cancelamento em andamento e conciliação têm prioridade para evitar uma segunda autorização. Não se infere falha no cartão somente por atraso.
+Após a aprovação do primeiro pagamento, a assinatura Asaas é criada automaticamente com o cartão tokenizado e nextDueDate D+90. Não há aprovação da Imagine por cliente. As parcelas futuras são executadas pela fila somente no dia devido; a recorrência mensal posterior é gerada pelo Asaas. Mantenha a aplicação e o worker ativos.
 
-A tela de condições consulta novamente o pedido. A primeira adesão usa a rota existente de manutenção, após checkbox explícito, e mostra um link para o Asaas. Nenhum dado de cartão passa pelo portal. Consultar a tela não cria cobrança.
+Atualização de cartão e retomada: o portal consulta uma prévia com o valor que poderá ser cobrado agora. A troca de cartão não antecipa mensalidades futuras. Quando existe cobrança vencida, o cliente autoriza explicitamente a tentativa no pagamento existente; a implementação regulariza uma cobrança vencida por operação e mantém as demais visíveis. Alterações de valor ou situação exigem nova conferência antes de autorizar. A recorrência é retomada sem liberação administrativa, após a confirmação do Asaas.
 
-Sem gateway liberado, o cliente pode preparar uma mensagem de interesse. Cancelados, inativos, expirados, datas antigas ou cadastro inconclusivo exigem ajuda da Imagine; esta versão não implementa reativação automática. O formulário de ajuda só envia mensagem após o cliente clicar em Enviar.
+Respostas inconclusivas entram em conciliação automática. Não se repete uma criação financeira cegamente. Webhooks e consultas por referência recuperam cobranças/assinaturas existentes. IDs de operações impedem repetir a mesma regularização. Recusa no cartão fica identificada para atualização pelo cliente; disputas/estornos da compra inicial impedem novas parcelas e suspendem a geração de mensalidades.
 
-A regra efetiva permanece legada: R$ 39,90 opcional, primeira cobrança em 60 dias. A oferta nova de R$ 79,90 a partir de 90 dias com implantação em três parcelas precisa de migração e homologação antes da ativação comercial. Valores não são anunciados para uma adesão ainda indisponível sem assinatura cadastrada.
+O formulário envia os dados do cartão transitoriamente ao servidor e ao Asaas para tokenização. Não registra PAN ou CVV. Tokens opacos são criptografados com AES-256-GCM usando BILLING_TOKEN_KEY do servidor. A API retorna apenas bandeira/final do último cartão informado. HTTPS é obrigatório em produção; tokenização precisa estar habilitada na conta Asaas.
 
-Permissões: clientes consultam somente seus pedidos; atendimento/produção recebem subscription_action nulo. Testes cobrem elegibilidade, repetição, expiração, cancelamento, carência, atraso e bloqueio do gateway. 53 testes aprovados.
+Contratos aceitos anteriormente mantêm o modelo legacy e seus valores. Não há alteração retroativa de preço. A mesma atualização pelo cliente pode retomar uma assinatura legada, com concordância às condições daquele contrato. Novas contratações não usam o checkout opcional legado.
+
+Configuração: ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN, emitente e BILLING_TOKEN_KEY de 64 caracteres hexadecimais no ambiente privado. APP_TRUST_PROXY só deve ser true atrás de proxy local que sobrescreva X-Forwarded-For. Dados de demonstração e chaves não devem ser copiados para produção.
+
+Limites: sem credenciais e habilitação, formulários financeiros ficam desativados; não há homologação bancária real nesta entrega. O checkout público avulso em checkout.html continua uma prévia; a contratação integrada está no pedido autenticado do portal. A política existente de encerramento do serviço e a publicação/retirada do site não são executadas automaticamente por esta rotina.
+
+Referências oficiais:
+- https://docs.asaas.com/docs/criando-assinatura-com-cartao-de-credito
+- https://docs.asaas.com/reference/tokenizacao-de-cartao-de-credito
+- https://docs.asaas.com/changelog/novo-endpoint-atualiza%C3%A7%C3%A3o-de-cart%C3%A3o-de-cr%C3%A9dito-em-assinaturas-sem-cobran%C3%A7a-imediata
+- https://docs.asaas.com/reference/pagar-uma-cobranca-com-cartao-de-credito

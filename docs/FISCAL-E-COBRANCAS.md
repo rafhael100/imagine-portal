@@ -34,7 +34,7 @@ Ativação exige token configurado, emitente e confirmação administrativa da v
 
 O sistema impede misturar nota total de um pedido com notas de parcelas e impede bases diferentes para a mesma cobrança. Uma nota cancelada não gera automaticamente nova referência. Estorno/inadimplência/cancelamento de cobrança não cancela documento fiscal automaticamente.
 
-**Limite comercial preexistente:** a cobrança efetiva Asaas ainda usa o plano legado (R$ 990 à vista e manutenção opcional R$ 39,90 após 60 dias). A oferta pública 3x R$ 330 + R$ 79,90 após 90 dias continua pendente de migração financeira. O fiscal usa os valores realmente cadastrados e não inventa a nova recorrência. Antes de ativar vendas/emissão, alinhe essa cobrança à oferta aprovada.
+**Cobrança atual:** novos pedidos usam três pagamentos de R$ 330/D0/D30/D60 e assinatura incluída de R$ 79,90/D90. Contratos legados conservam seus valores. O fiscal usa valores reais; a homologação Asaas/Focus ainda é necessária antes da ativação em produção.
 
 ## Conexão e segredos
 
