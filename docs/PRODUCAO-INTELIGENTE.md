@@ -425,6 +425,12 @@ O limite de profissionais é validado pelo **CRM**, não apenas pelo Portal ou p
 
 [Detalhamento e propostas de regras do CRM](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
 
+## 30. Decisão IN-010 — Explicação de limites e upgrade contextual em todo o CRM (APROVADA)
+
+**Aprovação:** 2026-11-01. No CRM Imagine, toda tentativa por cliente de ação fora das funcionalidades incluídas ou que supere quota contratual exige **mensagem clara e sugestão adequada de upgrade** quando uma opção comercial realmente resolver a condição. Exemplo: tentar ativar 11º serviço, 2º profissional, autoagendamento público ou automação acima da quota. Deve informar uso/limite real e oferecer forma de liberar vaga gratuitamente (inativação/pausa), quando possível. Não oferecer upsell por falta de permissão, erro técnico ou de segurança.
+
+**Sem cobrança ou ativação automática:** o upgrade CRM deve ser autorizado expressamente e contratado no próprio CRM, sem mudar a fatura do site no Portal. Quotas e direitos efetivos ficam no CRM; não hardcode de entitlement no Portal ou nos sites, nem manipulação de backend por agente para contornar limites. Textos, formulários e métricas de UX continuam pendentes de aprovação. [Especificação funcional do CRM (IN-010)](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/12-limites-e-upgrade-contextual.md).
+
 ---
 
 **Status:** decisão AD-001 aprovada; demais controles abaixo são **especificação proposta para discussão**, não decisões comerciais/técnicas adicionais aprovadas. Nenhum código de produção foi alterado.
