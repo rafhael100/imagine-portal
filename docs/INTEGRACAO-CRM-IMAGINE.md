@@ -608,3 +608,15 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - Preservar **auditoria técnica protegida** de indícios, gatilhos, estados, resultados, responsável/serviço, horários e decisões, minimizando dados sensíveis e sem criar registro comercial de visualização/download (IN-041).
 - **Não excluir arquivos automaticamente** em razão de suspeita, reanálise ou confirmação; respeitar IN-042, retenções aplicáveis e exclusões legítimas, sem restaurar objetos excluídos. Arquivos não afetados continuam disponíveis conforme permissões vigentes.
 - **A detalhar:** critérios técnicos objetivos de risco elevado, validação do resultado seguro, aprovação humana ou automática para desbloqueio e tratamento da análise inconclusiva. Apenas planejamento e documentação; nenhuma programação autorizada.
+
+
+## IN-072 — Desbloqueio híbrido e seguro após reanálise de anexos (APROVADA em 01/11/2026)
+
+- **Bloqueio preventivo sem ameaça confirmada (IN-071):** se novas verificações completas e confiáveis **descartarem a suspeita de risco elevado**, o sistema pode **restabelecer automaticamente o acesso ao arquivo**, sem aprovação humana adicional. O desbloqueio não dispensa a autenticação atual, as permissões por empresa/arquivo e as demais condições de acesso da IN-039/040.
+- **Arquivo que já teve ameaça confirmada (IN-070):** só poderá voltar a ficar acessível se uma **nova análise completa tiver resultado aprovado, sem detecção pendente ou inconclusiva, E houver autorização explícita de integrante habilitado da equipe técnica Imagine**. Nenhuma dessas condições isoladamente basta.
+- **Proibida a liberação manual por exceção** de arquivo cuja detecção de risco permaneça positiva, não concluída ou inconclusiva. A equipe não pode ignorar controles antimalware, substituir resultados técnicos por julgamento informal ou disponibilizar arquivos perigosos; preservar IN-067/069/070/071.
+- Registrar **auditoria técnica protegida** de causa do bloqueio, versões/resultados das análises, transições de estado, identidade e data/hora do autorizador quando exigido, e justificativas. Minimizar dados sensíveis, sem auditoria comercial de eventos individuais de visualização/download (IN-041).
+- Aplicar transições **atômicas, seguras e rastreáveis**, impedindo acesso entre uma reanálise positiva e a confirmação do desbloqueio. Qualquer nova indicação concreta de ameaça deverá reativar os controles de proteção de IN-070/071.
+- **Não restaurar, reabrir ou reintroduzir anexos legitimamente excluídos**, inclusive a partir de backup (IN-042/043); o desbloqueio limita-se a arquivos ainda existentes de forma legítima.
+- **A detalhar posteriormente:** critérios técnicos específicos de confirmação de resultado seguro, perfil e dupla checagem de autorização, prazos, mensagens de estado e comunicação de bloqueio/desbloqueio à empresa.
+- **Somente documentação de planejamento; nenhuma programação autorizada.**
