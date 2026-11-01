@@ -345,3 +345,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Não enviar aos clientes das empresas** mensagens automáticas de alerta de backups/replicação. O e-mail técnico deve conter somente informações operacionais mínimas, sem anexos, conteúdo dos documentos ou dados pessoais desnecessários.
 - Preservar verificações e monitoramento de RPO-alvo de 15 minutos, filas, integridade e retentativas (IN-044/IN-045). A definição dos critérios objetivos de gravidade/persistência, lista de responsáveis, escalonamento e prazos será realizada separadamente.
 - **Somente planejamento e documentação. Nenhuma programação autorizada.**
+
+
+## IN-047 — Níveis de gravidade dos alertas de replicação (APROVADA em 01/11/2026)
+
+- **Informativo:** falhas transitórias já recuperadas automaticamente; registrar no painel técnico, sem e-mail automático de incidente.
+- **Atenção:** atraso real do anexo ainda não protegido **superior a 15 minutos** (RPO-alvo IN-044); exibir aviso no painel técnico, manter retentativas e acompanhamento.
+- **Crítico:** atraso real de replicação **superior a 60 minutos**, **paralisação da replicação** ou **falha de integridade**. Exibir no painel técnico **e enviar e-mail aos responsáveis técnicos**, conforme IN-046. Paralisação detectada e falha de integridade são críticas sem precisar esperar 60 minutos.
+- Usar o atraso **efetivamente medido**, não somente a periodicidade de agendamento. Aplicar deduplicação, agrupamento, registro de recuperação e prevenção de alertas repetitivos conforme IN-045/IN-046.
+- **Pendências:** definição dos sinais objetivos de paralisação e integridade, tempos de detecção, destinatários e reenvios, escalonamento, plantão e encerramento de incidentes. Não enviar alertas de backup a clientes finais.
+- Planejamento/documentação apenas; nenhuma programação autorizada.
