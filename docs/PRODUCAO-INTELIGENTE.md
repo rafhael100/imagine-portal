@@ -405,9 +405,17 @@ O Portal Imagine deve consultar direitos efetivos fornecidos pelo CRM; não dupl
 
 **Exclusivo dos planos pagos Essencial, Profissional e Empresarial:** página pública/rota de autoagendamento e botão no Onepage/Landing Page que permitem ao visitante consultar disponibilidade e reservar sem intervenção do operador. Devem exigir plano pago ativo e recurso habilitado, com validação de tenant/permissão/cotas, consentimento, proteção contra abuso e conflito de horários. Não basta esconder o botão no frontend: o backend CRM também bloqueia criação/consulta pública sem entitlement.
 
-No downgrade de plano CRM pago para o Básico, desativar novas reservas públicas, preservar e permitir administração manual das reservas existentes, e coordenar atualização do site sem alterar versão publicada indevidamente. Quantidade de usuários/profissionais/serviços, agendamentos manuais, canais de avisos, integrações Google/Outlook e outros recursos avançados permanecem pendentes.
+No downgrade de plano CRM pago para o Básico, desativar novas reservas públicas, preservar e permitir administração manual das reservas existentes, e coordenar atualização do site sem alterar versão publicada indevidamente. **IN-008 já aprovou 1 profissional com agenda própria por organização Básico**, distinto do número de usuários CRM. Quantidade de usuários, serviços, agendamentos manuais, configurações de horários, canais de avisos, integrações Google/Outlook e outros recursos avançados permanecem pendentes.
 
 [Referência do CRM — Agenda e automações](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/09-revisao-agenda-e-automacoes-basico.md).
+
+## 28. Decisão IN-008 — Um profissional com agenda manual no CRM Básico Cortesia (APROVADA)
+
+**Aprovação:** 2026-11-01. Cada empresa/organização com benefício CRM Básico pode manter **1 profissional ativo com agenda própria**, independentemente de possuir um ou vários Onepages/Landing Pages Imagine. Essa quantidade de profissional agendável **não aprova** uma quota de usuários de login ao CRM.
+
+A agenda é operada **manualmente por usuário autenticado e autorizado** (IN-007); visitante do site não agenda automaticamente e o site não recebe botão/iframe público de reserva no benefício Básico. Serviços, duração, pausas, horários semanais, bloqueios, conflitos, calendário e reservas mensais estão sendo detalhados; propostas ainda **não aprovadas** em [CRM — Agenda Manual Básico](https://github.com/rafhael100/imagine-crm/blob/docs/integracao-site-crm-basico/docs/11-agenda-manual-basico-cortesia.md).
+
+O limite de profissionais é validado pelo **CRM**, não apenas pelo Portal ou pela aparência do site. O upgrade para plano pago poderá habilitar mais profissionais conforme direitos do plano e autoagendamento público sem perder compromissos anteriores.
 
 ---
 
