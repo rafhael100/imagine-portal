@@ -457,3 +457,13 @@ Os seguintes **cinco pacotes opcionais de espaço adicional para arquivos/anexos
 - **Liberar reserva** quando houver falha, cancelamento ou expiração; a retenção máxima dos uploads temporários incompletos permanece de **6 horas (IN-056)**. Conciliar reservas órfãs e fragmentos com limpeza segura e monitoramento técnico, sem liberar prematuramente reservas de uploads ainda válidos.
 - Preservar isolamento entre empresas e impedir uso de metadados de tamanho manipulados para ultrapassar a franquia. Detalhes exatos de validação de tamanho, renovação da reserva, transações, expiração e reconciliação serão definidos tecnicamente.
 - Planejamento/documentação somente; nenhuma programação autorizada.
+
+
+## IN-058 — Até 5 uploads simultâneos por empresa (APROVADA em 01/11/2026)
+
+- Cada organização/empresa poderá manter **até 5 uploads de anexos em processamento simultâneo**, considerados de forma agregada entre todos os seus usuários e sessões. **Demais uploads aguardam em fila** até a liberação de uma vaga.
+- Este é um **controle técnico de concorrência, não uma quota comercial**: não fixa teto para a quantidade total de anexos legítimos armazenados dentro da franquia contratada e não gera exigência de upgrade de plano.
+- Na futura implementação, o controle deverá ser **coordenado por organização no backend**, para que usuários, navegadores ou servidores diferentes não ultrapassem o limite compartilhado; a fila pode ter apresentação no navegador, mas não depender somente dele para a garantia.
+- Respeitar reserva atômica de capacidade e prevenção de excesso (IN-057), limite atual de 5 MB por arquivo (IN-030), validação de integridade e idempotência (IN-055) e limpeza de uploads temporários incompletos em até 6 horas (IN-056). Não confirmar arquivo antes da gravação íntegra e não permitir uploads durante contingência bloqueada (IN-051/053/054).
+- **A definir separadamente:** ordenação e política de prioridade da fila, cancelamento, limite de espera, tratamento de queda de sessão, momento de reserva de capacidade para itens aguardando e experiência do usuário. Não presumir contratação automática ou cobrança por esse controle.
+- Exclusivamente planejamento/documentação; nenhuma programação autorizada.
