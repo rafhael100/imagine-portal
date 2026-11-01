@@ -21,3 +21,12 @@ Referências oficiais:
 - https://docs.asaas.com/reference/tokenizacao-de-cartao-de-credito
 - https://docs.asaas.com/changelog/novo-endpoint-atualiza%C3%A7%C3%A3o-de-cart%C3%A3o-de-cr%C3%A9dito-em-assinaturas-sem-cobran%C3%A7a-imediata
 - https://docs.asaas.com/reference/pagar-uma-cobranca-com-cartao-de-credito
+
+
+### IN-115 — Complemento: uso justo sem teto mensal fixo e contrato eletrônico completo (01/11/2026)
+
+**Aprovado para as novas ofertas:** atualizações de conteúdo dentro dos blocos já existentes permanecem incluídas na assinatura, **sem limite mensal fixo no número de solicitações**, sujeitas à **política objetiva e transparente de uso justo a detalhar antes do lançamento**. A ausência de teto não é promessa de execução instantânea, entrega irrestrita ou redesenho do site; não se admite limite oculto nem cobrança automática por pedidos legítimos abrangidos. Alterações de layout, novos blocos/seções ou novas funcionalidades continuam **sob orçamento e aceite comercial explícito**; a alteração incluída jamais dispensa aprovação prévia e documentada do cliente para a versão exata antes de publicar (IN-109).
+
+**Cláusulas contratuais futuras obrigatórias:** elaborar e revisar juridicamente contratos completos de **Onepage e Landing Page**, reunindo preços, recorrência, implantação, revisões, prazos, serviços, limites e exclusões, uso justo e atendimento, orçamentos extras, domínio/e-mail, hospedagem/backup, IA/imagens/direitos, CRM Básico, LGPD, propriedade/licença, cancelamento/inadimplência e responsabilidades. O cliente deverá **ler/acessar e aceitar expressamente a versão integral do contrato aplicável no ato da contratação**, com registro verificável de identidade, data/hora, produto e versão contratual. Esse aceite é separado do aceite de orçamento extra e do aceite para publicar cada versão. Políticas concretas de uso justo, texto jurídico e fluxo técnico ainda aguardam aprovação.
+
+[Planejamento das cláusulas e dos aceites eletrônicos](https://github.com/rafhael100/imagine-portal/blob/docs/producao-inteligente-v01/docs/CONTRATOS-SITES-PLANEJAMENTO.md). Somente documentação; nenhuma programação, cobrança ou publicação.
