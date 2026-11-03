@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta de especificação funcional  
-**Situação:** **EM ANÁLISE — PERF-06.01 a PERF-06.34 não aprovadas**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-06.01 a PERF-06.34**, conforme aprovação expressa da especificação v0.1, incluindo os 34 critérios HT-PERF06 e preservando integralmente pendências técnicas e de privacidade. **Não homologado tecnicamente; sem autorização de programação ou operação real.**  
 **Decisões aprovadas preservadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36, somente como aprovação funcional.  
 **Restrições:** não iniciar programação, coletar dados reais, instalar tags/pixels, sincronizar contas, enviar conversões, realizar publicações, alterar orçamento, executar agentes ou contratar provedores.
 
@@ -20,7 +20,7 @@ Construir um **motor independente de mensuração**, que consolida registros aut
 
 **Fronteiras:** PERF-06 define contratos de mensuração e atribuição, sem substituir PERF-09 (entrega de leads, vínculo CRM, retorno comercial, conectores), PERF-07 (experimentos/causalidade), PERF-08/11 (autonomia, monitoramento, incidentes), PERF-10 (painéis). O uso de GA4 nos Sites Imagine segue a decisão anterior: **integração opcional e consulta de relatórios diretamente no Google, sem ingestão automática no produto Sites**. Eventual análise de GA4 no **produto Performance** dependerá de decisão comercial e técnica explícita, separada desta aprovação, sem mudar a regra de Sites.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-06.01 — Inventário oficial de fontes e permissões
 - Catalogar por empresa, marca, serviço, conta, provedor e finalidade: Google Ads, Meta Ads, formulários Meta, campanhas de mensagens, Sites Imagine, páginas externas, CRM Imagine, CRM externo e feedback manual mínimo.
@@ -280,9 +280,9 @@ Construir um **motor independente de mensuração**, que consolida registros aut
 **P2-MED-01:** modelos avançados de atribuição e análise incremental após testes adequados, sem alegar causalidade por atribuição.  
 **P2-MED-02:** conectores e fontes adicionais apenas com homologação específica; integração analítica do GA4 à Performance exige **decisão futura própria**.
 
-## 7. Aprovação funcional proposta
+## 7. Registro de aprovação funcional
 
-Solicitar aprovação **PERF-06.01 a PERF-06.34** como requisitos funcionais, com 34 critérios HT-PERF06 para homologação futura, preservando todos os P0/P1/P2 como **pendências abertas**. Sem aprovação técnica das APIs, arquitetura de dados, retenção, modelos de atribuição, coleta, agentes ou programação.
+**Aprovação expressa registrada:** PERF-06.01 a PERF-06.34 aprovados integralmente conforme v0.1, com os 34 critérios HT-PERF06 para homologação futura e todas as pendências P0/P1/P2 **mantidas abertas**. Nenhum teste executado, nenhuma API ou arquitetura de dados homologada; coleta, retenção, modelos de atribuição, agentes, integrações e programação continuam sem autorização.
 
 Próxima etapa sugerida após aprovação: **PERF-07 — Trilhas Estratégicas, Experimentos e Aprendizado Contínuo**.
 
@@ -296,4 +296,4 @@ Próxima etapa sugerida após aprovação: **PERF-07 — Trilhas Estratégicas, 
 - ANPD — [guia orientativo de cookies e proteção de dados pessoais](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia_orientativo_cookies_e_protecao_de_dados_pessoais)
 - Meta Developers — [Marketing API e Lead Ads](https://developers.facebook.com/docs/marketing-api/guides/lead-ads/)
 
-> **PERF-06 é proposta, não aprovada.** Requisitos podem orientar o planejamento; não autorizam atividade técnica/operacional antes de encerramento, aprovação e homologação do projeto.
+> **PERF-06 aprovada funcionalmente em 03/11/2026.** Isso não autoriza atividade técnica ou operacional antes do encerramento, das decisões de implementação e da homologação do projeto.
