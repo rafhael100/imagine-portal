@@ -3,7 +3,7 @@
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
 **Versão:** 0.1 — proposta de método de fechamento, em revisão  
-**Situação:** **PLANO DE OITO BLOCOS AINDA EM REVISÃO; BL-01 APROVADO FUNCIONALMENTE em 03/11/2026 como estrutura inicial de pacotes; BL-02 v0.1 PROPOSTO, EM ANÁLISE.** Nenhuma P0/P1/P2 baixada, nenhum valor ou cota numérica aprovado e nenhuma homologação técnica realizada.  
+**Situação:** **PLANO DE OITO BLOCOS AINDA EM REVISÃO; BL-01 e BL-02 v0.1 APROVADOS FUNCIONALMENTE em 03/11/2026, BL-03 v0.1 PROPOSTO, EM ANÁLISE.** Nenhuma P0/P1/P2 baixada; as 15 deliberações BL02-D01–D15 permanecem candidatas, sem valores, descontos, prazos, cotas numéricas ou homologação técnica aprovados.  
 **Base aprovada funcionalmente:** PERF-ARQ-01, PERF-01–12, PERF-R01, PERF-R02 v0.1 e respectivo anexo.  
 **Restrição:** exclusivamente documentação, sem programar, integrar, publicar valores, ativar agentes, contratar fornecedores, coletar dados reais ou operar mídia.
 
@@ -63,11 +63,11 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 | PERF-12/P0-COM-01 | preços reais, impostos, implantação, pacotes, descontos e formato contratual aprovados, inclusive diferenciação entre faturamento mídia e serviço. |
 | PERF-12/P0-COM-02 | franquias/quotas por canal, conta, marca, campanha, IA, vídeo, relatório, lead, armazenamento e limites de excedente. |
 
-### BL-02 — Cobrança, descontos, investimento de mídia e alçadas financeiras (9 P0; proposta em análise)
+### BL-02 — Cobrança, descontos, investimento de mídia e alçadas financeiras (9 P0; requisitos aprovados funcionalmente)
 
 **DCs relacionadas:** DC-04, DC-05, DC-06. **Agrupamentos R01:** G04, G05, G15. **Contratos candidatos:** CT-PERF-13, -17, -18.  
 **Objetivo:** Definir regras próprias Pix/cartão/faturamento/suspensão, titularidade da mídia, autorização de verba e riscos financeiros.  
-**Critério de saída documental:** [BL-02 v0.1 proposta](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md): matriz de cobrança e autorização de gastos sem herdar termos do Sites/CRM. **Nove P0 e DC-04/05/06 continuam em análise.**
+**Critério de saída documental:** [BL-02 v0.1 aprovado funcionalmente](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md): requisitos de cobrança e autorização financeira aprovados como especificação, **com nove P0 e 15 deliberações BL02-D01–D15 ainda abertos**, inclusive os parâmetros de DC-04/05/06.
 
 | P0 de origem (preservado) | Descrição original |
 | --- | --- |
@@ -81,11 +81,11 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 | PERF-12/P0-COM-04 | cobrança, vencimento, inadimplência, tolerância, suspensão, reativação, cancelamento, retenção e portabilidade próprias do Performance. |
 | PERF-12/P0-COM-07 | conformidade com políticas Google/Meta e responsabilidade por pagamento/anúncios, teto de risco e incidentes. |
 
-### BL-03 — Ecossistema, CRM, Sites, criativos e direitos (13 P0)
+### BL-03 — Ecossistema, CRM, Sites, criativos e direitos (13 P0; proposta em análise)
 
 **DCs relacionadas:** DC-07, DC-08. **Agrupamentos R01:** G09, G11. **Contratos candidatos:** CT-PERF-05, -07, -08, -20.  
 **Objetivo:** Estabelecer integração opcional CRM, central mínima de leads, alterações de vínculo, Site/landing, licenças e portabilidade.  
-**Critério de saída documental:** Fronteiras e condições de cada produto, sem transferência de benefícios implícita.
+**Critério de saída documental:** [BL-03 v0.1 proposta](PERF-P0-BL03-ECOSSISTEMA-CRM-SITES-CRIATIVOS-DIREITOS.md): fronteiras e condições de cada produto, sem transferência de benefícios implícita; 38 requisitos, 18 deliberações propostas, 38 cenários de validação e 13 P0 ainda abertos.
 
 | P0 de origem (preservado) | Descrição original |
 | --- | --- |
@@ -217,9 +217,9 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 
 O [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md) permanece a fonte integral das **154 pendências originais** e dos 419 testes. Este plano só redistribui **91 P0** por responsabilidade primária. Todas as **39 P1 e 24 P2** continuam abertas nos documentos originais. Divergências D-01–D-14 e associações requisito–CT–HT permanecem **candidatas**; nenhuma será resolvida por aproximação de título. Os 20 CT-PERF continuam sem schema executável homologado.
 
-## 6. BL-01 aprovado funcionalmente e BL-02 em análise
+## 6. BL-01 e BL-02 aprovados funcionalmente; BL-03 em análise
 
-A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 — Oferta, Planos e Franquias](PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md), exclusivamente como estrutura comercial inicial. O [BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md) está proposto para análise. Começar por identificar o que é incluído, opcional ou condicionado a custo ajuda a dimensionar IA, mídia, relatórios, CRM, Sites e número de contas/campanhas antes de fixar preço.
+A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 — Oferta, Planos e Franquias](PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md), exclusivamente como estrutura comercial inicial. O [BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md) foi aprovado funcionalmente, sem baixa de P0 nem aprovação das deliberações financeiras específicas. O [BL-03 — Ecossistema, CRM, Sites, Criativos e Direitos](PERF-P0-BL03-ECOSSISTEMA-CRM-SITES-CRIATIVOS-DIREITOS.md) está em análise. Começar por identificar o que é incluído, opcional ou condicionado a custo ajuda a dimensionar IA, mídia, relatórios, CRM, Sites e número de contas/campanhas antes de fixar preço.
 
 **Temas para decisão expressa:** arquitetura comercial de Canal Único, Multicanal e Operação Ampliada; recursos mínimos transversais; regras de conta/campanha/marca; limites de geração, relatório, lead e agentes; separação de assinaturas, mídia, CRM e Sites; adicionais; possibilidade de pacotes avançados; política de não cobrar excedente sem autorização. **Não foi decidida nenhuma mensalidade nesta revisão.**
 
@@ -231,6 +231,6 @@ A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 �
 - D-01 (PERF-01.15–.18 em cabeçalhos) não amplia escopo de requisitos; exige revisão editorial formal.
 - **HT-R01-01 a HT-R01-15 permanecem não homologados.**
 - Níveis N1/N2/N3 permanecem conceitos aprovados funcionalmente, não políticas executáveis.
-- Próxima ação sugerida: avaliação da proposta **BL-02 v0.1** (27 requisitos candidatos, 15 decisões e 27 critérios de validação), mantendo todos os 9 P0 e 10 DC transversais sem encerramento automático; depois BL-03, sem programação.
+- Próxima ação sugerida: revisão/aprovação funcional da proposta **BL-03 v0.1** (38 requisitos, 18 decisões candidatas e 38 critérios de validação), mantendo os **13 P0 deste bloco** e todas as decisões DC transversais sem encerramento automático; depois BL-04, sem programação.
 
 > **PERF-P0 — PLANO DE REVISÃO PROPOSTO, NÃO APROVADO.** A organização do trabalho não altera qualquer requisito, preço, acesso, contrato, P0, P1, P2 ou autorização técnica.
