@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data de referência:** 03/11/2026  
-**Versão:** 0.1 — proposta de revisão transversal  
-**Status:** **EM ANÁLISE — PERF-R01 NÃO APROVADA**  
+**Versão:** 1.0 — revisão transversal aprovada funcionalmente com base na v0.1  
+**Status:** **APROVADA FUNCIONALMENTE em 03/11/2026 — PERF-R01 v0.1** por decisão expressa do usuário, incluindo **20 contratos técnicos candidatos, 20 invariantes, 18 agrupamentos de pendências e 15 gates transversais HT-R01**. Todas as pendências e todos os 15 gates **continuam abertos, não homologados tecnicamente**.  
 **Natureza:** documento transversal de consolidação, **não é PERF-13** e não altera por si só requisitos já aprovados.  
 **Escopo examinado:** PERF-ARQ-01 e PERF-01 a PERF-12 **aprovados funcionalmente**.  
 **Bloqueio:** não iniciar programação, deploy, integração real, acesso a contas, mídia, coleta/transferência de dados pessoais, contratação de fornecedores, emissão de cobrança ou ativação de agentes.
@@ -255,7 +255,7 @@ A indicação de papel não nomeia pessoa, não constitui contratação nem atri
 
 ## 12. Escopo da PERF-R02 e condições de conclusão da revisão
 
-A próxima etapa sugerida, após aprovação expressa da PERF-R01, será **PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final**. Entregáveis propostos:
+A próxima etapa autorizada de **planejamento documental** é **PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final**. Entregáveis candidatos:
 1. Inventário **PERF-01.01–01.14 a PERF-12.01–12.50** com 418 linhas de requisito e seus vínculos.
 2. Inventário de **419 casos HT-PERF**, incluindo HT-PERF01-01 a 15.
 3. Relacionamentos por requisito → CT-PERF → P0/P1/P2 → dependências → HT → decisão/estado.
@@ -266,4 +266,4 @@ A próxima etapa sugerida, após aprovação expressa da PERF-R01, será **PERF-
 
 **Conclusão desta fase documental:** não declara P0 fechado, API homologada, serviço financeiramente viável, plano comercial publicado ou arquitetura implantada.
 
-> **PERF-R01 v0.1 — PROPOSTA PARA APROVAÇÃO FUNCIONAL.** Não iniciar programação, ativação de contas, campanhas, coleta de dados, custos, publicação, cobrança, contratação, execução de agentes ou implantação. Nenhum módulo PERF-13 foi criado.
+> **PERF-R01 aprovada funcionalmente em 03/11/2026, conforme v0.1.** A aprovação abrange o método de revisão, os 20 contratos **candidatos**, 20 invariantes, 18 agrupamentos e 15 gates, **não homologa os contratos nem dá baixa nas pendências**. Não iniciar programação, ativação de contas, campanhas, coleta de dados, custos, publicação, cobrança, contratação, execução de agentes ou implantação. Nenhum módulo PERF-13 foi criado.
