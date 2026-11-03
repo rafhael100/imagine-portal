@@ -155,7 +155,7 @@ CT-PERF-15/PERF-11: taxonomia de severidade S0–S4 distinta de risco de ação,
 CT-PERF-19 centraliza ator, autorização, versão, origem, comandos, estados, incidentes, custos, revisões e auditabilidade do próprio log, com isolamento por tenant e retenção legal específica.
 
 ### BL08.41 — Contrato por contrato CT-PERF-01 a 20
-Cada CT deve ter dono técnico/fucional, schema, versão, autenticação, erros, idempotência, compatibilidade, quota, SLA, testes positivos/negativos e aceite; as 20 interfaces permanecem **candidatas**, não implementadas.
+Cada CT deve ter dono técnico/funcional, schema, versão, autenticação, erros, idempotência, compatibilidade, quota, SLA, testes positivos/negativos e aceite; as 20 interfaces permanecem **candidatas**, não implementadas.
 
 ### BL08.42 — Cobertura de testes HT-PERF 419
 Revisar 419 testes originais preservados, um a um, com owner, cenário positivo/negativo, ambiente sintético, resultado esperado, evidência e vínculo semântico corrigido; 15 testes do PERF-01 para 14 requisitos aprovados não ampliam escopo.
@@ -251,7 +251,7 @@ Aprovação funcional desta proposta poderá validar inventários/rito/ordem de 
 | BL08-D08 | Google/Meta | Exigir acesso/escopo/conta e API vigente por operação | Permissões, quotas e testes concretos |
 | BL08-D09 | LGPD/contratos externos | Mapear papéis e fluxos com revisão jurídica | DPA, retenções, suboperadores e direitos |
 | BL08-D10 | Custos e escala | Dimensionar 100–700 com cenários conservador/base/estresse | Cotações, margem, equipe, limites reais |
-| BL08-D11 | Governaça de agentes | Preservar N1/N2/N3 sem habilitação | Alçadas, contratos tipados, QA e red team |
+| BL08-D11 | Governança de agentes | Preservar N1/N2/N3 sem habilitação | Alçadas, contratos tipados, QA e red team |
 | BL08-D12 | Incidentes e continuidade | Exigir runbooks, reconciliação, RPO/RTO por classe | SLAs, custos, recuperação e testes |
 | BL08-D13 | Dados/atribuição | Separar lead, CRM, conversão e receita | Schemas, retenção, elegibilidade, dedup |
 | BL08-D14 | Política de testes | 419 HT-PERF + 15 HT-R01 + critérios BL previstos | Execução posterior somente autorizada |
