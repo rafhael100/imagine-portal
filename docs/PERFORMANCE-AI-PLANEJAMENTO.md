@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01 aprovada; módulos, interfaces e critérios técnicos abaixo são propostas de planejamento, **não homologados**.  
+**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01 a PERF-01.14 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-02.01 a PERF-02.22 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -13,11 +13,12 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 
 **Não está decidido:** linguagem e framework finais do motor de Performance, fronteiras definitivas de implantação, tecnologia de mensageria, precificação, política final de autonomia dos agentes, limites orçamentários, contratos de API detalhados ou SLAs. A implementação atualmente existente no repositório imagine-portal não deve ser confundida com a arquitetura futura planejada.
 
-## Documento funcional em análise
+## Documentos funcionais
 
-- [PERF-01 — Estratégia, Qualificação de Leads e Gestão de Resultados](performance-ai/PERF-01-ESTRATEGIA-QUALIFICACAO-RESULTADOS.md): proposta detalhada, **pendente de aprovação**, sem programação.
+- [PERF-01 — Estratégia, Qualificação de Leads e Gestão de Resultados](performance-ai/PERF-01-ESTRATEGIA-QUALIFICACAO-RESULTADOS.md): **APROVADO FUNCIONALMENTE** — PERF-01.01 a PERF-01.14, requisitos e critérios de aceite, sem homologação técnica.
+- [PERF-02 — Onboarding Inteligente, Conexões, Diagnóstico e Liberação Controlada](performance-ai/PERF-02-ONBOARDING-INTELIGENTE.md): **PROPOSTO PARA REVISÃO** — PERF-02.01 a PERF-02.22, com 22 cenários de homologação, sem programação.
 
-## 2. Módulos propostos — ainda sujeitos a aprovação
+## 2. Inventário de módulos — PERF-01 aprovado funcionalmente; demais sob planejamento
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -87,11 +88,11 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 
 ## 6. Pendências para próximas aprovações
 
-**P0:** PERF-01 definições de qualificação/metas; autoridade comercial e vínculo de contas; autorização e teto de gastos; identidade/segurança multiempresa; privacidade; ingestão resiliente; contratos de eventos; segregação Portal/Performance/CRM; homologação de APIs.  
+**P0:** aplicar as definições PERF-01 aprovadas de qualificação/metas; resolver autoridade comercial e vínculo de contas; autorização e teto de gastos; identidade/segurança multiempresa; privacidade; ingestão resiliente; contratos de eventos; segregação Portal/Performance/CRM; homologação de APIs.  
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Próxima seção a detalhar: **PERF-01 — modelo de resultado, qualidade do lead, objetivos comerciais e indicadores**. Não inferir aprovação dos módulos e pendências pelo aceite exclusivo da PERF-ARQ-01.
+Etapa atual: **PERF-02 — Onboarding Inteligente em revisão**. A aprovação da PERF-01 não representa a aprovação da PERF-02, dos contratos técnicos, da política de autonomia ou das decisões de implementação.
 
 ## 7. Referências técnicas para futura homologação
 
