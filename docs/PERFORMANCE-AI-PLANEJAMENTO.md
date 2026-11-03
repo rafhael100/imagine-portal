@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42 e PERF-10.01–10.40 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-11.01–11.44 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40 e PERF-11.01–11.44 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-12.01–12.50 **PROPOSTOS, EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -25,9 +25,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 - [PERF-08 — Agentes de IA, Autonomia, Governança e Central de Aprovações](performance-ai/PERF-08-AGENTES-AUTONOMIA-GOVERNANCA-APROVACOES.md): **APROVADO FUNCIONALMENTE** — PERF-08.01 a PERF-08.42, 42 cenários de homologação futura, sem programação.
 - [PERF-09 — Gestão Inteligente de Leads e Integração com CRM Imagine e CRMs Externos](performance-ai/PERF-09-GESTAO-LEADS-INTEGRACAO-CRM.md): **APROVADO FUNCIONALMENTE** — PERF-09.01 a PERF-09.42, 42 cenários de homologação futura, sem programação.
 - [PERF-10 — Painéis Inteligentes, Relatórios e IA Consultiva](performance-ai/PERF-10-PAINEIS-RELATORIOS-IA-CONSULTIVA.md): **APROVADO FUNCIONALMENTE** — PERF-10.01 a PERF-10.40, 40 cenários de homologação futura, sem programação.
-- [PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional](performance-ai/PERF-11-MONITORAMENTO-CONTINGENCIA-RECUPERACAO.md): **PROPOSTO PARA REVISÃO** — PERF-11.01 a PERF-11.44, 44 cenários de homologação futura, sem programação.
+- [PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional](performance-ai/PERF-11-MONITORAMENTO-CONTINGENCIA-RECUPERACAO.md): **APROVADO FUNCIONALMENTE** — PERF-11.01 a PERF-11.44, 44 cenários de homologação futura, sem programação.
+- [PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade](performance-ai/PERF-12-GESTAO-COMERCIAL-PLANOS-CUSTOS-ESCALABILIDADE.md): **PROPOSTO PARA REVISÃO** — PERF-12.01 a PERF-12.50, 50 cenários de homologação futura, sem programação.
 
-## 2. Inventário de módulos — PERF-01 a PERF-10 aprovados funcionalmente; demais sob planejamento
+## 2. Inventário de módulos — PERF-01 a PERF-11 aprovados funcionalmente; PERF-12 em análise
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -101,7 +102,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional em revisão**. As aprovações anteriores não representam aprovação da PERF-11, de SLAs, de alçadas emergenciais, de políticas de pausa/recuperação, dos contratos técnicos ou da implementação.
+Etapa atual: **PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade em revisão**. A aprovação funcional dos módulos PERF-01–11 não representa preços e condições comerciais de Performance homologados. Após PERF-12, preparar PERF-R01/PERF-R02 para revisão transversal de contratos, pendências P0/P1/P2, custos, limites e homologações, **sem iniciar programação**.
 
 ## 7. Referências técnicas para futura homologação
 
