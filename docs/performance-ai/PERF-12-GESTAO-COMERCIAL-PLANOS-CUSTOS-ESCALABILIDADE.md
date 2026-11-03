@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta para revisão e aprovação funcional  
-**Situação:** **EM ANÁLISE — PERF-12.01 a PERF-12.50 AINDA NÃO APROVADAS**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-12.01 a PERF-12.50**, conforme aprovação expressa da especificação v0.1. Inclui os 50 testes de homologação futura e preserva todas as pendências comerciais, financeiras, técnicas, jurídicas e de privacidade. **Não homologado tecnicamente; sem autorização para programação, cobrança ou operação real.**  
 **Bases funcionais aprovadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34; PERF-07.01–07.36; PERF-08.01–08.42; PERF-09.01–09.42; PERF-10.01–10.40; PERF-11.01–11.44. Aprovação funcional prévia não significa homologação técnica.  
 **Restrição:** somente documentação — **sem programação, fornecedores contratados, cobrança, precificação publicada, ativação de serviço, transferência de dados, campanhas ou gasto real**.
 
@@ -15,7 +15,7 @@ PERF-12 define como estruturar ofertas sustentáveis de Imagine Performance AI p
 
 **Sem preço final nesta versão:** nenhuma mensalidade, taxa de implantação, tarifa de adicional, franquia, limite de contas/campanhas, desconto, tolerância, SLA ou margem foi aprovada por este documento. Não pressupor “100% ilimitado”, veiculação garantida, resultado garantido, mídia inclusa ou cartão de mídia da Imagine.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-12.01 — Catálogo comercial de serviços
 Registrar Imagine Performance AI como produto de contrato, assinatura, cobrança e ciclo de vida próprios no Portal Imagine, com ativação técnica no motor Performance somente após elegibilidade. Google-only, Meta-only e multicanal são ofertas possíveis; CRM e Sites permanecem opcionais e independentes.
@@ -309,11 +309,11 @@ A Meta Marketing API requer níveis de acesso/permissões e limites efetivos por
 **P2-COM-02:** novas mídias, fornecedores, modelos e padrões de cobrança após homologação.  
 **P2-COM-03:** otimização adaptativa de pacotes/quotas com proteção do consumidor, sem alterações unilaterais arbitrárias.
 
-## 8. Registro de proposta e encaminhamento
+## 8. Registro de aprovação funcional e encaminhamento
 
-**Aprovação futura candidata:** PERF-12.01–12.50 e 50 testes HT-PERF12, como requisitos **funcionais**, mantendo explicitamente preços, números comerciais, condições de operação e pendências P0/P1/P2 **em aberto**.
+**Aprovação expressa registrada:** PERF-12.01–12.50 aprovados integralmente como requisitos **funcionais** conforme v0.1, juntamente com os 50 testes HT-PERF12 para homologação futura. Preços, números comerciais, condições de operação e todas as pendências P0/P1/P2 **permanecem em aberto**, e nenhum teste técnico foi executado.
 
-**Após aprovação funcional:** elaborar **PERF-R01 — Revisão Consolidada, Governança, Contratos Técnicos e Critérios de Homologação** e depois **PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final**, sem contar esses documentos como módulos PERF-13/14, sem iniciar programação. Finalizar preços e limites como decisões comerciais separadas antes da publicação da oferta e do código.
+**Próxima etapa:** elaborar **PERF-R01 — Revisão Consolidada, Governança, Contratos Técnicos e Critérios de Homologação** e depois **PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final**, sem contar esses documentos como módulos PERF-13/14, sem iniciar programação. Finalizar preços e limites como decisões comerciais separadas antes da publicação da oferta e do código.
 
 ## 9. Referências oficiais verificadas em 03/11/2026
 
@@ -325,4 +325,4 @@ A Meta Marketing API requer níveis de acesso/permissões e limites efetivos por
 - [Cloudflare: cobrança e limites de Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
 - [ANPD: materiais orientativos de proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes)
 
-> **PERF-12 é proposta, ainda NÃO aprovada.** Nenhuma programação, alteração de ambiente, anúncio, cobrança, autorização financeira ou operação real está autorizada. Preços, taxas, SLAs, descontos, capacidade e quotas requerem decisões específicas posteriores.
+> **PERF-12 aprovada funcionalmente em 03/11/2026.** Nenhuma programação, alteração de ambiente, anúncio, cobrança, autorização financeira ou operação real está autorizada. Preços, taxas, SLAs, descontos, capacidade e quotas requerem decisões específicas posteriores.
