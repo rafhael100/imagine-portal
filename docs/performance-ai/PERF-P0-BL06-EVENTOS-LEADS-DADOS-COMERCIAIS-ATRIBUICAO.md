@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta funcional para revisão  
-**Situação:** **EM ANÁLISE — BL-06 NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-06 v0.1, requisitos BL06.01–BL06.47 e 47 critérios BL06-V**, conforme aprovação expressa. **17 P0 originais permanecem ABERTOS**, **19 deliberações BL06-D01–D19 continuam candidatas e não decididas individualmente**, assim como retenção, CRM, LGPD, conversões Google/Meta, custos, contratos técnicos, D-01–D-14, D-15 candidata e **15 gates HT-R01 não homologados**. Nenhum teste executado ou programação autorizada.  
 **Dependências comerciais:** DC-03, DC-07 e DC-08; decisões correlatas BL-01 a BL-05, sem encerramento de valores, retenções ou contratos.  
 **Bases aprovadas funcionalmente:** PERF-ARQ-01, PERF-01–12, PERF-R01/R02/anexo e BL-01 a BL-05.  
 **P0 sob responsabilidade primária:** **17 ABERTOS**; demais 74 P0, 39 P1, 24 P2, divergências D-01–D-14, D-15 candidata e 15 gates HT-R01 permanecem pendentes.  
@@ -32,7 +32,7 @@ A captação não prova a entrega. Entrega ao CRM não prova qualificação. Opo
 
 **Ramos obrigatórios:** duplicado técnico, rejeitado, aguardando permissão, falha transitória, dead-letter, reconciliação, destino suspenso, sem CRM, inconclusivo, corrigido, expirado segundo política futura e revogado por instrução/lei. Essas transições não são implementação nem política de retenção aprovada.
 
-## 3. Requisitos candidatos BL06.01 a BL06.47
+## 3. Requisitos aprovados funcionalmente BL06.01 a BL06.47
 
 ### BL06.01 — Taxonomia canônica de eventos
 Inventariar sessão/click atribuível, formulário iniciado, formulário enviado, lead notificado, payload recuperado, lead válido, lead roteado, lead entregue, contato realizado, MQL/SQL, oportunidade, venda, cancelamento/estorno e evento de publicidade; cada classe tem autoridade e semântica próprias.
@@ -317,10 +317,10 @@ As descrições abaixo são reproduzidas do [roteiro documental de revisão](PER
 - **BL-07:** seguinte, agentes, comandos tipados, incidentes, reconciliação e auditoria, sem ativação operacional.
 - **BL-08:** consolidação e fechamento das 91 P0, 39 P1, 24 P2, D-01–D-14, D-15 candidata, 15 gates HT-R01 e decisões comerciais.
 
-## 9. Estado de aprovação e caminho seguinte
+## 9. Registro da aprovação funcional e caminho seguinte
 
-**BL-06 v0.1 é PROPOSTO, AINDA NÃO APROVADO**, com 47 requisitos, 47 verificações futuras, 19 deliberações e **17 P0 abertos**. Aprovação funcional do método não homologa consentimento, schema, fornecedor, prazo, custos, API ou autoridade de CRM. As associações requisito/contrato/pendência são hipóteses a revisar. Os 419 testes HT-PERF e demais critérios transversais permanecem não executados.
+**BL-06 v0.1 APROVADO FUNCIONALMENTE em 03/11/2026**, incluindo os 47 requisitos BL06.01–BL06.47 e os 47 critérios BL06-V01–V47, todos os critérios de teste **não executados**. **17 P0 continuam abertos**, **19 deliberações BL06-D01–D19 permanecem candidatas**. A aprovação não homologa consentimentos, schemas, fornecedores, retenção, custos, APIs, contratos técnicos, divergências ou autoridade operacional de CRM. As associações requisito/contrato/pendência permanecem hipóteses a revisar. Os 419 testes HT-PERF e 15 gates HT-R01 continuam não executados/não homologados.
 
-**Próxima etapa após autorização funcional específica:** BL-07 — Agentes, Comandos, Incidentes e Auditoria, sem programação.
+**Próxima etapa documental autorizada:** BL-07 — Agentes, Comandos, Incidentes e Auditoria, sem programação.
 
 > Não executar cargas, consultas a contas reais, envios de conversões, ativação de agentes, alteração de mídia, cobrança, deploy, importação de CRM ou programação.
