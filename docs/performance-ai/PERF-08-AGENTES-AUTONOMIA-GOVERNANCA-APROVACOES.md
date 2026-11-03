@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Situação:** **EM ANÁLISE — PERF-08.01 a PERF-08.42 ainda NÃO APROVADAS**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-08.01 a PERF-08.42**, conforme aprovação expressa da v0.1, incluindo 42 testes de homologação futura e preservação de todas as pendências técnicas, financeiras e de segurança. **Não homologado tecnicamente; sem autorização para programação ou operação real.**  
 **Decisões funcionais já aprovadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34; PERF-07.01–07.36. Nenhuma dessas decisões implica homologação técnica.  
 **Restrição obrigatória:** planejamento documental somente; sem programação, execução de agentes, conexões reais, mudança em campanhas, criação de gasto, publicação ou movimentação de dados de clientes.
 
@@ -17,7 +17,7 @@ O **Portal Imagine** é autoridade de identidade comercial, usuários, contrato,
 
 As decisões do CRM Imagine e Sites Imagine sobre **três níveis de autonomia, central de aprovação, registros e supervisão humana** inspiram coerência de experiência, mas cada serviço mantém permissões e risco próprios. **Não reutilizar automaticamente credenciais, autorizações financeiras nem operações concedidas a outro serviço.**
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-08.01 — Inventário e identidade de agentes
 - Catálogo central de papéis de agentes, subagentes e supervisores por domínio: estratégia, anúncios Google, anúncios Meta, leads/CRM, criativos, páginas, mensuração, experimentos, qualidade, auditoria e incidentes.
@@ -354,11 +354,11 @@ Papéis podem compartilhar infraestrutura desde que políticas, permissões e is
 | PERF-08 ↔ PERF-05/06/07 | Manifestos, métricas, regras de aprendizado, limites e evidências |
 | PERF-08 ↔ PERF-09/10/11/12 | Leads, painel, incidentes, custos, contratos, governança e escalonamento |
 
-## 9. Governança de execução e proposta de aprovação
+## 9. Registro de aprovação funcional e governança de execução
 
-A aprovação futura será solicitada para **PERF-08.01 a PERF-08.42** com **42 cenários HT-PERF08** de homologação futura e preservação das pendências P0/P1/P2. Ela será **estritamente funcional**, sem homologar a política financeira definitiva, modelo de IA, ferramenta, arquitetura executiva ou níveis ativados.
+**Aprovação expressa registrada:** PERF-08.01 a PERF-08.42 aprovados integralmente conforme especificação v0.1, incluindo **42 cenários HT-PERF08** de homologação futura e todas as pendências técnicas, financeiras e de segurança P0/P1/P2 **mantidas abertas**. Nenhum teste foi executado, e as políticas financeiras definitivas, modelos de IA, ferramentas, arquitetura executiva e níveis de autonomia ativados permanecem sem homologação.
 
-**Próxima etapa proposta:** PERF-09 — Gestão Inteligente de Leads e Integração com CRM Imagine/CRMs Externos, preservando a autoridade dos dados comerciais e a entrega durável dos leads.
+**Próxima etapa em elaboração:** PERF-09 — Gestão Inteligente de Leads e Integração com CRM Imagine/CRMs Externos, preservando a autoridade dos dados comerciais e a entrega durável dos leads. Apenas documentação.
 
 ## 10. Fontes de orientação para posterior homologação (consultadas em 03/11/2026)
 
@@ -369,4 +369,4 @@ A aprovação futura será solicitada para **PERF-08.01 a PERF-08.42** com **42 
 - ANPD — [materiais educativos e proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes).
 - Meta Developers — [Marketing API](https://developers.facebook.com/docs/marketing-api/).
 
-> **Documento funcional proposto e pendente de aprovação.** Nenhuma implementação, integração, gasto, agente autônomo ou mutação está permitida. Todas as decisões de código e implantação ficam para depois do fechamento e homologação da arquitetura.
+> **Documento aprovado funcionalmente em 03/11/2026.** Nenhuma implementação, integração, gasto, agente autônomo ou mutação está permitida. Todas as decisões de código e implantação ficam para depois do fechamento e homologação da arquitetura.
