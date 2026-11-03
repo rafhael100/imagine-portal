@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40 e PERF-11.01–11.44 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-12.01–12.50 **PROPOSTOS, EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01 e PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40, PERF-11.01–11.44 e PERF-12.01–12.50 **APROVADOS FUNCIONALMENTE em 03/11/2026**; **PERF-R01 v0.1 PROPOSTA, EM ANÁLISE**; PERF-R02 ainda a elaborar. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -26,9 +26,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 - [PERF-09 — Gestão Inteligente de Leads e Integração com CRM Imagine e CRMs Externos](performance-ai/PERF-09-GESTAO-LEADS-INTEGRACAO-CRM.md): **APROVADO FUNCIONALMENTE** — PERF-09.01 a PERF-09.42, 42 cenários de homologação futura, sem programação.
 - [PERF-10 — Painéis Inteligentes, Relatórios e IA Consultiva](performance-ai/PERF-10-PAINEIS-RELATORIOS-IA-CONSULTIVA.md): **APROVADO FUNCIONALMENTE** — PERF-10.01 a PERF-10.40, 40 cenários de homologação futura, sem programação.
 - [PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional](performance-ai/PERF-11-MONITORAMENTO-CONTINGENCIA-RECUPERACAO.md): **APROVADO FUNCIONALMENTE** — PERF-11.01 a PERF-11.44, 44 cenários de homologação futura, sem programação.
-- [PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade](performance-ai/PERF-12-GESTAO-COMERCIAL-PLANOS-CUSTOS-ESCALABILIDADE.md): **PROPOSTO PARA REVISÃO** — PERF-12.01 a PERF-12.50, 50 cenários de homologação futura, sem programação.
+- [PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade](performance-ai/PERF-12-GESTAO-COMERCIAL-PLANOS-CUSTOS-ESCALABILIDADE.md): **APROVADO FUNCIONALMENTE** — PERF-12.01 a PERF-12.50, 50 cenários de homologação futura, sem programação.
+- [PERF-R01 — Revisão Consolidada, Governança, Contratos Técnicos e Critérios de Homologação](performance-ai/PERF-R01-REVISAO-CONSOLIDADA-GOVERNANCA-CONTRATOS-HOMOLOGACAO.md): **PROPOSTO PARA REVISÃO** — 20 invariantes, 20 contratos candidatos CT-PERF, 18 grupos de pendências e 15 gates HT-R01, sem homologação ou programação.
 
-## 2. Inventário de módulos — PERF-01 a PERF-11 aprovados funcionalmente; PERF-12 em análise
+## 2. Inventário de módulos — PERF-01 a PERF-12 aprovados funcionalmente; PERF-R01 em análise
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -78,9 +79,9 @@ Eventos e comandos não devem duplicar vendas nem disparar múltiplos envios de 
 5. Performance calcula KPIs com tratamento de atrasos, mudanças de status, duplicidade, lacunas e atribuição incerta.
 6. Eventos elegíveis podem ser enviados aos provedores mediante base legal e finalidade definida, com confirmação e reconciliação.
 
-## 4. Autonomia e guardrails — proposta pendente
+## 4. Autonomia e guardrails — níveis funcionais PERF-08 aprovados, execução pendente
 
-Três níveis: (1) IA apenas recomenda; (2) IA executa mudanças de baixo risco dentro de limites aprovados; (3) ações fora dos limites, despesas novas, mudança relevante de teto de gasto ou ações sensíveis exigem aprovação explícita. Prévia, simulação e rollback quando suportados. Pausa emergencial, regras de reativação e possibilidade de reverter devem ser homologadas separadamente: **não autorizar rollback ou suspensão autônomos por inferência**.
+Três níveis funcionais aprovados: **N1 consultivo** (somente leitura, diagnóstico, recomendações e rascunhos sem mutações); **N2 assistido** (preparação e execução futura apenas de comandos humana e especificamente aprovados, com revalidação); **N3 autonomia delimitada** (somente operações cobertas por política expressa, versão, conta, limites, risco, prazo, observabilidade e interrupção). **N3 não autoriza mudança irrestrita de orçamento, políticas ou permissões.** Os três níveis estão aprovados apenas funcionalmente; nenhuma política executável foi homologada ou ativada. Pausa emergencial, compensações, reativação e reversão exigem regras de PERF-08/11 e confirmação oficial; **não autorizar rollback ou suspensão autônomos por inferência**.
 
 Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead válido, lead qualificado, oportunidade e venda; não supor causalidade de comparações simples; não tratar métricas estimadas como receita confirmada; identificar amostra pequena, janelas de conversão, atraso de dados e fase de aprendizado.
 
@@ -102,7 +103,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade em revisão**. A aprovação funcional dos módulos PERF-01–11 não representa preços e condições comerciais de Performance homologados. Após PERF-12, preparar PERF-R01/PERF-R02 para revisão transversal de contratos, pendências P0/P1/P2, custos, limites e homologações, **sem iniciar programação**.
+Etapa atual: **PERF-R01 — Revisão Consolidada em análise**. PERF-ARQ-01 e os módulos PERF-01–12 estão aprovados funcionalmente; **preços, planos, franquias, SLAs, descontos, custos efetivos, contratos técnicos, políticas de execução, P0/P1/P2 e homologações continuam em aberto**. Após aprovação expressa de PERF-R01, elaborar PERF-R02 (rastreabilidade integral de 418 requisitos e 419 testes existentes), **sem iniciar programação**.
 
 ## 7. Referências técnicas para futura homologação
 
