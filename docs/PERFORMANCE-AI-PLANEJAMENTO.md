@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01, PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40, PERF-11.01–11.44, PERF-12.01–12.50, **PERF-R01 v0.1 e PERF-R02 v0.1 (inclusive anexo) APROVADOS FUNCIONALMENTE em 03/11/2026**; plano PERF-P0 e BL-01 **EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01, PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40, PERF-11.01–11.44, PERF-12.01–12.50, **PERF-R01 v0.1 e PERF-R02 v0.1 (inclusive anexo) APROVADOS FUNCIONALMENTE em 03/11/2026**; plano PERF-P0 **EM REVISÃO**, BL-01 **APROVADO FUNCIONALMENTE** como estrutura inicial de pacotes; BL-02 v0.1 **PROPOSTO, EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -31,9 +31,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 - [PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final](performance-ai/PERF-R02-MATRIZ-RASTREABILIDADE-DEPENDENCIAS-VALIDACAO-FINAL.md): **APROVADO FUNCIONALMENTE** — 418 requisitos e 419 testes com vínculos técnicos candidatos sujeitos a revisão; sem homologação.
 - [PERF-R02 — Anexo de Testes e Pendências](performance-ai/PERF-R02-ANEXO-TESTES-PENDENCIAS.md): **APROVADO FUNCIONALMENTE** — inventário de 419 HT originais e 154 pendências (91 P0, 39 P1, 24 P2), todos sem execução ou baixa.
 - [PERF-P0 — Plano de Revisão por Blocos e DC-01 a DC-10](performance-ai/PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md): **PROPOSTO PARA REVISÃO** — oito blocos, 91 P0 com alocação primária única, DC-01 a DC-10; sem decisão de valores.
-- [PERF-P0 — BL-01: Oferta, Planos, Produtos e Franquias](performance-ai/PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md): **PROPOSTO PARA REVISÃO** — arquitetura de pacotes candidatos, dez deliberações comerciais e 12 cenários de validação; preços/franquias em aberto.
+- [PERF-P0 — BL-01: Oferta, Planos, Produtos e Franquias](performance-ai/PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md): **APROVADO FUNCIONALMENTE** — Canal Único, Multicanal e Operação Ampliada, com cotas/adicionais explícitos; quatro P0, preços e limites numéricos ainda abertos.
+- [PERF-P0 — BL-02: Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras](performance-ai/PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md): **PROPOSTO PARA REVISÃO** — BL02.01–BL02.27, 15 deliberações candidatas, 27 cenários de validação e nove P0 preservados, sem programação.
 
-## 2. Inventário de módulos — PERF-01 a PERF-12, PERF-R01 e PERF-R02 aprovados funcionalmente; BL-01 em análise
+## 2. Inventário de módulos — PERF-01 a PERF-12, PERF-R01, PERF-R02 e BL-01 aprovados funcionalmente; BL-02 em análise
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -107,7 +108,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **revisão por blocos das 91 pendências P0 e das decisões comerciais DC-01 a DC-10**. PERF-R02 e seu anexo foram aprovados funcionalmente, mas todas as 154 pendências, D-01–D-14, vínculos técnicos candidatos e 15 gates HT-R01 permanecem abertos. O primeiro bloco **BL-01 — Oferta, Planos, Produtos e Franquias** está em análise; valores, cotas numéricas, autonomia executável e autorização de implementação continuam pendentes. **Sem iniciar programação**.
+Etapa atual: **revisão por blocos das 91 pendências P0 e das decisões comerciais DC-01 a DC-10**. PERF-R02 e seu anexo foram aprovados funcionalmente, mas todas as 154 pendências, D-01–D-14, vínculos técnicos candidatos e 15 gates HT-R01 permanecem abertos. O primeiro bloco **BL-01 — Oferta, Planos, Produtos e Franquias** está aprovado apenas funcionalmente quanto à estrutura comercial inicial, **sem baixa dos quatro P0**; o **BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras v0.1** está em análise com nove P0 abertos. Valores, cotas numéricas, política própria de cobrança, descontos, alçadas financeiras, autonomia executável e autorização de implementação continuam pendentes. **Sem iniciar programação**.
 
 ## 7. Referências técnicas para futura homologação
 
