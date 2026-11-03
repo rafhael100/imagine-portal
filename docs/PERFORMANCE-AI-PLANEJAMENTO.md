@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01, PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40, PERF-11.01–11.44, PERF-12.01–12.50 e **PERF-R01 v0.1 APROVADOS FUNCIONALMENTE em 03/11/2026**; **PERF-R02 v0.1 PROPOSTA, EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01, PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36, PERF-06.01–06.34, PERF-07.01–07.36, PERF-08.01–08.42, PERF-09.01–09.42, PERF-10.01–10.40, PERF-11.01–11.44, PERF-12.01–12.50, **PERF-R01 v0.1 e PERF-R02 v0.1 (inclusive anexo) APROVADOS FUNCIONALMENTE em 03/11/2026**; plano PERF-P0 e BL-01 **EM ANÁLISE**. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -28,10 +28,12 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 - [PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional](performance-ai/PERF-11-MONITORAMENTO-CONTINGENCIA-RECUPERACAO.md): **APROVADO FUNCIONALMENTE** — PERF-11.01 a PERF-11.44, 44 cenários de homologação futura, sem programação.
 - [PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade](performance-ai/PERF-12-GESTAO-COMERCIAL-PLANOS-CUSTOS-ESCALABILIDADE.md): **APROVADO FUNCIONALMENTE** — PERF-12.01 a PERF-12.50, 50 cenários de homologação futura, sem programação.
 - [PERF-R01 — Revisão Consolidada, Governança, Contratos Técnicos e Critérios de Homologação](performance-ai/PERF-R01-REVISAO-CONSOLIDADA-GOVERNANCA-CONTRATOS-HOMOLOGACAO.md): **APROVADO FUNCIONALMENTE** — 20 invariantes, 20 contratos candidatos CT-PERF, 18 grupos de pendências e 15 gates HT-R01, todos tecnicamente pendentes, sem programação.
-- [PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final](performance-ai/PERF-R02-MATRIZ-RASTREABILIDADE-DEPENDENCIAS-VALIDACAO-FINAL.md): **PROPOSTO PARA REVISÃO** — 418 requisitos e 419 testes com vínculos candidatos a contratos, dependências e P0/P1/P2; sem homologação.
-- [PERF-R02 — Anexo de Testes e Pendências](performance-ai/PERF-R02-ANEXO-TESTES-PENDENCIAS.md): **PROPOSTO PARA REVISÃO** — inventário de 419 HT originais e 154 pendências (91 P0, 39 P1, 24 P2), todos sem execução ou baixa.
+- [PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final](performance-ai/PERF-R02-MATRIZ-RASTREABILIDADE-DEPENDENCIAS-VALIDACAO-FINAL.md): **APROVADO FUNCIONALMENTE** — 418 requisitos e 419 testes com vínculos técnicos candidatos sujeitos a revisão; sem homologação.
+- [PERF-R02 — Anexo de Testes e Pendências](performance-ai/PERF-R02-ANEXO-TESTES-PENDENCIAS.md): **APROVADO FUNCIONALMENTE** — inventário de 419 HT originais e 154 pendências (91 P0, 39 P1, 24 P2), todos sem execução ou baixa.
+- [PERF-P0 — Plano de Revisão por Blocos e DC-01 a DC-10](performance-ai/PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md): **PROPOSTO PARA REVISÃO** — oito blocos, 91 P0 com alocação primária única, DC-01 a DC-10; sem decisão de valores.
+- [PERF-P0 — BL-01: Oferta, Planos, Produtos e Franquias](performance-ai/PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md): **PROPOSTO PARA REVISÃO** — arquitetura de pacotes candidatos, dez deliberações comerciais e 12 cenários de validação; preços/franquias em aberto.
 
-## 2. Inventário de módulos — PERF-01 a PERF-12 e PERF-R01 aprovados funcionalmente; PERF-R02 em análise
+## 2. Inventário de módulos — PERF-01 a PERF-12, PERF-R01 e PERF-R02 aprovados funcionalmente; BL-01 em análise
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -105,7 +107,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **PERF-R02 — Matriz de Rastreabilidade, Dependências e Validação Final em análise**. PERF-ARQ-01, PERF-01–12 e PERF-R01 foram aprovados funcionalmente; **os 418 requisitos, 419 testes e 154 pendências estão inventariados, mas sem execução técnica ou baixa**. R02 registra vínculos **candidatos**, com revisão semântica individual ainda necessária, e mantém D-01 (numeração PERF-01) e todas as decisões comerciais, preços, SLAs, retenção, quotas e autorização de implementação pendentes. **Sem iniciar programação**.
+Etapa atual: **revisão por blocos das 91 pendências P0 e das decisões comerciais DC-01 a DC-10**. PERF-R02 e seu anexo foram aprovados funcionalmente, mas todas as 154 pendências, D-01–D-14, vínculos técnicos candidatos e 15 gates HT-R01 permanecem abertos. O primeiro bloco **BL-01 — Oferta, Planos, Produtos e Franquias** está em análise; valores, cotas numéricas, autonomia executável e autorização de implementação continuam pendentes. **Sem iniciar programação**.
 
 ## 7. Referências técnicas para futura homologação
 
