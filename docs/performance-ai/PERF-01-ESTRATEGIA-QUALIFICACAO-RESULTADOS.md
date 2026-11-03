@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Estado:** EM ANÁLISE. **Nenhum item PERF-01 está aprovado por este documento.**  
+**Versão:** 1.0 — aprovação funcional da especificação v0.1  
+**Estado:** **APROVADO FUNCIONALMENTE em 03/11/2026**, por decisão expressa do usuário, abrangendo **PERF-01.01 a PERF-01.14** na especificação v0.1. Aprovação de requisitos e critérios de aceite, **não homologação técnica nem autorização para programar**.  
 **Decisão anterior preservada:** PERF-ARQ-01 aprovada: acesso e gestão comercial pelo Portal Imagine; motor Performance AI e operações independentes; CRM Imagine opcional; contratos independentes.  
 **Restrição:** planejamento documental, sem programação, anúncios, gastos, integrações reais ou automações em produção.
 
@@ -176,7 +176,7 @@ Resultados de piloto devem incluir **linha de base**, método de comparação, a
 - **HT-PERF01-14:** relatório separa “lead de outubro que fechou em novembro” de “venda registrada em novembro”.
 - **HT-PERF01-15:** IA diz “não há evidência suficiente” quando faltarem metas, dados ou capacidade de atribuição.
 
-## M. Decisões pendentes de aprovação
+## M. Decisões aprovadas funcionalmente em 03/11/2026
 
 1. PERF-01.01 — Perfil estratégico e ICP versionados por empresa/serviço/campanha.
 2. PERF-01.02 — Metas e objetivos primários e secundários por contexto, sem valores universais.
@@ -193,7 +193,7 @@ Resultados de piloto devem incluir **linha de base**, método de comparação, a
 13. PERF-01.13 — Privacidade, minimização de dados e isolamento multiempresa.
 14. PERF-01.14 — Homologação pelos casos de teste definidos neste documento.
 
-**Após aprovação:** detalhar PERF-02 e os contratos técnicos de mensuração/integração, preservando interdependências. Sem início de programação.
+**Próxima etapa:** detalhar PERF-02 e os contratos técnicos de mensuração/integração, preservando interdependências. Os 15 testes HT-PERF01 são critérios de aceitação aprovados para homologação futura; nenhuma execução técnica foi realizada. Sem início de programação.
 
 ## N. Fontes externas de suporte ao planejamento (consultadas em 03/11/2026)
 
@@ -201,4 +201,4 @@ Resultados de piloto devem incluir **linha de base**, método de comparação, a
 - Google — [Data Manager API: conversões offline](https://developers.google.com/data-manager/api/devguides/events/google-ads/offline).
 - Meta Blueprint — [Qualidade de leads com API de Conversões para CRM](https://www.facebookblueprint.com/student/path/264294-conversions-api-crm-lead-quality).
 
-> Este é um documento de requisitos **propostos**. Nenhuma operação técnica ou comercial é autorizada por sua inclusão no GitHub.
+> Este documento registra requisitos **aprovados funcionalmente**. A aprovação não implica homologação técnica, implantação, conexão de contas, campanhas, orçamento ou programação.
