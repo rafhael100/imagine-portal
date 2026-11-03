@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Situação:** **EM ANÁLISE — PERF-11.01 a PERF-11.44 NÃO APROVADAS**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-11.01 a PERF-11.44**, por aceite expresso da v0.1, com os 44 critérios HT-PERF11 e preservação de todas as pendências técnicas, financeiras, de privacidade e segurança. **Não homologado tecnicamente nem autorizado para programação/operação.**  
 **Bases funcionais aprovadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34; PERF-07.01–07.36; PERF-08.01–08.42; PERF-09.01–09.42; PERF-10.01–10.40. **Aprovação funcional não é homologação técnica.**  
 **Restrição:** planejamento documental apenas; **sem programação**, alertas reais, testes contra clientes, monitoramento ativo, integrações, permissões, publicação, alterações de campanhas, despesas, agentes executores ou ações operacionais.
 
@@ -21,7 +21,7 @@ Construir uma **Central Inteligente de Monitoramento e Recuperação**, capaz de
 
 **Autoridades:** Portal Imagine administra identidade, contratos, aprovações e experiência; Performance AI mantém orquestração, observabilidade e incidentes específicos do serviço; Google/Meta são fontes de estado oficial de campanhas; PERF-09 é fonte operacional da entrega de leads; CRM é autoridade comercial quando integrado; Sites Imagine é autoridade de publicação/hospedagem; PERF-08 fornece regras de autorização e execução.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-11.01 — Catálogo de ativos, dependências e serviços monitorados
 Manter inventário por tenant, empresa, marca, conta, campanha, formulário, conector, worker, fila, destino de leads, CRM, Portal e agente; grafo de dependências e responsáveis. Monitorar somente recursos contratados, autorizados e homologados; não inferir acesso à infraestrutura externa.
@@ -260,11 +260,11 @@ Ramos independentes: `aguardando provedor`, `aguardando cliente`, `aguardando Im
 | PERF-12 ↔ PERF-11 | SLA, custos, níveis comerciais, cobertura e capacidade, a definir |
 | CRM/Sites/provedores ↔ PERF-11 | Cada produto/provedor preserva seus resultados oficiais, contratos, credenciais e autonomia |
 
-## 8. Aprovação funcional proposta e próximos passos
+## 8. Aprovação funcional registrada e próximos passos
 
-Aprovação futura candidata: **PERF-11.01 a PERF-11.44** e **44 testes HT-PERF11**, exclusivamente como requisitos funcionais, com todas as pendências **P0/P1/P2** mantidas abertas. **Não autoriza programação, conexão, mutação, pausas reais, contas, gastos nem contratação de modelos ou ferramentas.**
+**Aprovação expressa registrada:** PERF-11.01 a PERF-11.44 aprovados funcionalmente conforme v0.1, incluindo **44 testes HT-PERF11** para homologação futura. Todas as pendências **P0/P1/P2 técnicas, financeiras, de privacidade e segurança continuam abertas**. Nenhum teste técnico foi executado. A aprovação **não autoriza programação, conexão, mutação, pausas reais, contas, gastos nem contratação de modelos ou ferramentas**.
 
-Próxima etapa após aprovação: **PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade**; em seguida, revisão consolidada e planejamento transversal de homologação.
+Próxima etapa em elaboração: **PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade**; em seguida, revisão consolidada e planejamento transversal de homologação, sem programação.
 
 ## 9. Referências oficiais consultadas em 03/11/2026
 
@@ -276,4 +276,4 @@ Próxima etapa após aprovação: **PERF-12 — Gestão Comercial, Planos, Custo
 - NIST — [AI RMF e GenAI Profile](https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence)
 - ANPD — [Materiais educativos de proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes)
 
-> **Documento funcional proposto, ainda NÃO aprovado.** Nenhuma ação técnica/operacional, programa, mídia, integração ou despesa está autorizada por sua inclusão no GitHub.
+> **Documento aprovado funcionalmente em 03/11/2026.** Nenhuma ação técnica/operacional, programa, mídia, integração ou despesa está autorizada por sua aprovação.
