@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta para análise  
-**Situação:** **EM ANÁLISE — BL-07 NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-07 v0.1, BL07.01–BL07.50 e os 50 critérios BL07-V**, conforme autorização expressa do usuário. **Os 22 P0 originais permanecem ABERTOS**, assim como **as 21 deliberações candidatas BL07-D01–D21**, os contratos técnicos não homologados, as divergências D-01–D-14 e D-15 candidata, pendências comerciais, financeiras, jurídicas, LGPD/segurança e os **15 gates HT-R01 não homologados**. Nenhuma implementação, agente ou operação real autorizada.  
 **Bases aprovadas:** PERF-ARQ-01, PERF-01–12, PERF-R01/R02/anexo e BL-01–BL-06; todas aprovações **funcionais**.  
 **Pendências prioritárias do bloco:** **22 P0 ORIGINAIS ABERTOS**; demais 69 P0, 39 P1 e 24 P2 permanecem no anexo R02; 15 gates HT-R01 ainda não homologados.  
 **Decisões relacionadas:** dependências DC-06, DC-09 e DC-10, além dos parâmetros comerciais e jurídicos de BL-01–BL-06 ainda abertos.  
@@ -36,7 +36,7 @@ Definir a governança integrada dos agentes e suas ferramentas, comandos tipados
 
 **Envelope candidato CT-PERF-13/14:** tenant/service/actor, identidade técnica, conta/recurso, verbo tipado, finalidade, schema/policy_version, diff, limite/risco, manifesto, aprovação/expiração, idempotency_context, correlation_id, timestamps, dependências, resultado técnico, resultado oficial e evidence_ref. Dados pessoais em payload protegido e minimizado, nunca em chave de idempotência exposta.
 
-## 3. Requisitos funcionais propostos BL07.01–BL07.50
+## 3. Requisitos aprovados funcionalmente BL07.01–BL07.50
 
 ### BL07.01 — Mapa canônico de agentes e competências
 Organizar agentes especialistas de diagnóstico, Google, Meta, criativos, métricas, experimentos, leads, relatórios e incidentes como funções candidatas, com identidade de serviço, dono e ferramenta autorizável. Catálogo não significa modelos escolhidos nem agentes ativados.
@@ -324,10 +324,10 @@ As descrições são preservadas conforme o [roteiro de oito blocos](PERF-P0-REV
 - **PERF-11:** saúde do motor, runbooks, incidentes, pausas, reconciliação e recuperação; sem “rollback automático” por inferência.
 - **BL-08:** revisar **91 P0, 39 P1, 24 P2**, **D-01–D-14** e **D-15 candidata**, 15 HT-R01, 20 CT-PERF e decisões comerciais DC-01–DC-10, preservando rastreabilidade.
 
-## 9. Critério de aprovação e próxima etapa documental
+## 9. Registro da aprovação funcional e próxima etapa documental
 
-A versão **BL-07 v0.1** contém **50 requisitos propostos, 50 cenários BL07-V e 21 deliberações candidatas**, com **22 P0 originais abertos**. Aprovação funcional futura não significará que motores IA, APIs, schemas, alçadas financeiras, monitoramento ou políticas de recuperação estejam homologados. Todos os 419 testes HT-PERF originais e os 15 gates HT-R01 permanecem sem execução/homologação.
+A versão **BL-07 v0.1 foi APROVADA FUNCIONALMENTE em 03/11/2026**, abrangendo **50 requisitos BL07.01–BL07.50 e 50 cenários BL07-V não executados**, sem aprovação automática das **21 deliberações BL07-D01–D21** e sem baixa dos **22 P0 originais**. Essa aprovação não homologa motores IA, APIs, schemas, alçadas financeiras, monitoramento, segurança, auditoria, ferramentas nem recuperação. Todos os 419 testes HT-PERF originais e os 15 gates HT-R01 permanecem sem execução/homologação.
 
-**Próximo bloco somente após aprovação expressa:** **BL-08 — Fechamento Transversal, Pendências, Decisões e Readiness**, sem programar.
+**Próximo bloco de planejamento documental autorizado:** **BL-08 — Fechamento Transversal, Pendências, Decisões e Readiness**, sem programar.
 
-> **BL-07 NÃO APROVADO.** Este documento só organiza a especificação funcional e o futuro plano de homologação. Não executar código, conectores, migração de dados, agentes, campanhas, gatilhos, orçamento, cobrança, fornecedores ou operações reais.
+> **BL-07 APROVADO FUNCIONALMENTE em 03/11/2026.** Este documento organiza a especificação funcional e o futuro plano de homologação, sem aprovar qualquer das 21 deliberações candidatas, baixar P0 ou liberar execução. Não executar código, conectores, migração de dados, agentes, campanhas, gatilhos, orçamento, cobrança, fornecedores ou operações reais.
