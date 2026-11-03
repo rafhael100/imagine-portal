@@ -252,7 +252,7 @@ As deliberações formulam escolhas e critérios de segurança, **não** autoriz
 | PERF-11/P0-MON-06 | Credenciais, PII/LGPD, incidentes e resposta legal | BL05.17–18, BL05.38–40 |
 | PERF-11/P0-MON-08 | Isolamento de incidentes por empresa/conta e governança de provedores | BL05.02–04, BL05.42, BL05.46 |
 
-As descrições integrais, fontes e respectivos 419 testes originais seguem no [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md). Os vínculos são candidatos à verificação semântica, não baíxas nem homologação técnica.
+As descrições integrais, fontes e respectivos 419 testes originais seguem no [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md). Os vínculos são candidatos à verificação semântica, não baixas nem homologação técnica.
 
 ## 8. Verificações futuras BL05-V01–BL05-V48 — NENHUMA EXECUTADA
 
