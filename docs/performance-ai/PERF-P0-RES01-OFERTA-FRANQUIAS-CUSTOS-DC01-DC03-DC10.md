@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — dossiê para decisões comerciais específicas, após aprovação funcional do BL-08  
-**Situação:** **EM ANÁLISE — RES-01 NÃO APROVADO; NENHUMA NOVA DECISÃO COMERCIAL OU BAIXA DE P0 EFETUADA**  
+**Versão:** 0.2 — RES01-D01 aprovada funcionalmente; demais deliberações ainda em análise, sem alterar o escopo das pendências  
+**Situação:** **RES-01 EM ANÁLISE; SOMENTE RES01-D01 APROVADA FUNCIONALMENTE em 03/11/2026 (Modelo B: assinatura-base por empresa contratante e plano)**. **RES01-D02–D16 NÃO APROVADAS**, ainda sujeitas a deliberação expressa; **nenhuma baixa de P0**, preço, cota ou homologação.  
 **Eixos:** DC-01 (implantação/preços), DC-02 (contas, canais, marcas e campanhas), DC-03 (IA, criativos, vídeo, landing, Central Mínima, relatórios), DC-10 (custos e escala). Dependências DC-04/05/06/07/08/09 permanecerão abertas.  
 **Rastreabilidade P0:** 4 do BL-01 e 4 do BL-04, **8 P0 originais, TODOS ABERTOS**, sem prejuízo dos outros 83 P0, 39 P1 e 24 P2, D-01–D-14, D-15 candidata, 20 CT-PERF candidatos e 15 HT-R01 não homologados.  
 **Restrição:** somente planejamento/documentação. Não iniciar programação, testes reais, gastos, campanhas, OAuth, publicação, contratos, cobrança nem contratação de fornecedores.
@@ -47,11 +47,11 @@
 
 **Cuidado:** os termos “incluído” na matriz são **candidatos de empacotamento**, não direitos comerciais com preço ou capacidade aprovados. A elegibilidade de API de Google/Meta e o consentimento do cliente são gates adicionais.
 
-## 4. Deliberações RES01-D01 a RES01-D16 — apenas propostas
+## 4. Deliberações RES01-D01 a RES01-D16 — D01 aprovada; D02–D16 propostas
 
 | ID | Decisão específica | Proposta para debate | O que permanece em aberto | Dependência |
 | --- | --- | --- | --- | --- |
-| RES01-D01 | Unidade-base de assinatura | Assinatura por empresa contratante + pacote, com contas/canais/marcas/campanhas medidos separadamente | Aprovar regra; definição exata de pessoa jurídica/unidade e preços pendente | DC-01/02, P0-COM-01/02 |
+| **RES01-D01 — APROVADA FUNCIONALMENTE (Modelo B, 03/11/2026)** | Unidade-base de assinatura | **Uma assinatura-base por empresa contratante e plano Imagine Performance AI; contas publicitárias, marcas e campanhas são capacidades e adicionais sujeitos a franquias futuras.** Empresas isoladas por padrão; Performance, CRM e Sites com contratos independentes. | **CNPJ/validação de pessoa jurídica, periodicidade definitiva, preços, quantidades, custos, adicionais e homologações continuam pendentes.** | DC-01/02, P0-COM-01/02 — **ABERTOS** |
 | RES01-D02 | Canal Único | Um canal **Google Ads ou Meta Ads**, selecionado no contrato; troca de canal não implica habilitar dois simultâneos | Decidir política de troca de canal e limite de contas | DC-02, P0-COM-02 |
 | RES01-D03 | Multicanal | Acesso funcional a **Google Ads e Meta Ads**, cada um com contas/campanhas expressamente cotadas; atribuição consolidada sem contar vendas em duplicidade | Contas, campanhas, custo de conectores, versão e elegibilidade pendentes | DC-02, P0-COM-02 |
 | RES01-D04 | Operação Ampliada | Pacote para múltiplas marcas/contas e maior volume, **não ilimitado**; dimensão por contrato e quotas homologáveis | Definir se preço-base padronizado mais adicionais ou proposta individual | DC-01/02, P0-COM-01/02 |
@@ -69,6 +69,15 @@
 | RES01-D16 | SLA e cobertura de suporte | Não comprometer resposta humana contínua sem equipe; separar SLA contratual, SLO interno, RPO/RTO e exigências dos provedores externos | Janelas, valores, horários, contrato e suporte por pacote pendentes | DC-09/10, P0-MON-04/P0-COM-09 |
 
 **Escolhas que devem ser analisadas de modo expresso, sem aprovação por silêncio:** unidade comercial de campanhas (ativas, geridas, pausadas), swap de canal, marca/conta extra, franquia multimodal, limite de leads e retenção, quota de relatório, preço e política de excedente, suporte e margem. A lista acima não é liberação de oferta pública.
+
+
+### Registro de aprovação específica — RES01-D01 (03/11/2026)
+
+**Ato:** o usuário aprovou **exclusivamente RES01-D01, Modelo B**. Uma **assinatura-base Imagine Performance AI é vinculada à empresa contratante e ao plano escolhido**; contas publicitárias, marcas e campanhas constituem capacidades do pacote ou adicionais, sempre sujeitos a franquias explícitas a decidir futuramente. Isolamento entre empresas e independência contratual de Performance, CRM e Sites são obrigatórios. Esta deliberação não cria assinatura por campanha nem por conta publicitária.
+
+**Não deliberado:** exigência/validação de CNPJ, critérios detalhados de unidades e grupos econômicos, quantidade de contas, marcas, campanhas, periodicidade financeira definitiva, preço, implantação, desconto, custos, quotas, política de troca de canal, contratos técnicos, processamento de dados, acesso a fornecedores e qualquer autorização operacional. **RES01-D02–D16 permanecem candidatas**, os **oito P0 correlatos continuam abertos**; as 91 P0, 39 P1 e 24 P2 gerais e 15 gates HT-R01 não homologados não sofrem alteração.
+
+**Condição operacional:** somente planejamento/documentação; nenhum código, acesso, ativação, anúncio, cobrança ou gasto autorizado.
 
 ## 5. Oito P0 relacionados — fonte e critérios futuros de baixa
 
@@ -117,8 +126,8 @@ Definir, por pacote `i`:
 
 ## 8. Próxima deliberação proposta ao usuário
 
-A primeira decisão material recomendada é **confirmar o critério de contabilização e direitos do pacote** para construir cota numérica posteriormente. Para isso, avaliar especificamente RES01-D01–D11, inclusive as políticas de campanhas pausadas, vídeo IA e Central Mínima.
+**RES01-D01 foi aprovada expressamente em 03/11/2026 — somente Modelo B.** Próxima deliberação é **RES01-D02 — Canal Único**, para decidir o vínculo Google Ads **ou** Meta Ads, política de troca de canal, eventual limite de contas e transições comerciais; **nenhuma opção da D02 está aprovada por este registro**. Na sequência: RES01-D03 a D12, uma a uma, preservando limites e cotas numéricas em aberto.
 
-**Somente após essa decisão:** oferecer três opções de composição quantitativa (conservadora, intermediária, ampliada) com custo de operação explícito, cotação e margens **em análise**, e definir implantação/mensalidade em deliberação própria. Decisões DC-04–10 dependentes seguirão processo separado. **Dossiê RES-01 está EM ANÁLISE**, não aprovado.
+**Somente após deliberações qualitativas adicionais:** oferecer opções de composição quantitativa (conservadora, intermediária, ampliada) com custo de operação explícito, cotação e margens **em análise**; implantação e mensalidade exigem deliberação própria. DC-01–DC-10 continuam sem fechamento integral; a aprovação individual D01 não dá baixa nos oito P0. **Dossiê RES-01 como um todo segue EM ANÁLISE**, não aprovado.
 
 > Resolver o planejamento não equivale a habilitar runtime. Não iniciar código, contas, anúncios, cobranças, assinaturas, acesso ao CRM ou serviços externos por este documento.
