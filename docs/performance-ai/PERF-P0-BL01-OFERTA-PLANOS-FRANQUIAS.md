@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta de revisão comercial por blocos  
-**Situação:** **EM ANÁLISE — NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional da proposta v0.1, com parâmetros quantitativos e técnicos abertos  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-01 v0.1**, conforme decisão expressa: estrutura inicial **Canal Único / Multicanal / Operação Ampliada**, com **cotas e adicionais explícitos**. **Preços, quantidades, valores, percentuais, quatro P0 de origem, dependências comerciais, financeiras, jurídicas e técnicas permanecem ABERTOS.** Nenhuma homologação técnica nem programação.  
 **Contexto:** [PERF-P0 — Plano dos oito blocos](PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md); PERF-R01 e PERF-R02 aprovadas funcionalmente.  
 **Deliberações vinculadas:** **DC-01** (estrutura da oferta, com preço em aberto), **DC-02** (canais/contas/campanhas/marcas), **DC-03** (IA, vídeo, landing, relatórios e leads).  
 **P0 originais sob responsabilidade primária deste bloco (TODOS ABERTOS):** PERF-09/P0-LEAD-02; PERF-10/P0-PAINEL-07; PERF-12/P0-COM-01; PERF-12/P0-COM-02. Demais P0/P1/P2 permanecem íntegros na PERF-R02.
@@ -20,7 +20,7 @@ A assinatura Imagine remunera um serviço de inteligência e gestão publicitár
 
 ## 2. Alternativas de empacotamento para deliberação
 
-### Alternativa A — Pacotes por combinação de canais, preferencial para análise
+### Alternativa A — Pacotes por combinação de canais, aprovada como estrutura inicial
 1. **Canal Único:** gestão de Google Ads **ou** Meta Ads, com capacidades e limites definidos.
 2. **Multicanal:** gestão conjunta de Google + Meta com visão consolidada, sem somar conversões duplicadas.
 3. **Operação Ampliada:** múltiplas marcas/contas, maior carga, governança e contratação conforme volume.
@@ -33,7 +33,7 @@ Planos Essencial/Avançado/Corporativo para Google e Meta separadamente; cliente
 ### Alternativa C — Base fixa + componentes de consumo
 Assinatura de gestão com cotas explícitas por conta, campanha e consumo IA, acrescentando canais e capacidade. Vantagens: alinhamento de custos. Riscos: faturamento menos previsível e maior exigência de explicação ao cliente.
 
-**Proposta inicial a submeter:** usar **Alternativa A** como linguagem pública e um **mecanismo interno de cotas e adicionais da Alternativa C**, se essa combinação for validada pelos custos e pelo Portal. Nenhuma alternativa foi aprovada pelo usuário ainda.
+**Decisão funcional registrada:** usar **Alternativa A** como estrutura comercial inicial (Canal Único, Multicanal e Operação Ampliada), com **cotas e adicionais explícitos** inspirados na Alternativa C. A parametrização de cotas, direitos exatos, oferta pública, preços e condições dependerá de estudos de custo e deliberação específica. Alternativa B não é a estrutura inicial aprovada.
 
 ## 3. Quadro preliminar de direitos e exclusões — NÃO É OFERTA FINAL
 
@@ -91,7 +91,7 @@ Itens que permanecem **não definidos**: quantidade/volume de leads, política d
 - Landing hospedada automaticamente no Sites Imagine, alteração direta de DNS/Cloudflare/GitHub, ou qualquer recurso comercial condicionado a um produto separado.
 - Descontos de Pix, franquias de armazenamento, primeira mensalidade em 90 dias ou tolerância do CRM/Sites **estendidos automaticamente** ao Performance.
 
-## 7. Perguntas de decisão para aprovação do BL-01
+## 7. Deliberações estruturais aprovadas e decisões quantitativas pendentes
 
 | ID | Pergunta a decidir | Proposta inicial |
 | --- | --- | --- |
@@ -106,7 +106,7 @@ Itens que permanecem **não definidos**: quantidade/volume de leads, política d
 | BL01-D09 | Planos mostram verba de mídia separada? | Sim, obrigatoriamente |
 | BL01-D10 | Quando definir preços e limites numéricos? | Depois do dimensionamento de custo/volume BL-04 e das políticas de cobrança BL-02 |
 
-**A decisão de aprovar a estrutura da oferta não implica aprovar automaticamente franquias quantitativas, preços ou benefícios comerciais.** Decisões D01–D10 podem ser confirmadas ou ajustadas individualmente.
+**Decisão expressa do usuário:** BL-01 aprovada funcionalmente como **estrutura inicial de planos e política de cotas/adicionais explícitos**. BL01-D01/D02 ficam definidos em nível de arquitetura da oferta; as demais diretrizes funcionais são preservadas, sujeitas aos limites e contratos dos módulos previamente aprovados. **BL01-D10 (preços e limites numéricos), custos, SLAs e direitos quantitativos permanecem pendentes de BL-02/BL-04 e decisão comercial específica.** Nenhuma cobrança ou publicação autorizada.
 
 ## 8. Cenários de validação documental BL01-V
 
@@ -127,8 +127,8 @@ Itens que permanecem **não definidos**: quantidade/volume de leads, política d
 
 ## 9. Situação e avanço
 
-**BL-01 v0.1 EM ANÁLISE.** Nenhum dos seus quatro P0 foi baixado, e DC-01/02/03 não foram resolvidas. A eventual aprovação funcional deve registrar quais alternativas e decisões comerciais foram aceitas, preservando os preços e cotas em aberto.
+**BL-01 v0.1 APROVADA FUNCIONALMENTE em 03/11/2026 como estrutura comercial inicial.** Nenhum dos seus **quatro P0** foi baixado; **DC-01/02/03 estão somente parcialmente encaminhadas** na definição da estrutura dos pacotes, mantendo **preços, benefícios quantitativos, custos e franquias numéricas em aberto**. Sem ativação de planos, sem direitos comerciais definitivos e sem homologação técnica.
 
-**Próximo bloco proposto após deliberação:** BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras. Para definir preços e franquias numéricas, correlacionar BL-01/02 com custos reais e cenários do BL-04, sem programação.
+**Próximo bloco de planejamento:** BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras. Para definir preços e franquias numéricas, correlacionar BL-01/02 com custos reais e cenários do BL-04, sem programação.
 
-> Documento preparatório. Nada aqui autoriza execução, contratação, integração, gasto, publicação, cobrança ou alteração de código.
+> BL-01 aprovada funcionalmente, **não** homologada tecnicamente. Nada aqui autoriza execução, contratação, integração, gasto, publicação, cobrança ou alteração de código.
