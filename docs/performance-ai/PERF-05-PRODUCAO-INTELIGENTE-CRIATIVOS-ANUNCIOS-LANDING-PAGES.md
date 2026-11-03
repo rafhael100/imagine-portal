@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Situação:** **EM ANÁLISE — PERF-05.01 a PERF-05.36 não aprovadas**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-05.01 a PERF-05.36**, conforme aprovação expressa da v0.1, incluindo 36 cenários de homologação e preservação de pendências técnicas e comerciais. **Não homologado tecnicamente; sem autorização de programação ou operação real.**  
 **Pré-requisitos funcionais aprovados:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30. Nenhum desses módulos está tecnicamente homologado.  
 **Regra absoluta:** planejamento documental apenas; sem programar, produzir publicidade real para terceiros, publicar sites/campanhas, alterar DNS/ativos, comprometer orçamento ou executar integrações de produção.
 
@@ -25,7 +25,7 @@ PERF-05 **não** substituirá:
 
 A contratação do **serviço Performance AI não dá automaticamente direito à produção, hospedagem ou alteração de páginas, nem inclui créditos ilimitados de vídeo/IA, armazenamento ou recursos publicitários**. Escopo, cobrança e capacidade serão definidos em PERF-12 e contratos específicos.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-05.01 — Ordem de produção e vínculo comercial
 
@@ -354,11 +354,11 @@ Cada agente tem contrato de tarefa, entrada, saída, ferramentas autorizadas, ev
 **P2-CRI-01:** ampliação de formatos/idiomas, templates avançados e benchmarking agregado juridicamente adequado.  
 **P2-CRI-02:** automação otimizada de fadiga e novas modalidades de vídeo, após piloto.
 
-## 7. Aprovação e próximos passos
+## 7. Registro de aprovação funcional e próximos passos
 
-Esta versão apresenta **PERF-05.01 a PERF-05.36** com **36 testes HT-PERF05** e pendências P0/P1/P2, **para avaliação e aprovação futura pelo usuário**. Aprovação funcional não significará homologação técnica, adoção automática de prestadores de IA, definição de preços, autorização de publicação nem programação.
+**Aprovação registrada:** o usuário aprovou integralmente os requisitos **PERF-05.01 a PERF-05.36** conforme v0.1, incluindo os **36 testes HT-PERF05** para homologação futura e preservando **todas as pendências técnicas e comerciais P0/P1/P2**. Nenhum teste de integração foi executado. Esta aprovação funcional não significa homologação técnica, contratação de ferramentas, definição de preços, autorização de publicação nem programação.
 
-Próximo módulo proposto após aprovação: **PERF-06 — Mensuração, Rastreamento e Atribuição**, preservando os motores e decisões anteriores.
+Próximo módulo em elaboração: **PERF-06 — Mensuração Inteligente, Rastreamento e Atribuição de Resultados**, apenas planejamento.
 
 ## 8. Referências externas para homologação futura (consultadas em 03/11/2026)
 
@@ -370,4 +370,4 @@ Próximo módulo proposto após aprovação: **PERF-06 — Mensuração, Rastrea
 - W3C — [Web Content Accessibility Guidelines 2.2](https://www.w3.org/TR/WCAG22/).
 - Governo Federal/ANPD — [materiais de privacidade e cookies](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes).
 
-> Documento **proposto, não aprovado**. Implementação/integrações/geração em produção continuam bloqueadas até o fechamento integral e homologação técnica do planejamento.
+> Documento **aprovado funcionalmente em 03/11/2026**. Implementação, integrações e geração em produção continuam bloqueadas até o fechamento integral e homologação técnica do planejamento.
