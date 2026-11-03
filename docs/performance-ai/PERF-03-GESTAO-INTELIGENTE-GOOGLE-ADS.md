@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Situação:** **EM ANÁLISE — PERF-03.01 a PERF-03.28 não aprovadas**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-03.01 a PERF-03.28**, por decisão expressa do usuário; critérios de aceite e pendências mantidos. **Não homologado tecnicamente nem autorizado para programação**.  
 **Pré-requisitos aprovados:** PERF-ARQ-01, PERF-01.01–01.14 e PERF-02.01–02.22 — somente como requisitos funcionais, sem homologação técnica.  
 **Restrição permanente:** não iniciar programação, contas reais, conexões, publicações, alterações de anúncios, despesas ou agentes executores.
 
@@ -19,7 +19,7 @@ A gestão Google Ads deve operar por **agentes de IA especializados, sob coorden
 
 O objetivo é reduzir operação manual sem conceder autonomia financeira nem assumir que algoritmos próprios devem substituir o Smart Bidding do Google. A IA da Imagine deve **cooperar** com a automação do provedor, respeitando períodos de aprendizagem e estabilidade.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-03.01 — Catálogo de objetivos Google Ads
 
@@ -205,9 +205,9 @@ Estas classes **não dão autorização de execução**. Uma alteração aparent
 **P1-GA-03:** dimensionamento das cotas, sincronização e custo de IA por conta.  
 **P2-GA-01:** cobertura de tipos adicionais de campanha, evolução contínua de playbooks e benchmarking agregado, sujeito a política.
 
-## 7. Critérios de aprovação funcional desta proposta
+## 7. Registro de aprovação funcional e condições preservadas
 
-Para aprovação em bloco, o usuário deve aceitar **PERF-03.01 a PERF-03.28** como requisitos funcionais, incluindo 28 testes futuros e as pendências P0/P1/P2. A aprovação funcional não representa implementação nem aprovação de qualquer teto financeiro, gatilho de execução automática, credencial ou campanha. A próxima etapa proposta é **PERF-04 — Gestão Inteligente de Meta Ads**, com abordagem transversal de dados e supervisão.
+**Aprovação registrada:** o usuário aprovou expressamente PERF-03.01 a PERF-03.28 conforme v0.1, incluindo os 28 cenários de homologação futura e a manutenção das pendências P0/P1/P2. Não foram executados testes nem homologadas APIs. Esta aprovação **não constitui autorização** de implementação, teto financeiro, ação automática, credencial ou campanha. Próxima etapa: PERF-04 — Gestão Inteligente de Meta Ads, apenas planejamento.
 
 ## 8. Fontes oficiais consultadas em 03/11/2026
 
@@ -225,4 +225,4 @@ Para aprovação em bloco, o usuário deve aceitar **PERF-03.01 a PERF-03.28** c
 - Google — [limites de gasto](https://support.google.com/google-ads/answer/10486637?hl=pt-br).
 - Google Data Manager API — [conversões offline](https://developers.google.com/data-manager/api/devguides/events/google-ads/offline).
 
-> **Documento exclusivamente funcional, ainda não aprovado.** Manter bloqueadas todas as integrações reais, ações de API, campanhas, gastos, agentes executores e programação até o encerramento e homologação do planejamento.
+> **Documento aprovado funcionalmente em 03/11/2026**; nenhuma homologação técnica realizada. Manter bloqueadas integrações reais, ações de API, campanhas, gastos, agentes executores e programação até o encerramento e homologação do planejamento.
