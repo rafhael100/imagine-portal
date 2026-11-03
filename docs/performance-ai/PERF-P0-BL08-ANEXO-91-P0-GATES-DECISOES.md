@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — anexo da [PERF-P0 BL-08](PERF-P0-BL08-FECHAMENTO-TRANSVERSAL-PENDENCIAS-DECISOES-READINESS.md)  
-**Situação:** **EM ANÁLISE — BL-08 E ANEXO NÃO APROVADOS**  
+**Versão:** 1.0 — anexo aprovado funcionalmente conforme a v0.1 da [PERF-P0 BL-08](PERF-P0-BL08-FECHAMENTO-TRANSVERSAL-PENDENCIAS-DECISOES-READINESS.md)  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026**, juntamente com BL-08 v0.1. A aprovação é apenas documental e preserva **91 P0 ABERTOS, 39 P1, 24 P2**, D-01–D-14, D-15 candidata, DC-01–10 ainda pendentes, 20 contratos CT-PERF candidatos e **15 HT-R01 NÃO HOMOLOGADOS**. Nenhum teste executado, pendência baixada ou programação autorizada.  
 **Fontes verificadas:** [roteiro de oito blocos](PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md), [PERF-R01 aprovada](PERF-R01-REVISAO-CONSOLIDADA-GOVERNANCA-CONTRATOS-HOMOLOGACAO.md) e [Anexo PERF-R02 aprovado](PERF-R02-ANEXO-TESTES-PENDENCIAS.md).
 
 **Total verificado:** **91 P0 únicos, TODOS ABERTOS**, agrupados `4 + 9 + 13 + 4 + 21 + 17 + 22 + 1`; **15 gates HT-R01 NÃO HOMOLOGADOS**. As **39 P1 e 24 P2** permanecem integralmente no anexo PERF-R02, igualmente abertas. **419 HT-PERF originais não executados; 20 CT-PERF não homologados.** Nenhuma programação ou ação operacional autorizada.
@@ -233,4 +233,4 @@ Este inventário foi conciliado por **IDs exatos** com as 91 P0 do Anexo PERF-R0
 
 Somente após decisões e homologação específicas poderá ser elaborado um parecer de prontidão. Mesmo nessa ocasião, **iniciar programação requer ato autorizativo próprio e expresso**.
 
-> **BL-08 v0.1 E ANEXO AINDA EM ANÁLISE.** Não baixar pendências, não iniciar programação, não provisionar, não cobrar, não conectar contas, não criar agentes, não tratar dados reais, não publicar campanhas ou executar alterações.
+> **BL-08 v0.1 E ANEXO APROVADOS FUNCIONALMENTE em 03/11/2026.** A aprovação não baixa pendências, não homologa gates, não inicia programação, não provisiona, não cobra, não conecta contas, não cria agentes, não trata dados reais, não publica campanhas e não executa alterações.
