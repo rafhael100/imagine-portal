@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta funcional para revisão  
-**Status:** **EM ANÁLISE — PERF-04.01 a PERF-04.30 ainda NÃO aprovadas**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Status:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-04.01 a PERF-04.30** conforme aceite expresso da especificação v0.1, com os 30 critérios de homologação e pendências preservados. Não homologado tecnicamente; sem autorização para programação.  
 **Pré-requisitos aprovados:** PERF-ARQ-01; PERF-01.01 a PERF-01.14; PERF-02.01 a PERF-02.22; PERF-03.01 a PERF-03.28 — **somente como especificações funcionais**, não homologação técnica.  
 **Restrição:** sem programação, API real, conexão de contas, publicação, geração de anúncios, gastos de mídia ou acionamento de agentes executores.
 
@@ -15,7 +15,7 @@ O **Portal Imagine** continua responsável por conta/contrato/usuários/autoriza
 
 O PERF-04 **não duplica** os motores transversais de PERF-05 (criativos/páginas), PERF-06 (eventos/atribuição), PERF-07 (experimentos), PERF-08 (agentes/autonomia), PERF-09 (leads/CRM), PERF-10 (painéis) e PERF-11 (monitoramento/contingência). Define responsabilidades e contratos funcionais que estes módulos detalharão.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-04.01 — Objetivos de negócio, qualificação e catálogo de campanhas
 - Usar ICP, metas, estados comerciais e fórmulas aprovados em PERF-01.
@@ -276,7 +276,7 @@ Nesta versão **nenhum nível de execução está habilitado**.
 **P1-META-03** — dimensionamento de quotas/custos de IA, latência e qualidade de sincronização.  
 **P2-META-01** — expansão de recursos (catálogo, formatos extras, canais de mensagem adicionais) mediante homologação.
 
-## 7. Proposta de grupos para aprovação posterior
+## 7. Grupos de requisitos aprovados funcionalmente
 
 - **PERF-04.01 a PERF-04.07:** objetivos, inventário, contas, permissões, diagnóstico, estratégia e públicos.
 - **PERF-04.08 a PERF-04.14:** criativos, mensagens, formulários, recebimento resiliente, CRM e CAPI.
@@ -284,7 +284,7 @@ Nesta versão **nenhum nível de execução está habilitado**.
 - **PERF-04.21 a PERF-04.26:** aprovação, execução, mudanças externas, contingência, painel e escala.
 - **PERF-04.27 a PERF-04.30:** LGPD, qualidade, encerramento e homologação.
 
-A aprovação em bloco deve incluir os **30 cenários HT-PERF04** como critérios de teste futuro e preservar **P0/P1/P2** como pendências de implementação. **Não é homologação técnica**, nem aprovação de limites financeiros, autonomia real ou credenciais.
+**Aprovação registrada:** o usuário aprovou integralmente os requisitos PERF-04.01 a PERF-04.30 conforme v0.1, incluindo os **30 cenários HT-PERF04** para homologação futura e preservando as pendências **P0/P1/P2**. Nenhum teste de integração foi executado. **Não é homologação técnica**, nem aprovação de limites financeiros, autonomia real, credenciais ou operações de mídia.
 
 ## 8. Referências externas para homologação futura (consultadas em 03/11/2026)
 
@@ -296,4 +296,4 @@ A aprovação em bloco deve incluir os **30 cenários HT-PERF04** como critério
 - Meta — [Campaign setup for lead-generation forms](https://about.fb.com/ltam/wp-content/uploads/sites/14/2023/11/LeadGenerationGuide.pdf).
 - Meta GitHub (facebookincubator) — [Lead Retrieval Setup Checker, notificações e verificação](https://github.com/facebookincubator/catalogue-of-api-solutions/blob/main/solutions/leads/leads-retrieval-set-up-checker.md).
 
-> Documento **proposto, não aprovado**. Não iniciar programação, integração real, acesso a dados de clientes, alterações de anúncios ou gastos até fechamento integral do planejamento e homologação técnica.
+> Documento **aprovado funcionalmente em 03/11/2026**. Não iniciar programação, integração real, acesso a dados de clientes, alterações de anúncios ou gastos até fechamento integral do planejamento e homologação técnica.
