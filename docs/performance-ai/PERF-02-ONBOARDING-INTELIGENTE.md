@@ -2,10 +2,10 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta para revisão e aprovação  
-**Status:** **EM ANÁLISE — PERF-02.01 a PERF-02.22 ainda não aprovadas**  
+**Versão:** 1.0 — especificação funcional aprovada sobre a versão 0.1  
+**Status:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-02.01 a PERF-02.22**, conforme aceite expresso da especificação v0.1. Aprovação funcional e dos cenários de aceite, **não homologação técnica**.  
 **Pré-requisitos funcionais aprovados:** PERF-ARQ-01; PERF-01.01 a PERF-01.14 (requisitos funcionais).  
-**Escopo:** especificação documental, **sem programação**, provisionamento, conexão real de contas, acesso a clientes, publicação, gasto ou automação em produção.
+**Escopo:** requisitos funcionais aprovados, **sem programação**, provisionamento, conexão real de contas, acesso a clientes, publicação, gasto ou automação em produção. O status de aprovação não altera os bloqueios técnicos de ativação.
 
 ## 1. Propósito e diretrizes
 
@@ -20,7 +20,7 @@ Diretrizes:
 - Dados classificados como declarados, verificados no provedor, calculados ou inferidos; toda decisão tem evidência, versão e ator.
 - Nenhum custo novo, anúncio novo, orçamento alterado, pixel instalado ou lead compartilhado automaticamente pelo simples ato de conectar a conta.
 
-## 2. Etapas e requisitos propostos
+## 2. Etapas e requisitos aprovados funcionalmente
 
 ### PERF-02.01 — Elegibilidade e abertura da jornada
 
@@ -220,7 +220,7 @@ Pontos de interrupção sempre distinguem “aguardando cliente”, “aguardand
 | Agentes de IA | Perguntas, análises, achados e recomendações, sem substituir autorizações e resultados oficiais |
 | Governança Imagine | Políticas, revisão de exceções e fiscalização dos gates; parâmetros definitivos ainda pendentes |
 
-## 5. Critérios de aceite propostos (HT-PERF02)
+## 5. Critérios de aceite aprovados para homologação futura (HT-PERF02)
 
 1. **HT-PERF02-01:** contratação de somente Performance gera onboarding no Portal sem exigir Site/CRM.
 2. **HT-PERF02-02:** empresa com duas marcas cria jornadas distintas mantendo cadastros isolados.
@@ -266,4 +266,4 @@ Pontos de interrupção sempre distinguem “aguardando cliente”, “aguardand
 - [Google — consent mode](https://developers.google.com/tag-platform/security/concepts/consent-mode).
 - [ANPD — materiais orientativos, cookies e proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes).
 
-> Documento em **proposta**, não homologado nem aprovado. Conexões reais, APIs, despesas, publicações, programação e acionamento de agentes ficam proibidos até decisões específicas de implementação e homologação técnica.
+> Documento **aprovado funcionalmente** (PERF-02.01 a PERF-02.22) em 03/11/2026; nenhum teste HT-PERF02 foi executado. Conexões reais, APIs, despesas, publicações, programação e acionamento de agentes ficam proibidos até decisões específicas de implementação e homologação técnica.
