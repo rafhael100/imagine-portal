@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta de revisão comercial/financeira  
-**Situação:** **EM ANÁLISE — NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-02 v0.1, requisitos BL02.01–BL02.27 e 27 critérios BL02-V01–V27**, por decisão expressa do usuário. **Os 9 P0 permanecem abertos; as 15 deliberações comerciais BL02-D01–D15 são apenas propostas pendentes de decisão específica**; preços, descontos, prazos, montantes, alçadas executáveis, políticas jurídicas/fiscais e homologação técnica não foram aprovados. **Sem programação ou operação real.**  
 **Decisões de referência:** DC-04, DC-05 e DC-06. **BL-01 aprovado funcionalmente**, com Canal Único, Multicanal e Operação Ampliada, cotas/adicionais explícitos e quatro P0 e valores abertos.  
 **P0 do BL-02:** **9 ABERTOS**, com 82 P0 restantes, 39 P1 e 24 P2 preservados na PERF-R02. Divergências D-01–D-14 e 15 gates HT-R01 não homologados.  
 **Contratos candidatos:** CT-PERF-13, CT-PERF-17, CT-PERF-18; interfaces CT-PERF-01/02/14/15/19.  
@@ -26,7 +26,7 @@ A Imagine cobra **serviço de inteligência/gestão Performance**, enquanto **cl
 | IA/criativos/relatórios | Imagine, quando incluídos ou adicional aprovado | Quotas sem cobrança surpresa |
 | CRM Imagine / Sites Imagine | Produtos independentes | Política própria de preço, cortesia, retenção e suspensão |
 
-## 3. Requisitos candidatos BL02.01 a BL02.27
+## 3. Requisitos aprovados funcionalmente BL02.01 a BL02.27
 
 ### BL02.01 — Separação dos fluxos financeiros
 Separar assinatura Imagine, implantação/adicionais, orçamento de mídia Google/Meta, custos internos IA e outros contratos CRM/Sites. O mesmo valor não deve ser faturado duas vezes nem tratado como licença/honorário sem evidência.
@@ -185,13 +185,13 @@ A descrição completa de cada P0 continua na [PERF-R02 — Anexo A](PERF-R02-AN
 26. **BL02-V26:** Regra tributária ainda não revisada permanece explicitamente pendente.
 27. **BL02-V27:** Aceite funcional não ativa Pix, cartão, anúncios, agentes ou programação.
 
-## 8. Dependências e passagem
+## 8. Registro da aprovação funcional, dependências e passagem
 
 - BL-01 aprovado **somente como estrutura comercial inicial**; quatro P0, preços e cotas numéricas seguem abertos.
 - BL-03 trata CRM, Sites, direitos e portabilidade. BL-04 estima taxas de gateway, IA, equipe, custos e limites para 100–700 clientes. BL-05/07 homologarão no futuro segurança de contas, alçadas, prompts, N1/N2/N3 e recuperação.
 - Nenhum valor ou percentual de Pix para Performance foi aprovado; o desconto de 5% e outras condições dos contratos Sites/CRM **não são transferidos automaticamente**.
 - Cancelar ou suspender Imagine **não garante interrupção de gastos de mídia** até operação oficial autorizada e confirmada.
-- Aprovação funcional deste bloco não homologa nenhum dos nove P0 e não autoriza cobrança, comando financeiro ou programação.
+- **Aprovação funcional expressa registrada em 03/11/2026:** BL02.01–BL02.27 e BL02-V01–V27 fazem parte do planejamento aprovado; nenhum dos 9 P0 foi baixado, e BL02-D01–D15 continuam como propostas a decidir separadamente. Nenhum teste foi executado e não há autorização para cobrança, comando financeiro ou programação.
 
 ## 9. Referências para homologação posterior (consultadas em 03/11/2026)
 
@@ -202,4 +202,4 @@ A descrição completa de cada P0 continua na [PERF-R02 — Anexo A](PERF-R02-AN
 - [Google Ads API — mutações](https://developers.google.com/google-ads/api/docs/mutating/overview)
 - [Meta — Marketing API](https://developers.facebook.com/docs/marketing-api/)
 
-> **BL-02 v0.1 é PROPOSTA NÃO APROVADA**, somente para revisão. Todos os preços, meios de pagamento executáveis, descontos, alçadas, procedimentos legais e financeiros permanecem sujeitos à decisão e homologação futura. **Sem iniciar programação ou operações reais.**
+> **BL-02 v0.1 APROVADO FUNCIONALMENTE em 03/11/2026**, exclusivamente quanto aos 27 requisitos e aos 27 critérios de validação futura. Todos os preços, meios de pagamento executáveis, 15 deliberações BL02-D01–D15, descontos, alçadas, procedimentos legais e financeiros e os 9 P0 permanecem sujeitos à decisão e homologação futura. **Sem iniciar programação ou operações reais.**
