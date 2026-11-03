@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI
 **Data-base:** 03/11/2026
-**Versão:** 0.1 — proposta funcional para revisão
-**Situação:** **EM ANÁLISE — BL-04 NÃO APROVADO**
+**Versão:** 1.0 — aprovação funcional da especificação v0.1
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-04 v0.1, requisitos BL04.01–BL04.48 e 48 critérios BL04-V** por aprovação expressa. **Os quatro P0 continuam ABERTOS; as 18 deliberações BL04-D01–D18 e DC-09/DC-10 permanecem pendentes**, assim como custos reais, preços, SLAs, RPO/RTO, franquias, fornecedores, capacidades, cotas e homologação técnica. **Sem autorização para programação/operação real.**
 **Decisões vinculadas:** **DC-09** (SLA, atendimento e incidentes) e **DC-10** (custos, unit economics e escala 100–700), ambas **ABERTAS**.
 **Bases aprovadas funcionalmente:** PERF-ARQ-01, PERF-01–12, PERF-R01/R02 e BL-01/02/03. Nenhuma homologação técnica ou decisão de preço aprovada.
 **Pendências P0 primárias:** **4 ABERTAS**, mantendo os outros 87 P0, 39 P1, 24 P2, D-01–D-14 e 15 gates HT-R01 preservados.
@@ -18,7 +18,7 @@ Dimensionar atendimento, custos diretos/indiretos, SLAs candidatos, continuidade
 
 **Fronteiras comerciais:** Portal Imagine reúne contratação e acesso; motor Performance é técnico independente; CRM/Sites são serviços opcionais e independentes. Mídia paga diretamente pelo cliente ao Google/Meta **não** é receita de serviço nem custo direto da Imagine no modelo-base.
 
-## 2. Requisitos funcionais candidatos BL04.01–BL04.48
+## 2. Requisitos aprovados funcionalmente BL04.01–BL04.48
 
 ### BL04.01 — Central de atendimento no Portal
 Centralizar chamados, histórico, identidade, avisos e status no Portal Imagine; incidentes técnicos de Performance permanecem em seu motor próprio. Separar serviços contratados, tenant e permissões, sem duplicar centros de aprovação.
@@ -310,12 +310,12 @@ As descrições originais integrais permanecem no [PERF-R02 — Anexo A](PERF-R0
 47. **BL04-V47:** SLA e preços dependem de cotações e aprovação.
 48. **BL04-V48:** Aceite do BL-04 não inicia código, piloto, despesa ou operação.
 
-## 9. Dependências e governança do próximo bloco
+## 9. Aprovação funcional registrada, dependências e próximo bloco
 
 - **BL-01:** pacotes e cotas/adicionais explícitos aprovados como estrutura, com **4 P0 abertos**; direitos quantitativos e preços em aberto.
 - **BL-02:** cobrança/alçadas aprovadas funcionalmente, com **9 P0 e 15 decisões próprias pendentes**.
 - **BL-03:** CRM/Sites/criativos/direitos aprovados funcionalmente, com **13 P0 e 18 decisões candidatas pendentes**.
-- **BL-04:** 48 requisitos e 48 cenários propostos, **4 P0 abertos e 18 decisões propostas**, a avaliar.
+- **BL-04 aprovado funcionalmente em 03/11/2026:** 48 requisitos BL04.01–BL04.48 e 48 cenários BL04-V **não executados**; **4 P0 e 18 deliberações BL04-D01–D18 permanecem abertos**, assim como DC-09/DC-10, custos, SLAs, RPO/RTO e homologações.
 - **BL-05:** próximo bloco de planejamento — Identidade, Acesso Google/Meta, Segurança e LGPD; não homologar nem ativar credenciais.
 - **BL-06/07/08:** eventos e leads, agentes/comandos, fechamento transversal e gates.
 
@@ -328,4 +328,4 @@ As descrições originais integrais permanecem no [PERF-R02 — Anexo A](PERF-R0
 - [Meta Marketing API — documentação](https://developers.facebook.com/docs/marketing-api/)
 - [ANPD — proteção de dados e materiais educativos](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes)
 
-> **BL-04 v0.1 é uma PROPOSTA NÃO APROVADA.** Nenhum requisito funcional BL04, parâmetro financeiro, cobertura de suporte, SLA, RTO/RPO, contratação, programação ou operação real é autorizado por este documento.
+> **BL-04 v0.1 APROVADO FUNCIONALMENTE em 03/11/2026.** Os 48 requisitos e 48 critérios estão documentados, sem testes executados; os quatro P0, 18 deliberações, DC-09/DC-10, parâmetros financeiros, cobertura de suporte, SLA, RTO/RPO e contratos técnicos permanecem abertos. Nenhuma contratação, programação ou operação real é autorizada.
