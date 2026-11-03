@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta de revisão e fechamento documental  
-**Situação:** **EM ANÁLISE — BL-08 NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional da proposta v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-08 v0.1, BL08.01–BL08.50 e os 50 critérios BL08-V**, juntamente com seu anexo, por decisão expressa do usuário. **Todos os 91 P0, 39 P1, 24 P2 permanecem ABERTOS**, assim como as 18 deliberações BL08-D01–D18, DC-01–10, D-01–D-14 e D-15 candidata, os 20 CT-PERF candidatos e os 15 gates HT-R01 NÃO HOMOLOGADOS. **Não há autorização para programação, execução, APIs reais, fornecedores ou gastos.**  
 **Bases aprovadas funcionalmente:** PERF-ARQ-01, PERF-01–PERF-12, PERF-R01, PERF-R02 e anexo, BL-01 a BL-07.  
 **Escopo total original:** **418 requisitos funcionais**, **419 HT-PERF**, **91 P0**, **39 P1**, **24 P2**, **20 CT-PERF candidatos** e **15 gates HT-R01 não homologados**.  
 **Pendência primária BL-08:** **PERF-12/P0-COM-10 — ABERTA**. Os outros 90 P0 permanecem abertos em BL-01 a BL-07.  
@@ -27,12 +27,12 @@ Concluir a **proposta de estrutura de revisão** das decisões e dependências d
 | BL-05 | **Aprovado funcionalmente** — Identidade, Google/Meta e LGPD | 21 | 48 requisitos e 48 cenários; 20 deliberações, acessos e LGPD PENDENTES |
 | BL-06 | **Aprovado funcionalmente** — Eventos, Leads e Atribuição | 17 | 47 requisitos e 47 cenários; 19 deliberações e integração/retenção PENDENTES |
 | BL-07 | **Aprovado funcionalmente** — Agentes, Comandos e Incidentes | 22 | 50 requisitos e 50 cenários; 21 deliberações, agentes e contratos executáveis PENDENTES |
-| **BL-08** | **PROPOSTO, NÃO APROVADO** — Fechamento Transversal e Readiness | **1** | 50 requisitos propostos, 18 deliberações candidatas, 50 critérios de validação; sem baixa de P0 |
-| **TOTAL** | **Sete BL aprovados funcionalmente; BL-08 em revisão** | **91** | **91 P0, 39 P1 e 24 P2 abertos; 0 homologação técnica** |
+| **BL-08** | **APROVADO FUNCIONALMENTE** — Fechamento Transversal e Readiness | **1** | 50 requisitos e 50 critérios futuros documentados; 18 deliberações candidatas e 1 P0 original ainda aberto |
+| **TOTAL** | **Oito BL aprovados funcionalmente; resolução documental dos P0/DC em curso** | **91** | **91 P0, 39 P1 e 24 P2 ainda abertos; 0 homologação técnica** |
 
 **Contagem:** os P0 da coordenação primária somam `4+9+13+4+21+17+22+1 = 91`. O mesmo P0 pode ser dependência de mais de um bloco, mas não recebe duas contagens primárias.
 
-## 3. Requisitos funcionais propostos BL08.01–BL08.50
+## 3. Requisitos aprovados funcionalmente BL08.01–BL08.50
 
 ### BL08.01 — Inventário oficial de decisões
 Consolidar PERF-ARQ-01, PERF-01 a PERF-12, PERF-R01/R02/anexo e BL-01 a BL-07 aprovados funcionalmente, mantendo versão, data, escopo, precedência, autor da decisão e exceções. Documentar que o plano organizador dos blocos não recebeu aprovação funcional integral por inferência.
@@ -346,8 +346,8 @@ Essas deliberações **não** constituem decisão sobre preços, fornecedor, ace
 
 ## 11. Limites da aprovação e próximos passos
 
-**BL-08 v0.1 ainda NÃO APROVADO.** Se aprovada funcionalmente, registra método de fechamento, inventário, critérios e roadmap de decisões, sem dar baixa em P0/P1/P2, sem encerrar DC-01–10, sem validar D-15, sem homologar contratos/tier/API/modelos, sem executar os testes e **sem iniciar programação**.
+**BL-08 v0.1 APROVADO FUNCIONALMENTE em 03/11/2026, inclusive seu anexo.** Sua aprovação registra método de fechamento, inventário, critérios e roadmap de decisões, **sem dar baixa em qualquer P0/P1/P2, sem encerrar DC-01–10, sem validar D-15, sem homologar contratos, tiers, APIs, modelos ou gates e sem executar testes**. O próximo passo é um dossiê documental de resolução por prioridade, não programação.
 
-**Depois de eventual aprovação funcional do BL-08:** iniciar, apenas como planejamento, a resolução organizada das decisões P0/DC e divergências, com dossiês de evidência e submissões específicas ao usuário. **Não declarar o planejamento totalmente concluído** enquanto tais decisões e verificações estiverem abertas.
+**Após aprovação funcional do BL-08:** iniciar, apenas como planejamento, a resolução organizada das decisões P0/DC e divergências, com dossiês de evidência e submissões específicas ao usuário. **Não declarar o planejamento totalmente concluído** enquanto tais decisões e verificações estiverem abertas.
 
-> **BL-08 v0.1 — PROPOSTA PARA REVISÃO DOCUMENTAL.** Aprovação futura não ativa agentes, não autoriza API, não programa, não publica, não cobra, não movimenta verbas e não homologa fornecedores.
+> **BL-08 v0.1 — APROVADO FUNCIONALMENTE em 03/11/2026**, inclusive o anexo de P0/gates. Isso não ativa agentes, não autoriza APIs, não programa, não publica, não cobra, não movimenta verbas e não homologa fornecedores.
