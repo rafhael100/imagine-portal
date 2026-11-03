@@ -13,6 +13,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 
 **Não está decidido:** linguagem e framework finais do motor de Performance, fronteiras definitivas de implantação, tecnologia de mensageria, precificação, política final de autonomia dos agentes, limites orçamentários, contratos de API detalhados ou SLAs. A implementação atualmente existente no repositório imagine-portal não deve ser confundida com a arquitetura futura planejada.
 
+## Documento funcional em análise
+
+- [PERF-01 — Estratégia, Qualificação de Leads e Gestão de Resultados](performance-ai/PERF-01-ESTRATEGIA-QUALIFICACAO-RESULTADOS.md): proposta detalhada, **pendente de aprovação**, sem programação.
+
 ## 2. Módulos propostos — ainda sujeitos a aprovação
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
