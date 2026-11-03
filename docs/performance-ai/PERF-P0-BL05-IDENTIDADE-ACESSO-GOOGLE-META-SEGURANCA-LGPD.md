@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta  
-**Situação:** **EM ANÁLISE — BL-05 NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-05 v0.1, BL05.01–BL05.48 e 48 critérios BL05-V**, conforme autorização expressa do usuário. **21 P0 continuam ABERTOS**, as **20 deliberações BL05-D01–D20 continuam candidatas e não decididas individualmente**; pendências técnicas, jurídicas, LGPD/segurança e **15 gates HT-R01 não homologados**. Achado D-15 **somente candidato**, sem alterar D-01–D-14 da PERF-R01. Nenhum teste executado nem programação/integração autorizada.  
 **Decisões relacionadas:** dependências de DC-03, DC-06 e DC-08; regras de identidade, provedor, privacidade, segurança e autorização funcional.  
 **Bases funcionais aprovadas:** PERF-ARQ-01, PERF-01–12, PERF-R01, PERF-R02/anexo e BL-01 a BL-04.  
 **P0 de responsabilidade primária:** **21 ABERTOS**, identificados na seção 7. **Demais 70 P0, 39 P1, 24 P2, divergências D-01–D-14 e 15 gates HT-R01 permanecem abertos.**  
@@ -53,7 +53,7 @@ Em **04/05/2026**, a Meta passou a chamar o recurso antes conhecido como **Ads M
 
 **Referência oficial:** [Meta — Marketing API Access Tier, atualização de maio/2026](https://developers.meta.com/blog/updates-to-ads-management-standard-access-feature/). Outras permissões devem ser verificadas no App Dashboard e documentação atual antes de homologação; números de quota Meta não estão aprovados.
 
-## 5. Requisitos funcionais propostos BL05.01–BL05.48
+## 5. Requisitos aprovados funcionalmente BL05.01–BL05.48
 
 ### BL05.01 — Identidade única do Portal e fronteira do motor
 Portal Imagine autentica usuários e mantém identidade comercial, enquanto o motor Performance recebe contexto delegado verificável; login no Portal não é autorização automática de contas Google/Meta, CRM, Sites, modelos ou cobrança.
@@ -311,15 +311,15 @@ Segundo orientação oficial da **ANPD**, a obrigação de comunicar incidente q
 
 **Referências oficiais:** [ANPD — comunicação de incidente](https://www.gov.br/anpd/pt-br/canais_atendimento/agente-de-tratamento/comunicado-de-incidente-de-seguranca-cis); [ANPD — Regulamento aprovado pela Resolução 15/2024](https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-aprova-o-regulamento-de-comunicacao-de-incidente-de-seguranca).
 
-## 10. Critérios de passagem e estado do planejamento
+## 10. Aprovação funcional registrada, critérios de passagem e estado do planejamento
 
 - **BL-01:** estrutura comercial funcional aprovada; cotas numéricas/preços e quatro P0 abertos.
 - **BL-02:** requisitos de cobrança e alçadas aprovados funcionalmente; nove P0 e 15 decisões BL02-D abertas.
 - **BL-03:** direitos e integrações aprovados funcionalmente; 13 P0 e 18 decisões BL03-D abertas.
 - **BL-04:** atendimento/custos/capacidade aprovados funcionalmente; **quatro P0, 18 deliberações BL04-D e DC-09/DC-10 ainda abertos**.
-- **BL-05:** 48 requisitos candidatos, 48 verificações futuras, **21 P0 abertos** e 20 deliberações candidatas. **Nenhum acesso real, modelo, permissão, token, teste de invasão ou contrato é homologado**.
+- **BL-05 aprovado funcionalmente em 03/11/2026:** 48 requisitos BL05.01–BL05.48 e 48 critérios BL05-V **documentados, mas não executados**; **21 P0 abertos** e 20 deliberações BL05-D01–D20 ainda candidatas. **Nenhum acesso real, modelo, permissão, token, teste de invasão ou contrato é homologado**.
 - **BL-06:** próximo bloco proposto — Eventos, Leads, Dados Comerciais e Atribuição. Após ele BL-07 (Agentes/Comandos/Incidentes/Auditoria) e BL-08 (Fechamento transversal).
 
 **D-01–D-14 e os 15 gates HT-R01 permanecem abertos**, e D-15 é achado novo proposto para revisão, sem alteração da aprovação anterior da PERF-R01. O controle técnico/segurança não pode ser declarado completo por aprovação documental.
 
-> **BL-05 v0.1 — PROPOSTA, NÃO APROVADA.** Não iniciar programação, conexão OAuth, credenciais, coleta de leads, modelo IA, campanhas, alterações de conta, contratação ou operações reais.
+> **BL-05 v0.1 — APROVADO FUNCIONALMENTE em 03/11/2026.** A aprovação não concede acesso, não resolve os 21 P0, não aprova individualmente BL05-D01–D20, não homologa os 15 gates HT-R01 e não transforma D-15 candidata em decisão final. Não iniciar programação, OAuth, credenciais, coleta de leads, modelos IA, campanhas, contratação nem operações reais.
