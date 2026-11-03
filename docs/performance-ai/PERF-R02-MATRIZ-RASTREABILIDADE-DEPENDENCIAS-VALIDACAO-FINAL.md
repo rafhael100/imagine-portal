@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — matriz de revisão funcional, proposta  
-**Situação:** **EM ANÁLISE — PERF-R02 NÃO APROVADA; NENHUMA HOMOLOGAÇÃO TÉCNICA REALIZADA**  
+**Versão:** 1.0 — matriz aprovada funcionalmente conforme a proposta v0.1  
+**Situação:** **APROVADA FUNCIONALMENTE em 03/11/2026 — PERF-R02 v0.1 e anexo** por decisão expressa do usuário; 418 requisitos e 419 testes inventariados, **154 pendências preservadas**, divergências D-01 a D-14 mantidas, associações de contrato/requisito/teste **candidatas sujeitas a revisão** e 15 gates HT-R01 **ainda não homologados**. **Nenhuma homologação técnica e nenhuma programação autorizada.**  
 **Pré-requisitos aprovados:** PERF-ARQ-01, PERF-01–PERF-12 e PERF-R01, todos **funcionalmente**.  
 **Restrição:** não iniciar programação, testes em produção, instalações, credenciais, campanhas, gastos, integrações, automações ou transferência de dados reais.
 
@@ -650,8 +650,8 @@ Preços do CRM (Básico R$69, Essencial R$89), benefícios vinculados ao Sites, 
 
 ## 10. Aprovação da PERF-R02 e próximos passos documentais
 
-Esta versão **PERF-R02 v0.1 é PROPOSTA PARA AVALIAÇÃO** com 418 requisitos, referências aos 419 testes originais, 91 P0 + 39 P1 + 24 P2, dependências e associações **candidatas**, mapa de 20 CTs e 18 grupos, D-01–D-14 e 15 gates HT-R01 todos pendentes. Qualquer aprovação funcional de R02 deve **preservar explicitamente a pendência das relações semânticas que exigem revisão, dos contratos executáveis, dos 15 gates e de todas as decisões técnicas, financeiras e legais**.
+**Aprovação funcional expressa registrada:** PERF-R02 v0.1 e anexo aprovados como matriz de rastreabilidade inicial, contendo 418 requisitos, referências aos 419 testes originais e **91 P0 + 39 P1 + 24 P2 ainda abertos**. As associações de contratos/requisitos/testes continuam **candidatas**, os itens D-01–D-14 não foram baixados automaticamente, os 15 gates HT-R01 seguem **pendentes de homologação**, e não houve decisão de preços, arquitetura executável, segurança, retenção, privacidade ou autorização de código.
 
-Próximo caminho recomendado, após aprovação funcional R02: **revisão de pendências e deliberações comerciais P0/DC em blocos**, revisão editorial D-01, elaboração dos esquemas técnicos finais **somente quando explicitamente autorizados** e plano de homologação de APIs, sem iniciar programação do produto.
+Próxima etapa autorizada apenas como planejamento: **revisão por blocos das 91 P0 e decisões comerciais DC-01 a DC-10**, preservando P1/P2 e as divergências; propostas comerciais e esquemas técnicos definitivos dependem de avaliação e aprovação específica, sem iniciar programação do produto.
 
-> **PERF-R02 v0.1 NÃO APROVADA.** Nenhum recurso foi implementado, testado com contas reais, homologado ou publicado por este documento. Não ativar agentes N1/N2/N3, conectores, campanhas, cobranças ou transferências de dados.
+> **PERF-R02 v0.1 e seu anexo APROVADOS FUNCIONALMENTE em 03/11/2026.** Todos os vínculos técnicos candidatos, 154 pendências, D-01–D-14 e 15 gates continuam sujeitos a revisão/homologação. Nenhum recurso foi implementado, testado com contas reais, homologado ou publicado por este documento. Não ativar agentes N1/N2/N3, conectores, campanhas, cobranças ou transferências de dados.
