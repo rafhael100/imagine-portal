@@ -1,0 +1,100 @@
+# Imagine Performance AI — arquitetura aprovada e planejamento funcional
+
+**Data-base:** 2026-11-03  
+**Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
+**Situação:** PERF-ARQ-01 aprovada; módulos, interfaces e critérios técnicos abaixo são propostas de planejamento, **não homologados**.  
+**Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
+
+## 1. PERF-ARQ-01 — decisão aprovada
+
+O cliente utilizará o **Portal Imagine** como ponto central de acesso, autenticação, relacionamento comercial, contratação, cobranças, suporte, notificações e consulta dos serviços. O Imagine Performance AI será disponibilizado como módulo/experiência integrada ao Portal, mas seus agentes de IA, processos de campanha, integrações com provedores, execução, armazenamento operacional e monitoramento deverão ser isolados em domínio técnico próprio, com contratos de API e autorização entre sistemas.
+
+O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contratar Performance AI. O cliente poderá contratar exclusivamente Performance AI, ou combiná-lo com Sites Imagine e CRM Imagine. A situação de cada contrato, cobrança, acesso e suspensão deverá ser independente, preservando serviços não afetados.
+
+**Não está decidido:** linguagem e framework finais do motor de Performance, fronteiras definitivas de implantação, tecnologia de mensageria, precificação, política final de autonomia dos agentes, limites orçamentários, contratos de API detalhados ou SLAs. A implementação atualmente existente no repositório imagine-portal não deve ser confundida com a arquitetura futura planejada.
+
+## 2. Módulos propostos — ainda sujeitos a aprovação
+
+| ID | Módulo | Escopo proposto | Resultado a homologar |
+| --- | --- | --- | --- |
+| PERF-01 | Modelo de negócio e indicadores | ICP, objetivos, custos, lead válido/qualificado, oportunidade, venda, atribuição, metas e critérios de sucesso | Glossário único de KPI e contratos de qualidade |
+| PERF-02 | Onboarding e diagnóstico | Briefing, acesso autorizado, auditoria de contas, pixels, formulários, landing pages, orçamento, operação comercial, linha de base | Diagnóstico rastreável antes de ativação |
+| PERF-03 | Google Ads | Consulta, organização, campanhas, experimentos, otimização, relatório, limites e conciliação | Ações verificadas e compatíveis com API |
+| PERF-04 | Meta Ads | Business/contas, campanhas, formulários, webhooks, eventos, otimização e acompanhamento | Permissões, leads e eventos homologados |
+| PERF-05 | Criativos e páginas | Briefings, variações, políticas, revisão, prévia, testes e integração com Sites Imagine quando contratado | Publicação apenas quando autorizada |
+| PERF-06 | Mensuração e atribuição | Origem, campanha, UTMs, identificadores de clique, eventos, deduplicação, consentimento, janelas de atribuição | Métricas reconciliáveis e confiabilidade explícita |
+| PERF-07 | Experimentos e playbooks | Hipóteses, versões, comparadores, guardrails, evidências, promoção/reprovação de estratégias | Nenhum playbook tratado como validado sem evidência |
+| PERF-08 | Agentes e governança | Agentes especialistas e supervisor, autonomia, central de aprovações, permissões, memória operacional e auditoria | Execuções tipadas e rastreáveis |
+| PERF-09 | Leads e CRM | Ingestão resiliente, vínculo empresa/conta, qualificação, CRM Imagine opcional, APIs externas, feedback comercial | Integridade, idempotência e segregação por empresa |
+| PERF-10 | Painéis e IA consultiva | KPIs, diagnósticos, ações, comparações, relatórios, perguntas do cliente, exportações | Exibir origem dos dados e período de atualização |
+| PERF-11 | Monitoramento e contingência | Falhas, gastos, permissões vencidas, webhooks, APIs, reconciliação, retentativas, alertas e recuperação | Nenhuma execução crítica presumida como concluída |
+| PERF-12 | Comercial e escalabilidade | Catálogo, planos, custos por empresa, capacidade, margens, fornecedores e retenção | Custos e regras testados antes de ofertas |
+
+Os agentes são **papéis operacionais**, não necessariamente 12 processos ou sistemas independentes. Reaproveitar governança transversal sem criar acesso indevido entre empresas ou serviços.
+
+## 3. Integrações propostas e separação de responsabilidades
+
+| Origem ↔ destino | Finalidade | Limites propostos |
+| --- | --- | --- |
+| Portal Imagine ↔ Performance | Ativar acesso ao produto, receber situação comercial, mostrar painel e centralizar solicitações | Portal é autoridade comercial; Performance é autoridade de execução e métricas de anúncios |
+| Performance ↔ Google Ads | Leitura de campanhas, custos, resultados; alterações previamente aprovadas | OAuth, projeto Google Cloud e nível de acesso homologados; verificar cotas, erros e resultado oficial |
+| Performance ↔ Google Data Manager API | Ingestão autorizada de conversões comerciais elegíveis | Consentimento/base legal, normalização e proteção de identificadores, validação, diagnóstico e confirmação de processamento |
+| Performance ↔ Meta Marketing API | Consulta, estrutura e gestão de anúncios e métricas | Permissões mínimas, revisão de aplicativo e nível de acesso aplicável |
+| Meta Lead Ads → Performance → CRM opcional | Receber leads de formulário, recuperar detalhes autorizados, registrar e entregar | Webhook + reconciliação; deduplicação por identificadores externos; fila durável; autorização por empresa |
+| CRM Imagine → Performance | Status confirmado de qualificação, oportunidade, venda, receita e eventual devolução de conversão ao provedor | CRM é autoridade da etapa comercial, não a inferência da IA; eventos versionados; proteção de dados |
+| Performance ↔ Sites Imagine | Origem de formulários, URLs, alterações de landing pages e eventos | Apenas se contratado e expressamente autorizado; preservar governança de Sites e DNS |
+| Performance ↔ CRM externo | Conectores opcionais de importação e feedback | Contratos homologados, sem pressupor CRM externo universal |
+| Performance → Portal | Indicadores, recomendações, experimentos e auditoria exibidos ao cliente | Dados com origem, carimbo temporal, atualização e permissões de leitura |
+
+### Contrato transversal mínimo proposto
+
+Toda operação externa deve identificar **empresa (tenant), produto/serviço, cliente contratante, conta de anúncios, provedor, finalidade, responsável/ator, operação, versão, autorização, correlação, idempotência contextual e estado**.
+
+Estados distintos: *solicitado; autorizado; em execução; recebido pelo provedor; confirmado; rejeitado; inconclusivo; reconciliado; cancelado*. Resposta de API não equivale automaticamente a mudança de campanha publicada nem a conversão aceita.
+
+Eventos e comandos não devem duplicar vendas nem disparar múltiplos envios de leads. Reentregas devem reconhecer eventos já processados. Mudanças em gasto requerem limites explícitos por conta e contrato. Nenhum serviço acessa dados de outras empresas.
+
+### Fluxo proposto de lead e conversão
+
+1. Anúncio/formulário/página gera evento identificável e origem rastreável.
+2. Serviço de ingestão autentica origem, registra recebimento durável, verifica campos, consentimento e deduplicação.
+3. Lead é entregue ao CRM Imagine contratado e vinculado ou a destino externo homologado; quando não houver CRM, definir mecanismo mínimo de gestão/encaminhamento antes da ativação.
+4. CRM registra estados comerciais confirmados e devolve eventos compatíveis e autorizados.
+5. Performance calcula KPIs com tratamento de atrasos, mudanças de status, duplicidade, lacunas e atribuição incerta.
+6. Eventos elegíveis podem ser enviados aos provedores mediante base legal e finalidade definida, com confirmação e reconciliação.
+
+## 4. Autonomia e guardrails — proposta pendente
+
+Três níveis: (1) IA apenas recomenda; (2) IA executa mudanças de baixo risco dentro de limites aprovados; (3) ações fora dos limites, despesas novas, mudança relevante de teto de gasto ou ações sensíveis exigem aprovação explícita. Prévia, simulação e rollback quando suportados. Pausa emergencial, regras de reativação e possibilidade de reverter devem ser homologadas separadamente: **não autorizar rollback ou suspensão autônomos por inferência**.
+
+Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead válido, lead qualificado, oportunidade e venda; não supor causalidade de comparações simples; não tratar métricas estimadas como receita confirmada; identificar amostra pequena, janelas de conversão, atraso de dados e fase de aprendizado.
+
+## 5. Critérios preliminares de homologação — proposta
+
+- Identidade e autorização da empresa são verificadas em toda consulta, tarefa, evento e webhook.
+- Contrato de Performance pode ser ativo/inativo sem alterar Site ou CRM pagos.
+- Conexões Google/Meta são estabelecidas com consentimento e permissões mínimas, desconectáveis e monitoradas.
+- Evento duplicado não gera dois leads nem duas conversões comerciais; envio inconclusivo é reconciliado antes de repetir.
+- O sistema nunca aumenta orçamento fora da alçada contratual e sinaliza custos das plataformas separados da cobrança Imagine.
+- O painel informa fonte, data, atualização, status de confiabilidade e possível diferença de atribuição.
+- Falhas de API ou credenciais não são mascaradas como sucesso; ações têm trilha de auditoria.
+- Qualquer feedback ao provedor de anúncios só usa dados apropriados para a finalidade autorizada, com requisitos de privacidade e plataforma.
+- Pilotos e testes comprovam ganho operacional/comercial antes de escala; nenhuma promessa automática de desempenho.
+
+## 6. Pendências para próximas aprovações
+
+**P0:** PERF-01 definições de qualificação/metas; autoridade comercial e vínculo de contas; autorização e teto de gastos; identidade/segurança multiempresa; privacidade; ingestão resiliente; contratos de eventos; segregação Portal/Performance/CRM; homologação de APIs.  
+**P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
+**P2:** empacotamento comercial, precificação, escala e recursos avançados.
+
+Próxima seção a detalhar: **PERF-01 — modelo de resultado, qualidade do lead, objetivos comerciais e indicadores**. Não inferir aprovação dos módulos e pendências pelo aceite exclusivo da PERF-ARQ-01.
+
+## 7. Referências técnicas para futura homologação
+
+- Google Ads API: https://developers.google.com/google-ads/api/docs/api-policy/developer-token (tokens de desenvolvedor desativados em 09/09/2026; acesso associado ao projeto Google Cloud).
+- Google OAuth: https://developers.google.com/google-ads/api/docs/oauth/overview
+- Google Data Manager API: https://developers.google.com/data-manager/api/devguides/events/google-ads/offline
+- Meta: https://developers.meta.com/blog/updates-to-ads-management-standard-access-feature/ (mudanças de níveis de acesso em maio/2026).
+- Meta Blueprint sobre qualidade de leads: https://www.facebookblueprint.com/student/path/264294-conversions-api-crm-lead-quality
+
+> Este arquivo documenta planejamento e a decisão já aprovada. Não autoriza escrita de código, implantação, despesas, conexões de contas, alterações de campanhas ou acesso a dados de clientes.
