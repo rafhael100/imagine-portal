@@ -82,7 +82,7 @@ Aumento de teto ou nova finalidade exige alçada específica. Redistribuição d
 ### BL02.18 — Matriz de papéis financeiros
 Distinguir titular/pagador, administrador da empresa, gestor de mídia, financeiro, supervisor Imagine e auditor. Aprovação de criativo não autoriza aumentar verba, nem a IA aprova sua própria proposta; MFA/dupla aprovação conforme risco futuro.
 
-### BL02.19 — Aprovações ínteg ras por recurso
+### BL02.19 — Aprovações íntegras por recurso
 Vincular aprovação a conta, campanha, operação, valor antes/depois, fuso/moeda, versão, prazo, aprovador e risco; revalidar antes da mutação. Mudança material invalida autorização anterior; não aprovar por silêncio ou mensagem de agente.
 
 ### BL02.20 — N1/N2/N3 como condicionantes, não autorização
