@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — anexo documental em análise  
-**Status:** **PROPOSTO, NÃO APROVADO**; vinculado à [PERF-R02 — Matriz de Rastreabilidade](PERF-R02-MATRIZ-RASTREABILIDADE-DEPENDENCIAS-VALIDACAO-FINAL.md), em análise.  
+**Versão:** 1.0 — anexo aprovado funcionalmente conforme a v0.1  
+**Status:** **APROVADO FUNCIONALMENTE em 03/11/2026**, juntamente com a [PERF-R02 — Matriz de Rastreabilidade](PERF-R02-MATRIZ-RASTREABILIDADE-DEPENDENCIAS-VALIDACAO-FINAL.md); inventário documental apenas, **todos os testes não executados, 154 pendências abertas e vínculos candidatos sujeitos a revisão**.  
 **Fontes:** documentos PERF-01 a PERF-12, aprovados funcionalmente; PERF-R01 aprovada funcionalmente. Nenhum teste executado. **Sem iniciar programação ou qualquer operação real.**  
 **Escopo do inventário verificado:** **418 requisitos**, **419 testes HT-PERF**, **91 P0**, **39 P1** e **24 P2**. A correspondência individual do HT-PERF01 é **candidata**, pois a numeração original de PERF-01 inclui cabeçalhos fora do intervalo de 14 IDs expressamente aprovados (D-01). Para PERF-02–12, o teste HT de mesmo sufixo foi registrado como correspondência candidata, sem provar cobertura integral.
 
