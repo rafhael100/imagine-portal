@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01 a PERF-01.14 e PERF-02.01 a PERF-02.22 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-03.01 a PERF-03.28 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22 e PERF-03.01–03.28 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-04.01–04.30 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -17,9 +17,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 
 - [PERF-01 — Estratégia, Qualificação de Leads e Gestão de Resultados](performance-ai/PERF-01-ESTRATEGIA-QUALIFICACAO-RESULTADOS.md): **APROVADO FUNCIONALMENTE** — PERF-01.01 a PERF-01.14, requisitos e critérios de aceite, sem homologação técnica.
 - [PERF-02 — Onboarding Inteligente, Conexões, Diagnóstico e Liberação Controlada](performance-ai/PERF-02-ONBOARDING-INTELIGENTE.md): **APROVADO FUNCIONALMENTE** — PERF-02.01 a PERF-02.22, 22 critérios de homologação futura, sem programação.
-- [PERF-03 — Gestão Inteligente de Google Ads](performance-ai/PERF-03-GESTAO-INTELIGENTE-GOOGLE-ADS.md): **PROPOSTO PARA REVISÃO** — PERF-03.01 a PERF-03.28, com 28 critérios de homologação futura, sem programação.
+- [PERF-03 — Gestão Inteligente de Google Ads](performance-ai/PERF-03-GESTAO-INTELIGENTE-GOOGLE-ADS.md): **APROVADO FUNCIONALMENTE** — PERF-03.01 a PERF-03.28, 28 critérios de homologação futura, sem programação.
+- [PERF-04 — Gestão Inteligente de Meta Ads](performance-ai/PERF-04-GESTAO-INTELIGENTE-META-ADS.md): **PROPOSTO PARA REVISÃO** — PERF-04.01 a PERF-04.30, 30 critérios de homologação futura, sem programação.
 
-## 2. Inventário de módulos — PERF-01 e PERF-02 aprovados funcionalmente; demais sob planejamento
+## 2. Inventário de módulos — PERF-01, PERF-02 e PERF-03 aprovados funcionalmente; demais sob planejamento
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -93,7 +94,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **PERF-03 — Gestão Inteligente de Google Ads em revisão**. As aprovações funcionais anteriores não representam aprovação da PERF-03, dos contratos técnicos, da política de autonomia, das condições financeiras ou da implementação.
+Etapa atual: **PERF-04 — Gestão Inteligente de Meta Ads em revisão**. As aprovações funcionais anteriores não representam aprovação da PERF-04, dos contratos técnicos, da política de autonomia, das condições financeiras ou da implementação.
 
 ## 7. Referências técnicas para futura homologação
 
