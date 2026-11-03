@@ -2,7 +2,7 @@
 
 **Data-base:** 2026-11-03  
 **Produto:** Imagine Performance AI, integrante comercial do ecossistema Imagine.  
-**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30 e PERF-05.01–05.36 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-06.01–06.34 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
+**Situação:** PERF-ARQ-01 **APROVADA**; PERF-01.01–01.14, PERF-02.01–02.22, PERF-03.01–03.28, PERF-04.01–04.30, PERF-05.01–05.36 e PERF-06.01–06.34 **APROVADOS FUNCIONALMENTE em 03/11/2026**; PERF-07.01–07.36 **PROPOSTOS, EM ANÁLISE**; demais módulos a detalhar. Nenhum módulo homologado tecnicamente.  
 **Restrições:** não iniciar programação, integrações reais, provisionamento, gastos nem publicação de campanhas sem novo planejamento e aprovação.
 
 ## 1. PERF-ARQ-01 — decisão aprovada
@@ -20,9 +20,10 @@ O CRM Imagine terá **integração opcional**, sem ser pré-requisito para contr
 - [PERF-03 — Gestão Inteligente de Google Ads](performance-ai/PERF-03-GESTAO-INTELIGENTE-GOOGLE-ADS.md): **APROVADO FUNCIONALMENTE** — PERF-03.01 a PERF-03.28, 28 critérios de homologação futura, sem programação.
 - [PERF-04 — Gestão Inteligente de Meta Ads](performance-ai/PERF-04-GESTAO-INTELIGENTE-META-ADS.md): **APROVADO FUNCIONALMENTE** — PERF-04.01 a PERF-04.30, 30 critérios de homologação futura, sem programação.
 - [PERF-05 — Produção Inteligente de Criativos, Anúncios e Landing Pages](performance-ai/PERF-05-PRODUCAO-INTELIGENTE-CRIATIVOS-ANUNCIOS-LANDING-PAGES.md): **APROVADO FUNCIONALMENTE** — PERF-05.01 a PERF-05.36, 36 cenários de homologação futura, sem programação.
-- [PERF-06 — Mensuração Inteligente, Rastreamento e Atribuição de Resultados](performance-ai/PERF-06-MENSURACAO-RASTREAMENTO-ATRIBUICAO.md): **PROPOSTO PARA REVISÃO** — PERF-06.01 a PERF-06.34, 34 cenários de homologação futura, sem programação.
+- [PERF-06 — Mensuração Inteligente, Rastreamento e Atribuição de Resultados](performance-ai/PERF-06-MENSURACAO-RASTREAMENTO-ATRIBUICAO.md): **APROVADO FUNCIONALMENTE** — PERF-06.01 a PERF-06.34, 34 cenários de homologação futura, sem programação.
+- [PERF-07 — Trilhas Estratégicas, Experimentos e Aprendizado Contínuo](performance-ai/PERF-07-TRILHAS-EXPERIMENTOS-APRENDIZADO-CONTINUO.md): **PROPOSTO PARA REVISÃO** — PERF-07.01 a PERF-07.36, 36 cenários de homologação futura, sem programação.
 
-## 2. Inventário de módulos — PERF-01 a PERF-05 aprovados funcionalmente; demais sob planejamento
+## 2. Inventário de módulos — PERF-01 a PERF-06 aprovados funcionalmente; demais sob planejamento
 
 | ID | Módulo | Escopo proposto | Resultado a homologar |
 | --- | --- | --- | --- |
@@ -96,7 +97,7 @@ Regras de análise: não confundir CPL com CAC; distinguir lead bruto, lead vál
 **P1:** onboarding e diagnósticos; playbooks, experimentos e auditoria de criativos; governança dos agentes; painel e monitoramento.  
 **P2:** empacotamento comercial, precificação, escala e recursos avançados.
 
-Etapa atual: **PERF-06 — Mensuração Inteligente, Rastreamento e Atribuição de Resultados em revisão**. As aprovações funcionais anteriores não representam aprovação da PERF-06, dos contratos técnicos, da política de privacidade/retentiva definitiva, dos modelos de atribuição, das condições financeiras ou da implementação.
+Etapa atual: **PERF-07 — Trilhas Estratégicas, Experimentos e Aprendizado Contínuo em revisão**. As aprovações anteriores não representam aprovação da PERF-07, da metodologia estatística final, da autonomia da IA, dos limites financeiros ou da implementação.
 
 ## 7. Referências técnicas para futura homologação
 
