@@ -3,7 +3,7 @@
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
 **Versão:** 0.1 — proposta de método de fechamento, em revisão  
-**Situação:** **PLANO DE OITO BLOCOS AINDA EM REVISÃO; BL-01, BL-02 e BL-03 v0.1 APROVADOS FUNCIONALMENTE em 03/11/2026; BL-04 v0.1 PROPOSTO, EM ANÁLISE.** Nenhuma P0/P1/P2 baixada; as 15 deliberações BL02-D01–D15 e 18 BL03-D01–D18 continuam candidatas; sem valores, descontos, prazos, cotas numéricas ou homologação técnica.  
+**Situação:** **PLANO DE OITO BLOCOS AINDA EM REVISÃO; BL-01 a BL-04 v0.1 APROVADOS FUNCIONALMENTE em 03/11/2026; BL-05 v0.1 PROPOSTO, EM ANÁLISE.** Nenhuma P0/P1/P2 baixada; as deliberações BL02-D01–D15, BL03-D01–D18 e BL04-D01–D18 continuam candidatas; custos, preços, descontos, SLAs, direitos de acesso e homologações técnicas permanecem abertos.  
 **Base aprovada funcionalmente:** PERF-ARQ-01, PERF-01–12, PERF-R01, PERF-R02 v0.1 e respectivo anexo.  
 **Restrição:** exclusivamente documentação, sem programar, integrar, publicar valores, ativar agentes, contratar fornecedores, coletar dados reais ou operar mídia.
 
@@ -103,11 +103,11 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 | PERF-09/P0-LEAD-10 | encerramento/suspensão independente de contratos e políticas de continuidade, custo de armazenamento em incidente e destinação de registros. |
 | PERF-12/P0-COM-05 | matrícula/valor e limites de CRM externo, troca de vínculo e fronteiras comerciais com Sites/CRM/Universidade. |
 
-### BL-04 — Atendimento, custos, capacidade e continuidade comercial (4 P0; proposta em análise)
+### BL-04 — Atendimento, custos, capacidade e continuidade comercial (4 P0; aprovado funcionalmente)
 
 **DCs relacionadas:** DC-09, DC-10. **Agrupamentos R01:** G14, G16. **Contratos candidatos:** CT-PERF-15, -17, -18.  
 **Objetivo:** Definir SLA, suporte, custos reais de IA/infra/equipe, RPO/RTO e cenários parametrizados de 100 a 700 clientes.  
-**Critério de saída documental:** [BL-04 v0.1 proposta](PERF-P0-BL04-ATENDIMENTO-CUSTOS-CAPACIDADE-CONTINUIDADE-COMERCIAL.md): 48 requisitos, 48 cenários futuros, 18 deliberações de atendimento/custo e quatro P0 preservados. Modelo paramétrico de 100–700 clientes, **sem valores homologados**, sem transformar cenários em projeção comprometida.
+**Critério de saída documental:** [BL-04 v0.1 aprovado funcionalmente](PERF-P0-BL04-ATENDIMENTO-CUSTOS-CAPACIDADE-CONTINUIDADE-COMERCIAL.md): 48 requisitos e 48 critérios funcionais; 18 deliberações de atendimento/custo e quatro P0 permanecem abertos. Modelo paramétrico de 100–700 clientes, **sem valores, SLAs ou RPO/RTO homologados**.
 
 | P0 de origem (preservado) | Descrição original |
 | --- | --- |
@@ -116,11 +116,11 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 | PERF-12/P0-COM-08 | metodologia de capacidade/custos e quotas de API por 100–700 clientes, com validação de cenários e pilotos. |
 | PERF-12/P0-COM-09 | SLAs/SLOs, responsabilidade de atendimento, planos de continuidade, retenção, segurança e contratos jurídicos. |
 
-### BL-05 — Identidade, acesso Google/Meta, segurança e LGPD (21 P0)
+### BL-05 — Identidade, acesso Google/Meta, segurança e LGPD (21 P0; proposta em análise)
 
 **DCs relacionadas:** Dependências de DC-03, DC-06, DC-08. **Agrupamentos R01:** G01, G02, G06. **Contratos candidatos:** CT-PERF-01, -02, -03, -12, -19.  
 **Objetivo:** Revisar escopos, tokens, vinculação tenant/conta, direitos, consentimento, ameaça de prompt injection e isolamento.  
-**Critério de saída documental:** Matriz de autorização/versão e plano de validação/segurança, sem testes reais.
+**Critério de saída documental:** [BL-05 v0.1 proposta](PERF-P0-BL05-IDENTIDADE-ACESSO-GOOGLE-META-SEGURANCA-LGPD.md): 48 requisitos, 48 verificações futuras, 20 deliberações candidatas e **21 P0 abertos**; matriz de autorização e plano de validação/segurança, sem testes reais. Registrar mudança Google Ads API de setembro/2026 como divergência documental candidata D-15.
 
 | P0 de origem (preservado) | Descrição original |
 | --- | --- |
@@ -217,9 +217,9 @@ Ordem proposta: primeiro organizar escopo, pacote, receita e suporte; depois con
 
 O [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md) permanece a fonte integral das **154 pendências originais** e dos 419 testes. Este plano só redistribui **91 P0** por responsabilidade primária. Todas as **39 P1 e 24 P2** continuam abertas nos documentos originais. Divergências D-01–D-14 e associações requisito–CT–HT permanecem **candidatas**; nenhuma será resolvida por aproximação de título. Os 20 CT-PERF continuam sem schema executável homologado.
 
-## 6. BL-01 a BL-03 aprovados funcionalmente; BL-04 em análise
+## 6. BL-01 a BL-04 aprovados funcionalmente; BL-05 em análise
 
-A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 — Oferta, Planos e Franquias](PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md), exclusivamente como estrutura comercial inicial. O [BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md) foi aprovado funcionalmente, sem baixa de P0 nem aprovação das deliberações financeiras específicas. O [BL-03 — Ecossistema, CRM, Sites, Criativos e Direitos](PERF-P0-BL03-ECOSSISTEMA-CRM-SITES-CRIATIVOS-DIREITOS.md) está aprovado funcionalmente, mantendo 13 P0 e 18 decisões candidatas abertas. O [BL-04 — Atendimento, Custos, Capacidade e Continuidade Comercial](PERF-P0-BL04-ATENDIMENTO-CUSTOS-CAPACIDADE-CONTINUIDADE-COMERCIAL.md) está em análise. Começar por identificar o que é incluído, opcional ou condicionado a custo ajuda a dimensionar IA, mídia, relatórios, CRM, Sites e número de contas/campanhas antes de fixar preço.
+A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 — Oferta, Planos e Franquias](PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md), exclusivamente como estrutura comercial inicial. O [BL-02 — Cobrança, Descontos, Investimento de Mídia e Alçadas Financeiras](PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md) foi aprovado funcionalmente, sem baixa de P0 nem aprovação das deliberações financeiras específicas. O [BL-03 — Ecossistema, CRM, Sites, Criativos e Direitos](PERF-P0-BL03-ECOSSISTEMA-CRM-SITES-CRIATIVOS-DIREITOS.md) está aprovado funcionalmente, mantendo 13 P0 e 18 decisões candidatas abertas. O [BL-04 — Atendimento, Custos, Capacidade e Continuidade Comercial](PERF-P0-BL04-ATENDIMENTO-CUSTOS-CAPACIDADE-CONTINUIDADE-COMERCIAL.md) foi aprovado funcionalmente, com quatro P0, 18 deliberações, DC-09/DC-10, custos e SLAs abertos. O [BL-05 — Identidade, Acesso Google/Meta, Segurança e LGPD](PERF-P0-BL05-IDENTIDADE-ACESSO-GOOGLE-META-SEGURANCA-LGPD.md) está em análise. Começar por identificar o que é incluído, opcional ou condicionado a custo ajuda a dimensionar IA, mídia, relatórios, CRM, Sites e número de contas/campanhas antes de fixar preço.
 
 **Temas para decisão expressa:** arquitetura comercial de Canal Único, Multicanal e Operação Ampliada; recursos mínimos transversais; regras de conta/campanha/marca; limites de geração, relatório, lead e agentes; separação de assinaturas, mídia, CRM e Sites; adicionais; possibilidade de pacotes avançados; política de não cobrar excedente sem autorização. **Não foi decidida nenhuma mensalidade nesta revisão.**
 
@@ -231,6 +231,6 @@ A proposta detalhada do **BL-01 foi aprovada funcionalmente**, conforme [BL-01 �
 - D-01 (PERF-01.15–.18 em cabeçalhos) não amplia escopo de requisitos; exige revisão editorial formal.
 - **HT-R01-01 a HT-R01-15 permanecem não homologados.**
 - Níveis N1/N2/N3 permanecem conceitos aprovados funcionalmente, não políticas executáveis.
-- Próxima ação sugerida: revisar **BL-04 v0.1** (48 requisitos, 18 deliberações candidatas e 48 critérios de validação) preservando 4 P0 e todas as decisões sobre custos, SLAs, capacidade e DC-09/DC-10; depois BL-05, sem programação.
+- Próxima ação sugerida: revisar **BL-05 v0.1** (48 requisitos, 48 verificações futuras, 20 deliberações candidatas e 21 P0) com atenção ao acesso por projeto Google Cloud após setembro/2026 e aos tiers Meta de maio/2026; depois BL-06, sem programação.
 
 > **PERF-P0 — PLANO DE REVISÃO PROPOSTO, NÃO APROVADO.** A organização do trabalho não altera qualquer requisito, preço, acesso, contrato, P0, P1, P2 ou autorização técnica.
