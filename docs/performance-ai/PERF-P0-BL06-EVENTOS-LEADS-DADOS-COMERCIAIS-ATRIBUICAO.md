@@ -44,7 +44,7 @@ Modelo candidato com tenant, serviço, marca, conta, campanha, conjunto/anúncio
 Distinguir ID de notificação/webhook, ID de lead do provedor, submissão de formulário, pessoa/contato CRM, oportunidade, pedido, venda, evento de conversão e request_id de upload. IDs distintos não devem ser colapsados por e-mail/telefone sem regra expressa.
 
 ### BL06.04 — Contratos de dados versionados
-Especificar versões de schemas, campos obrigatórios/opcionais, tamanho, formatos, fuso, moeda, erros tipados, compatibilidade e política de migração; rejeitar/isol ar payloads fora do contrato preservando dados e incidente conforme finalidade.
+Especificar versões de schemas, campos obrigatórios/opcionais, tamanho, formatos, fuso, moeda, erros tipados, compatibilidade e política de migração; rejeitar/isolar payloads fora do contrato preservando dados e incidente conforme finalidade.
 
 ### BL06.05 — Autenticidade e qualidade da origem
 Validar assinatura/webhook conforme provedor, token, conta e tenant, anti-replay, antispam, proteção de endpoint, respeito a consentimento e condições de origem; não presumir dados verdadeiros só porque resposta HTTP foi bem-sucedida.
@@ -125,7 +125,7 @@ Propor first/last touch e demais modelos apenas com fonte verificável, coortes,
 Conversões atribuídas por cada provedor podem sobrepor-se. Apresentar por canal separadamente e total único apenas com identidade deduplicável/CRM confirmado; sem chave confiável, exibir ressalva explícita e não somar vendas como verdade real.
 
 ### BL06.31 — Google Data Manager: elegibilidade e payload
-Feedback de conversões offline é orquestrado pelo PERF-06 a partir de dados comerciais elegíveis do PERF-09, com conta/destino, event_id/order_id ou identificadores aplicáveis, normalização/hash quando exigidos, finalidade, consentimentos e versioneamento.
+Feedback de conversões offline é orquestrado pelo PERF-06 a partir de dados comerciais elegíveis do PERF-09, com conta/destino, event_id/order_id ou identificadores aplicáveis, normalização/hash quando exigidos, finalidade, consentimentos e versionamento.
 
 ### BL06.32 — Data Manager: aceite assíncrono e diagnósticos
 Ingestão com request_id confirma aceitação técnica, não processamento das linhas. Consultar RetrieveRequestStatus por request_id/destino até SUCCESS/PARTIAL_SUCCESS/FAILED, analisar contagens, avisos e erros; não afirmar atribuição da conversão nem venda confirmada por status de ingestão.
@@ -235,7 +235,7 @@ Referências para homologação posterior: [Meta — Lead Ads](https://developer
 
 ## 6. Os 17 P0 originais, preservados sem baixa
 
-As descrições abaixo são reproduzidas do [roteiro aprovado de revisão](PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md) e permanecem íntegros também no [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md).
+As descrições abaixo são reproduzidas do [roteiro documental de revisão](PERF-P0-REVISAO-BLOCOS-DC01-A-DC10.md) e permanecem íntegros também no [Anexo PERF-R02](PERF-R02-ANEXO-TESTES-PENDENCIAS.md).
 
 | ID original | Descrição original | Requisitos BL06 relacionados (candidatos) |
 | --- | --- | --- |
