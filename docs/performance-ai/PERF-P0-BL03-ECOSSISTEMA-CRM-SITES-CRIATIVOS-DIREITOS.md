@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta para revisão  
-**Situação:** **EM ANÁLISE — BL-03 NÃO APROVADO**  
+**Versão:** 1.0 — aprovação funcional integral da proposta v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — BL-03 v0.1, BL03.01–BL03.38 e 38 critérios BL03-V**, conforme decisão expressa do usuário. **Os 13 P0 continuam ABERTOS**, as **18 deliberações BL03-D01–D18 permanecem candidatas, sem decisão específica**, e licenças, portabilidade, retenção, fornecedores, condições comerciais e homologações técnicas continuam pendentes. **Nenhuma programação ou operação real autorizada.**  
 **Decisões de referência:** DC-07 (CRM, Sites, vínculos e cobrança), DC-08 (direitos de criativos, portabilidade e retenção).  
 **Bases aprovadas:** PERF-ARQ-01, PERF-01–12, PERF-R01 e PERF-R02/anexo, BL-01 (estrutura de planos) e BL-02 (27 requisitos/27 critérios funcionais, com 15 decisões comerciais ainda não tomadas).  
 **Pendências de responsabilidade primária:** **13 P0 ABERTOS**, conforme matriz abaixo; demais **78 P0**, 39 P1, 24 P2, divergências D-01–D-14 e 15 gates HT-R01 não homologados.  
@@ -29,7 +29,7 @@ Detalhar a cooperação do Imagine Performance AI com CRM Imagine, CRMs externos
 | Cliente/terceiros criativos | Titularidade, licenças, autorizações de imagem/voz/portfólio | Entregável licenciado conforme contrato | Transferência automática de propriedade/exclusividade |
 | Universidade Imagine | Formação geral e tutoriais de produtos elegíveis | Ajuda contextual | Autorização de gasto, CRM, publicações ou certificados presumidos |
 
-## 3. Requisitos candidatos BL03.01 a BL03.38
+## 3. Requisitos aprovados funcionalmente BL03.01 a BL03.38
 
 ### BL03.01 — Catálogo de autoridades entre produtos
 Portal é autoridade de identidade/contrato; Performance é autoridade da operação de anúncios e captação dentro de seus limites; CRM de registros e eventos comerciais; Sites de publicação/hospedagem; provedores confirmam campanhas. Não duplicar motores, credenciais, bancos ou centros de aprovação.
@@ -258,14 +258,14 @@ A descrição integral, histórico e IDs originais são conservados na [PERF-R02
 37. **BL03-V37:** Painel mostra estados e vínculos apenas da empresa e usuário autorizados.
 38. **BL03-V38:** Aprovação BL-03 não ativa conectores CRM, Sites, IA, anúncios, faturamento nem programação.
 
-## 9. Dependências e critérios de passagem para próxima etapa
+## 9. Registro da aprovação funcional, dependências e próxima etapa
 
 - **BL-01** aprovou estrutura de três pacotes com cotas/adicionais, mas deixou quatro P0 e preços/franquias abertos.
 - **BL-02** aprovou requisitos funcionais de cobrança e segurança financeira, mantendo nove P0 e 15 decisões BL02-D01–D15 separadas.
-- **BL-03** apresenta 38 requisitos, 18 decisões candidatas, 38 cenários e 13 P0 de origem **todos pendentes**; DC-07 e DC-08 continuam abertas até deliberação jurídica/comercial.
+- **BL-03 aprovado funcionalmente em 03/11/2026**: 38 requisitos BL03.01–BL03.38 e 38 cenários BL03-V documentados, **não executados**. As 18 deliberações BL03-D01–D18 continuam propostas, **13 P0 originais permanecem abertos**, e DC-07 e DC-08 ainda dependem de decisões jurídicas/comerciais específicas.
 - **BL-04** deverá dimensionar custos de produção multimodal, armazenamento/PII, CRMs externos, suporte, retenção, integrações, licença e capacidade para 100 a 700 clientes; não fixar valores antecipadamente.
 - **BL-05 e BL-06** tratarão permissões, LGPD, contratos de dados e estados de lead/CRM; **BL-07** os agentes, comandos, incidentes e auditoria. **BL-08** fará a reconciliação final de P0, divergências D-01 a D-14 e gates HT-R01 não homologados.
 
-**Próxima etapa proposta após aprovação funcional do BL-03:** BL-04 — Atendimento, Custos, Capacidade e Continuidade Comercial. A aprovação funcional de BL-03 não equivale a aprovação de fornecedores, planos/valores comerciais, prazos de retenção ou contratos técnicos executáveis.
+**Próxima etapa autorizada exclusivamente para planejamento documental:** BL-04 — Atendimento, Custos, Capacidade e Continuidade Comercial. A aprovação funcional de BL-03 não equivale a aprovação de fornecedores, planos/valores comerciais, prazos de retenção ou contratos técnicos executáveis.
 
-> **BL-03 v0.1 — PROPOSTA, NÃO APROVADA.** Nenhuma programação, conexão de serviços, alteração de domínio/DNS, geração/produção real para terceiro, publicação, coleta de leads ou cobrança autorizada.
+> **BL-03 v0.1 — APROVADO FUNCIONALMENTE em 03/11/2026**, preservando 13 P0, 18 deliberações candidatas e pendências jurídicas, comerciais, de privacidade, licenças e fornecedores. Nenhuma programação, conexão de serviços, alteração de domínio/DNS, geração/produção real para terceiro, publicação, coleta de leads ou cobrança autorizada.
