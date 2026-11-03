@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI
 **Data-base:** 03/11/2026
-**Versão:** 0.1 — especificação funcional para análise
-**Status:** **PROPOSTA — PERF-07.01 a PERF-07.36 NÃO APROVADAS**
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1
+**Status:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-07.01 a PERF-07.36**, conforme decisão expressa do usuário; preservados os 36 testes de homologação e todas as pendências técnicas/metodológicas. **Não homologado tecnicamente nem autorizado para programação ou operação real.**
 **Dependências funcionais aprovadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34. Nenhuma aprovação constitui homologação técnica.
 **Restrições:** apenas documentação. Não iniciar código, integrações reais, despesas, campanhas, testes em contas externas, publicação ou execução de agentes.
 
@@ -25,7 +25,7 @@ O sistema **não pode chamar uma alteração de campanha de experimento causal s
 - PERF-12: produtos, cotas, preço, despesas e escalabilidade.
 - Portal Imagine: conta comercial e interface; motor Performance: conhecimento e operação isolados por empresa.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-07.01 — Catálogo de trilhas estratégicas
 Trilhas condicionais para diagnóstico inicial, teste de oferta, captação, validação do sinal, qualificação, otimização, expansão, recuperação e manutenção. Cada trilha terá pré-requisitos, riscos, objetivo, critérios de entrada/saída, responsáveis e evidências de escolha. Nenhuma trilha universal para todos os segmentos.
@@ -211,11 +211,11 @@ E0–E3 são **rótulos propostos pela Imagine**, não certificações estatíst
 **P2-EXP-02:** abstração/benchmarks entre clientes com autorização e avaliação jurídica.  
 **P2-EXP-03:** testes adaptativos/Bayesianos, após metodologia formal e piloto.
 
-## 7. Aprovação funcional pendente e próximo módulo
+## 7. Aprovação funcional registrada e próximo módulo
 
-Aprovação futura proposta: **PERF-07.01 a PERF-07.36** com **36 casos HT-PERF07** e pendências P0/P1/P2, exclusivamente como requisitos funcionais. Não implica aprovação da política de autonomia, de gasto, de métodos estatísticos finais, de sistemas, APIs ou código.
+**Aprovação expressa registrada:** PERF-07.01 a PERF-07.36 aprovados conforme especificação v0.1, incluindo **36 casos HT-PERF07** de homologação futura e preservando integralmente as pendências P0/P1/P2. Nenhum teste de integração foi executado; métodos estatísticos finais, autonomia, política de gastos, sistemas, APIs e código não foram homologados nem autorizados.
 
-Próxima etapa após aprovação: **PERF-08 — Agentes de IA, Autonomia, Governança e Central de Aprovações**.
+Próxima etapa em elaboração: **PERF-08 — Agentes de IA, Autonomia, Governança e Central de Aprovações**, apenas planejamento.
 
 ## 8. Referências para homologação técnica posterior (consultadas em 03/11/2026)
 
@@ -226,4 +226,4 @@ Próxima etapa após aprovação: **PERF-08 — Agentes de IA, Autonomia, Govern
 - [Meta Business — ferramentas de testes e experimentos](https://www.facebook.com/business)
 - [ANPD — materiais de privacidade e proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes)
 
-> **Documento proposto, NÃO aprovado**, preparado para revisão do usuário. Nenhuma ação operacional ou programação está autorizada.
+> **Documento aprovado funcionalmente em 03/11/2026.** Nenhuma ação operacional, experimento real ou programação está autorizada.
