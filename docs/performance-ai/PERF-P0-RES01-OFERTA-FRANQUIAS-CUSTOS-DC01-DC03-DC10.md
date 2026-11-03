@@ -2,8 +2,8 @@
 
 **Projeto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.3 — RES01-D01 e RES01-D02 aprovadas funcionalmente; D03–D16 ainda em análise, sem alterar o escopo das pendências  
-**Situação:** **RES-01 EM ANÁLISE; SOMENTE RES01-D01 e RES01-D02 APROVADAS FUNCIONALMENTE em 03/11/2026**, respectivamente Modelo B (assinatura-base por empresa e plano) e Canal Único (Google Ads **ou** Meta Ads, apenas um canal gerido por vez; troca por solicitação autorizada no Portal/chamado com transição controlada, sem novo plano). **RES01-D03–D16 NÃO APROVADAS**; **nenhuma baixa de P0**, preço, cota ou homologação.  
+**Versão:** 0.4 — RES01-D01, D02 e D03 aprovadas funcionalmente; D04–D16 ainda em análise, sem alterar o escopo das pendências  
+**Situação:** **RES-01 EM ANÁLISE; SOMENTE RES01-D01, RES01-D02 e RES01-D03 APROVADAS FUNCIONALMENTE em 03/11/2026**: Modelo B (assinatura-base por empresa e plano), Canal Único (Google Ads **ou** Meta Ads, um canal gerido por vez, com troca autorizada e controlada sem novo plano) e **Multicanal Modelo A** (uma assinatura-base por empresa, elegibilidade Google Ads **e** Meta Ads, com ativação simultânea ou individual, franquias próprias por canal sem transferência automática). **RES01-D04–D16 NÃO APROVADAS**; **nenhuma baixa de P0**, preço, cota ou homologação.  
 **Eixos:** DC-01 (implantação/preços), DC-02 (contas, canais, marcas e campanhas), DC-03 (IA, criativos, vídeo, landing, Central Mínima, relatórios), DC-10 (custos e escala). Dependências DC-04/05/06/07/08/09 permanecerão abertas.  
 **Rastreabilidade P0:** 4 do BL-01 e 4 do BL-04, **8 P0 originais, TODOS ABERTOS**, sem prejuízo dos outros 83 P0, 39 P1 e 24 P2, D-01–D-14, D-15 candidata, 20 CT-PERF candidatos e 15 HT-R01 não homologados.  
 **Restrição:** somente planejamento/documentação. Não iniciar programação, testes reais, gastos, campanhas, OAuth, publicação, contratos, cobrança nem contratação de fornecedores.
@@ -47,13 +47,13 @@
 
 **Cuidado:** os termos “incluído” na matriz são **candidatos de empacotamento**, não direitos comerciais com preço ou capacidade aprovados. A elegibilidade de API de Google/Meta e o consentimento do cliente são gates adicionais.
 
-## 4. Deliberações RES01-D01 a RES01-D16 — D01/D02 aprovadas; D03–D16 propostas
+## 4. Deliberações RES01-D01 a RES01-D16 — D01/D02/D03 aprovadas; D04–D16 propostas
 
 | ID | Decisão específica | Proposta para debate | O que permanece em aberto | Dependência |
 | --- | --- | --- | --- | --- |
 | **RES01-D01 — APROVADA FUNCIONALMENTE (Modelo B, 03/11/2026)** | Unidade-base de assinatura | **Uma assinatura-base por empresa contratante e plano Imagine Performance AI; contas publicitárias, marcas e campanhas são capacidades e adicionais sujeitos a franquias futuras.** Empresas isoladas por padrão; Performance, CRM e Sites com contratos independentes. | **CNPJ/validação de pessoa jurídica, periodicidade definitiva, preços, quantidades, custos, adicionais e homologações continuam pendentes.** | DC-01/02, P0-COM-01/02 — **ABERTOS** |
 | **RES01-D02 — APROVADA FUNCIONALMENTE (Alternativa B, 03/11/2026)** | Canal Único | Escolher **Google Ads ou Meta Ads** na contratação; **gerir somente um canal por vez**. Troca de canal **mediante solicitação no Portal Imagine ou chamado**, autorização do cliente e transição controlada, **sem exigir contratação de novo plano**. A troca **não pausa automaticamente anúncios externos nem pode provocar perda indevida de leads**. | **Número de contas e campanhas, prazo mínimo de troca, eventual taxa de reconfiguração, preços, custos, permissões/conexões, retenção e homologação operacional** ainda pendentes. | DC-02, PERF-12/P0-COM-02 — **ABERTO** |
-| RES01-D03 | Multicanal | Acesso funcional a **Google Ads e Meta Ads**, cada um com contas/campanhas expressamente cotadas; atribuição consolidada sem contar vendas em duplicidade | Contas, campanhas, custo de conectores, versão e elegibilidade pendentes | DC-02, P0-COM-02 |
+| **RES01-D03 — APROVADA FUNCIONALMENTE (Modelo A, 03/11/2026)** | Multicanal integrado | **Uma assinatura-base por empresa e plano com elegibilidade para Google Ads E Meta Ads**, sem contratar dois planos Canal Único. Permitir **conexão/ativação simultânea ou um canal por vez**, sem obrigação de uso simultâneo. Franquias de contas e campanhas **específicas por canal, sem transferência automática de cotas**. Preservar independência operacional, visão consolidada sem dupla contagem de vendas e pagamento de mídia diretamente pelo cliente aos provedores. | **Números de contas/campanhas, marcas, preços, custos, downgrade, regras de consumo, escopos de API, conexão real e homologações** continuam pendentes. | DC-02, PERF-12/P0-COM-02 — **ABERTO** |
 | RES01-D04 | Operação Ampliada | Pacote para múltiplas marcas/contas e maior volume, **não ilimitado**; dimensão por contrato e quotas homologáveis | Definir se preço-base padronizado mais adicionais ou proposta individual | DC-01/02, P0-COM-01/02 |
 | RES01-D05 | Contabilização de campanhas | Medir número de campanhas **geridas/monitoradas no ciclo** por conta/canal, com estados ativo, pausado, arquivado; não cobrar campanha excluída/arquivada automaticamente | Definir tratamento de campanha pausada, troca e duplicatas; números pendentes | DC-02, P0-COM-02 |
 | RES01-D06 | IA consultiva e automação | Unidade comercial por **operação categorizada/ponderada**, com limite por empresa e preço adicional explícito; custo real medido em tokens/ferramentas/retries internamente | Definir tabela de pesos/creditagem e modalidades sem prometer execução N3 | DC-03, P0-COM-02/P0-PAINEL-07 |
@@ -86,6 +86,14 @@
 **Não aprovado nesta decisão:** número de contas Google/Meta ou campanhas elegíveis, troca simultânea ou uso permanente de dois canais (reservado ao pacote Multicanal, sujeito à sua deliberação), limites de utilização, **taxa eventual de reconfiguração**, prazo mínimo entre trocas, datas do ciclo, responsabilidades financeiras detalhadas, preços, custos, retenção e integração/credenciais. Operações práticas de corte, migração/reconciliação, segurança LGPD e consentimentos continuam P0/homologação técnica.
 
 **Escopo formal:** exclusivamente RES01-D02. D01 permanece aprovada sem mudanças; **RES01-D03–D16 continuam candidatas, não aprovadas**. **Os 8 P0 do dossiê e todos os 91 P0, 39 P1, 24 P2 gerais continuam abertos**, assim como 20 CT candidatos, D-01–D-14, D-15 candidata e 15 gates HT-R01 não homologados. Nenhuma programação, conexão real, anúncio, alteração de orçamento ou contratação autorizada.
+
+### Registro de aprovação específica — RES01-D03 (03/11/2026)
+
+**Ato aprovado expressamente:** o plano **Multicanal adota o Modelo A — integrado**. Cada empresa contratante terá **uma assinatura-base do plano Multicanal**, que concede elegibilidade comercial de gestão para **Google Ads e Meta Ads**, sem necessidade de contratar dois planos Canal Único. As integrações poderão ser ativadas **simultaneamente ou uma de cada vez**, sem obrigação de uso simultâneo. As **franquias de contas e campanhas serão específicas para cada canal**, sem transferência automática de cotas entre Google e Meta. Cada canal preserva permissões, operação, estado oficial e tratamento de falhas independentes. Indicadores consolidados não podem somar a mesma venda atribuída por ambos como duas vendas distintas. O **investimento de mídia permanece pago diretamente pelo cliente** ao respectivo provedor no modelo-base.
+
+**Não aprovado nesta decisão:** quantidades e franquias numéricas de contas/campanhas, marcas, custos, preços/implantação, política de downgrade, limites de consumo IA, direitos de uso de recursos externos além dos previstos funcionalmente, conexões OAuth, quotas/tier reais, homologações e contratos executáveis. A elegibilidade comercial não significa acesso técnico concedido à conta Google/Meta nem autorização de gasto. **A operação Multicanal não libera N3 automaticamente.**
+
+**Escopo formal:** aprovada **exclusivamente RES01-D03**; RES01-D01 e D02 permanecem vigentes e inalteradas. **RES01-D04–D16 continuam propostas, não aprovadas.** Os **oito P0 correlatos**, todos os **91 P0, 39 P1, 24 P2** gerais, D-01–D-14, D-15 candidata, **20 CT-PERF candidatos** e **15 HT-R01 não homologados** permanecem inalterados. Nenhuma programação, integração real, anúncio, orçamento, cobrança ou contratação foi autorizada.
 
 ## 5. Oito P0 relacionados — fonte e critérios futuros de baixa
 
@@ -134,8 +142,8 @@ Definir, por pacote `i`:
 
 ## 8. Próxima deliberação proposta ao usuário
 
-**RES01-D01 (Modelo B) e RES01-D02 (Canal Único, alternativa B para troca controlada) foram aprovadas expressamente em 03/11/2026.** Próxima deliberação é **RES01-D03 — Multicanal**, para definir como Google Ads **e** Meta Ads coexistirão dentro de uma assinatura-base por empresa, com permissões e direitos independentes por canal, sem aprovação antecipada de quantidades, valores, conexões reais ou consumo. Depois, RES01-D04 a D12, uma a uma.
+**RES01-D01 (Modelo B), RES01-D02 (Canal Único com troca controlada) e RES01-D03 (Multicanal Modelo A integrado) foram aprovadas expressamente em 03/11/2026.** A próxima deliberação é **RES01-D04 — Operação Ampliada**, para decidir entre pacote padronizado com franquias e adicionais, proposta individual por empresa ou modelo híbrido, preservando limites quantitativos, preços, marcas e custos em aberto. **RES01-D04 ainda não está aprovada.** Em seguida, revisar D05–D12, uma a uma.
 
-**Somente após deliberações qualitativas adicionais:** oferecer opções de composição quantitativa (conservadora, intermediária, ampliada) com custo de operação explícito, cotação e margens **em análise**; implantação e mensalidade exigem deliberação própria. DC-01–DC-10 continuam sem fechamento integral; a aprovação individual D01 não dá baixa nos oito P0. **Dossiê RES-01 como um todo segue EM ANÁLISE**, não aprovado.
+**Somente após deliberações qualitativas adicionais:** oferecer opções de composição quantitativa (conservadora, intermediária, ampliada) com custo de operação explícito, cotação e margens **em análise**; implantação e mensalidade exigem deliberação própria. DC-01–DC-10 continuam sem fechamento integral; as aprovações individuais D01–D03 não dão baixa nos oito P0. **Dossiê RES-01 como um todo segue EM ANÁLISE**, não aprovado.
 
 > Resolver o planejamento não equivale a habilitar runtime. Não iniciar código, contas, anúncios, cobranças, assinaturas, acesso ao CRM ou serviços externos por este documento.
