@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — proposta funcional para análise  
-**Situação:** **EM ANÁLISE — PERF-09.01 a PERF-09.42 AINDA NÃO APROVADAS**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-09.01 a PERF-09.42**, por aprovação expressa da especificação v0.1, preservados os 42 critérios de homologação futura e todas as pendências técnicas, comerciais e de privacidade. **Não homologado tecnicamente; sem autorização para programação ou operação real.**  
 **Fundamentos funcionais já aprovados:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34; PERF-07.01–07.36; PERF-08.01–08.42. **Nenhuma dessas aprovações é homologação técnica.**  
 **Restrição absoluta:** somente planejamento documental; sem escrever código, conectar contas, coletar ou transferir dados reais, enviar mensagens, publicar campanhas, movimentar orçamento, acionar agentes ou alterar CRM/Sites.
 
@@ -23,7 +23,7 @@ PERF-09 cria o **serviço especializado de recebimento, validação, roteamento,
 
 **Regra:** lead captado ≠ lead recuperado ≠ lead válido ≠ lead entregue ≠ lead lido/respondido ≠ lead qualificado ≠ oportunidade ≠ venda. A IA nunca inventa uma etapa comercial confirmada.
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-09.01 — Cadastro de destinos por empresa, serviço e campanha
 - Vincular destino por tenant, contrato Performance, marca, unidade, campanha, formulário e finalidade, com versionamento e aceite do responsável autorizado.
@@ -327,9 +327,9 @@ PERF-09 cria o **serviço especializado de recebimento, validação, roteamento,
 **P2-LEAD-02:** análises de feedback e recomendações comerciais avançadas com evidência/privacidade.  
 **P2-LEAD-03:** reconciliação avançada de identidade de contatos sem mesclagem automática nem inferências indevidas.
 
-## 7. Critério de aprovação funcional e próxima etapa
+## 7. Registro da aprovação funcional e próxima etapa
 
-Solicitar avaliação/aprovação de **PERF-09.01 a PERF-09.42** junto dos **42 critérios de homologação HT-PERF09** como requisitos funcionais. Manter todas as pendências P0/P1/P2 abertas até especificação/homologação técnica e comercial. Aprovação funcional **não define SLA, retenção final, quotas, preços, permissões executáveis ou tecnologias**.
+**Aprovação registrada:** o usuário aprovou expressamente PERF-09.01 a PERF-09.42 conforme v0.1, incluindo os **42 critérios HT-PERF09** para homologação futura. Todas as pendências P0/P1/P2 técnicas, comerciais e de privacidade **continuam abertas**. Nenhum teste técnico executado. A aprovação não define SLA, retenção final, quotas, preços, permissões executáveis, tecnologia nem autorização de implementação.
 
 Próximo módulo proposto: **PERF-10 — Painéis Inteligentes, Relatórios e IA Consultiva**.
 
@@ -342,4 +342,4 @@ Próximo módulo proposto: **PERF-10 — Painéis Inteligentes, Relatórios e IA
 - Google Data Manager — [processamento assíncrono e diagnósticos](https://developers.google.com/data-manager/api/devguides/diagnostics).
 - ANPD — [materiais educativos e proteção de dados pessoais](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes).
 
-> **Especificação proposta, NÃO aprovada.** Nenhuma programação, integração, coleta/transferência de leads reais ou atividade operacional poderá ser iniciada antes do fechamento integral do planejamento, decisão explícita de implementação e homologação técnica.
+> **Especificação aprovada funcionalmente em 03/11/2026.** Nenhuma programação, integração, coleta/transferência de leads reais ou atividade operacional poderá ser iniciada antes do fechamento integral do planejamento, decisão explícita de implementação e homologação técnica.
