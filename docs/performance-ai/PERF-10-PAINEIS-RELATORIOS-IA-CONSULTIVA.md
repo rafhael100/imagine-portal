@@ -2,8 +2,8 @@
 
 **Produto:** Imagine Performance AI  
 **Data-base:** 03/11/2026  
-**Versão:** 0.1 — especificação funcional proposta para análise  
-**Situação:** **EM ANÁLISE — PERF-10.01 a PERF-10.40 NÃO APROVADAS**  
+**Versão:** 1.0 — aprovação funcional integral da especificação v0.1  
+**Situação:** **APROVADO FUNCIONALMENTE em 03/11/2026 — PERF-10.01 a PERF-10.40**, conforme aprovação expressa da versão 0.1, incluindo 40 critérios HT-PERF10 para homologação futura e preservando as pendências técnicas, comerciais e de privacidade. **Não homologado tecnicamente; sem autorização de programação ou operação real.**  
 **Bases funcionais aprovadas:** PERF-ARQ-01; PERF-01.01–01.14; PERF-02.01–02.22; PERF-03.01–03.28; PERF-04.01–04.30; PERF-05.01–05.36; PERF-06.01–06.34; PERF-07.01–07.36; PERF-08.01–08.42; PERF-09.01–09.42. Nenhuma dessas aprovações equivale a homologação técnica.  
 **Restrição absoluta:** planejamento documental; **não iniciar programação**, consultas ou sincronização de contas reais, publicação, geração/envio automático de relatórios, comunicação com clientes, gasto de mídia nem ativação de agentes.
 
@@ -29,7 +29,7 @@ O produto apresenta a **verdade disponível e suas limitações**: dados reporta
 
 A experiência deve ser simplificada para clientes iniciantes, mas permitir inspeção técnica para usuários autorizados. **A presença do painel não obriga o cliente a contratar CRM, Sites ou Universidade Imagine.**
 
-## 2. Requisitos funcionais propostos
+## 2. Requisitos aprovados funcionalmente
 
 ### PERF-10.01 — Central de Performance integrada ao Portal
 - Acessar o módulo por identidade do Portal, exibindo empresas, marcas, campanhas e contas vinculadas ao serviço Performance elegível.
@@ -325,11 +325,11 @@ A experiência deve ser simplificada para clientes iniciantes, mas permitir insp
 **P2-PAINEL-02:** relatórios multicanal adicionais somente após homologar fontes e contratos.  
 **P2-PAINEL-03:** benchmarks agregados entre clientes apenas com avaliação jurídica e prevenção de reidentificação.
 
-## 7. Critério de aprovação e próxima etapa
+## 7. Registro de aprovação funcional e próxima etapa
 
-A presente versão apresenta **PERF-10.01 a PERF-10.40** e os **40 testes HT-PERF10** para avaliação do usuário. Aprovação funcional futura **não significará homologação técnica** nem autorização de relatórios automáticos, custos, permissões reais, dados pessoais, modelos de IA, APIs ou programação.
+**Aprovação registrada:** o usuário aprovou expressamente **PERF-10.01 a PERF-10.40** conforme a versão 0.1, incluindo os **40 testes HT-PERF10** para homologação futura e **preservando todas as pendências P0/P1/P2 técnicas, comerciais e de privacidade**. Nenhum teste foi executado. A aprovação funcional não significa homologação técnica nem autorização de relatórios automáticos, custos, permissões reais, dados pessoais, modelos de IA, APIs ou programação.
 
-**Próximo módulo após aprovação:** PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional.  
+**Próximo módulo em elaboração:** PERF-11 — Monitoramento Inteligente, Diagnóstico, Contingência e Recuperação Operacional, exclusivamente documental.  
 **Depois:** PERF-12 — Gestão Comercial, Planos, Custos e Escalabilidade, seguida de revisão transversal e homologação integrada dos contratos.
 
 ## 8. Referências de governança para homologação posterior
@@ -340,4 +340,4 @@ A presente versão apresenta **PERF-10.01 a PERF-10.40** e os **40 testes HT-PER
 - [Meta Developers — Marketing API](https://developers.facebook.com/docs/marketing-api/)
 - [ANPD — materiais educativos sobre proteção de dados](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes)
 
-> **Documento em proposta, não aprovado.** Nenhuma programação, integração, relatório real ou ação operacional é autorizada por sua inclusão no GitHub.
+> **Documento aprovado funcionalmente em 03/11/2026.** Nenhuma programação, integração, relatório real ou ação operacional é autorizada pela aprovação.
