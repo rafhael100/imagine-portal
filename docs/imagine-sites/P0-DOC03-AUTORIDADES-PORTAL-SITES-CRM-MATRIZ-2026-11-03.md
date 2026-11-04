@@ -37,6 +37,8 @@
 7. **Aprovação humana de intervenção crítica ≠ autorização administrativa ampla e permanente.**
 8. **Comando de agente/n8n ≠ confirmação oficial pelo sistema titular.**
 
+**AUT-P01 — minuta de decisão:** foi preparada a [proposta de contrato oficial do vínculo Site × CRM](P0-DOC03-AUT-P01-CONTRATO-VINCULO-SITE-CRM-PROPOSTA.md), com alternativas A/B/C e recomendação condicionada da alternativa B. **Não ratificada**; a criação da minuta não encerra AUT-P01 nem P0-DOC03.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
