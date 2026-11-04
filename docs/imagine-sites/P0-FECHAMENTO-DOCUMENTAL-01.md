@@ -5,6 +5,8 @@
 **Processo aprovado:** finalizar planejamento integral, consolidar/confirmar fontes no GitHub, aprovar pacote final por versão, **então** autorizar programação expressamente.  
 **Não autorizado:** programação, testes, execução operacional, homologação, implantação, mudança de serviços e rollback automático AGI-11-RB01.
 
+**Atualização RV01 (04/11/2026):** [revisão de consistência P0-DOC03](P0-DOC03-RV01-CONSOLIDACAO-AUT-P01-P10-2026-11-04.md) conferiu as dez decisões AUT-P01–P10 ratificadas e catalogou lacunas de contratos técnicos. **P0-DOC03 continua ABERTO**, assim como os demais gates já indicados; esta conferência não altera os estados da tabela, não encerra RF-PEND-01 e não homologa RF-PEND-04.
+
 ## P0 — Matriz de encerramento documental
 
 | Código | Bloqueio/documento de saída | Critério de encerramento documental | Situação atual |
