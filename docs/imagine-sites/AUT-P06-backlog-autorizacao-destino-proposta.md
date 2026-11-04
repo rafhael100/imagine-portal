@@ -1,5 +1,8 @@
 # AUT-P06 — Leads pendentes durante troca, suspensão ou revogação
 
+> **Decisão posterior:** a alternativa B foi aprovada em 04/11/2026. Ver [ratificação AUT-P06 B](AUT-P06-B-aprovada-2026-11-04.md). Esta minuta conserva as alternativas como histórico anterior à aprovação; contratos técnicos permanecem pendentes.
+
+
 **Status: PROPOSTA — NÃO RATIFICADA.** Referência: 04/11/2026, Imagine Sites/Portal/CRM. **AUT-P01 a AUT-P05 B aprovadas; AUT-P07 a AUT-P10 pendentes.** P0-DOC03, RF-PEND-01 abertos; RF-PEND-04 não homologada. Apenas planejamento documental; sem código, testes, implantação ou homologação. AGI-11-RB01 desabilitado.
 
 ## 1. Regras já aprovadas
