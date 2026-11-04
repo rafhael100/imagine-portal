@@ -76,7 +76,9 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P07 — B APROVADA (04/11/2026):** [registro oficial](AUT-P07-B-aprovada-2026-11-04.md). Inventário das cópias, descarte comprovado nas estruturas ativas/temporárias e controle da restauração de backups, sem ampliar prazos IN127. A proposta anterior fica como histórico. **AUT-P08 a AUT-P10 pendentes**, P0-DOC03 aberto.
 
-**AUT-P08 — PROPOSTA, NÃO APROVADA (04/11/2026):** [estados de publicação, falha, recuperação e entrega](P0-DOC03-AUT-P08-ESTADOS-PUBLICACAO-RECUPERACAO-ENTREGA-PROPOSTA.md). Recomendada alternativa B: estados distintos por autoridade, provas da versão efetivamente publicada e entrega oficial idempotente COM-13/REL-01. AUT-P01–P07 B aprovadas; **AUT-P09–P10 pendentes**; P0-DOC03 aberto.
+**AUT-P08 — proposta histórica (anterior à aprovação B):** [estados de publicação, falha, recuperação e entrega](P0-DOC03-AUT-P08-ESTADOS-PUBLICACAO-RECUPERACAO-ENTREGA-PROPOSTA.md). Recomendada alternativa B: estados distintos por autoridade, provas da versão efetivamente publicada e entrega oficial idempotente COM-13/REL-01. AUT-P01–P07 B aprovadas; **AUT-P09–P10 pendentes**; P0-DOC03 aberto.
+
+**AUT-P08 — ALTERNATIVA B APROVADA (04/11/2026):** [decisão normativa](AUT-P08-B-aprovada-2026-11-04.md). Estados independentes e comprovados de versão/aceite, publicação, disponibilidade, incidente/recuperação e entrega oficial idempotente. O evento ENTREGUE inicia Dia 0 REL-01; falhas posteriores não apagam histórico. A proposta original é histórica. **AUT-P09 e AUT-P10 PENDENTES**, P0-DOC03 ABERTO.
 
 ## 4. Mapa dos blocos de planejamento
 
