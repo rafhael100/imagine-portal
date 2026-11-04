@@ -16,6 +16,8 @@ npm start
 
 Abra `http://127.0.0.1:4173/portal`. O envio SMTP usa Nodemailer; instale as dependências antes de iniciar. Sem configuração Asaas, é possível usar contas e pedidos, mas a geração de cobranças permanece desabilitada.
 
+**Diretriz transversal de desenvolvimento (04/11/2026):** a direção escolheu **Leaseweb em princípio para VPS central de desenvolvimento dos projetos Imagine**. A [INF-DEV-01](docs/infraestrutura/INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md) registra proposta de VPS 3 (8 vCPU, 24 GB RAM, 300 GB NVMe), com preço, prazo, aquisição e configuração ainda pendentes. A VPS de desenvolvimento deve permanecer independente da produção e do servidor central de IA/n8n. Esta diretriz não altera o estado de homologação do Portal.
+
 ## Estrutura
 
 | Caminho | Conteúdo |
