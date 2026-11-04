@@ -92,6 +92,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **RV-CT01 — alternativa B APROVADA como diretriz documental (04/11/2026):** [registro normativo](P0-DOC03-RV-CT01-B-APROVADA-2026-11-04.md). Contratos técnicos, P0-DOC03 e RF-PEND-01 ainda abertos; RV-CT02 a RV-CT08 pendentes. A [minuta anterior](P0-DOC03-RV-CT01-IDENTIDADE-VINCULO-AUTORIZACAO-SITE-CRM-PROPOSTA-2026-11-04.md) é histórica.
 
+**RV-CT02 — alternativa B APROVADA como diretriz documental (04/11/2026):** [ratificação](P0-DOC03-RV-CT02-B-APROVADA-2026-11-04.md). Recepção durável independente nas duas APIs, identidade estável, idempotência, confirmação do CRM e reconciliação, respeitando 432h. **Contrato técnico ainda pendente; RV-CT03 a RV-CT08 pendentes; P0-DOC03 aberto.**
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
