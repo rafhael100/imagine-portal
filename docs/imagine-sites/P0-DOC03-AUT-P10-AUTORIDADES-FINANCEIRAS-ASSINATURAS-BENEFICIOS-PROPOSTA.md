@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P10 — Autoridades financeiras, assinatura de site, benefício CRM e liberação de serviços
 
+> **DECISÃO POSTERIOR (04/11/2026):** a alternativa **B** foi aprovada. Consultar [ratificação normativa AUT-P10](AUT-P10-B-aprovada-2026-11-04.md). Esta minuta preserva alternativas e trechos marcados "pendente/não ratificada" como **histórico anterior** à decisão. Contratos técnicos ainda não homologados; P0-DOC03/RF-PEND-01 permanecem abertos.
+
+
 **ESTADO: PROPOSTA PARA DELIBERAÇÃO — AUT-P10 NÃO RATIFICADA.**  
 **Data:** 04/11/2026. **Escopo:** Portal Imagine / Imagine Sites / CRM Imagine, orquestração dos agentes e integrações financeiras.  
 **Precedências:** AUT-P01 a AUT-P09, alternativas B aprovadas; PORTAL-D01/D02/D04, COM-06/07/08/09, política posterior Pix 5%/cartão 3x; IN-119–122; AUT-P02, AUT-P03, AUT-P08 e AUT-P09; demais decisões comerciais efetivamente aprovadas.  
