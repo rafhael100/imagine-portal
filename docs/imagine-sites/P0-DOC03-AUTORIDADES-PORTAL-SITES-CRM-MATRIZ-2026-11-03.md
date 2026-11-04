@@ -76,7 +76,7 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
 |---|---|---|
 | AUT-P01 | **RATIFICADA alternativa B**: registro oficial versionado e autorização segura para ambas APIs | **Pendente detalhamento** de protocolos, frescor, sincronização, barreira de revogação e contratos (não é homologação) |
-| AUT-P02 | **PROPOSTA PENDENTE**: como distinguir autorização de captação, cortesia e estado contratual/suspensão? | [Alternativas para deliberação](P0-DOC03-AUT-P02-MATRIZ-ELEGIBILIDADE-CAPTACAO-CORTESIA-SUSPENSAO-PROPOSTA.md), nenhuma ratificada |
+| AUT-P02 | **ALTERNATIVA B APROVADA**: distinguir autorização de captação, cortesia e estado contratual/suspensão | [Ratificação normativa](AUT-P02-aprovacao-alternativa-B-2026-11-04.md); **contratos/eventos e homologação técnica ainda pendentes** |
 | AUT-P03 | Quais são os comandos, eventos e confirmações oficiais de alteração de CRM vinculado? | Transações, idempotência, autorização humana, auditoria e falhas parciais |
 | AUT-P04 | Quem assina/atesta identidade e integridade da versão do site, do aceite e do artefato implantado? | Contrato de evidência, verificação do gate e revogação/correção |
 | AUT-P05 | Qual API do CRM é autoridade para confirmar persistência e reconciliar resultados inconclusivos sem criar duplicidade? | Semântica de comando, resultado e endpoint consultivo, idempotência por tenant |
@@ -86,7 +86,7 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 | AUT-P09 | Quais ações de agentes podem operar autonomamente e quais requerem a aprovação humana única? | Matriz de risco por operação/ambiente e critérios de homologação |
 | AUT-P10 | Qual autoridade de pagamento/assinatura fundamentará benefícios de CRM e liberação de produção sem estado financeiro presumido? | Contrato de eventos financeiros, reconciliação e regras de tolerância |
 
-As perguntas são **itens de especificação pendentes**, não aprovação de soluções para elas.
+**Atenção à precedência temporal:** as alternativas B de AUT-P01 a AUT-P10 foram **aprovadas normativamente** em documentos individuais. As perguntas desta tabela permanecem como **itens de especificação técnica e evidências futuras**, não significam decisões AUT sem aprovação nem homologação de contratos concretos.
 
 ## 4. Fontes lidas e seus blob SHAs
 
@@ -106,7 +106,7 @@ Também consideradas as ratificações [IN127-R01–R06](https://github.com/rafh
 ## 5. Status e encaminhamento
 
 - **Conferência de autoridades:** parcial, baseada em documentos localizados.
-- **Aprovação individual:** **AUT-P01 alternativa B RATIFICADA**; **AUT-P02 proposta pendente**; **AUT-P03 a AUT-P10 pendentes**. P0-DOC03 continua aberto.
+- **Aprovação individual:** **AUT-P01 a AUT-P10, alternativas B RATIFICADAS/APROVADAS normativamente**, com documentos próprios; as lacunas de contratos técnicos, rastreabilidade e homologação permanecem. **P0-DOC03 continua ABERTO.**
 - **P0-DOC03:** **ABERTO**.
 - **RF-PEND-01:** **ABERTA**, especialmente séries AGI sem texto canônico.
 - **RF-PEND-04:** normativa IN-127 ratificada, homologação técnica pendente.
