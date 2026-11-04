@@ -64,6 +64,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P04 — PROPOSTA pendente:** [identidade do artefato, aceite expresso e gate de publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A alternativa B (manifesto imutável vinculado ao aceite e à versão publicada) é recomendação **não ratificada**. Preservadas AUT-P01/02/03 B; AUT-P05 a AUT-P10 pendentes. **P0-DOC03 continua aberto.**
 
+**AUT-P04 — APROVADA alternativa B (04/11/2026):** [registro normativo](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Manifesto imutável, aceite expresso e prova de correspondência com o artefato publicado; a minuta anterior fica como histórico. AUT-P01/02/03 B preservadas; **AUT-P05 a AUT-P10 PENDENTES**. P0-DOC03 permanece aberto.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
