@@ -1,7 +1,7 @@
 # INF-DEV-03 — Plano técnico de backup automático da VPS central Imagine
 
 **Data:** 04/11/2026.
-**Estado:** **PROPOSTA TÉCNICA PARA AVALIAÇÃO, NÃO APROVAÇÃO OPERACIONAL**.
+**Estado vigente:** **APROVADO COMO BASE TÉCNICA DOCUMENTAL** por [DEC-INF-DEV-03](DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md). **Não aprovado para instalação, contratação, execução ou gasto.**
 **Origem:** a direção respondeu “ok” à proposta de avançar somente com o **planejamento técnico** de backups Restic + Cloudflare R2.
 **Referências:** [VPS Leaseweb INF-DEV-01](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md); [R2 EU aprovado como destino DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md).
 **Limite:** nenhuma compra, contratação, bucket, script, servidor, segredo, execução de testes, backup ou programação autorizados por esta proposta.
@@ -86,8 +86,8 @@ Fonte: https://developers.cloudflare.com/r2/buckets/bucket-locks/ .
 
 | Código | Decisão/validação pendente | Estado |
 |---|---|---|
-| BCK-03-01 | Restic como ferramenta definitiva de backup da VPS dev | **PROPOSTO, NÃO RATIFICADO** |
-| BCK-03-02 | Periodicidade, horários e retenção de 30 dias | **PROPOSTOS, NÃO RATIFICADOS** |
+| BCK-03-01 | Restic como ferramenta-base para backup da VPS dev | **APROVADO DOCUMENTALMENTE**, sem instalação ou homologação operacional |
+| BCK-03-02 | Periodicidade e retenção inicial; janela exata de execução | **DIÁRIO E 30 DIAS APROVADOS COMO POLÍTICA-BASE**; horários e operacionalização sujeitos a homologação |
 | BCK-03-03 | Conta/bucket privado EU, tokens e governança Cloudflare | **NÃO CRIADOS** |
 | BCK-03-04 | Inventário de volumes, dumps, tamanho e crescimento por projeto | **NÃO VERIFICADO** |
 | BCK-03-05 | Criptografia, custódia e segregação de credenciais | **A IMPLEMENTAR APÓS AUTORIZAÇÃO** |
@@ -96,4 +96,4 @@ Fonte: https://developers.cloudflare.com/r2/buckets/bucket-locks/ .
 | BCK-03-08 | Preço integral, teto e aprovação financeira | **NÃO APROVADOS** |
 | BCK-03-09 | Contratação, instalação, automação e operação dos backups | **NÃO AUTORIZADAS** |
 
-**Encaminhamento:** o presente documento é o resultado da aprovação para CONTINUAR PLANEJANDO. Submeter a escolha do Restic e os parâmetros operacionais à ratificação documental específica. A autorização de orçamento, bucket, aquisição/instalação e execução deverá ser posterior e expressa. O Gate C da Universidade e os bloqueios dos demais projetos permanecem intactos.
+**Encaminhamento:** o presente documento é o resultado da aprovação para CONTINUAR PLANEJANDO. A escolha Restic e parâmetros gerais de periodicidade/retenção foram ratificados documentalmente em [DEC-INF-DEV-03](DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md). A autorização de orçamento, bucket, aquisição/instalação, segurança e execução permanece posterior e expressa. O Gate C da Universidade e os bloqueios dos demais projetos permanecem intactos.
