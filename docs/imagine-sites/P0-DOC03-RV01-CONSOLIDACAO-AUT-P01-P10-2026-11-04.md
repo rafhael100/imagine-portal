@@ -72,6 +72,8 @@
 
 **Classificação:** os D03 acima não representam quatorze novas deliberações aprovadas. São achados de revisão, alguns históricos sem conflito normativo atual, outros requisitos de contrato pendentes. O tipo de prioridade depende de impacto no lançamento; não interpretar P1 editorial como licença para ignorar um bloqueio de segurança.
 
+**Desdobramento RV-CT01 (04/11/2026):** [minuta para deliberação sobre identidade, vínculo e autorização Site×CRM](P0-DOC03-RV-CT01-IDENTIDADE-VINCULO-AUTORIZACAO-SITE-CRM-PROPOSTA-2026-11-04.md), com alternativa B recomendada, ainda não ratificada. Não substitui a matriz desta revisão e não fecha P0-DOC03.
+
 ## 5. Contratos e evidências a preparar — propostas de trabalho, NÃO homologadas
 
 Usar códigos **RV-CT** somente para agrupar o trabalho desta revisão. Não substituem nem renumeram contratos `CT-03/CT-04` da arquitetura INT.
