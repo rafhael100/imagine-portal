@@ -55,6 +55,8 @@
 
 AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-aprovada-2026-11-04.md). AUT-P07 a AUT-P10 pendentes.
 
+**AUT-P07 — PROPOSTA PENDENTE:** [matriz de evidências de descarte das APIs/filas/réplicas e tratamento distinto de backups](P0-DOC03-AUT-P07-COMPROVACAO-DESCARTE-APIS-FILAS-BACKUPS-PROPOSTA.md); alternativa B recomendada, não ratificada. AUT-P08–P10 pendentes. P0-DOC03 não encerrado.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
