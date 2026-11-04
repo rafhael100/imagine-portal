@@ -1,7 +1,7 @@
 # INF-DEV-04 — Dimensionamento financeiro e implantação controlada do backup da VPS Imagine
 
 **Data:** 04/11/2026.
-**Estado:** ESTUDO FINANCEIRO E DE GOVERNANÇA PRODUZIDO PARA REVISÃO, **NÃO RATIFICADO COMO ORÇAMENTO OU AUTORIZAÇÃO DE COMPRA**.
+**Estado vigente:** **APROVADA COMO BASE DOCUMENTAL DE PLANEJAMENTO FINANCEIRO** pela [DEC-INF-DEV-04](DEC-INF-DEV-04-APROVACAO-BASE-DIMENSIONAMENTO-BACKUP-R2-2026-11-04.md). **NÃO É APROVAÇÃO DE VALORES REAIS, TETO FINANCEIRO, COMPRA OU EXECUÇÃO.**
 **Origem:** resposta “ok” do responsável à proposta de avançar para a **INF-DEV-04, começando pelo custo previsto para 30 dias de backups**.
 **Documentos precedentes:** [INF-DEV-01 — VPS Leaseweb](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md); [DEC-INF-DEV-02 — R2 Standard EU destino aprovado](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md); [DEC-INF-DEV-03 — Restic e política-base aprovados documentalmente](DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md).
 **Proibições vigentes:** nenhuma compra, criação de bucket, token, instalação, backup real, agendamento, envio de dados ou programação dos produtos foi autorizada por este estudo. Gate C da Universidade NÃO autorizado.
@@ -117,6 +117,6 @@ Recomendação documental:
 
 ## 8. Decisão a submeter
 
-**Recomenda-se aprovar a INF-DEV-04 como base de método financeiro/documental**, com fórmula de dimensionamento, controles de alertas/contas e a proibição de execução até autorização separada. Os números da tabela são hipóteses e não constituem compromisso nem limite de custos.
+**A INF-DEV-04 está aprovada como base de método financeiro/documental** pela [DEC-INF-DEV-04](DEC-INF-DEV-04-APROVACAO-BASE-DIMENSIONAMENTO-BACKUP-R2-2026-11-04.md), com fórmula de dimensionamento, controles de alertas/contas e a proibição de execução até autorização separada. Os números da tabela são hipóteses e não constituem compromisso nem limite de custos.
 
-**Estado final:** Leaseweb selecionada como provedora, VPS 3 configurada como candidata sem comprovação de compra; Cloudflare R2 Standard EU aprovado arquiteturalmente; Restic + política-base aprovada documentalmente; **INF-DEV-04 somente proposta orçamentária, sem teto/compra/instalação**.
+**Estado final:** Leaseweb selecionada como provedora, VPS 3 configurada como candidata sem comprovação de compra; Cloudflare R2 Standard EU aprovado arquiteturalmente; Restic + política-base aprovada documentalmente; **INF-DEV-04 aprovada exclusivamente como método financeiro documental, sem teto/compra/instalação**.
