@@ -41,6 +41,7 @@ Não se identificou, nas árvores principais consultadas, um repositório espec�
 Foi localizado o documento histórico de **Produção Inteligente v0.2** na branch `docs/producao-inteligente-v01` do Portal. A decisão **AD-001** está declarada aprovada naquele documento, mas ele próprio é rascunho e **não contém o texto integral das séries posteriores AGI-RF01-R01..R06 e AGI-P09..P18**. As aprovações de blocos identificadas em registros de conversa não foram convertidas em textos individuais por inferência.
 
 - [RF-PEND-01 — Recuperação de fontes históricas e lacunas AGI](RF-PEND-01-RECUPERACAO-AGI-FONTES-2026-11-03.md)
+- [RF-PEND-01 — Manifesto de evidências e lacunas AGI](RF-PEND-01-MANIFESTO-EVIDENCIAS-AGI-2026-11-03.md) — identifica por série o que tem aprovação referida e o que ainda carece de texto original.
 - [Produção Inteligente v0.2 (fonte histórica)](https://github.com/rafhael100/imagine-portal/blob/docs/producao-inteligente-v01/docs/PRODUCAO-INTELIGENTE.md)
 
 **Status:** recuperação documental PARCIAL; RF-PEND-01 e P0-DOC02 continuam abertos.
