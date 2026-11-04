@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P08 — Estados oficiais de publicação, falha, recuperação e entrega
 
+> **DECISÃO POSTERIOR (04/11/2026):** a alternativa B foi aprovada. Ver [registro vigente AUT-P08 B](AUT-P08-B-aprovada-2026-11-04.md). Esta minuta permanece como histórico de pré-aprovação; trechos que a classificam como pendente eram válidos antes da decisão. Contratos técnicos, AUT-P09/10, P0-DOC03 e homologação permanecem pendentes.
+
+
 **STATUS: PROPOSTA PARA DELIBERAÇÃO — NÃO RATIFICADA.**  
 **Preparação:** 04/11/2026. **Frente:** Imagine Sites / Portal Imagine / agentes / publicação e observabilidade.  
 **Precedências:** AUT-P01 a AUT-P07 alternativas B aprovadas; PORTAL-D01, PORTAL-COM-13/14/15 (especialmente COM-15 seção 14 vigente), PORTAL-REL-01; IN-101/124/143/156 e IN127-R01 a R06 nos pontos aplicáveis.  
