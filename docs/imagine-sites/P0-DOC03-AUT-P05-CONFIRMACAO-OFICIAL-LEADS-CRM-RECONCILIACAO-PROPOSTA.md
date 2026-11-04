@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P05 — Confirmação oficial da entrega ao CRM e reconciliação segura
 
+> **DECISÃO POSTERIOR APROVADA (04/11/2026):** a **alternativa B** foi aprovada. Ver [registro AUT-P05 B](AUT-P05-aprovacao-alternativa-B-2026-11-04.md). A indicação “NÃO RATIFICADA” nesta minuta registra apenas a **fase histórica anterior**; a aprovação é normativa e não homologa contratos técnicos, APIs ou testes.
+
+
 **Status:** PROPOSTA PARA DELIBERAÇÃO — **NÃO RATIFICADA**.  
 **Data de preparação:** 04/11/2026.  
 **Escopo:** integração Imagine Sites / APIs principal e contingência / filas e agentes / CRM Imagine.  
