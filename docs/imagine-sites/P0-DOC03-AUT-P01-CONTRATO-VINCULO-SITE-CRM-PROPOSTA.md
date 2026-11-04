@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P01 — Contrato de autoridade do vínculo Site × CRM
 
+> **DECISÃO POSTERIOR RATIFICADA:** o responsável aprovou expressamente a **Alternativa B**. A ratificação vigente está em [AUT-P01 — Ratificação da alternativa B](P0-DOC03-AUT-P01-RATIFICACAO-ALTERNATIVA-B-2026-11-03.md). O conteúdo abaixo preserva a proposta histórica e sua comparação A/B/C; eventuais expressões "não ratificada" abaixo referem-se ao **estado anterior desta proposta**, não ao estado atual da AUT-P01. Parâmetros detalhados e homologação seguem pendentes.
+
+
 **STATUS:** PROPOSTA DOCUMENTAL PARA DELIBERAÇÃO, **NÃO RATIFICADA**.  
 **Ramo de planejamento:** Imagine Sites — Portal Imagine — CRM Imagine — Captação principal e de contingência.  
 **P0-DOC03:** ABERTO. **RF-PEND-01:** ABERTA. **RF-PEND-04:** homologação técnica PENDENTE.  
