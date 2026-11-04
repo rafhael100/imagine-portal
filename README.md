@@ -16,6 +16,8 @@ npm start
 
 Abra `http://127.0.0.1:4173/portal`. O envio SMTP usa Nodemailer; instale as dependências antes de iniciar. Sem configuração Asaas, é possível usar contas e pedidos, mas a geração de cobranças permanece desabilitada.
 
+**Backup externo da VPS central de desenvolvimento (04/11/2026):** **Cloudflare R2 Standard com restrição de jurisdição União Europeia**, aprovado **somente como destino/arquitetura**. [DEC-INF-DEV-02 — aprovação](docs/infraestrutura/DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md) e [comparação](docs/infraestrutura/INF-DEV-02-DESTINO-BACKUP-EXTERNO-2026-11-04.md). Sem bucket criado, custo/teto aprovado, backup configurado ou autorização de programação.
+
 **Diretriz transversal de desenvolvimento (04/11/2026):** a direção escolheu **Leaseweb em princípio para VPS central de desenvolvimento dos projetos Imagine**. A [INF-DEV-01](docs/infraestrutura/INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md) registra proposta de VPS 3 (8 vCPU, 24 GB RAM, 300 GB NVMe), com preço, prazo, aquisição e configuração ainda pendentes. A VPS de desenvolvimento deve permanecer independente da produção e do servidor central de IA/n8n. Esta diretriz não altera o estado de homologação do Portal.
 
 ## Estrutura
