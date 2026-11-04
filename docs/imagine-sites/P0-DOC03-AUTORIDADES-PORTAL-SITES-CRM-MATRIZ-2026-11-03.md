@@ -49,7 +49,9 @@
 
 **AUT-P04 — APROVADA alternativa B (04/11/2026):** [registro de aprovação](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Versão do site imutável e identificável, aceite expresso vinculado e verificação contra artefato publicado/entregue. **AUT-P05 a AUT-P10 permanecem pendentes**; a aprovação funcional não fecha contratos técnicos nem P0-DOC03. Menções anteriores a AUT-P04 pendente são históricas.
 
-**AUT-P05 — PROPOSTA ainda não aprovada:** [contrato lógico de confirmação CRM e reconciliação](P0-DOC03-AUT-P05-CONFIRMACAO-OFICIAL-LEADS-CRM-RECONCILIACAO-PROPOSTA.md); a alternativa B é recomendada. Não fechar por inferência sem decisão expressa, contratos de API e critérios de homologação. AUT-P01 a AUT-P04 B aprovadas; AUT-P06 a AUT-P10 ainda pendentes.
+**AUT-P05 — proposta histórica (anterior à aprovação B):** [contrato lógico de confirmação CRM e reconciliação](P0-DOC03-AUT-P05-CONFIRMACAO-OFICIAL-LEADS-CRM-RECONCILIACAO-PROPOSTA.md); a alternativa B foi aprovada posteriormente, mas contratos de API e critérios de homologação seguem pendentes. AUT-P01 a AUT-P04 B aprovadas; AUT-P06 a AUT-P10 ainda pendentes.
+
+**AUT-P05 — APROVADA alternativa B (04/11/2026):** [decisão normativa](AUT-P05-aprovacao-alternativa-B-2026-11-04.md). Somente o CRM confirma persistência efetiva; respostas intermediárias exigem consulta ao estado oficial; novas tentativas somente quando idempotentes e anteriores a T0+432h. **AUT-P06 a AUT-P10 permanecem pendentes**; contratos técnicos não homologados e P0-DOC03 aberto.
 
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
