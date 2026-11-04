@@ -39,6 +39,8 @@
 
 **AUT-P01 — RATIFICADA (B):** [registro oficial da decisão](P0-DOC03-AUT-P01-RATIFICACAO-ALTERNATIVA-B-2026-11-03.md) com vínculo versionado, validação autenticada por ambas APIs, proteção contra estados antigos, barreira de revogação e fail-closed; contratos detalhados ainda pendentes. [AUT-P02 — proposta PENDENTE](P0-DOC03-AUT-P02-MATRIZ-ELEGIBILIDADE-CAPTACAO-CORTESIA-SUSPENSAO-PROPOSTA.md) foi apresentada separadamente, sem ratificação.
 
+**ATUALIZAÇÃO 04/11/2026:** [AUT-P02 — alternativa B aprovada](AUT-P02-aprovacao-alternativa-B-2026-11-04.md) — separar direito de captação, cortesia Básico, assinatura CRM paga, situação contratual do site e conectividade, com autorização específica versionada. A linha histórica AUT-P02 abaixo é anterior a essa aprovação. **AUT-P03 a AUT-P10 permanecem pendentes**, assim como contratos técnicos e P0-DOC03.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
