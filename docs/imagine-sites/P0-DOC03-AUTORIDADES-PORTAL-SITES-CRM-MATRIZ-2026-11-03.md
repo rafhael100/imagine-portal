@@ -63,7 +63,9 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 
 **AUT-P08 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P08-B-aprovada-2026-11-04.md). Publicação efetiva, estados de incidente/recuperação e entrega oficial por COM-13 e REL-01 devem ter fontes, provas e transições separadas. **AUT-P09 e AUT-P10 PENDENTES**; P0-DOC03 e homologação técnica seguem abertos.
 
-**AUT-P09 — PROPOSTA PENDENTE:** [autonomia de agentes e controle de uma aprovação humana por intervenção crítica](P0-DOC03-AUT-P09-MATRIZ-AUTONOMIA-AGENTES-APROVACAO-HUMANA-PROPOSTA.md), alternativa B recomendada e **não ratificada**. Reuso de playbooks homologados para baixo/moderado risco, executor externo à IA, preservação de aceite do cliente, alçada financeira e rollback AGI-11-RB01 desabilitado. **AUT-P10 pendente**.
+**AUT-P09 — proposta histórica (antes da aprovação B):** [autonomia de agentes e controle de uma aprovação humana por intervenção crítica](P0-DOC03-AUT-P09-MATRIZ-AUTONOMIA-AGENTES-APROVACAO-HUMANA-PROPOSTA.md), alternativa B recomendada e **não ratificada**. Reuso de playbooks homologados para baixo/moderado risco, executor externo à IA, preservação de aceite do cliente, alçada financeira e rollback AGI-11-RB01 desabilitado. **AUT-P10 pendente**.
+
+**AUT-P09 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P09-B-aprovada-2026-11-04.md). Uma única aprovação humana específica quando exigida para ações alto/críticas; playbooks seguros homologados reutilizáveis sem reaprovação por ocorrência; autorizador externo à IA. **AUT-P10 PENDENTE**, demais contratos e homologação abertos.
 
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
