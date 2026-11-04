@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P04 — Identidade da versão do site, prova de aceite e integridade do artefato publicado
 
+> **APROVAÇÃO POSTERIOR (04/11/2026):** o responsável aprovou a **alternativa B**. Consultar [registro AUT-P04 B](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Esta minuta conserva as alternativas e a situação **anterior** à aprovação; os trechos que dizem “não ratificada” são históricos. Contratos técnicos, P0-DOC03, RF-PEND-01 e RF-PEND-04 seguem em aberto.
+
+
 **STATUS:** PROPOSTA DOCUMENTAL PARA DELIBERAÇÃO — ALTERNATIVAS A/B/C NÃO RATIFICADAS.  
 **Data:** 04/11/2026. **Projeto:** Imagine Sites / Portal Imagine / Produção Inteligente.  
 **Objetivo:** assegurar que a versão efetivamente apresentada e aceita pelo cliente autorizado seja precisamente a que poderá ser publicada/entregue, com prova e integridade verificáveis.  
