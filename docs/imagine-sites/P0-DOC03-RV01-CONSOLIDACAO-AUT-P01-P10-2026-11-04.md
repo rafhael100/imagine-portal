@@ -76,6 +76,8 @@
 
 **Atualização normativa RV-CT01 (04/11/2026):** [alternativa B aprovada como diretriz documental](P0-DOC03-RV-CT01-B-APROVADA-2026-11-04.md). Fonte versionada, validação independente das duas APIs e barreira segura de revogação. **O contrato técnico RV-CT01 não está homologado nem encerrado; RV-CT02 a RV-CT08 permanecem pendentes.** A minuta anterior é histórica.
 
+**Atualização RV-CT02 (04/11/2026):** [alternativa B aprovada como diretriz documental](P0-DOC03-RV-CT02-B-APROVADA-2026-11-04.md). Persistência e T0 pela API; confirmação final pelo CRM; idempotência e reconciliação dentro de 432h, sem reenviar depois. **Contrato definitivo não homologado**, RV-CT03–08 pendentes, P0-DOC03 aberto.
+
 ## 5. Contratos e evidências a preparar — propostas de trabalho, NÃO homologadas
 
 Usar códigos **RV-CT** somente para agrupar o trabalho desta revisão. Não substituem nem renumeram contratos `CT-03/CT-04` da arquitetura INT.
