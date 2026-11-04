@@ -1,10 +1,10 @@
 # INF-DEV-02 — Destino do backup externo da VPS central de desenvolvimento Imagine
 
 **Data:** 04/11/2026
-**Situação vigente:** **DESTINO PRINCIPAL APROVADO EM 04/11/2026 (Cloudflare R2 Standard, jurisdição EU)** conforme [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md). Este documento preserva os comparativos; **orçamento/teto, retenção operacional, ferramenta de backup e implementação permanecem não aprovados**.
+**Situação vigente:** **DESTINO PRINCIPAL APROVADO EM 04/11/2026 (Cloudflare R2 Standard, jurisdição EU)** conforme [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md). Este documento preserva os comparativos; **Restic e parâmetros técnicos foram aprovados DOCUMENTALMENTE em [DEC-INF-DEV-03](DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md)**; orçamento/teto, configuração e implementação permanecem não aprovados.
 **Referência:** [INF-DEV-01 — VPS central Leaseweb](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md).
 **Execução:** nenhum bucket, assinatura, backup, despesa ou mudança de infraestrutura foi realizado.
-**Detalhamento técnico pré-implantação:** [INF-DEV-03 — plano técnico Restic + R2](INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) — proposta de rotina, retenção, isolamento, restauração e anti-exclusão; **Restic e parâmetros ainda não ratificados**.
+**Detalhamento técnico pré-implantação:** [INF-DEV-03 — plano técnico Restic + R2](INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) — proposta de rotina, retenção, isolamento, restauração e anti-exclusão; **Restic e política-base ratificados documentalmente**, sem implementação.
 
 ## 1. Destino principal ratificado — implementação pendente
 
