@@ -70,6 +70,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P05 — APROVADA alternativa B (04/11/2026):** [ratificação normativa](AUT-P05-aprovacao-alternativa-B-2026-11-04.md). Comando idempotente, confirmação de persistência pelo CRM, consulta de resultado inconclusivo antes de retentativa e limite contínuo de 432h. A proposta prévia é histórico. **AUT-P06 a AUT-P10 permanecem pendentes**; P0-DOC03, RF-PEND-01 e RF-PEND-04 ainda não estão encerrados.
 
+**AUT-P06 — B aprovada (04/11/2026):** [registro normativo](AUT-P06-B-aprovada-2026-11-04.md). T0/destino originais, autorização específica do backlog e limite 432h. AUT-P07–P10 pendentes; P0-DOC03 aberto.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
