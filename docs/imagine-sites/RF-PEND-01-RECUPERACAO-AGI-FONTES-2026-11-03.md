@@ -1,5 +1,7 @@
 # RF-PEND-01 — Recuperação documental das séries AGI e fontes históricas
 
+**Complemento de conferência posterior:** pesquisa de contexto de conversas anteriores encontrou referências explícitas à aprovação documental dos blocos **AGI-RF01-R01 e AGI-RF01-R02 em 03/11/2026**, mas NÃO recuperou o texto original de seus 48 requisitos cada. Isso corrige a interpretação de que não haveria qualquer evidência de aprovação desses blocos. O resultado não constitui transcrição integral nem fecha RF-PEND-01. Consultar [manifesto de evidências AGI](RF-PEND-01-MANIFESTO-EVIDENCIAS-AGI-2026-11-03.md).
+
 **Estado:** investigação DOCUMENTAL PARCIAL; não declarar RF-PEND-01 concluída.  
 **Escopo desta rodada:** AGI-RF01-R01 a R06; AGI-P09 a P18; identificação de fontes históricas de Produção Inteligente.  
 **Autorização:** exclusivamente criar/atualizar documentação aprovada no GitHub; nenhuma programação, testes, deploy, contratação ou homologação.  
