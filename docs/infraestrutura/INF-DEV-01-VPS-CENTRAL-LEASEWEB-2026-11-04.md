@@ -63,7 +63,7 @@ O responsável encaminhou **captura de tela do configurador**, com os seguintes 
 
 > **Destino de backup externo aprovado em 04/11/2026:** [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md) ratificou **Cloudflare R2 Standard com restrição de jurisdição UE** como destino principal; [INF-DEV-02](INF-DEV-02-DESTINO-BACKUP-EXTERNO-2026-11-04.md) preserva comparações com B2 e Acronis. **Não há contratação, configuração, orçamento/teto ou ativação de backup aprovados**.
 
-> **Plano técnico proposto:** [INF-DEV-03 — plano técnico Restic + R2](INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) detalha Restic/R2 EU, agendamento, retenção, backups SQLite/PostgreSQL, alerta, testes de restauração e proteção contra exclusões. É **proposta não ratificada operacionalmente** e não autoriza nenhuma instalação ou despesa.
+> **Plano técnico proposto:** [INF-DEV-03 — plano técnico Restic + R2](INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) detalha Restic/R2 EU, agendamento, retenção, backups SQLite/PostgreSQL, alerta, testes de restauração e proteção contra exclusões. Foi **aprovado como base técnica documental** pela [DEC-INF-DEV-03](DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md), mas não autoriza nenhuma instalação, configuração ou despesa.
 
 ## 3.1. Backup e recuperação — conferência em fontes oficiais Leaseweb
 
