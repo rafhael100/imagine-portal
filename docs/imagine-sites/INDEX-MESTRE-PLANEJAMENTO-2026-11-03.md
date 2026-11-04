@@ -60,6 +60,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P03 — proposta de troca controlada:** [documento para deliberação](P0-DOC03-AUT-P03-TROCA-CONTROLADA-VINCULO-CRM-PROPOSTA.md). A alternativa B é recomendada, mas **não ratificada**. AUT-P04 a AUT-P10 pendentes.
 
+**AUT-P03 — RATIFICADA alternativa B em 04/11/2026:** [documento oficial](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md). Troca por chamado da equipe Imagine com bloqueio seguro de ambas as APIs, ativação de nova revisão e confirmação do destino, sem redirecionar leads antigos nem migrar dados automaticamente. AUT-P01 e AUT-P02 B preservadas; **AUT-P04 a AUT-P10 pendentes**. A proposta AUT-P03 listada anteriormente permanece como histórico de pré-aprovação. **P0-DOC03 continua aberto.**
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
