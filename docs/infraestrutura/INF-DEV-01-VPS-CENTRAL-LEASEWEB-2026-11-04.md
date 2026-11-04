@@ -61,6 +61,19 @@ O responsável encaminhou **captura de tela do configurador**, com os seguintes 
 - Backup criptografado externo conforme risco, documentação de restauração e controle de chaves. Snapshot único incluído no plano não substitui backups independentes.
 - Monitorar utilização e alarmes; limitar jobs pesados simultâneos. Se risco de interferência superar o benefício financeiro, migrar somente a carga afetada para ambiente exclusivo mediante decisão e orçamento.
 
+## 3.1. Backup e recuperação — conferência em fontes oficiais Leaseweb
+
+**Pesquisa documental em 04/11/2026; não houve contratação nem configuração.**
+
+1. **Snapshot:** a Leaseweb inclui **um snapshot gratuito por VPS**, acessível no Customer Portal em `Virtual Private Server > Leaseweb VPS > Manage VPS > Snapshot`. Referências oficiais: https://www.leaseweb.com/products-services/cloud/virtual-private-server e https://kb.leaseweb.com/kb/leaseweb-vps/managing-leaseweb-vps-snapshot/ . **O snapshot não é backup independente.** Pode afetar a disponibilidade da VPS durante criação/restauração; usar sobretudo antes de mudanças críticas e não como única proteção.
+2. **Acronis Backup adicional:** serviço da Leaseweb para cópias externas automatizadas, políticas de periodicidade/retensão, arquivos e sistema inteiro. **Não incluído na mensalidade-base VPS 3 da captura.** Preços publicados em https://www.leaseweb.com/en/products-services/back-up/acronis (sujeitos à confirmação de checkout/impostos): **25 GB € 3,75/mês; 50 GB € 5,50/mês; 75 GB € 8,25/mês; 100 GB € 10,00/mês; 200 GB € 18,25/mês; 500 GB € 41,25/mês**. Caminho de contratação: Customer Portal > Acronis Backup > Order Backup; documentação https://kb.leaseweb.com/kb/acronis-backup/backup-acronis-backup-ordering-acronis-backup-from-the-leaseweb-portal/ .
+3. **Autogerenciado:** também é possível usar ferramentas gratuitas como `restic` com depósito externo distinto (S3/R2/B2/SFTP) e agendamento pelo servidor. O **software pode ser livre**, mas armazenamento, transferência e manutenção possuem custos e riscos; guardar os backups **somente nos 300 GB da própria VPS não protege contra perda total do servidor**. Referência: https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html .
+4. **Conteúdo mínimo para proteger:** arquivos de configuração sem expor segredos, volumes persistentes relevantes, dumps **consistentes** dos PostgreSQL de desenvolvimento, artefatos não versionados, rotinas de restauração e histórico de alterações. O GitHub preserva código versionado, **não** substitui cópias de bancos/volumes/secrets. Não armazenar dados reais de clientes em ambientes de desenvolvimento.
+5. **Política técnica candidata:** backup externo criptografado diário dos dados persistentes relevantes, retenção inicial de 30 dias **a dimensionar**, revisão de falhas diária, teste real de restauração periódico, chaves independentes e acesso limitado. Snapshot antes de atualizações de infraestrutura. Ajustar o volume externo pela **quantidade efetivamente protegida e histórico de retenção**, não confundir com disco NVMe de 300 GB.
+6. **Recomendação financeira:** para a VPS compartilhada de desenvolvimento, comparar custo total e esforço da proteção **restic + storage externo** versus **Acronis**, privilegiando capacidade efetiva de restaurar. Não contratar Acronis nem storage novo sem confirmar custos e **autorização financeira expressa**.
+
+**Status de backup:** `snapshot gratuito = CONFIRMADO COMO CARACTERÍSTICA DA OFERTA`; `backup externo automático = NÃO CONTRATADO / A DEFINIR`; `preço e franquia Acronis = REFERÊNCIA PÚBLICA, NÃO COTAÇÃO DO CARRINHO`.
+
 ## 4. Portas para aquisição e ativação
 
 | Marco | Condição a verificar | Estado |
