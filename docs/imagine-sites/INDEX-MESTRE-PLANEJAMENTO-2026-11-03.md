@@ -54,7 +54,7 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **Status:** especificação parcial; **P0-DOC03 permanece ABERTO**.
 
-**AUT-P01 — decisão pendente:** [Contrato de autoridade e vínculo Site × CRM — alternativas para ratificação](P0-DOC03-AUT-P01-CONTRATO-VINCULO-SITE-CRM-PROPOSTA.md). A recomendação técnica ainda não foi aprovada; **P0-DOC03 permanece aberto**.
+**AUT-P01 — RATIFICADA alternativa B:** [registro de aprovação](P0-DOC03-AUT-P01-RATIFICACAO-ALTERNATIVA-B-2026-11-03.md), com versão oficial do vínculo Site × CRM, validação em ambas as APIs, barreira de revogação e falha fechada. [AUT-P02 — proposta pendente](P0-DOC03-AUT-P02-MATRIZ-ELEGIBILIDADE-CAPTACAO-CORTESIA-SUSPENSAO-PROPOSTA.md) trata separadamente captação, cortesia, assinatura paga e suspensão. **P0-DOC03 permanece aberto**.
 
 ## 4. Mapa dos blocos de planejamento
 
