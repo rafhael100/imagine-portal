@@ -1,11 +1,11 @@
 # INF-DEV-02 — Destino do backup externo da VPS central de desenvolvimento Imagine
 
 **Data:** 04/11/2026
-**Situação:** PROPOSTA COMPARATIVA — destino, orçamento e política operacional ainda não aprovados.
+**Situação vigente:** **DESTINO PRINCIPAL APROVADO EM 04/11/2026 (Cloudflare R2 Standard, jurisdição EU)** conforme [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md). Este documento preserva os comparativos; **orçamento/teto, retenção operacional, ferramenta de backup e implementação permanecem não aprovados**.
 **Referência:** [INF-DEV-01 — VPS central Leaseweb](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md).
 **Execução:** nenhum bucket, assinatura, backup, despesa ou mudança de infraestrutura foi realizado.
 
-## 1. Recomendação preliminar
+## 1. Destino principal ratificado — implementação pendente
 
 **Cloudflare R2 Standard como armazenamento externo principal, em bucket privado com restrição de jurisdição EU, criptografia no cliente e acesso restrito.** A VPS Leaseweb da Imagine ficará em Amsterdam, mas os backups ficarão em outro serviço e conta administrativa segregada. Jurisdição EU assegura residência dentro da União Europeia, NÃO país/cidade exatos nem distância mínima de Amsterdam. Fonte: https://developers.cloudflare.com/r2/reference/data-location/ .
 
@@ -49,11 +49,11 @@ A franquia de 10 GB-mês é da conta elegível; não supor que esteja livre se o
 
 | Marco | Estado |
 |---|---|
-| Destino R2 Standard + jurisdição EU | **RECOMENDADO, NÃO RATIFICADO** |
+| Destino R2 Standard + jurisdição EU | **APROVADO COMO DESTINO/ARQUITETURA**, conforme [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md) |
 | Fornecedor alternativo B2 ou Acronis | **COMPARADO** |
 | Conta Cloudflare disponível, permissões, limites de pagamento e jurisdição | **NÃO VERIFICADOS** |
 | Volume real protegido e custos de operações | **NÃO MEDIDOS** |
 | Teto financeiro em US$/R$, responsável e autorização de contratação | **NÃO APROVADOS** |
 | Ferramenta, scripts, cronograma, retenção, alertas e teste de restauração | **NÃO EXECUTADOS** |
 
-**Próxima deliberação sugerida:** ratificar ou ajustar a preferência por Cloudflare R2 Standard com jurisdição UE como destino externo. Somente após dimensionamento, teto financeiro e autorização separados ativar serviços e configurar a VPS. Esta escolha não autoriza Gate C da Universidade ou programação do CRM.
+**Destino já ratificado:** Cloudflare R2 Standard, jurisdição EU. **Próximas decisões independentes:** dimensionar volume/retensão, definir rotina e ferramenta, confirmar conta Cloudflare, total de custos e teto e obter autorização financeira/operacional explícita antes de qualquer ativação. Esta escolha não autoriza Gate C da Universidade ou programação do CRM. Esta escolha não autoriza Gate C da Universidade ou programação do CRM.
