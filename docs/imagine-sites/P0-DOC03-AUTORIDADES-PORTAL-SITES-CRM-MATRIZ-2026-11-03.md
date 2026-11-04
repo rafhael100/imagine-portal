@@ -37,14 +37,14 @@
 7. **Aprovação humana de intervenção crítica ≠ autorização administrativa ampla e permanente.**
 8. **Comando de agente/n8n ≠ confirmação oficial pelo sistema titular.**
 
-**AUT-P01 — minuta de decisão:** foi preparada a [proposta de contrato oficial do vínculo Site × CRM](P0-DOC03-AUT-P01-CONTRATO-VINCULO-SITE-CRM-PROPOSTA.md), com alternativas A/B/C e recomendação condicionada da alternativa B. **Não ratificada**; a criação da minuta não encerra AUT-P01 nem P0-DOC03.
+**AUT-P01 — RATIFICADA (B):** [registro oficial da decisão](P0-DOC03-AUT-P01-RATIFICACAO-ALTERNATIVA-B-2026-11-03.md) com vínculo versionado, validação autenticada por ambas APIs, proteção contra estados antigos, barreira de revogação e fail-closed; contratos detalhados ainda pendentes. [AUT-P02 — proposta PENDENTE](P0-DOC03-AUT-P02-MATRIZ-ELEGIBILIDADE-CAPTACAO-CORTESIA-SUSPENSAO-PROPOSTA.md) foi apresentada separadamente, sem ratificação.
 
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
 |---|---|---|
-| AUT-P01 | Qual serviço fornece de forma autenticada a versão oficial do vínculo site–CRM e sua revogação para o backend de captação? | Contrato de consulta, consistência, cache, revalidação e tratamento de indisponibilidade |
-| AUT-P02 | Como o Portal e o CRM distinguem autorização de captação, elegibilidade de cortesia e estado contratual/suspensão sem inferir um do outro? | Matriz de estados e dependências versão por versão |
+| AUT-P01 | **RATIFICADA alternativa B**: registro oficial versionado e autorização segura para ambas APIs | **Pendente detalhamento** de protocolos, frescor, sincronização, barreira de revogação e contratos (não é homologação) |
+| AUT-P02 | **PROPOSTA PENDENTE**: como distinguir autorização de captação, cortesia e estado contratual/suspensão? | [Alternativas para deliberação](P0-DOC03-AUT-P02-MATRIZ-ELEGIBILIDADE-CAPTACAO-CORTESIA-SUSPENSAO-PROPOSTA.md), nenhuma ratificada |
 | AUT-P03 | Quais são os comandos, eventos e confirmações oficiais de alteração de CRM vinculado? | Transações, idempotência, autorização humana, auditoria e falhas parciais |
 | AUT-P04 | Quem assina/atesta identidade e integridade da versão do site, do aceite e do artefato implantado? | Contrato de evidência, verificação do gate e revogação/correção |
 | AUT-P05 | Qual API do CRM é autoridade para confirmar persistência e reconciliar resultados inconclusivos sem criar duplicidade? | Semântica de comando, resultado e endpoint consultivo, idempotência por tenant |
@@ -74,7 +74,7 @@ Também consideradas as ratificações [IN127-R01–R06](https://github.com/rafh
 ## 5. Status e encaminhamento
 
 - **Conferência de autoridades:** parcial, baseada em documentos localizados.
-- **Aprovação individual AUT-P01..P10:** **não realizada**; são perguntas a especificar.
+- **Aprovação individual:** **AUT-P01 alternativa B RATIFICADA**; **AUT-P02 proposta pendente**; **AUT-P03 a AUT-P10 pendentes**. P0-DOC03 continua aberto.
 - **P0-DOC03:** **ABERTO**.
 - **RF-PEND-01:** **ABERTA**, especialmente séries AGI sem texto canônico.
 - **RF-PEND-04:** normativa IN-127 ratificada, homologação técnica pendente.
