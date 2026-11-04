@@ -1,7 +1,7 @@
 # INF-DEV-06 — Gestão de identidades, permissões, custódia de chaves e resposta a incidentes
 
 **Data:** 04/11/2026  
-**Estado:** **PROPOSTA DOCUMENTAL PREPARADA PARA REVISÃO, AINDA NÃO RATIFICADA**.  
+**Estado vigente:** **APROVADA COMO BASE DOCUMENTAL DE SEGURANÇA** por [DEC-INF-DEV-06](DEC-INF-DEV-06-APROVACAO-BASE-SEGURANCA-IDENTIDADES-E-INCIDENTES-2026-11-04.md). **Sem autorização de contratação, instalação, criação de recursos, testes ou programação.**  
 **Origem:** resposta “ok” à proposta de iniciar a próxima etapa **INF-DEV-06 — Gestão de identidades, permissões mínimas, custódia e recuperação de chaves e plano de resposta a incidentes**.  
 **Escopo:** apenas **backups da futura VPS central de DESENVOLVIMENTO Imagine**, com dados sintéticos e isolamento por projeto. **NÃO se aplica a backup dos serviços em produção nem ao servidor separado de IA/n8n**.
 
@@ -124,7 +124,7 @@ Fontes: https://developers.cloudflare.com/r2/buckets/bucket-locks/ ; https://res
 - **INF06-T11:** confirmar jurisdição EU em todos os buckets e endpoint S3 EU.
 - **INF06-T12:** verificar que alertas de segurança/uso anormal chegam aos responsáveis definidos.
 
-**Nenhum teste foi executado.** Eles dependem de autorização de infraestrutura e de um ambiente fictício controlado.
+**Matriz aprovada documentalmente** por [DEC-INF-DEV-06](DEC-INF-DEV-06-APROVACAO-BASE-SEGURANCA-IDENTIDADES-E-INCIDENTES-2026-11-04.md). **Nenhum teste foi executado.** Eles dependem de autorização de infraestrutura e de um ambiente fictício controlado.
 
 ## 10. Pendências e próximo gate
 
@@ -141,7 +141,7 @@ Fontes: https://developers.cloudflare.com/r2/buckets/bucket-locks/ ; https://res
 | DEV06-D09 | Testes INF06-T01 a T12 e aceite operacional | **NÃO EXECUTADOS** |
 | DEV06-D10 | Revisão das políticas de produção em separado; preservação de bloqueios de programação | **ABERTO POR PRODUTO** |
 
-**Próxima decisão documental sugerida:** aprovar a **INF-DEV-06 apenas como BASE DE PLANEJAMENTO DE SEGURANÇA**, com matriz de identidades, custódia externa, incidentes, testes e pendências. A recomendação de conta Cloudflare exclusiva ainda é **hipótese**, e não seleção definitiva. Orçamento, ativação e execução ficam sujeitos a aprovação expressa posterior.
+**Situação após aprovação documental:** a INF-DEV-06 foi [aprovada como BASE DE PLANEJAMENTO DE SEGURANÇA](DEC-INF-DEV-06-APROVACAO-BASE-SEGURANCA-IDENTIDADES-E-INCIDENTES-2026-11-04.md), com matriz de identidades, custódia externa, incidentes, testes e pendências ainda abertas. A recomendação de conta Cloudflare exclusiva continua **hipótese**, e não seleção definitiva. Orçamento, ativação e execução ficam sujeitos a aprovação expressa posterior.
 
 ## Fontes oficiais consultadas em 04/11/2026
 
