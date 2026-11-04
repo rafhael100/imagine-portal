@@ -103,7 +103,7 @@ Recomendação documental:
 6. Não ativar lock em repositório incremental Restic sem homologação; avaliar bucket separado para ponto de restauração protegido.
 7. Confirmar que não serão enviados dados pessoais reais de clientes dos ambientes de produção: **apenas ambientes de desenvolvimento autorizados**.
 
-> **Próximo bloco de planejamento preparado (04/11/2026):** [INF-DEV-05 — implantação segura e segregação de backups](INF-DEV-05-PREPARACAO-IMPLANTACAO-SEGURA-BACKUPS-v0.1-2026-11-04.md), com matriz de responsabilidades, buckets por projeto, chaves independentes, pontos protegidos, testes e gates. **Proposta não ratificada; não altera estado financeiro desta INF-DEV-04.**
+> **Próximo bloco de planejamento preparado (04/11/2026):** [INF-DEV-05 — implantação segura e segregação de backups](INF-DEV-05-PREPARACAO-IMPLANTACAO-SEGURA-BACKUPS-v0.1-2026-11-04.md), com matriz de responsabilidades, buckets por projeto, chaves independentes, pontos protegidos, testes e gates. **Aprovada somente como base documental** por [DEC-INF-DEV-05 — Aprovação da base de implantação segura](DEC-INF-DEV-05-APROVACAO-BASE-IMPLANTACAO-SEGURA-2026-11-04.md); **não altera o orçamento, teto financeiro ou autorizações desta INF-DEV-04.**
 
 ## 7. Fases de implantação controlada (para autorização FUTURA)
 
