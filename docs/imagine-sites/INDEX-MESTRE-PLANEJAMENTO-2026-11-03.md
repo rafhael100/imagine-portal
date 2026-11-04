@@ -54,6 +54,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **Status:** especificação parcial; **P0-DOC03 permanece ABERTO**.
 
+**AUT-P01 — decisão pendente:** [Contrato de autoridade e vínculo Site × CRM — alternativas para ratificação](P0-DOC03-AUT-P01-CONTRATO-VINCULO-SITE-CRM-PROPOSTA.md). A recomendação técnica ainda não foi aprovada; **P0-DOC03 permanece aberto**.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
