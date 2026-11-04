@@ -77,6 +77,8 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 
 **RV-CT02 — PROPOSTA PENDENTE (04/11/2026):** [contrato lógico de recepção durável, idempotência e confirmação CRM](P0-DOC03-RV-CT02-RECEPCAO-IDEMPOTENCIA-CONFIRMACAO-CRM-PROPOSTA-2026-11-04.md). Alternativa B recomendada **sem ratificação**; T0 nas APIs, entrega apenas confirmada pelo CRM, 432h contínuas, consultas após vencimento sem reenvio. Interfaces e homologação continuam pendentes.
 
+**RV-CT02 — alternativa B APROVADA como diretriz documental (04/11/2026):** [registro normativo](P0-DOC03-RV-CT02-B-APROVADA-2026-11-04.md). Duas confirmações independentes (API durável/T0 e persistência oficial CRM); idempotência contextual, conciliação antes de reenviar, 432h contínuas. A anotação anterior de proposta pendente é histórica. **Interfaces finais e homologação pendentes.**
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
