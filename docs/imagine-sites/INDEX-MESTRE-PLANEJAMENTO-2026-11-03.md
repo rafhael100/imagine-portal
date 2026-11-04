@@ -62,6 +62,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P03 — RATIFICADA alternativa B em 04/11/2026:** [documento oficial](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md). Troca por chamado da equipe Imagine com bloqueio seguro de ambas as APIs, ativação de nova revisão e confirmação do destino, sem redirecionar leads antigos nem migrar dados automaticamente. AUT-P01 e AUT-P02 B preservadas; **AUT-P04 a AUT-P10 pendentes**. A proposta AUT-P03 listada anteriormente permanece como histórico de pré-aprovação. **P0-DOC03 continua aberto.**
 
+**AUT-P04 — PROPOSTA pendente:** [identidade do artefato, aceite expresso e gate de publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A alternativa B (manifesto imutável vinculado ao aceite e à versão publicada) é recomendação **não ratificada**. Preservadas AUT-P01/02/03 B; AUT-P05 a AUT-P10 pendentes. **P0-DOC03 continua aberto.**
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
