@@ -74,6 +74,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P07 — PROPOSTA PENDENTE:** [prova de descarte nas duas APIs, filas e backups](P0-DOC03-AUT-P07-COMPROVACAO-DESCARTE-APIS-FILAS-BACKUPS-PROPOSTA.md); alternativa B recomendada, ainda **não ratificada**. AUT-P01–P06 B já aprovadas; AUT-P08–P10 pendentes. Não altera IN127-R01 a R06; P0-DOC03 permanece aberto.
 
+**AUT-P07 — B APROVADA (04/11/2026):** [registro oficial](AUT-P07-B-aprovada-2026-11-04.md). Inventário das cópias, descarte comprovado nas estruturas ativas/temporárias e controle da restauração de backups, sem ampliar prazos IN127. A proposta anterior fica como histórico. **AUT-P08 a AUT-P10 pendentes**, P0-DOC03 aberto.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
