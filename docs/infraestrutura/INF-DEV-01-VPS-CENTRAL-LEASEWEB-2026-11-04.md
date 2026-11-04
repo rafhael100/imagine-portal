@@ -61,7 +61,7 @@ O responsável encaminhou **captura de tela do configurador**, com os seguintes 
 - Backup criptografado externo conforme risco, documentação de restauração e controle de chaves. Snapshot único incluído no plano não substitui backups independentes.
 - Monitorar utilização e alarmes; limitar jobs pesados simultâneos. Se risco de interferência superar o benefício financeiro, migrar somente a carga afetada para ambiente exclusivo mediante decisão e orçamento.
 
-> **Comparação de localização e fornecedores publicada em 04/11/2026:** [INF-DEV-02 — destino de backups externos](INF-DEV-02-DESTINO-BACKUP-EXTERNO-2026-11-04.md). A proposta recomenda **Cloudflare R2 Standard com restrição UE**; **não há ratificação do destino, custo/teto financeiro ou ativação de armazenamento**. Backblaze B2 e Acronis permanecem alternativas.
+> **Destino de backup externo aprovado em 04/11/2026:** [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md) ratificou **Cloudflare R2 Standard com restrição de jurisdição UE** como destino principal; [INF-DEV-02](INF-DEV-02-DESTINO-BACKUP-EXTERNO-2026-11-04.md) preserva comparações com B2 e Acronis. **Não há contratação, configuração, orçamento/teto ou ativação de backup aprovados**.
 
 ## 3.1. Backup e recuperação — conferência em fontes oficiais Leaseweb
 
