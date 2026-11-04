@@ -1,5 +1,7 @@
 # P0-DOC03 — RV-CT02: recepção durável e entrega confirmada ao CRM
 
+> **DECISÃO POSTERIOR (04/11/2026):** a alternativa B foi aprovada como diretriz técnica documental. Consultar [ratificação RV-CT02 B](P0-DOC03-RV-CT02-B-APROVADA-2026-11-04.md). Esta minuta conserva as alternativas e referências a "pendente" como histórico anterior; o contrato definitivo e a homologação permanecem pendentes.
+
 **Estado: PROPOSTA, NÃO APROVADA OU HOMOLOGADA.** Data: 04/11/2026.
 **Escopo:** formulários Imagine Sites, API principal, API de contingência, armazenamento/fila de integração, CRM Imagine e reconciliação.
 **Precedências aprovadas:** AUT-P05 e P06 B; RV-CT01 B como diretriz; IN-124, IN-148, IN-149, IN127-R01 a R06 (**R02=A**, 72h+360h=432h), IN-128 e IN-147. AUT-P07 delimita descarte. Não criar novas decisões comerciais.
