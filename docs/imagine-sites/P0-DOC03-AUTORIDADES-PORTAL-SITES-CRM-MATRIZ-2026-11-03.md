@@ -67,7 +67,9 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 
 **AUT-P09 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P09-B-aprovada-2026-11-04.md). Uma única aprovação humana específica quando exigida para ações alto/críticas; playbooks seguros homologados reutilizáveis sem reaprovação por ocorrência; autorizador externo à IA. **AUT-P10 PENDENTE**, demais contratos e homologação abertos.
 
-**AUT-P10 — PROPOSTA PENDENTE (04/11/2026):** [autoridade de pagamento e conciliação, contratos de site, cortesia CRM e assinatura paga](P0-DOC03-AUT-P10-AUTORIDADES-FINANCEIRAS-ASSINATURAS-BENEFICIOS-PROPOSTA.md). Alternativa B recomendada, **não ratificada**. Diferenciar prova de liquidação, estado comercial do Portal, elegibilidade do benefício, CRM pago e gates técnicos de entrega. **AUT-P01–P09 B aprovadas; P0-DOC03/contratos técnicos ainda abertos.**
+**AUT-P10 — proposta histórica anterior à aprovação B:** [autoridade de pagamento e conciliação, contratos de site, cortesia CRM e assinatura paga](P0-DOC03-AUT-P10-AUTORIDADES-FINANCEIRAS-ASSINATURAS-BENEFICIOS-PROPOSTA.md). Alternativa B recomendada, **não ratificada**. Diferenciar prova de liquidação, estado comercial do Portal, elegibilidade do benefício, CRM pago e gates técnicos de entrega. **AUT-P01–P09 B aprovadas; P0-DOC03/contratos técnicos ainda abertos.**
+
+**AUT-P10 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P10-B-aprovada-2026-11-04.md). Banco/PSP comprova eventos financeiros; financeiro Imagine concilia; Portal governa contrato do site; CRM governa assinatura paga própria; cortesia depende de todos os vínculos elegíveis e de autorizações corretas. **AUT-P01–P10 B aprovadas em deliberação documental, mas contratos técnicos não homologados. P0-DOC03/RF-PEND-01 abertos, RF-PEND-04 sem homologação, AGI-11-RB01 desabilitado.**
 
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
