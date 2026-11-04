@@ -78,6 +78,8 @@ O responsável encaminhou **captura de tela do configurador**, com os seguintes 
 
 **Status de backup:** `snapshot gratuito = CONFIRMADO COMO CARACTERÍSTICA DA OFERTA`; `backup externo automático = NÃO CONTRATADO / A DEFINIR`; `preço e franquia Acronis = REFERÊNCIA PÚBLICA, NÃO COTAÇÃO DO CARRINHO`.
 
+> **Custo estimado do backup externo:** [INF-DEV-04 — cenários de custo de 30 dias em Cloudflare R2](INF-DEV-04-DIMENSIONAMENTO-FINANCEIRO-BACKUP-R2-2026-11-04.md). Somente estudo financeiro **sem teto, orçamento final ou autorização para contratação**.
+
 ## 4. Portas para aquisição e ativação
 
 | Marco | Condição a verificar | Estado |
