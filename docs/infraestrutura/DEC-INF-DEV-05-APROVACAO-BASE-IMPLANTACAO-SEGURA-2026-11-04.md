@@ -41,6 +41,9 @@ Não contratar, pagar, provisionar VPS, ativar R2, criar buckets/tokens, configu
 
 ## 4. Próxima etapa documental recomendada
 
+
+> **INF-DEV-06 elaborada em 04/11/2026:** [Proposta de identidades, segredos e incidentes](INF-DEV-06-GESTAO-IDENTIDADES-SEGREDOS-E-INCIDENTES-v0.1-2026-11-04.md), apenas documental **e ainda não ratificada**. O texto não libera contratação, emissão de tokens, operações ou programação.
+
 **INF-DEV-06 — Gestão de identidades, permissões mínimas, custódia e recuperação de chaves e plano de resposta a incidentes:** definir separação de contas Cloudflare, modelo de responsabilidade por projeto, identidade de backup/limpeza/restore, proteção administrativa, critérios de auditoria, fluxos de perda de credenciais e autorização de restauração. Tratar os itens financeiros, contratação e execução como **gates futuros independentes**, sem pressupor cobrança ou acesso a contas.
 
 **Resultado:** INF-DEV-05 ratificada **somente como base de planejamento e segurança**; cinco buckets por projeto e área protegida são padrões documentais; detalhes, despesas, servidores e operação permanecem pendentes.
