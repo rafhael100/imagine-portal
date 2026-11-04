@@ -4,6 +4,7 @@
 **Situação vigente:** **DESTINO PRINCIPAL APROVADO EM 04/11/2026 (Cloudflare R2 Standard, jurisdição EU)** conforme [DEC-INF-DEV-02](DEC-INF-DEV-02-DESTINO-R2-EU-APROVADO-2026-11-04.md). Este documento preserva os comparativos; **orçamento/teto, retenção operacional, ferramenta de backup e implementação permanecem não aprovados**.
 **Referência:** [INF-DEV-01 — VPS central Leaseweb](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md).
 **Execução:** nenhum bucket, assinatura, backup, despesa ou mudança de infraestrutura foi realizado.
+**Detalhamento técnico pré-implantação:** [INF-DEV-03 — plano técnico Restic + R2](INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) — proposta de rotina, retenção, isolamento, restauração e anti-exclusão; **Restic e parâmetros ainda não ratificados**.
 
 ## 1. Destino principal ratificado — implementação pendente
 
@@ -56,4 +57,4 @@ A franquia de 10 GB-mês é da conta elegível; não supor que esteja livre se o
 | Teto financeiro em US$/R$, responsável e autorização de contratação | **NÃO APROVADOS** |
 | Ferramenta, scripts, cronograma, retenção, alertas e teste de restauração | **NÃO EXECUTADOS** |
 
-**Destino já ratificado:** Cloudflare R2 Standard, jurisdição EU. **Próximas decisões independentes:** dimensionar volume/retensão, definir rotina e ferramenta, confirmar conta Cloudflare, total de custos e teto e obter autorização financeira/operacional explícita antes de qualquer ativação. Esta escolha não autoriza Gate C da Universidade ou programação do CRM. Esta escolha não autoriza Gate C da Universidade ou programação do CRM.
+**Destino já ratificado:** Cloudflare R2 Standard, jurisdição EU. **Próximas decisões independentes:** dimensionar volume/retensão, definir rotina e ferramenta, confirmar conta Cloudflare, total de custos e teto e obter autorização financeira/operacional explícita antes de qualquer ativação. Esta escolha não autoriza Gate C da Universidade ou programação do CRM.
