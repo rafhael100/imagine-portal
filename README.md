@@ -20,7 +20,7 @@ Abra `http://127.0.0.1:4173/portal`. O envio SMTP usa Nodemailer; instale as dep
 
 **Diretriz transversal de desenvolvimento (04/11/2026):** a direção escolheu **Leaseweb em princípio para VPS central de desenvolvimento dos projetos Imagine**. A [INF-DEV-01](docs/infraestrutura/INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md) registra proposta de VPS 3 (8 vCPU, 24 GB RAM, 300 GB NVMe), com preço, prazo, aquisição e configuração ainda pendentes. A VPS de desenvolvimento deve permanecer independente da produção e do servidor central de IA/n8n. Esta diretriz não altera o estado de homologação do Portal.
 
-**Plano técnico de backup automático (04/11/2026):** [INF-DEV-03 — Restic + Cloudflare R2 EU](docs/infraestrutura/INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) foi preparado como **proposta documental**, com periodicidade/retencao/alertas/restauração para a VPS central de desenvolvimento. **Nenhuma instalação ou contratação autorizada**; o R2 EU segue aprovado somente como destino.
+**Plano técnico de backup automático (04/11/2026):** [INF-DEV-03 — Restic + Cloudflare R2 EU](docs/infraestrutura/INF-DEV-03-PLANO-BACKUP-AUTOMATICO-RESTIC-R2-v0.1-2026-11-04.md) foi **aprovado como base técnica documental** pela [DEC-INF-DEV-03](docs/infraestrutura/DEC-INF-DEV-03-POLITICA-BACKUP-RESTIC-R2-APROVADA-2026-11-04.md), com periodicidade/retenção/alertas/restauração para a VPS central de desenvolvimento. **Nenhuma instalação ou contratação autorizada**; o R2 EU segue aprovado somente como destino.
 
 ## Estrutura
 
