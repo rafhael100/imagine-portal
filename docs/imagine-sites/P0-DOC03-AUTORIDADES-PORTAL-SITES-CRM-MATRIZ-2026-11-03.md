@@ -41,6 +41,8 @@
 
 **ATUALIZAÇÃO 04/11/2026:** [AUT-P02 — alternativa B aprovada](AUT-P02-aprovacao-alternativa-B-2026-11-04.md) — separar direito de captação, cortesia Básico, assinatura CRM paga, situação contratual do site e conectividade, com autorização específica versionada. A linha histórica AUT-P02 abaixo é anterior a essa aprovação. **AUT-P03 a AUT-P10 permanecem pendentes**, assim como contratos técnicos e P0-DOC03.
 
+**AUT-P03 — minuta para deliberação:** [troca controlada do vínculo Site × CRM](P0-DOC03-AUT-P03-TROCA-CONTROLADA-VINCULO-CRM-PROPOSTA.md), com validação por chamado, barreira nas duas APIs, revisão e verificação final. A minuta não configura ratificação. AUT-P01 B e AUT-P02 B preservadas; AUT-P04 a AUT-P10 pendentes. 
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
