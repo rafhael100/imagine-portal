@@ -58,6 +58,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P02 — alternativa B APROVADA em 04/11/2026:** [registro normativo](AUT-P02-aprovacao-alternativa-B-2026-11-04.md). A proposta original continua disponível como histórico. **AUT-P03 a AUT-P10 ainda não foram aprovadas**; P0-DOC03 permanece aberto.
 
+**AUT-P03 — proposta de troca controlada:** [documento para deliberação](P0-DOC03-AUT-P03-TROCA-CONTROLADA-VINCULO-CRM-PROPOSTA.md). A alternativa B é recomendada, mas **não ratificada**. AUT-P04 a AUT-P10 pendentes.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
