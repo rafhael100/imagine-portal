@@ -3,7 +3,7 @@
 **Data:** 04/11/2026.
 **Origem da decisão:** direção determinou: “vamos pegar então uma VPS daquelas da Leaseweb para ser a nossa VPS de desenvolvimento dos projetos”.
 **Estado normativo:** **PROVEDORA LEASEWEB ESCOLHIDA EM PRINCÍPIO para uma VPS de desenvolvimento COMPARTILHADA entre projetos Imagine**.
-**Não há comprovação de contratação, pagamento, ativação, IP designado, instalação ou autorização de programação.** Ainda devem ser confirmados pacote, região, preço final, prazo contratual, condições comerciais e autoridade financeira.
+**Tela de configuração da Leaseweb fornecida em 04/11/2026 e conferida**, com VPS 3 em Amsterdam, Ubuntu 24.04, contrato/cobrança mensal e preço-base de € 13,99. **Não há comprovação de carrinho finalizado, contratação, pagamento, ativação, IP designado, instalação ou autorização de programação.** Ainda devem ser confirmados impostos, total do carrinho, termos e autorização financeira.
 
 ## 1. Finalidade e limites
 
@@ -28,6 +28,29 @@ Ter **um ambiente central de desenvolvimento** para, conforme autorização espe
 
 **Contratação:** preferir período **mensal sem fidelidade anual**, quando elegível, para observar carga real antes de assumir compromisso longo. A Leaseweb informa upgrade possível, mas downgrade indisponível na oferta VPS consultada. Qualquer preço final exige confirmação visual/documental no checkout da conta contratante.
 
+## 2.1. Evidência direta do configurador Leaseweb (04/11/2026)
+
+O responsável encaminhou **captura de tela do configurador**, com os seguintes itens efetivamente selecionados e exibidos no resumo:
+
+| Campo mostrado | Valor observado |
+|---|---|
+| Data Center Location | **Amsterdam (AMS-01)** |
+| Package | **Leaseweb VPS 3** |
+| Cloud Instance | **8 vCPU, 24 GB RAM, 300 GB NVMe Disk** |
+| Connectivity | **30 TB Volume** incluído; **1 × 10GE port Virtual** incluído; **1 endereço IPv4 individual** incluído |
+| Services | **Basic** incluído; **DDoS IP Protection Standard** incluído |
+| Software | **No control panel** incluído; **Ubuntu 24.04** incluído |
+| Contract Term | **1 month** |
+| Billing Cycle | **1 month** |
+| Monthly Base Price / Monthly Fee | **€ 13,99 / € 13,99** conforme tela |
+| Setup Fee | **€ 0,00** conforme tela |
+
+**Suporte Basic** selecionado: a tela menciona **response time 12hrs**, telefone 24/7 e substituição de hardware em 24 horas. Serviços opcionais Bronze/Silver/Gold/Platinum foram mostrados como adicionais pagos, **não selecionados**.
+
+**Escopo da evidência:** esse é um **resumo de configuração anterior ao botão “Add to cart”**, não a totalização final do checkout, fatura, pagamento ou contrato. Impostos, taxas aplicáveis, regras de renovação, eventuais add-ons ou conversão para reais **não estão confirmados pela captura**. A expressão “30 TB Volume” se refere à franquia de conectividade na seção indicada, não a backup ou 30 TB de disco. A descrição “10GE port Virtual” não comprova throughput dedicado garantido. O resumo **não mostra uma política de backup externo ou restauração**, que deve ser verificada à parte.
+
+**Parecer técnico sobre a configuração:** manter VPS 3, Amsterdam, Ubuntu 24.04, sem painel, serviço Basic e contratação/cobrança de 1 mês como **configuração recomendada** para desenvolvimento compartilhado, antes de conferir o checkout definitivo. Isto **não** substitui a autorização financeira de compra e de qualquer programação.
+
 ## 3. Configuração operacional candidata, não executada
 
 - **Ubuntu 24.04 LTS**, sem WHM/cPanel ou painel pago; Docker Engine e Docker Compose v2 apenas depois de autorização da gestão de infraestrutura. Fonte Docker: https://docs.docker.com/engine/install/ubuntu/ .
@@ -43,8 +66,8 @@ Ter **um ambiente central de desenvolvimento** para, conforme autorização espe
 | Marco | Condição a verificar | Estado |
 |---|---|---|
 | DEV-01 | Provedora Leaseweb como padrão de VPS central de desenvolvimento | **DEFINIDO EM PRINCÍPIO** |
-| DEV-02 | Escolher VPS 3 ou outro plano, região, sistema operacional e contratação mensal | **RECOMENDAÇÃO PENDENTE DE CONFIRMAÇÃO** |
-| DEV-03 | Obter preço final com impostos, moeda, serviços opcionais, prazo e regra de renovação | **NÃO CONFIRMADO** |
+| DEV-02 | Escolher VPS 3 ou outro plano, região, sistema operacional e contratação mensal | **CONFIGURAÇÃO OBSERVADA E RECOMENDADA**: VPS 3, AMS-01, Ubuntu 24.04, 1 mês, Basic; confirmação de compra pendente |
+| DEV-03 | Obter preço final com impostos, moeda, serviços opcionais, prazo e regra de renovação | **PREÇO-BASE CONFIGURADO € 13,99/mês + setup € 0 verificados na captura; TOTAL FINAL COM IMPOSTOS E TERMOS AINDA NÃO CONFIRMADO** |
 | DEV-04 | Registrar orçamento/teto, responsável financeiro, autorização de compra e critérios de reembolso/cancelamento | **NÃO APROVADO** |
 | DEV-05 | Confirmar aquisição e entrega; validar isolamento com Docker, rede e quotas | **NÃO EXECUTADO** |
 | DEV-06 | Preparar e autorizar separadamente o início de programação de cada projeto | **PENDENTE; UNI Gate C NÃO AUTORIZADO** |
@@ -57,4 +80,4 @@ Ter **um ambiente central de desenvolvimento** para, conforme autorização espe
 - Este documento não altera decisões dos serviços de produção do Portal, Sites, CRM, Performance AI ou Universidade.
 - O servidor central n8n/IA segue separado desta VPS de desenvolvimento, e o custo de um não substitui orçamento do outro.
 
-**Próxima decisão específica:** aprovar **pacote, região, preço total e compromisso contratual** depois de conferir checkout. Nenhuma cobrança efetivada ou ação sobre servidores por este documento.
+**Próxima decisão específica:** verificar **total final do checkout, impostos e condições de renovação**, e então obter autorização financeira expressa para comprar o **pacote e região já configurados**. Nenhuma cobrança efetivada ou ação sobre servidores por este documento.
