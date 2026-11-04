@@ -36,6 +36,15 @@ Não se identificou, nas árvores principais consultadas, um repositório espec�
 | [IN127-R01 a R06](https://github.com/rafhael100/imagine-crm/blob/main/docs/planejamento/IN-127-R01-R06-ratificacoes-2026-11-03.md) | Seis decisões normativas expressamente ratificadas | Registro integral consolidado; sem homologação |
 | [P0 — Fechamento documental](P0-FECHAMENTO-DOCUMENTAL-01.md) | Critérios e pendências impeditivas de iniciar desenvolvimento | Instrumento de acompanhamento, não aceite final |
 
+## 3.1. Recuperação documental adicional — séries AGI
+
+Foi localizado o documento histórico de **Produção Inteligente v0.2** na branch `docs/producao-inteligente-v01` do Portal. A decisão **AD-001** está declarada aprovada naquele documento, mas ele próprio é rascunho e **não contém o texto integral das séries posteriores AGI-RF01-R01..R06 e AGI-P09..P18**. As aprovações de blocos identificadas em registros de conversa não foram convertidas em textos individuais por inferência.
+
+- [RF-PEND-01 — Recuperação de fontes históricas e lacunas AGI](RF-PEND-01-RECUPERACAO-AGI-FONTES-2026-11-03.md)
+- [Produção Inteligente v0.2 (fonte histórica)](https://github.com/rafhael100/imagine-portal/blob/docs/producao-inteligente-v01/docs/PRODUCAO-INTELIGENTE.md)
+
+**Status:** recuperação documental PARCIAL; RF-PEND-01 e P0-DOC02 continuam abertos.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
