@@ -66,7 +66,9 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P04 — APROVADA alternativa B (04/11/2026):** [registro normativo](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Manifesto imutável, aceite expresso e prova de correspondência com o artefato publicado; a minuta anterior fica como histórico. AUT-P01/02/03 B preservadas; **AUT-P05 a AUT-P10 PENDENTES**. P0-DOC03 permanece aberto.
 
-**AUT-P05 — PROPOSTA para ratificação:** [confirmação oficial de entrega ao CRM e reconciliação](P0-DOC03-AUT-P05-CONFIRMACAO-OFICIAL-LEADS-CRM-RECONCILIACAO-PROPOSTA.md). Recomendada a alternativa B: comando idempotente, resultado autoritativo CRM, consulta de estados inconclusivos e limite IN127 de 432h. **Não aprovada ainda**. AUT-P01 a AUT-P04 B aprovadas; AUT-P06 a AUT-P10 pendentes; P0-DOC03 segue aberto.
+**AUT-P05 — proposta histórica (anterior à aprovação B):** [confirmação oficial de entrega ao CRM e reconciliação](P0-DOC03-AUT-P05-CONFIRMACAO-OFICIAL-LEADS-CRM-RECONCILIACAO-PROPOSTA.md). Recomendada a alternativa B: comando idempotente, resultado autoritativo CRM, consulta de estados inconclusivos e limite IN127 de 432h. **Aprovada posteriormente conforme registro normativo AUT-P05 abaixo**. AUT-P01 a AUT-P04 B preservadas; AUT-P06 a AUT-P10 pendentes; P0-DOC03 segue aberto.
+
+**AUT-P05 — APROVADA alternativa B (04/11/2026):** [ratificação normativa](AUT-P05-aprovacao-alternativa-B-2026-11-04.md). Comando idempotente, confirmação de persistência pelo CRM, consulta de resultado inconclusivo antes de retentativa e limite contínuo de 432h. A proposta prévia é histórico. **AUT-P06 a AUT-P10 permanecem pendentes**; P0-DOC03, RF-PEND-01 e RF-PEND-04 ainda não estão encerrados.
 
 ## 4. Mapa dos blocos de planejamento
 
