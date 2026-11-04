@@ -84,7 +84,9 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P09 — ALTERNATIVA B APROVADA (04/11/2026):** [decisão normativa](AUT-P09-B-aprovada-2026-11-04.md). Autonomia por agente/operação/ambiente/risco, execução segura de baixo/moderado risco por playbook homologado e **uma única aprovação humana específica** para intervenção crítica. Proposta histórica preservada. **AUT-P10 PENDENTE; P0-DOC03 ABERTO.**
 
-**AUT-P10 — PROPOSTA PENDENTE (04/11/2026):** [autoridades financeiras, assinaturas e benefício CRM Básico](P0-DOC03-AUT-P10-AUTORIDADES-FINANCEIRAS-ASSINATURAS-BENEFICIOS-PROPOSTA.md). Alternativa B recomendada, **não ratificada**: confirmação de liquidação e conciliação oficial, estados contratuais próprios de Portal/Sites e CRM, elegibilidade da cortesia por todos os vínculos válidos, sem cobrança ou suspensão por inferência. **AUT-P01 a AUT-P09 B aprovadas; P0-DOC03 aberto.**
+**AUT-P10 — proposta histórica anterior à aprovação B:** [autoridades financeiras, assinaturas e benefício CRM Básico](P0-DOC03-AUT-P10-AUTORIDADES-FINANCEIRAS-ASSINATURAS-BENEFICIOS-PROPOSTA.md). Alternativa B recomendada, **não ratificada**: confirmação de liquidação e conciliação oficial, estados contratuais próprios de Portal/Sites e CRM, elegibilidade da cortesia por todos os vínculos válidos, sem cobrança ou suspensão por inferência. **AUT-P01 a AUT-P09 B aprovadas; P0-DOC03 aberto.**
+
+**AUT-P10 — ALTERNATIVA B APROVADA (04/11/2026):** [decisão normativa](AUT-P10-B-aprovada-2026-11-04.md). Fontes de liquidação/estorno conciliadas por financeiro oficial, contratos independentes de Portal/Sites e CRM, cortesia por elegibilidade de todos os vínculos, sem cobrança ou suspensão por inferência. **AUT-P01 a AUT-P10: todas B aprovadas normativamente; P0-DOC03 e RF-PEND-01 permanecem abertos, RF-PEND-04 sem homologação, AGI-11-RB01 desabilitado.**
 
 ## 4. Mapa dos blocos de planejamento
 
