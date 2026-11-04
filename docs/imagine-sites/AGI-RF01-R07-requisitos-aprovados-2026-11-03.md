@@ -1,5 +1,7 @@
 # AGI-RF01-R07 — Requisitos documentais aprovados (Imagine Sites)
 
+**Aviso de integridade documental (revisão de rastreabilidade):** os 48 itens abaixo são **rótulos temáticos usados na consolidação**, e NÃO transcrições individualmente comprovadas dos 48 requisitos originais. A aprovação do bloco R07 consta do planejamento conversacional, mas a equivalência literal de cada título com sua redação aprovada permanece **não conferida**. Afirmar que a redação integral foi recuperada seria incorreto. Consultar [manifesto de evidências AGI](RF-PEND-01-MANIFESTO-EVIDENCIAS-AGI-2026-11-03.md).
+
 **Status:** requisitos **AGI-RF01-R07.01 a .48 expressamente aprovados** em 03/11/2026, como especificação documental e arquitetural.  
 **Sem aprovação automática:** decisões RF07-D01 a D12 não foram ratificadas em bloco; IN127-R01 a R06, por sua vez, foram **posteriormente ratificadas individualmente** e estão no [registro canônico da IN-127](https://github.com/rafhael100/imagine-crm/blob/main/docs/planejamento/IN-127-R01-R06-ratificacoes-2026-11-03.md).  
 **RF-PEND-01:** aberta; conferência do GitHub iniciada em leitura, mas NÃO encerrada. **RF-PEND-04:** norma ratificada, homologação técnica pendente.  
