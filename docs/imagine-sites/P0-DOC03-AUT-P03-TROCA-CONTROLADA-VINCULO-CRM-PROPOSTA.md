@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P03 — Troca controlada da conta CRM vinculada a um Site Imagine
 
+> **DECISÃO POSTERIOR RATIFICADA (04/11/2026):** a alternativa **B** foi expressamente aprovada. A [ratificação normativa AUT-P03](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md) prevalece quanto ao estado atual. Esta minuta permanece como histórico: referências abaixo a “não ratificada” descrevem a **situação anterior**, sem revogar a decisão posterior. Parâmetros e homologação técnica continuam pendentes.
+
+
 **STATUS: PROPOSTA PARA DELIBERAÇÃO — NENHUMA ALTERNATIVA RATIFICADA.**
 **Escopo:** alteração posterior de vínculo entre Onepage/Landing Page e conta CRM Imagine, com separação entre recebimentos novos, operações antigas e cortesia comercial.
 **Precedências ratificadas:** AUT-P01 B (autoridade versionada, duas APIs, barreira de revogação, falha fechada); AUT-P02 B (direito de captação distinto de cortesia, assinatura e conectividade); IN127-R01 a R06 (T0, prazo, descarte, auditoria e reconciliação).
