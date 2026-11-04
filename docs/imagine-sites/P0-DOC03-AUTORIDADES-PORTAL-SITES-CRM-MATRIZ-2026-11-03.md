@@ -73,6 +73,8 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 
 **AUT-P10 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P10-B-aprovada-2026-11-04.md). Banco/PSP comprova eventos financeiros; financeiro Imagine concilia; Portal governa contrato do site; CRM governa assinatura paga própria; cortesia depende de todos os vínculos elegíveis e de autorizações corretas. **AUT-P01–P10 B aprovadas em deliberação documental, mas contratos técnicos não homologados. P0-DOC03/RF-PEND-01 abertos, RF-PEND-04 sem homologação, AGI-11-RB01 desabilitado.**
 
+**RV-CT01 — alternativa B APROVADA como diretriz documental (04/11/2026):** [registro normativo](P0-DOC03-RV-CT01-B-APROVADA-2026-11-04.md). Ambas as APIs verificam autorização versionada e falham fechadas quando não comprovada. **Esquema, concorrência, revogação efetiva, interfaces e homologação seguem pendentes**; RV-CT02–08 ainda não foram deliberadas. P0-DOC03 permanece ABERTO.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
