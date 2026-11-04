@@ -82,3 +82,19 @@ Para cada requisito, registrar:
 Até obter esses campos com fontes adequadas, preservar o item como **pendente de recuperação**, sem substituí-lo por especificação de autoria nova.
 
 **RF-PEND-01 permanece aberta. RF-PEND-04 não está tecnicamente homologada.**
+
+
+## 7. Conferência de branches — comparação de referências
+
+Foram realizadas comparações **somente leitura** pelo histórico GitHub entre referências antigas e `main`:
+
+| Repositório | Base histórica | Referência atual | Resultado oficial da comparação | Efeito documental |
+|---|---|---|---|---|
+| [imagine-portal](https://github.com/rafhael100/imagine-portal) | `docs/producao-inteligente-v01` | `main` | **diverged** | O documento de 616 linhas `docs/PRODUCAO-INTELIGENTE.md` foi localizado na branch histórica, sem evidência de versão canônica equivalente no `main` examinado; não presumir merge ou vigência integral |
+| [imagine-crm](https://github.com/rafhael100/imagine-crm) | `docs/integracao-site-crm-basico` | `main` | **diverged** | A branch contém `docs/decisoes.md`, documento histórico extenso; compatibilizar com documentação posterior da `main` e ratificações em vez de realizar mesclagem automática |
+
+A comparação comprova **divergência de histórico**, não aprovação, substituição ou perda de uma regra por si só. Identificadores AGI foram pesquisados nas árvores `main` e no documento histórico relevante sem encontrar os **enunciados integrais**. A pesquisa de mensagens de commit com termo `AGI` encontrou apenas commits recentes de organização documental no Portal, e nenhum resultado equivalente no CRM; isso não esgota os registros de aprovação em conversas.
+
+A pesquisa de contexto de conversas previamente disponível confirmou referências de **aprovação de R01/R02**, mas não forneceu suas 48 redações originais. Não é correto construir essas redações pela semelhança com títulos, resumos ou documentos de outros módulos. Portanto, a recuperação integral continua **bloqueada pela indisponibilidade de fonte textual verificável nesta rodada**, enquanto a reconciliação dos documentos já encontrados pode prosseguir.
+
+**Próximo trabalho sem essa dependência:** avançar na conferência de **P0-DOC03 (autoridades Portal/Sites/CRM)** com os documentos disponíveis, classificando apenas fatos e propostas, sem declarar os blocos AGI ausentes como encerrados.
