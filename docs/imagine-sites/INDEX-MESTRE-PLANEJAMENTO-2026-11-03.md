@@ -62,7 +62,7 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P03 — RATIFICADA alternativa B em 04/11/2026:** [documento oficial](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md). Troca por chamado da equipe Imagine com bloqueio seguro de ambas as APIs, ativação de nova revisão e confirmação do destino, sem redirecionar leads antigos nem migrar dados automaticamente. AUT-P01 e AUT-P02 B preservadas; **AUT-P04 a AUT-P10 pendentes**. A proposta AUT-P03 listada anteriormente permanece como histórico de pré-aprovação. **P0-DOC03 continua aberto.**
 
-**AUT-P04 — PROPOSTA pendente:** [identidade do artefato, aceite expresso e gate de publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A alternativa B (manifesto imutável vinculado ao aceite e à versão publicada) é recomendação **não ratificada**. Preservadas AUT-P01/02/03 B; AUT-P05 a AUT-P10 pendentes. **P0-DOC03 continua aberto.**
+**AUT-P04 — proposta histórica (antes da aprovação B):** [identidade do artefato, aceite expresso e gate de publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A alternativa B foi **aprovada posteriormente**; consultar o registro normativo AUT-P04 abaixo. Preservadas AUT-P01/02/03 B; AUT-P05 a AUT-P10 pendentes. **P0-DOC03 continua aberto.**
 
 **AUT-P04 — APROVADA alternativa B (04/11/2026):** [registro normativo](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Manifesto imutável, aceite expresso e prova de correspondência com o artefato publicado; a minuta anterior fica como histórico. AUT-P01/02/03 B preservadas; **AUT-P05 a AUT-P10 PENDENTES**. P0-DOC03 permanece aberto.
 
