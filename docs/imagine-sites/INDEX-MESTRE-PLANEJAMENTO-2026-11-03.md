@@ -80,6 +80,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P08 — ALTERNATIVA B APROVADA (04/11/2026):** [decisão normativa](AUT-P08-B-aprovada-2026-11-04.md). Estados independentes e comprovados de versão/aceite, publicação, disponibilidade, incidente/recuperação e entrega oficial idempotente. O evento ENTREGUE inicia Dia 0 REL-01; falhas posteriores não apagam histórico. A proposta original é histórica. **AUT-P09 e AUT-P10 PENDENTES**, P0-DOC03 ABERTO.
 
+**AUT-P09 — PROPOSTA PENDENTE:** [matriz de risco, ferramentas, autonomia e aprovação humana](P0-DOC03-AUT-P09-MATRIZ-AUTONOMIA-AGENTES-APROVACAO-HUMANA-PROPOSTA.md). Recomendada alternativa B, ainda **não ratificada**: baixo/moderado seguro por playbook homologado, alto/crítico com **uma única aprovação humana**, sem duplo aceite e sem autoelevação. AUT-P01–P08 B aprovadas; **AUT-P10 pendente**, P0-DOC03 aberto.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
