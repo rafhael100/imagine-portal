@@ -1,5 +1,8 @@
 # P0-DOC03 / AUT-P09 — Matriz de autonomia de agentes, ferramentas e aprovação humana
 
+> **DECISÃO POSTERIOR (04/11/2026):** a alternativa B foi aprovada. Consultar [registro AUT-P09 B](AUT-P09-B-aprovada-2026-11-04.md). Esta minuta registra as alternativas no estado anterior à aprovação; contratos técnicos e AUT-P10 permanecem pendentes.
+
+
 **Estado: PROPOSTA PARA DELIBERAÇÃO — AUT-P09 NÃO RATIFICADA.**  
 **Data:** 04/11/2026. **Escopo:** Imagine Sites, Portal Imagine, APIs/filas, serviços compartilhados de agentes e n8n.  
 **Precedência normativa:** AUT-P01 a AUT-P08, alternativas B aprovadas; IN-131 (três níveis de autonomia), IN-137 (uma única aprovação humana), IN-138 (riscos de ação), IN-154 (mudanças), IN-155 (homologação de playbooks), IN-166 (ferramentas/permissões), PORTAL-COM-13 e IN127-R01 a R06.
