@@ -5,6 +5,8 @@
 **Fontes:** documentação em `rafhael100/imagine-crm/docs/planejamento/`, confrontada com ratificações IN127-R01–R06.  
 **Proibição:** nenhuma programação, testes, infraestrutura, homologação ou habilitação de rollback AGI-11-RB01 (DESABILITADO).
 
+**REVISÃO DE CONSISTÊNCIA RV01 (04/11/2026):** [consolidação das AUT-P01–P10](P0-DOC03-RV01-CONSOLIDACAO-AUT-P01-P10-2026-11-04.md) identifica fontes de autoridade, 14 achados documentais e oito pacotes técnicos propostos. Todas as **dez AUT alternativas B estão ratificadas**, mas **os contratos e as evidências técnicas permanecem pendentes**; a tabela de perguntas ao final representa **especificação futura**, não ausência de aprovação normativa. **P0-DOC03 ABERTO; RF-PEND-01 ABERTA; RF-PEND-04 não homologada; AGI-11-RB01 desabilitado.**
+
 ## 1. Autoridades previstas/identificadas nas fontes
 
 | Fato de negócio ou técnico | Fonte a ser tratada como autoridade conforme documentos | Emissores/consumidores sem autoridade própria | Evidência de origem | Grau de fechamento |
