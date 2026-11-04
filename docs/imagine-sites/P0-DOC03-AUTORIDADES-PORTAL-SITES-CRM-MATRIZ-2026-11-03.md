@@ -59,7 +59,9 @@ AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-apro
 
 **AUT-P07 — B APROVADA (04/11/2026):** [registro normativo](AUT-P07-B-aprovada-2026-11-04.md). Prova de descarte por superfície ativa/temporária, backups protegidos com retenção própria, barreira contra restauração indevida e auditoria minimizada. **AUT-P08 a AUT-P10 pendentes**; P0-DOC03 e homologação técnica abertos.
 
-**AUT-P08 — PROPOSTA, NÃO RATIFICADA (04/11/2026):** [estados oficiais e evidências de publicação/recuperação/entrega](P0-DOC03-AUT-P08-ESTADOS-PUBLICACAO-RECUPERACAO-ENTREGA-PROPOSTA.md). Alternativa B recomendada; COM-13 entrega automática após checklist/aceite, falha posterior preserva entrega histórica; REL-01 só no evento oficial. **AUT-P09–P10 pendentes**, contratos técnicos não homologados.
+**AUT-P08 — proposta histórica (anterior à aprovação B):** [estados oficiais e evidências de publicação/recuperação/entrega](P0-DOC03-AUT-P08-ESTADOS-PUBLICACAO-RECUPERACAO-ENTREGA-PROPOSTA.md). Alternativa B recomendada; COM-13 entrega automática após checklist/aceite, falha posterior preserva entrega histórica; REL-01 só no evento oficial. **AUT-P09–P10 pendentes**, contratos técnicos não homologados.
+
+**AUT-P08 — ALTERNATIVA B APROVADA (04/11/2026):** [registro normativo](AUT-P08-B-aprovada-2026-11-04.md). Publicação efetiva, estados de incidente/recuperação e entrega oficial por COM-13 e REL-01 devem ter fontes, provas e transições separadas. **AUT-P09 e AUT-P10 PENDENTES**; P0-DOC03 e homologação técnica seguem abertos.
 
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
