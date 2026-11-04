@@ -47,6 +47,8 @@
 
 **AUT-P04 — PROPOSTA pendente:** [alternativas e matriz de prova de versão/aceite/publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A recomendação B **não** foi ratificada, não determina mecanismo jurídico ou tecnológico e não fecha P0-DOC03. AUT-P01/02/03 B aprovadas; AUT-P05 a AUT-P10 pendentes.
 
+**AUT-P04 — APROVADA alternativa B (04/11/2026):** [registro de aprovação](AUT-P04-aprovacao-alternativa-B-2026-11-04.md). Versão do site imutável e identificável, aceite expresso vinculado e verificação contra artefato publicado/entregue. **AUT-P05 a AUT-P10 permanecem pendentes**; a aprovação funcional não fecha contratos técnicos nem P0-DOC03. Menções anteriores a AUT-P04 pendente são históricas.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
