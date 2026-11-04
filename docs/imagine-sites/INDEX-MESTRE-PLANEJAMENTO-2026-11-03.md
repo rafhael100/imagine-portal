@@ -5,6 +5,8 @@
 **Data de referência das aprovações:** 03/11/2026; edição documental posterior autorizada pelo responsável.  
 **Escopo:** sites Onepage e Landing Page, administração pelo Portal Imagine, integração CRM Imagine, agentes de produção/suporte, publicações, captação, faturamento e infraestruturas correspondentes.
 
+**CONSOLIDAÇÃO P0-DOC03 / RV01 (04/11/2026):** [relatório de revisão e matriz de autoridades](P0-DOC03-RV01-CONSOLIDACAO-AUT-P01-P10-2026-11-04.md). **AUT-P01 a AUT-P10 alternativas B aprovadas normativamente**, com 14 achados de revisão e oito pacotes RV-CT propostos para especificação. **P0-DOC03 e RF-PEND-01 permanecem ABERTOS, RF-PEND-04 não homologada, AGI-11-RB01 DESABILITADO.** Referências mais antigas a "AUT-Pxx pendente" nas linhas cronológicas deste índice são históricas; a ratificação posterior prevalece. RV01 não constitui nova aprovação técnica ou início de desenvolvimento.
+
 ## 1. Autoridade e regra de utilização deste índice
 
 1. O registro de uma decisão neste índice **não substitui o conteúdo integral** de sua aprovação e não comprova que o requisito foi verificado em arquivo canônico.
