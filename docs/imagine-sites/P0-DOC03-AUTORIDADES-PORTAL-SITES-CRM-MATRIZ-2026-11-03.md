@@ -53,6 +53,8 @@
 
 **AUT-P05 — APROVADA alternativa B (04/11/2026):** [decisão normativa](AUT-P05-aprovacao-alternativa-B-2026-11-04.md). Somente o CRM confirma persistência efetiva; respostas intermediárias exigem consulta ao estado oficial; novas tentativas somente quando idempotentes e anteriores a T0+432h. **AUT-P06 a AUT-P10 permanecem pendentes**; contratos técnicos não homologados e P0-DOC03 aberto.
 
+AUT-P06 foi aprovada pela alternativa B em 04/11/2026: [registro](AUT-P06-B-aprovada-2026-11-04.md). AUT-P07 a AUT-P10 pendentes.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
