@@ -1,7 +1,7 @@
 # INF-DEV-05 — Preparação da implantação segura dos backups da VPS de desenvolvimento Imagine
 
 **Data:** 04/11/2026.
-**Situação:** **PLANEJAMENTO TÉCNICO PREPARADO PARA REVISÃO, NÃO RATIFICADO NESTA ETAPA**.
+**Situação vigente:** **APROVADO COMO BASE DOCUMENTAL DE GOVERNANÇA E SEGURANÇA** pela [DEC-INF-DEV-05 — Aprovação da base de implantação segura](DEC-INF-DEV-05-APROVACAO-BASE-IMPLANTACAO-SEGURA-2026-11-04.md). **Sem autorização de contratação, criação de buckets, definição final de permissões, testes ou instalação.**
 **Origem:** direção respondeu “ok, próxima etapa” à proposta de iniciar **INF-DEV-05 — Preparação da implantação segura**, exclusivamente no planejamento.
 **Decisões anteriores (vigentes):**
 - [INF-DEV-01 — Leaseweb, VPS central de desenvolvimento](INF-DEV-01-VPS-CENTRAL-LEASEWEB-2026-11-04.md): provedora escolhida em princípio; configuração VPS 3 candidata; **sem confirmação de compra/ativação**.
@@ -124,7 +124,7 @@ Os testes são **planos futuros**, não foram executados nem têm resultado apro
 
 | Código | Decisão pendente | Status |
 |---|---|---|
-| DEV05-D01 | Ratificar buckets por projeto e bucket separado de recuperação protegida | **PROPOSTO** |
+| DEV05-D01 | Arquitetura de cinco buckets por projeto e área adicional de recuperação protegida | **APROVADA DOCUMENTALMENTE; buckets não criados** |
 | DEV05-D02 | Definir se os buckets ficarão em conta Cloudflare exclusiva de backups ou conta existente segregada | **A DEFINIR** |
 | DEV05-D03 | Definir nomes reais dos responsáveis por administração, substituição, segredos e auditoria | **A DEFINIR** |
 | DEV05-D04 | Especificar os tokens mínimos viáveis para operações reais do Restic e manutenção | **A HOMOLOGAR** |
@@ -137,9 +137,9 @@ Os testes são **planos futuros**, não foram executados nem têm resultado apro
 
 ## 10. Próximo ato solicitado
 
-Solicitar aprovação **apenas como base documental da INF-DEV-05**, especialmente o princípio de **isolamento por bucket/projeto**, separação do acesso administrativo e do mecanismo de recuperação e a matriz de homologação. Permanecem abertos os detalhes de conta, nomes, políticas exatas, permissões, custos e execução.
+**Aprovação documental concedida** pela [DEC-INF-DEV-05 — Aprovação da base de implantação segura](DEC-INF-DEV-05-APROVACAO-BASE-IMPLANTACAO-SEGURA-2026-11-04.md), incluindo cinco buckets privados por projeto e uma área protegida. Permanecem abertos os detalhes de conta, nomes, políticas exatas, permissões, custos, testes e execução.
 
-**Sem conclusão operacional:** a VPS não está comprovadamente contratada, nenhum bucket existe nesta documentação, nenhum backup foi efetuado e nenhum teste foi executado. Aprovação documental não é autorização financeira, operacional, de homologação de código ou de Gate C.
+**Sem conclusão operacional:** a VPS não está comprovadamente contratada, nenhum bucket existe nesta documentação, nenhum backup foi efetuado e nenhum teste foi executado. A aprovação documental da INF-DEV-05 não é autorização financeira, operacional, de homologação de código ou de Gate C.
 
 ## Fontes técnicas consultadas
 
