@@ -75,7 +75,7 @@ Fonte: https://developers.cloudflare.com/r2/buckets/bucket-locks/ .
 - Auditoria de operações: guardar data, identificador do projeto, resultado, tamanho, último snapshot, alertas, ação corretiva e evidência de restauração, sem copiar payloads sensíveis para logs.
 - Nenhuma prova de recuperação é declarada antes de execução real autorizada.
 
-> **Projeção financeira de 30 dias elaborada em 04/11/2026:** [INF-DEV-04 — custos R2 e controle financeiro](INF-DEV-04-DIMENSIONAMENTO-FINANCEIRO-BACKUP-R2-2026-11-04.md). Os cenários **não são medição de uso**, nem teto de orçamento, e não autorizam compra ou ativação.
+> **Planejamento financeiro aprovado documentalmente em 04/11/2026:** [INF-DEV-04 — custos R2 e controle financeiro](INF-DEV-04-DIMENSIONAMENTO-FINANCEIRO-BACKUP-R2-2026-11-04.md), conforme [DEC-INF-DEV-04](DEC-INF-DEV-04-APROVACAO-BASE-DIMENSIONAMENTO-BACKUP-R2-2026-11-04.md). Os cenários **não são medição de uso**, nem teto de orçamento, e não autorizam compra ou ativação.
 
 ## 7. Custos a dimensionar e aprovar
 
