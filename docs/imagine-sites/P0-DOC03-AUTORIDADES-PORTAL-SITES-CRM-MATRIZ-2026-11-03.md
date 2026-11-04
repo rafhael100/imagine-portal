@@ -43,6 +43,8 @@
 
 **AUT-P03 — minuta para deliberação:** [troca controlada do vínculo Site × CRM](P0-DOC03-AUT-P03-TROCA-CONTROLADA-VINCULO-CRM-PROPOSTA.md), com validação por chamado, barreira nas duas APIs, revisão e verificação final. A minuta não configura ratificação. AUT-P01 B e AUT-P02 B preservadas; AUT-P04 a AUT-P10 pendentes. 
 
+**AUT-P03 — RATIFICADA B (04/11/2026):** [registro normativo da troca controlada Site × CRM](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md). A aprovação exige chamado e equipe Imagine, validação de titularidade e direitos, barreira segura das duas APIs, nova revisão versionada, verificação do destino e nenhuma migração/redirecionamento automático. **AUT-P04 a AUT-P10 permanecem PENDENTES**; P0-DOC03 segue aberto. As linhas e observações históricas abaixo refletem a data anterior da matriz.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
