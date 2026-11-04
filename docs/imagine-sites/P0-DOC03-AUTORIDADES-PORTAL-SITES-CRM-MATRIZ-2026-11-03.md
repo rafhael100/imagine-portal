@@ -45,6 +45,8 @@
 
 **AUT-P03 — RATIFICADA B (04/11/2026):** [registro normativo da troca controlada Site × CRM](P0-DOC03-AUT-P03-RATIFICACAO-ALTERNATIVA-B-2026-11-04.md). A aprovação exige chamado e equipe Imagine, validação de titularidade e direitos, barreira segura das duas APIs, nova revisão versionada, verificação do destino e nenhuma migração/redirecionamento automático. **AUT-P04 a AUT-P10 permanecem PENDENTES**; P0-DOC03 segue aberto. As linhas e observações históricas abaixo refletem a data anterior da matriz.
 
+**AUT-P04 — PROPOSTA pendente:** [alternativas e matriz de prova de versão/aceite/publicação](P0-DOC03-AUT-P04-IDENTIDADE-VERSAO-ACEITE-ARTEFATO-PROPOSTA.md). A recomendação B **não** foi ratificada, não determina mecanismo jurídico ou tecnológico e não fecha P0-DOC03. AUT-P01/02/03 B aprovadas; AUT-P05 a AUT-P10 pendentes.
+
 ## 3. Pendências P0 concretas (não resolvidas por esta matriz)
 
 | ID | Pergunta de fechamento técnico/documental | Evidência futura necessária |
