@@ -74,6 +74,8 @@
 
 **Desdobramento RV-CT01 (04/11/2026):** [minuta para deliberação sobre identidade, vínculo e autorização Site×CRM](P0-DOC03-RV-CT01-IDENTIDADE-VINCULO-AUTORIZACAO-SITE-CRM-PROPOSTA-2026-11-04.md), com alternativa B recomendada, ainda não ratificada. Não substitui a matriz desta revisão e não fecha P0-DOC03.
 
+**Atualização normativa RV-CT01 (04/11/2026):** [alternativa B aprovada como diretriz documental](P0-DOC03-RV-CT01-B-APROVADA-2026-11-04.md). Fonte versionada, validação independente das duas APIs e barreira segura de revogação. **O contrato técnico RV-CT01 não está homologado nem encerrado; RV-CT02 a RV-CT08 permanecem pendentes.** A minuta anterior é histórica.
+
 ## 5. Contratos e evidências a preparar — propostas de trabalho, NÃO homologadas
 
 Usar códigos **RV-CT** somente para agrupar o trabalho desta revisão. Não substituem nem renumeram contratos `CT-03/CT-04` da arquitetura INT.
