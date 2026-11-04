@@ -1,5 +1,7 @@
 # RV-CT01 — Identidade e autorização Site × CRM
 
+> **DECISÃO POSTERIOR (04/11/2026):** alternativa B aprovada como diretriz técnica documental. Ver [registro normativo RV-CT01 B](P0-DOC03-RV-CT01-B-APROVADA-2026-11-04.md). Esta minuta preserva as alternativas em seu estado anterior à aprovação. Contratos técnicos e homologação continuam pendentes.
+
 **Estado: PROPOSTA PENDENTE DE APROVAÇÃO.** Apenas planejamento, 04/11/2026.
 
 **Referências vigentes:** AUT-P01/P02/P03/P06, alternativas B; IN127-R01–R06 (R02=A; 432h); IN-122/123/124; [consolidação RV01](P0-DOC03-RV01-CONSOLIDACAO-AUT-P01-P10-2026-11-04.md).
