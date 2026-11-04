@@ -72,6 +72,8 @@ Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo
 
 **AUT-P06 — B aprovada (04/11/2026):** [registro normativo](AUT-P06-B-aprovada-2026-11-04.md). T0/destino originais, autorização específica do backlog e limite 432h. AUT-P07–P10 pendentes; P0-DOC03 aberto.
 
+**AUT-P07 — PROPOSTA PENDENTE:** [prova de descarte nas duas APIs, filas e backups](P0-DOC03-AUT-P07-COMPROVACAO-DESCARTE-APIS-FILAS-BACKUPS-PROPOSTA.md); alternativa B recomendada, ainda **não ratificada**. AUT-P01–P06 B já aprovadas; AUT-P08–P10 pendentes. Não altera IN127-R01 a R06; P0-DOC03 permanece aberto.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
