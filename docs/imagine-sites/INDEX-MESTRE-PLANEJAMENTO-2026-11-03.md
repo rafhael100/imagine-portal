@@ -46,6 +46,14 @@ Foi localizado o documento histórico de **Produção Inteligente v0.2** na bran
 
 **Status:** recuperação documental PARCIAL; RF-PEND-01 e P0-DOC02 continuam abertos.
 
+## 3.2. P0-DOC03 — Autoridades entre sistemas
+
+Confronto inicial, com fontes e hashes, dos responsáveis por contrato, vínculo CRM, T0, resultado de entrega, aceite, publicação, estado de pagamento e aprovações críticas. Atribuições lógicas conhecidas **não equivalem a contratos executáveis nem aprovação da solução**.
+
+- [P0-DOC03 — Matriz de autoridades e 10 lacunas concretas](P0-DOC03-AUTORIDADES-PORTAL-SITES-CRM-MATRIZ-2026-11-03.md)
+
+**Status:** especificação parcial; **P0-DOC03 permanece ABERTO**.
+
 ## 4. Mapa dos blocos de planejamento
 
 | Bloco | Fontes conhecidas | Estado de cobertura | Próxima atividade |
