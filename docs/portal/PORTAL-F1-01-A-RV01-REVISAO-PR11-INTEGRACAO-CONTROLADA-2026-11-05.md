@@ -1,6 +1,9 @@
 # PORTAL-F1-01-A-RV01 — Revisão técnica e destino de integração do PR #11
 
 **Data:** 05/11/2026  
+
+> **ATUALIZAÇÃO SUPERVENIENTE (05/11/2026):** o responsável aprovou **somente F1-01-B-A** como programação controlada, com branch filha da fundação existente e PR draft destinado à branch de desenvolvimento, **sem merge**. Ver [decisão B-A](PORTAL-F1-01-B-DEC-01-APROVACAO-PROGRAMACAO-CONTROLADA-2026-11-05.md). O recorte técnico de derivação B-A **não implica aprovação geral de INT-A para integração** do PR #11, nem autoriza alteração da `main`.
+
 **Situação:** **REVISÃO DOCUMENTAL/TÉCNICA CONCLUÍDA; PROPOSTA DE GOVERNANÇA DE INTEGRAÇÃO — NÃO HÁ AUTORIZAÇÃO DE MERGE**.  
 **Escopo da autorização atual:** analisar a etapa seguinte e preparar F1-01-B; "vamos para o próximo passo" não revoga restrições anteriores de `main`/deploy nem autoriza programação indistinta de F1-01-B.
 
