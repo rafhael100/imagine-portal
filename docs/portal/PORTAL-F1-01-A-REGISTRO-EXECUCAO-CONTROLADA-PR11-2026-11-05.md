@@ -4,6 +4,8 @@
 **Escopo explicitamente autorizado:** F1-01-A, conforme resposta “ok pode avançar” à solicitação para criar fundação Laravel em branch isolada, executar testes locais possíveis e preparar PR sem deploy, pagamentos, CRM ou alterações na main.  
 **Status:** **IMPLEMENTAÇÃO INICIAL COM PR DRAFT; REVISÃO/TESTES DO FRAMEWORK PENDENTES. Não homologada e não integrada à main.**
 
+> **ATUALIZAÇÃO SUPERVENIENTE EM 05/11/2026:** os testes que estavam pendentes foram realizados e **PASSARAM em PHP 8.3 e PHP 8.4** (2 testes/5 asserções por ambiente) após correção de dependência, com `composer.lock` versionado e auditoria Composer sem alertas na data. A implementação continua **PR draft e não integrada**, sem banco real ou deploy. [Relatório final da validação](PORTAL-F1-01-A-RELATORIO-VALIDACAO-CI-LOCKFILE-2026-11-05.md) prevalece sobre os registros históricos de pendência de testes abaixo.
+
 ## 1. Registros GitHub verificados
 
 - Repositório: `rafhael100/imagine-portal`.
