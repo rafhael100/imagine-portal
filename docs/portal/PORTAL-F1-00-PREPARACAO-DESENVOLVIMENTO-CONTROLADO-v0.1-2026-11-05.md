@@ -11,6 +11,8 @@
 
 > **Atualização documental 05/11/2026 — F1-01 preparada, NÃO autorizada para codificação:** [pacote da fundação técnica F1-01 v0.1](PORTAL-F1-01-FUNDACAO-TECNICA-ESCOPO-CONTROLADO-PREPARACAO-v0.1-2026-11-05.md). Primeiro recorte sugerido (**F1-01-A**) limita-se a um scaffold Laravel isolado, configuração de exemplo sem segredos e testes locais somente após autorização específica. **Nenhum código, PR de implementação, VPS, banco real, merge ou deploy autorizado.** A sequência F1-02+ e as demais subfases não são liberadas.
 
+> **EXECUÇÃO CONTROLADA F1-01-A (05/11/2026):** autorização específica concedida posteriormente para **somente o scaffold Laravel isolado**, implementado sob `apps/portal/` na branch `dev/fast-track-portal-2026-11-05`; [PR de código #11 em draft](https://github.com/rafhael100/imagine-portal/pull/11) e [registro documental de execução](PORTAL-F1-01-A-REGISTRO-EXECUCAO-CONTROLADA-PR11-2026-11-05.md). Este registro **não** libera F1-01-B/C, F1-02+, merge na main, testes não executados, produção ou fechamentos P0. Avisos anteriores de “F1-01-A não autorizada” devem ser lidos conforme a sequência temporal de decisões.
+
 ## 1. Finalidade, regra de precedência e recorte
 
 Preparar o próximo passo do Portal: inventariar o legado, propor uma sequência F1 inicial e tornar explícitas as decisões/gates que o responsável deverá aprovar **antes de solicitar programação ao Codex**. A orientação expressa mais recente do responsável foi prosseguir para o próximo passo PORTAL-F1-00, não autorizar indistintamente toda a engenharia.
