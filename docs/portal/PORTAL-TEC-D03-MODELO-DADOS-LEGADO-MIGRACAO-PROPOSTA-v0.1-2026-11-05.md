@@ -6,6 +6,8 @@
 **Base:** `rafhael100/imagine-portal`, `main` em `50b683a499e674641df5749051f3d05f7ac3f627` (referência consultada).  
 **Branch de trabalho:** `docs/portal-f1-00-2026-11-05`. Somente documentação; `main`, VPS e dados permanecem intactos.
 
+> **Atualização normativa em 05/11/2026:** o responsável respondeu **“sim”** às três deliberações da seção 7: **D03-MIG-B aprovada**, **modelo lógico direcional aprovado** e **migração de dados reais condicionada a inventário, proteção, reconciliação e autorização específica**. Ver [registro formal de aprovação D03](PORTAL-TEC-D03-APROVACAO-D03-MIG-B-MODELO-LOGICO-2026-11-05.md). As expressões “proposta/não ratificada” e perguntas no corpo abaixo registram o estado **anterior** à ratificação; não encerram desenho físico, segurança ou liberação de código.
+
 ## 1. Objetivo e decisões que limitam o desenho
 
 Preparar a transição do legado Node.js/SQLite (0.18.2) para a **arquitetura Laravel + PostgreSQL já aprovada em PORTAL-TEC-D01**, sem tratar código legado como decisão normativa. Respeitar **logins humanos independentes do Portal e do CRM**, conforme PORTAL-TEC-D02. O Portal é autoridade de contratos, pedidos e elegibilidade comercial de benefícios; o CRM é autoridade de seus próprios usuários, assinaturas, leads e operações. As APIs técnicas autenticadas entre serviços não geram login único.
@@ -129,4 +131,4 @@ Sem afirmar que existe produção ativa, nem que não existe. **Nenhuma fase M3�
 - [Política comercial vigente no CRM](https://github.com/rafhael100/imagine-crm/blob/main/docs/planejamento/PORTAL-COM-POLITICA-VIGENTE-PIX-05-CARTAO-3X-2026-11-03.md)
 - Código legado na `main`: `server/store.mjs`, `server/account.mjs`, `server/clients.mjs`, `server/team.mjs`, `server/briefing.mjs`, `server/production.mjs`, `server/order-ops.mjs`, `server/fiscal.mjs`, `server/recurring-billing.mjs`, `tests/`.
 
-**Situação final:** proposta técnica documental preparada para apreciação. **Não iniciar o Codex antes de aprovação expressa do recorte F1-01.**
+**Situação atualizada em 05/11/2026:** D03-MIG-B e modelo lógico direcional **aprovados documentalmente** com migração real sujeita a autorização específica; **não iniciar o Codex antes de aprovação expressa do recorte F1-01**. Detalhes físicos e gates P0 continuam abertos.
