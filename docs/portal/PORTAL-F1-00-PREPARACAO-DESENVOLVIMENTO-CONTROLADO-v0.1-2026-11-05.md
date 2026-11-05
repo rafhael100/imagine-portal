@@ -7,6 +7,8 @@
 **Estado:** **PACOTE DE PREPARAÇÃO / PROPOSTA PARA DELIBERAÇÃO**. A criação deste documento não fecha gates, não aprova arquitetura nova, não concede autorização de programação/testes e não altera as decisões do Imagine Sites ou CRM Imagine.  
 **Branch documental:** `docs/portal-f1-00-2026-11-05`. Nenhum merge na `main` por este instrumento.
 
+> **Atualização normativa em 05/11/2026:** PORTAL-TEC-D01 **alternativa B (Laravel + PostgreSQL) aprovada expressamente** pelo responsável. Aplicação e banco do Portal continuam independentes do CRM. [Registro da decisão](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). Esta atualização altera apenas o estado da D01; D02–D04 e gates de programação/integrações permanecem abertos.
+
 ## 1. Finalidade, regra de precedência e recorte
 
 Preparar o próximo passo do Portal: inventariar o legado, propor uma sequência F1 inicial e tornar explícitas as decisões/gates que o responsável deverá aprovar **antes de solicitar programação ao Codex**. A orientação expressa mais recente do responsável foi prosseguir para o próximo passo PORTAL-F1-00, não autorizar indistintamente toda a engenharia.
@@ -68,7 +70,7 @@ Referências normativas centrais:
 - **A — Evolução controlada de Node.js**, substituindo gradualmente o SQLite por persistência e controles multiempresa adequados. Vantagem: maior aproveitamento inicial do legado; risco: exigir extensa refatoração de modelo, autenticação e finanças.
 - **B — Backend Laravel + PostgreSQL**, com aplicação e banco próprios do Portal; recuperar apenas regras, componentes de interface e testes úteis do legado. Vantagem: convergência de conhecimento e ferramentas com o CRM sem compartilhar banco; risco: maior esforço de migração e adaptação.
 - **Não recomendado:** manter o legado Node/SQLite monolítico e suas regras comerciais como solução final sem revisão.
-- **Critério de escolha:** custo de migração, equipe, manutenção, isolamento, autenticação, transações e entrega incremental; nenhuma escolha homologada nesta v0.1.
+- **Decisão posterior, em 05/11/2026:** **alternativa B aprovada expressamente**, nos limites registrados em [PORTAL-TEC-D01](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). A comparação de alternativas acima permanece como histórico anterior à aprovação; não reabrir D01 sem nova deliberação específica.
 
 ### PORTAL-TEC-D02 — Identidade e acesso entre Portal e CRM
 
@@ -101,7 +103,7 @@ Fase inicial constrói **catálogo e contratos versionados sem cobrança real**.
 | Gate | Estado na data deste documento | Consequência |
 |---|---|---|
 | G-00 — registro/revisão do pacote PORTAL-F1-00 | Preparado como proposta v0.1 | Aprovação expressa ainda pendente |
-| G-01 — arquitetura técnica D01 e identidade D02 | **ABERTO** | Não escolher stack, IAM/SSO ou migração de fato |
+| G-01 — arquitetura técnica D01 e identidade D02 | **PARCIAL** — D01 B aprovada; D02 aberta | Stack Laravel/PostgreSQL decidida; IAM/SSO e migração ainda exigem decisão específica |
 | G-02 — inventário legado, estratégia de compatibilidade e dados | **PARCIAL** | Não reescrever nem migrar com base em suposição |
 | G-03 — recorte F1-01 e critérios de teste/aceite | **PROPOSTA** | Não instruir Codex a criar PR de código antes de autorização específica |
 | G-04 — segurança multiempresa, segredos e MFA | **ABERTO** | Não ativar acesso multiempresa real |
@@ -114,7 +116,7 @@ Os P0-DOC01–P0-DOC14 do Imagine Sites **continuam com o estado registrado** em
 
 ## 8. Critérios documentais para liberar **somente F1-01** no futuro
 
-1. Aprovar por escrito a alternativa técnica D01 e o limite de responsabilidade de D02 (ou autorizar especificamente um diagnóstico read-only independente da decisão).
+1. **D01 já aprovada na alternativa B**; detalhar D02 (identidades, autenticação e limites de responsabilidade) ou autorizar especificamente apenas diagnóstico read-only independente da decisão D02.
 2. Congelar o escopo permitido da F1-01, arquivos-alvo, exclusões, dependências e riscos.
 3. Confirmar que `main` permanece imutável; criar **apenas após autorização** uma branch de código como `dev/fast-track-portal-2026-11-05`, partindo de SHA conferido.
 4. Comprovar que cada PR terá descrição de escopo, evidências de testes de software somente no momento permitido, diffs, SHA e revisão humana; **sem merge automático**.
@@ -127,4 +129,4 @@ Os P0-DOC01–P0-DOC14 do Imagine Sites **continuam com o estado registrado** em
 
 **PORTAL-F1-00-DEC-01 (a deliberar):** direção analisa esta minuta, escolhe a estratégia de backend/identidade ou autoriza exclusivamente um diagnóstico documental mais detalhado. Em seguida será preparado instrumento separado para autorização da **F1-01**, com compromisso claro de branch, testes, não implantação e gates.
 
-**Status final desta v0.1:** pacote de preparação redigido; **P0 do Sites/Portal/CRM e execução ainda abertos; código e produção não foram alterados**.
+**Status atualizado em 05/11/2026:** pacote de preparação redigido e D01 alternativa B aprovada; **P0 do Sites/Portal/CRM, D02–D04 e autorização de execução ainda abertos; código e produção não foram alterados**.
