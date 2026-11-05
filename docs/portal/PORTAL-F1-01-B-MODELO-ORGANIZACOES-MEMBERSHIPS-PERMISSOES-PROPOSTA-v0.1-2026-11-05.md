@@ -1,6 +1,9 @@
 # PORTAL-F1-01-B — Estrutura de organizações, usuários, vínculos e permissões (proposta v0.1)
 
 **Data:** 05/11/2026  
+
+> **APROVAÇÃO POSTERIOR (05/11/2026):** o responsável respondeu **“ok aprovado”** à proposta de **programação controlada exclusivamente F1-01-B-A**. Registro: [PORTAL-F1-01-B-DEC-01](PORTAL-F1-01-B-DEC-01-APROVACAO-PROGRAMACAO-CONTROLADA-2026-11-05.md). Ordem autorizada para uso no Codex: [PORTAL-F1-01-B-A-TAREFA-CODEX](PORTAL-F1-01-B-A-TAREFA-CODEX-APROVADA-2026-11-05.md). **B-B/B-C e merge continuam NÃO autorizados.** As expressões “proposta/não aprovada” abaixo refletem o estado **anterior** à decisão; **execução ainda não comprovada**. Issue de encaminhamento: [#12](https://github.com/rafhael100/imagine-portal/issues/12).
+
 **Projeto:** Portal Imagine — novo Laravel/PostgreSQL  
 **Status:** **PROPOSTA DOCUMENTAL PARA DELIBERAÇÃO — F1-01-B NÃO AUTORIZADA PARA PROGRAMAR, TESTAR OU FAZER MERGE**.  
 **Base técnica:** [F1-01-A revisada](PORTAL-F1-01-A-RV01-REVISAO-PR11-INTEGRACAO-CONTROLADA-2026-11-05.md), código no [PR #11](https://github.com/rafhael100/imagine-portal/pull/11), head `098cdfd50024ea872861f3ba3a058409e5f976b7`; `main` permanece isolada.  
