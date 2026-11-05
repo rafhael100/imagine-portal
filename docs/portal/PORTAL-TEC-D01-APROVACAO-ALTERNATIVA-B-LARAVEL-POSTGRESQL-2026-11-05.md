@@ -28,7 +28,7 @@ A padronização Laravel/PostgreSQL com o CRM é tecnológica; **não** autoriza
 ## 3. Consequências técnicas a especificar antes do código
 
 1. Modelo de organizações, clientes, contratos, usuários, perfis, permissões e isolamento lógico/físico do Portal.
-2. **PORTAL-TEC-D02:** identidade, MFA, sessões, recuperação, convites e integração de acesso com o CRM (evitar login duplicado na UX sem confundir autoridades); definir fronteiras de autenticação/autorização.
+2. **PORTAL-TEC-D02:** diretriz posterior de **logins e sessões independentes** para Portal e CRM, sem SSO entre eles nesta versão, [aprovada expressamente](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md). Ainda especificar identidade, MFA, sessões, recuperação, convites, RBAC e autenticação de serviços sem misturar credenciais humanas.
 3. **PORTAL-TEC-D03:** inventário de dados legados e decisão de migração, preservação de comprovantes e contratos históricos, com homologação própria.
 4. Contratos de API/eventos entre Portal, Sites e CRM; garantir que captação de leads não dependa do painel Portal.
 5. Backups/recuperação, segredos, observabilidade e custo final por ambiente.
@@ -53,3 +53,5 @@ A padronização Laravel/PostgreSQL com o CRM é tecnológica; **não** autoriza
 - [P0-ARQ-01 — fronteiras CRM/Portal/Sites no CRM](https://github.com/rafhael100/imagine-crm/blob/main/docs/planejamento/P0-ARQ-01-topologia-fronteiras-plano-fechamento.md).
 
 **Próximo passo documental proposto:** elaborar PORTAL-TEC-D02 (identidades, sessão, MFA e SSO eventual) preservando o escopo da decisão D01.
+
+> **Atualização normativa (05/11/2026):** a alternativa B desta D01 permanece aprovada. A decisão posterior [D02](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md) estabelece logins humanos **independentes** para Portal e CRM. Não interpretar a referência histórica a SSO ou UX como aprovação de login único.
