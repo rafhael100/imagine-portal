@@ -6,6 +6,8 @@
 **Base:** `rafhael100/imagine-portal`, `main` em `50b683a499e674641df5749051f3d05f7ac3f627` (referência consultada).  
 **Branch de trabalho:** `docs/portal-f1-00-2026-11-05`. Somente documentação; `main`, VPS e dados permanecem intactos.
 
+> **RETIFICAÇÃO DE ESCOPO POSTERIOR (05/11/2026):** o responsável esclareceu que o legado é **protótipo em desenvolvimento, com dados de teste**. Priorizar **ideias de negócio e fluxos**, e **não** prever migração do SQLite ou uso obrigatório do código anterior. [D03-R02 — diretriz superveniente](PORTAL-TEC-D03-R02-LEGADO-PROTOTIPO-FLUXOS-NEGOCIO-DADOS-TESTE-2026-11-05.md). As descrições de migração hipotética abaixo são material histórico/contingente, não etapa necessária por padrão. D03-MIG-B já foi ratificada documentalmente.
+
 > **Atualização normativa em 05/11/2026:** o responsável respondeu **“sim”** às três deliberações da seção 7: **D03-MIG-B aprovada**, **modelo lógico direcional aprovado** e **migração de dados reais condicionada a inventário, proteção, reconciliação e autorização específica**. Ver [registro formal de aprovação D03](PORTAL-TEC-D03-APROVACAO-D03-MIG-B-MODELO-LOGICO-2026-11-05.md). As expressões “proposta/não ratificada” e perguntas no corpo abaixo registram o estado **anterior** à ratificação; não encerram desenho físico, segurança ou liberação de código.
 
 ## 1. Objetivo e decisões que limitam o desenho
