@@ -1,0 +1,93 @@
+name: Validacao isolada Laravel F1-01-A
+
+# Pipeline somente de leitura/validacao. Nao faz merge, deploy, migrations ou escrita em repositorios.
+on:
+  push:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+    paths:
+      - 'apps/portal/**'
+      - '.github/workflows/laravel-f1-01-a.yml'
+  pull_request:
+    paths:
+      - 'apps/portal/**'
+      - '.github/workflows/laravel-f1-01-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: laravel-f1-01-a-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validar:
+    name: Laravel / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - name: Checkout isolado
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: PHP e extensoes para teste
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Versoes de PHP e Composer
+        run: |
+          php --version
+          composer --version
+          php -m
+
+      - name: Validar definicao Composer
+        run: composer validate --no-check-publish --strict
+
+      - name: Resolver dependencias e gerar lock apenas para auditoria
+        run: composer update --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Conferir lock gerado na execucao
+        run: |
+          test -s composer.lock
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          composer dump-autoload --no-interaction --no-scripts
+
+      - name: Sintaxe dos arquivos PHP
+        run: |
+          php -l artisan
+          find app bootstrap config routes tests public -type f -name '*.php' -print0 | xargs -0 -n 1 php -l
+
+      - name: Gerar chave descartavel somente no runner
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+
+      - name: Confirmar apenas rota de saude
+        run: php artisan route:list --path=up --no-ansi
+
+      - name: Testes Laravel sem banco ou servicos externos
+        run: php artisan test --no-ansi
+
+      - name: Arquivar lock temporario para revisao
+        if: matrix.php == '8.3' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock-f1-01-a-php83
+          path: apps/portal/composer.lock
+          if-no-files-found: ignore
+          retention-days: 7
