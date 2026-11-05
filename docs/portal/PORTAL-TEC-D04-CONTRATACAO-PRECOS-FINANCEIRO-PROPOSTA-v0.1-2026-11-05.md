@@ -6,6 +6,8 @@
 **Cuidado com nomes:** esta **PORTAL-TEC-D04** trata da arquitetura de todo o domínio comercial e financeiro inicial. A histórica **PORTAL-D04**, no repositório CRM, trata de *cobranças recorrentes de sites* e mantém pendências; **não são o mesmo instrumento**.
 **Limites:** sem código, testes, cobrança, contratação de PSP, simulação conectada a provedores, produção, merge ou alteração de dados. F1-01 ainda depende de autorização expressa.
 
+> **APROVAÇÃO POSTERIOR — 05/11/2026:** o responsável respondeu **“ok”** à pergunta expressa pela **D04-FASE-A**, ratificando **somente o recorte direcional de catálogo, cálculo determinístico de ofertas, condições e contratos simulados, sem PSP e sem efeitos reais**. Ver [registro D04-FASE-A](PORTAL-TEC-D04-APROVACAO-FASE-A-CATALOGO-OFERTAS-SIMULADAS-2026-11-05.md). O sistema anterior é protótipo com **dados de teste**; reutilizar principalmente os fluxos de negócio, como fixado em [D03-R02](PORTAL-TEC-D03-R02-LEGADO-PROTOTIPO-FLUXOS-NEGOCIO-DADOS-TESTE-2026-11-05.md). As menções a “proposto/não aprovado” no corpo abaixo descrevem o estado **anterior** à aprovação; D04-FASE-B/C e programação seguem abertas.
+
 ## 1. Fontes e precedência
 
 A política mais recente de **5%** substitui números históricos de **20%** (Pix implantação), **10%** (Pix Automático), **cartão em 4×** e **Pix parcelado**. Referências documentadas:
