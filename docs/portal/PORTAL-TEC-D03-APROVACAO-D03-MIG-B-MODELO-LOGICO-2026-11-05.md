@@ -5,6 +5,8 @@
 **Origem:** o responsável respondeu **“sim”** à pergunta expressa para aprovar **D03-MIG-B**, o modelo lógico direcional apresentado em PORTAL-TEC-D03 v0.1 e a condição de autorização específica para migrar dados reais.
 **Escopo:** novo Portal Imagine com backend Laravel + PostgreSQL, logins independentes do CRM e preservação dos contratos/histórico.
 
+> **ESCLARECIMENTO POSTERIOR — 05/11/2026:** o responsável confirmou que o Portal anterior era **somente um protótipo em desenvolvimento**, com dados exclusivamente de teste. **Reaproveitar sobretudo a estrutura de negócio e as ideias de fluxo; não planejar migração automática do banco antigo nem reaproveitamento obrigatório de código.** Ver [D03-R02](PORTAL-TEC-D03-R02-LEGADO-PROTOTIPO-FLUXOS-NEGOCIO-DADOS-TESTE-2026-11-05.md). A condição de inventário mínimo antes de eventual descarte irreversível é precaução, não afirmação de dados reais.
+
 ## 1. Decisão ratificada
 
 1. **D03-MIG-B APROVADA:** criar futuramente novo backend Laravel + PostgreSQL, reaproveitando **seletivamente** regras de negócio ainda válidas, componentes compatíveis da interface e testes relevantes do legado Node.js/SQLite. Não portar automaticamente o schema ou as regras financeiras históricas.
