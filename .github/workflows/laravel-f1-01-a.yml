@@ -1,6 +1,6 @@
 name: Validacao isolada Laravel F1-01-A
 
-# Pipeline somente de leitura/validacao. Nao faz merge, deploy, migrations ou escrita em repositorios.
+# Pipeline somente de leitura/validacao com lockfile versionado. Nao faz merge, deploy, migrations ou escrita em repositorios.
 on:
   push:
     branches:
@@ -36,7 +36,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout isolado
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -54,18 +54,19 @@ jobs:
           composer --version
           php -m
 
-      - name: Validar definicao Composer
-        run: composer validate --no-check-publish --strict
-
-      - name: Resolver dependencias e gerar lock apenas para auditoria
-        run: composer update --no-interaction --no-progress --prefer-dist --no-scripts
-
-      - name: Conferir lock gerado na execucao
+      - name: Validar composer.json e lockfile versionado
         run: |
           test -s composer.lock
           composer validate --no-check-publish --strict
-          composer install --no-interaction --no-progress --prefer-dist --no-scripts
-          composer dump-autoload --no-interaction --no-scripts
+
+      - name: Instalar exclusivamente dependencias fixadas no lockfile
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+
+      - name: Auditar dependencias versionadas
+        run: composer audit --locked --no-interaction --format=summary
 
       - name: Sintaxe dos arquivos PHP
         run: |
@@ -83,9 +84,9 @@ jobs:
       - name: Testes Laravel sem banco ou servicos externos
         run: php artisan test --no-ansi
 
-      - name: Arquivar lock temporario para revisao
+      - name: Arquivar copia de evidencia do lock versionado
         if: matrix.php == '8.3' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: composer-lock-f1-01-a-php83
           path: apps/portal/composer.lock
