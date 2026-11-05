@@ -7,7 +7,7 @@
 **Estado:** **PACOTE DE PREPARAÇÃO / PROPOSTA PARA DELIBERAÇÃO**. A criação deste documento não fecha gates, não aprova arquitetura nova, não concede autorização de programação/testes e não altera as decisões do Imagine Sites ou CRM Imagine.  
 **Branch documental:** `docs/portal-f1-00-2026-11-05`. Nenhum merge na `main` por este instrumento.
 
-> **Atualização normativa em 05/11/2026:** PORTAL-TEC-D01 **alternativa B (Laravel + PostgreSQL) aprovada expressamente** pelo responsável. Aplicação e banco do Portal continuam independentes do CRM. [Registro da decisão](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). Esta atualização aprovou D01; D03–D04 e gates de programação/integrações permanecem abertos. **Atualização adicional de 05/11/2026:** D02 recebeu aprovação funcional para **logins independentes Portal × CRM, sem SSO entre eles nesta versão**; integração de identidade com Universidade Imagine e Performance AI fica apenas para avaliação futura, sem aprovação de SSO. [Decisão D02](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md). O detalhamento técnico de MFA, RBAC, organizações, recuperação e autenticação servidor a servidor continua aberto.
+> **Atualização normativa em 05/11/2026:** PORTAL-TEC-D01 **alternativa B (Laravel + PostgreSQL) aprovada expressamente** pelo responsável. Aplicação e banco do Portal continuam independentes do CRM. [Registro da decisão](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). Esta atualização aprovou D01; D03–D04 e gates de programação/integrações permanecem abertos. **Atualização adicional de 05/11/2026:** D02 recebeu aprovação funcional para **logins independentes Portal × CRM, sem SSO entre eles nesta versão**; integração de identidade com Universidade Imagine e Performance AI fica apenas para avaliação futura, sem aprovação de SSO. [Decisão D02](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md). O detalhamento técnico de MFA, RBAC, organizações, recuperação e autenticação servidor a servidor continua aberto. **PORTAL-TEC-D03 v0.1 preparada em 05/11/2026** como **proposta ainda não aprovada**, com modelo lógico multiempresa, inventário de legado e opção D03-MIG-B recomendada. [Proposta D03](PORTAL-TEC-D03-MODELO-DADOS-LEGADO-MIGRACAO-PROPOSTA-v0.1-2026-11-05.md).
 
 ## 1. Finalidade, regra de precedência e recorte
 
@@ -80,7 +80,9 @@ Referências normativas centrais:
 
 ### PORTAL-TEC-D03 — Persistência e migração do legado
 
-Definir se há dados reais no legado e quais contratos/versões devem ser preservados; formalizar plano de migração **antes** de modificar schema. Se não houver dados reais, não inventar legado operacional. Backups e rollback requerem política aprovada, com restauração testável em fase própria.
+**Proposta documental v0.1 preparada, pendente de aprovação:** [modelo lógico, inventário do código legado e estratégia de migração](PORTAL-TEC-D03-MODELO-DADOS-LEGADO-MIGRACAO-PROPOSTA-v0.1-2026-11-05.md).
+
+A opção **D03-MIG-B** é **recomendada, não aprovada**: backend Laravel/PostgreSQL novo, reaproveitamento seletivo de interface/regras/testes compatíveis e migração protegida apenas se houver dados reais confirmados e autorização futura. Não se assume que o legado esteja vazio. Antes de alterar esquema, inventariar contratos/usuários/pagamentos/arquivos e produzir mapeamento de origem–destino, proteção e reconciliação.
 
 ### PORTAL-TEC-D04 — Recorte comercial/financeiro inicial
 
@@ -106,7 +108,7 @@ Fase inicial constrói **catálogo e contratos versionados sem cobrança real**.
 |---|---|---|
 | G-00 — registro/revisão do pacote PORTAL-F1-00 | Preparado como proposta v0.1 | Aprovação expressa ainda pendente |
 | G-01 — arquitetura técnica D01 e identidade D02 | **PARCIAL** — D01 B aprovada; D02 logins independentes aprovados, detalhamento aberto | Stack Laravel/PostgreSQL; sem SSO Portal–CRM; MFA/RBAC/contas de serviço e migração ainda pendentes |
-| G-02 — inventário legado, estratégia de compatibilidade e dados | **PARCIAL** | Não reescrever nem migrar com base em suposição |
+| G-02 — inventário legado, estratégia de compatibilidade e dados | **PARCIAL — D03 proposta v0.1** | D03-MIG-B e modelo lógico aguardam aprovação; inventário operacional e migração não realizados |
 | G-03 — recorte F1-01 e critérios de teste/aceite | **PROPOSTA** | Não instruir Codex a criar PR de código antes de autorização específica |
 | G-04 — segurança multiempresa, segredos e MFA | **ABERTO** | Não ativar acesso multiempresa real |
 | G-05 — interfaces e autoridades Portal × Sites × CRM | **ABERTO** | P0-DOC03 e contratos RV-CT relevantes permanecem abertos |
@@ -131,4 +133,4 @@ Os P0-DOC01–P0-DOC14 do Imagine Sites **continuam com o estado registrado** em
 
 **PORTAL-F1-00-DEC-01 (a deliberar):** direção analisa esta minuta, escolhe a estratégia de backend/identidade ou autoriza exclusivamente um diagnóstico documental mais detalhado. Em seguida será preparado instrumento separado para autorização da **F1-01**, com compromisso claro de branch, testes, não implantação e gates.
 
-**Status atualizado em 05/11/2026:** pacote de preparação redigido, D01 alternativa B aprovada e **D02 independência de login aprovada**; **P0 de Sites/Portal/CRM, detalhes técnicos D02, D03–D04 e autorização de execução permanecem abertos; código e produção não foram alterados**.
+**Status atualizado em 05/11/2026:** pacote de preparação redigido, D01 alternativa B aprovada, **D02 independência de login aprovada** e **D03 proposta v0.1 redigida (não ratificada)**; **P0 de Sites/Portal/CRM, detalhes técnicos D02, D03–D04 e autorização de execução permanecem abertos; código e produção não foram alterados**.
