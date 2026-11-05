@@ -1,6 +1,9 @@
 # PORTAL-F1-01 — Fundação técnica isolada do novo Portal Imagine — pacote de preparação v0.1
 
 **Data:** 05/11/2026  
+
+> **ATUALIZAÇÃO SUPERVENIENTE — 05/11/2026:** o responsável **AUTORIZOU EXPRESSAMENTE somente a implementação F1-01-A** com a resposta “ok pode avançar”. Foi criada a branch isolada `dev/fast-track-portal-2026-11-05` e o [PR #11 de código em draft](https://github.com/rafhael100/imagine-portal/pull/11), HEAD `03cb6297e3880e8665289fe20730d43900e17f95`. O novo scaffold está em `apps/portal/`; 37 arquivos alterados exclusivamente nesse prefixo; testes Laravel completos continuam **PENDENTES** (Composer/extensões não disponíveis neste ambiente). O [registro da execução](PORTAL-F1-01-A-REGISTRO-EXECUCAO-CONTROLADA-PR11-2026-11-05.md) prevalece sobre menções históricas de “não autorizada” para **F1-01-A somente**. F1-01-B/C, F1-02+, merge, produção e P0 seguem sem autorização.
+
 **Projeto:** Portal Imagine  
 **Fase:** PORTAL-F1-01 (candidata à primeira implementação controlada)  
 **Estado:** **PLANEJAMENTO TÉCNICO DOCUMENTAL PREPARADO; NÃO APROVADO PARA PROGRAMAR OU TESTAR**  
