@@ -7,7 +7,7 @@
 **Estado:** **PACOTE DE PREPARAÇÃO / PROPOSTA PARA DELIBERAÇÃO**. A criação deste documento não fecha gates, não aprova arquitetura nova, não concede autorização de programação/testes e não altera as decisões do Imagine Sites ou CRM Imagine.  
 **Branch documental:** `docs/portal-f1-00-2026-11-05`. Nenhum merge na `main` por este instrumento.
 
-> **Atualização normativa em 05/11/2026:** PORTAL-TEC-D01 **alternativa B (Laravel + PostgreSQL) aprovada expressamente** pelo responsável. Aplicação e banco do Portal continuam independentes do CRM. [Registro da decisão](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). Esta atualização altera apenas o estado da D01; D02–D04 e gates de programação/integrações permanecem abertos.
+> **Atualização normativa em 05/11/2026:** PORTAL-TEC-D01 **alternativa B (Laravel + PostgreSQL) aprovada expressamente** pelo responsável. Aplicação e banco do Portal continuam independentes do CRM. [Registro da decisão](PORTAL-TEC-D01-APROVACAO-ALTERNATIVA-B-LARAVEL-POSTGRESQL-2026-11-05.md). Esta atualização aprovou D01; D03–D04 e gates de programação/integrações permanecem abertos. **Atualização adicional de 05/11/2026:** D02 recebeu aprovação funcional para **logins independentes Portal × CRM, sem SSO entre eles nesta versão**; integração de identidade com Universidade Imagine e Performance AI fica apenas para avaliação futura, sem aprovação de SSO. [Decisão D02](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md). O detalhamento técnico de MFA, RBAC, organizações, recuperação e autenticação servidor a servidor continua aberto.
 
 ## 1. Finalidade, regra de precedência e recorte
 
@@ -74,7 +74,9 @@ Referências normativas centrais:
 
 ### PORTAL-TEC-D02 — Identidade e acesso entre Portal e CRM
 
-Propor titularidade de identidades, organizações, papéis, convite, MFA e eventual SSO, com **separação entre autoridade do Portal e autoridade de dados do CRM**. Definir fluxo de autenticação/autorização interserviço, desativação e recuperação, sem banco/sessão compartilhados por inferência.
+**Diretriz aprovada em 05/11/2026:** logins e sessões **independentes** entre Portal e CRM, sem SSO nessa relação na primeira versão, com bases, credenciais e autoridades de autorização separadas. Integração operacional por APIs e contas de serviço autenticadas permanece possível sem compartilhar login humano. [Decisão D02](PORTAL-TEC-D02-LOGINS-INDEPENDENTES-PORTAL-CRM-DECISAO-2026-11-05.md).
+
+**Ainda por especificar:** MFA e sessões de cada produto, identidades, organizações, papéis, convites, recuperação, proteção entre tenants, revogação e autenticação servidor a servidor. **Estudo posterior, não aprovado:** eventual integração de identidade do Portal com Universidade Imagine e Imagine Performance AI, sem revogar sua experiência de acesso pelo Portal nem seus contratos próprios.
 
 ### PORTAL-TEC-D03 — Persistência e migração do legado
 
@@ -103,7 +105,7 @@ Fase inicial constrói **catálogo e contratos versionados sem cobrança real**.
 | Gate | Estado na data deste documento | Consequência |
 |---|---|---|
 | G-00 — registro/revisão do pacote PORTAL-F1-00 | Preparado como proposta v0.1 | Aprovação expressa ainda pendente |
-| G-01 — arquitetura técnica D01 e identidade D02 | **PARCIAL** — D01 B aprovada; D02 aberta | Stack Laravel/PostgreSQL decidida; IAM/SSO e migração ainda exigem decisão específica |
+| G-01 — arquitetura técnica D01 e identidade D02 | **PARCIAL** — D01 B aprovada; D02 logins independentes aprovados, detalhamento aberto | Stack Laravel/PostgreSQL; sem SSO Portal–CRM; MFA/RBAC/contas de serviço e migração ainda pendentes |
 | G-02 — inventário legado, estratégia de compatibilidade e dados | **PARCIAL** | Não reescrever nem migrar com base em suposição |
 | G-03 — recorte F1-01 e critérios de teste/aceite | **PROPOSTA** | Não instruir Codex a criar PR de código antes de autorização específica |
 | G-04 — segurança multiempresa, segredos e MFA | **ABERTO** | Não ativar acesso multiempresa real |
@@ -116,7 +118,7 @@ Os P0-DOC01–P0-DOC14 do Imagine Sites **continuam com o estado registrado** em
 
 ## 8. Critérios documentais para liberar **somente F1-01** no futuro
 
-1. **D01 já aprovada na alternativa B**; detalhar D02 (identidades, autenticação e limites de responsabilidade) ou autorizar especificamente apenas diagnóstico read-only independente da decisão D02.
+1. **D01 já aprovada na alternativa B e D02 aprovada para logins independentes Portal–CRM**; detalhar MFA/RBAC, identidades, contas de serviço e limites de responsabilidade (ou autorizar especificamente apenas diagnóstico read-only).
 2. Congelar o escopo permitido da F1-01, arquivos-alvo, exclusões, dependências e riscos.
 3. Confirmar que `main` permanece imutável; criar **apenas após autorização** uma branch de código como `dev/fast-track-portal-2026-11-05`, partindo de SHA conferido.
 4. Comprovar que cada PR terá descrição de escopo, evidências de testes de software somente no momento permitido, diffs, SHA e revisão humana; **sem merge automático**.
@@ -129,4 +131,4 @@ Os P0-DOC01–P0-DOC14 do Imagine Sites **continuam com o estado registrado** em
 
 **PORTAL-F1-00-DEC-01 (a deliberar):** direção analisa esta minuta, escolhe a estratégia de backend/identidade ou autoriza exclusivamente um diagnóstico documental mais detalhado. Em seguida será preparado instrumento separado para autorização da **F1-01**, com compromisso claro de branch, testes, não implantação e gates.
 
-**Status atualizado em 05/11/2026:** pacote de preparação redigido e D01 alternativa B aprovada; **P0 do Sites/Portal/CRM, D02–D04 e autorização de execução ainda abertos; código e produção não foram alterados**.
+**Status atualizado em 05/11/2026:** pacote de preparação redigido, D01 alternativa B aprovada e **D02 independência de login aprovada**; **P0 de Sites/Portal/CRM, detalhes técnicos D02, D03–D04 e autorização de execução permanecem abertos; código e produção não foram alterados**.
