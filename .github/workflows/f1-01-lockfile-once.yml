@@ -1,0 +1,50 @@
+name: F1-01-A fixar lockfile (execucao unica)
+
+# Job temporario e restrito a branch de desenvolvimento. Remover apos gravar lockfile.
+on:
+  push:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+    paths:
+      - '.github/workflows/f1-01-lockfile-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  commit-lock:
+    if: github.repository == 'rafhael100/imagine-portal' && github.ref == 'refs/heads/dev/fast-track-portal-2026-11-05' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout branch isolada
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+
+      - name: Preparar PHP Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Gerar lock sem scripts e plugins
+        working-directory: apps/portal
+        run: |
+          composer validate --no-check-publish --strict
+          composer update --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer validate --no-check-publish --strict
+
+      - name: Registrar somente composer.lock na branch isolada
+        run: |
+          test "${GITHUB_REF}" = "refs/heads/dev/fast-track-portal-2026-11-05"
+          test -s apps/portal/composer.lock
+          git add -- apps/portal/composer.lock
+          test "$(git diff --cached --name-only)" = "apps/portal/composer.lock"
+          git diff --cached --check
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build(portal): fixar composer.lock validado na F1-01-A"
+          git push origin HEAD:refs/heads/dev/fast-track-portal-2026-11-05
