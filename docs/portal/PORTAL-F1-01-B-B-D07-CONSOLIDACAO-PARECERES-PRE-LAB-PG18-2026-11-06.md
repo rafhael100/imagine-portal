@@ -5,13 +5,15 @@
 **Autorização:** “ok pode prosseguir” à recomendação de **consolidar os pareceres técnicos de identidade, segurança RLS, revogação e custos do laboratório**, após a DEC-05. Não autoriza implementação ou execução de laboratório.  
 **Rastreamento:** [Issue #26](https://github.com/rafhael100/imagine-portal/issues/26); [Issue #17](https://github.com/rafhael100/imagine-portal/issues/17); [PR #25](https://github.com/rafhael100/imagine-portal/pull/25), [PR #19](https://github.com/rafhael100/imagine-portal/pull/19), [PR #24](https://github.com/rafhael100/imagine-portal/pull/24).
 
+> **Atualização de precedência por trabalho paralelo:** depois da primeira redação deste documento, o PR #24 avançou para `2e3d2051a9491ac02863b9acecff1e88d89c24cc` com a **SEC-P02-DEC-04** e os documentos E01/E02. SEC06-D01..04 estão agora ratificados **só como diretrizes documentais preliminares**. Nenhum parecer independente, gate de identidade ou laboratório foi homologado por esse avanço.
+
 ## 1. Fontes, precedência e limites
 
 | Fonte | Escopo e estado consultado | O que não se pode inferir |
 |---|---|---|
 | PR #19, HEAD `75b32cef4afa0e7eae83e3b30fdc13c571a767d4` | F1-01-B-B D01–D05 e DEC-01..04; alternativas A ratificadas **somente documentalmente** | Não existe modelo PostgreSQL implantado nem fonte real de identidade por esse aceite |
 | PR #25, anterior à D07 `66056188fd0d06b1b8c830ec2743c91912364aaa` | D06, RV02 e [DEC-05](PORTAL-F1-01-B-B-DEC-05-BASELINE-DOCUMENTAL-PG18-PDO-DIRETO-2026-11-06.md) | CI Node não prova RLS; autorização documental PG18 não executa laboratório |
-| PR #24, HEAD `7254c14a326a59aa78eadb1bd774b0b22104575a` | SEC-P02 D01–D06; SEC02/IDN/REC/SEC05 ratificados só como diretrizes; G-ID01..09 abertos | **SEC06-D01..04 estão propostos, não ratificados**; fixture SEC-P01 não autentica cliente |
+| PR #24, HEAD `2e3d2051a9491ac02863b9acecff1e88d89c24cc` | SEC-P02 D01–D06 e E01/E02; SEC02/IDN/REC/SEC05/**SEC06** ratificados somente como diretrizes preliminares (DEC-01..04); G-ID01..09 abertos, E01/E02 não homologados | **SEC06-D01..04 já estão ratificados exclusivamente como diretrizes documentais preliminares pela SEC-P02-DEC-04**, sem fechar gates ou autorizar código; E01/E02 são propostas técnicas não homologadas e fixture SEC-P01 não autentica cliente |
 | Branch de desenvolvimento `dev/fast-track-portal-2026-11-05` em `0aef6838b0452fcbb195fcad2e50aed748ec41c5` | Referência técnica para PR #25 e #24 na consulta | Documentos dos PRs abertos não estão integrados automaticamente na branch dev |
 | `main` em `50b683a499e674641df5749051f3d05f7ac3f627` | Preservada na conferência | Nenhuma autorização para mudar `main` ou VPS |
 
@@ -40,7 +42,7 @@ Nenhum executor, container, script, banco, role, conexão, pipeline de PG, migra
 - **Para um laboratório futuro sem login real:** um adaptador de autoridade *sintético* somente injetado pelo harness de teste, inacessível por rota/UI, deve simular emissor, estado e revisão, com casos negativos de ID coincidente CRM. A simulação **não aprova** autenticação humana/MFA e não deve migrar para ambiente operacional.
 - A organização selecionada é intenção; o backend resolve vínculo canônico, papéis, grants e recurso na fonte autorizada. Bootstrap só permite referências mínimas das empresas pertencentes ao ator Portal comprovado.
 - O contexto de banco não autentica identidade; runtime comprometido com SQL arbitrário pode falsificar valores locais. Aceitar explicitamente limite do modelo de ameaça para **laboratório controlado**, sem afirmar proteção de produção.
-- O PR #24 ainda contém SEC06-D01..04 **não ratificados**: não equiparar aprovação DEC-05 (PostgreSQL) a aprovação de contratos SEC06.
+- O PR #24 recebeu a **SEC-P02-DEC-04, que ratifica SEC06-D01..04 apenas documentalmente**; as entregas E01/E02 consolidam evidências/contratos candidatos sem homologar identidade, autenticação ou banco. A DEC-05 (PostgreSQL) não equivale a homologação dos contratos SEC.
 
 **Saída de parecer exigida:** matriz `campo → emissor confiável → verificação/revisão → estado negado → prova`, decisão sobre fixture restrita e riscos residuais. **Status: SOLICITADO / NÃO EMITIDO.** Impedimento: origem/tenant arbitrários ou fixture acessível como autenticador real.
 
