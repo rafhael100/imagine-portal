@@ -16,4 +16,6 @@ h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.035em;margin:4px 0}h2{font-si
 .pi-skip{position:absolute;top:8px;left:8px;transform:translateY(-180%);background:#fff;color:#164b87;padding:10px;z-index:10}.pi-skip:focus{transform:none}a:focus-visible,[tabindex]:focus-visible{outline:3px solid #225fc2;outline-offset:4px}footer{text-align:center;color:var(--pi-muted);font-size:12px;margin-top:28px}
 @media(max-width:1050px){.pi-layout{grid-template-columns:1fr;align-content:start}.pi-sidebar{padding:18px 22px}.pi-sidebar nav{margin-top:18px}.pi-sidebar ul{grid-template-columns:repeat(3,minmax(0,1fr))}.pi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.pi-header{display:block}.pi-header>.pi-badge{margin-top:12px}.pi-sidebar ul{grid-template-columns:1fr}.pi-grid{grid-template-columns:1fr}.pi-panel{padding:18px}.pi-main{padding-top:22px}}
+.pi-stage-title{margin-top:16px}.pi-journey-progress{width:100%;height:12px;accent-color:var(--pi-accent)}
+.pi-journey{padding-left:24px;margin-bottom:0}.pi-journey li{padding:18px 0 18px 12px;border-bottom:1px solid var(--pi-edge)}.pi-journey li:last-child{border:0}.pi-journey h3{font-size:16px;margin:10px 0 4px}.pi-journey p{color:var(--pi-muted)}
 </style>

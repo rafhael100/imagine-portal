@@ -1,4 +1,4 @@
-<x-portal.layout title="Visão geral do cliente" current="overview">
+<x-portal.layout current="overview">
     <div class="pi-grid">
         <x-portal.indicator label="Serviços no exemplo" value="2" />
         <x-portal.indicator label="Solicitações de exemplo" value="0" />

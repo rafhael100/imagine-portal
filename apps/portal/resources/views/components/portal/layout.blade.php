@@ -1,4 +1,5 @@
-@props(['title' => 'Portal Imagine', 'current' => 'overview'])
+@props(['title' => null, 'current' => 'overview'])
+@php($title = $title ?? \App\Presentation\ClientSection::tryFrom($current)?->label() ?? 'Portal Imagine')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>

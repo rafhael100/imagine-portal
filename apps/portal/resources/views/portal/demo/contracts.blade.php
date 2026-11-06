@@ -1,4 +1,4 @@
-<x-portal.layout title="Contratos e assinaturas" current="contracts">
+<x-portal.layout current="contracts">
     <x-portal.panel title="Documentos de exemplo">
         <x-portal.table caption="Contratos fictícios — sem validade jurídica"
             :columns="['Referência', 'Serviço', 'Situação', 'Assinatura']"
