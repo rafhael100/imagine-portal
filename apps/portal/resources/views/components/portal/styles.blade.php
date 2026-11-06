@@ -21,5 +21,5 @@ h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.035em;margin:4px 0}h2{font-si
 .pi-record{margin:16px 0}.pi-record>div{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--pi-edge)}.pi-record dt{font-size:13px;color:var(--pi-muted)}.pi-record dd{margin:0;min-width:0}
 .pi-request-list{list-style:none;margin:0;padding:0;display:grid;gap:20px}.pi-request-list>li{min-width:0}
 .pi-update-history{margin-top:20px;border-top:1px solid var(--pi-edge);padding-top:16px}.pi-update-history h4{font-size:15px;margin:0 0 8px}.pi-updates{padding-left:24px}.pi-updates li{padding:10px 0 10px 8px}
-@media(max-width:640px){.pi-record>div{grid-template-columns:minmax(0,1fr);gap:4px}}
+@media(max-width:1050px){.pi-record>div{grid-template-columns:minmax(0,1fr);gap:4px}}
 </style>

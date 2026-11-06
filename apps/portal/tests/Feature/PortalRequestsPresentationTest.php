@@ -21,15 +21,6 @@ final class PortalRequestsPresentationTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_temporary_offline_render_export(): void
-    {
-        foreach (['services', 'requests'] as $screen) {
-            $html = view('portal.demo.'.$screen)->render();
-            self::assertNotEmpty($html);
-            fwrite(STDOUT, "\nPORTAL_UI4_HTML:".$screen.":".base64_encode($html)."\n");
-        }
-    }
-
     public function test_services_and_requests_render_multiple_typed_fictional_records(): void
     {
         $services = view('portal.demo.services')->render();
