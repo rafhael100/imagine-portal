@@ -1,6 +1,6 @@
 # PORTAL-F1-01-B-B-D02 — Contratos candidatos de permissões, revogação e avaliador RLS
 
-**Data:** 06/11/2026 · **Estado:** PROPOSTA DOCUMENTAL EM AVALIAÇÃO; **NENHUMA ALTERNATIVA D02 APROVADA**.  
+**Data:** 06/11/2026 · **Estado original:** proposta documental para deliberação. **Atualização posterior:** alternativas A de BBD02-01 a BBD02-06 ratificadas **somente como diretrizes documentais preliminares** pela [DEC-02](PORTAL-F1-01-B-B-DEC-02-RATIFICACAO-DIRETRIZES-BBD02-01-A-06-A-2026-11-06.md); gates, contratos e testes seguem não homologados. **Sem implementação, merge ou deploy.**  
 **Precedência:** [D01 — modelo físico candidato](PORTAL-F1-01-B-B-D01-MODELO-FISICO-CANDIDATO-ISOLAMENTO-2026-11-06.md) e [DEC-01 — BB01–BB08 alternativas A ratificadas preliminarmente](PORTAL-F1-01-B-B-DEC-01-RATIFICACAO-DIRETRIZES-BB01-BB08-2026-11-06.md).  
 **Escopo permitido:** apenas documentação de contratos técnicos e critérios futuros. Proibido SQL executável, migration, login, esquema em operação, conexão de banco, código de autorização real, alteração de `main`, merge ou deploy.
 
