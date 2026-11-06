@@ -1,5 +1,7 @@
 # F1-01-B-B-D06-RV02 — Parecer técnico consolidado e condições para laboratório PostgreSQL
 
+> **Decisão posterior DEC-05 (06/11/2026):** [PostgreSQL 18 + PDO direto sem persistência, PHP 8.3 e 8.4, sem PgBouncer no primeiro laboratório](PORTAL-F1-01-B-B-DEC-05-BASELINE-DOCUMENTAL-PG18-PDO-DIRETO-2026-11-06.md) foram **ratificados exclusivamente como baseline documental preliminar**. As células E83/E84/N84 e testes de transaction pooling citados nesta RV02 ficam **ADIADOS** para fase separada, não aprovados/homologados; permanece obrigatória a prova de troca de tenant no perfil direto D83/D84 após autorização futura específica. Nenhum laboratório, SQL, migration, merge ou deploy autorizado.
+
 **Data:** 06/11/2026, America/Sao_Paulo. **Estado:** revisão documental com ressalvas; não homologado para código, laboratório ou produção. **Autorização:** revisão pontual do responsável, incluindo atualização do D06, complemento RV02 e comentário no PR #25. Nenhum SQL executável, migration, instalação/configuração de pooler, conexão PG ou teste de banco foi criado/executado.
 
 ## 1. Controle da revisão e precedência
