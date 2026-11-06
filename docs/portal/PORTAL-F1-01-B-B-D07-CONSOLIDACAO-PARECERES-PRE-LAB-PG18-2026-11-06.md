@@ -7,6 +7,8 @@
 
 > **Atualização de precedência por trabalho paralelo:** depois da primeira redação deste documento, o PR #24 avançou para `2e3d2051a9491ac02863b9acecff1e88d89c24cc` com a **SEC-P02-DEC-04** e os documentos E01/E02. SEC06-D01..04 estão agora ratificados **só como diretrizes documentais preliminares**. Nenhum parecer independente, gate de identidade ou laboratório foi homologado por esse avanço.
 
+> **Atualização DEC-06 (06/11/2026):** o responsável aprovou documentalmente ambiente GitHub Actions temporário sujeito à quota, até 30 minutos por perfil PHP e guarda de provas sintéticas por 30 dias com descarte de volumes ao encerrar. Admitiu custo baixo e controlado, sem definir teto numérico. Ver [DEC-06](PORTAL-F1-01-B-B-DEC-06-CONDICOES-LABORATORIO-CUSTO-CONTROLADO-2026-11-06.md). As pendências de ambiente/pareceres abaixo devem ser lidas com esse aceite parcial: disponibilidade e quota ainda não comprovadas, teto agregado e execução ainda não autorizados. Nenhum gate homologado.
+
 ## 1. Fontes, precedência e limites
 
 | Fonte | Escopo e estado consultado | O que não se pode inferir |
