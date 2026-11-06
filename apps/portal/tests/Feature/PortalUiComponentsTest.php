@@ -64,6 +64,17 @@ final class PortalUiComponentsTest extends TestCase
         }
     }
 
+    public function test_table_keeps_semantic_columns_and_explains_horizontal_scrolling(): void
+    {
+        $html = view('portal.demo.contracts')->render();
+        self::assertStringContainsString('role="region"', $html);
+        self::assertStringContainsString('tabindex="0"', $html);
+        self::assertStringContainsString('role a tabela horizontalmente', $html);
+        self::assertStringContainsString('<caption>Contratos fictícios', $html);
+        self::assertSame(4, substr_count($html, 'scope="col"'));
+        self::assertStringContainsString('Assinatura', $html);
+    }
+
     public function test_status_palette_rejects_unrecognized_css_values(): void
     {
         $html = Blade::render('<x-portal.badge label="Exemplo" :tone="$tone" />', ['tone' => 'error injected']);
