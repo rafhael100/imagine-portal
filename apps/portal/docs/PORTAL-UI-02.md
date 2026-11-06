@@ -104,8 +104,8 @@ CSS (720, 384 e 195px). Sem overflow da página; tabela continua em região pró
 **Não foi exercitado o controle nativo de zoom do navegador**, nem zoom de texto
 do sistema; esse ensaio de reflow não deve ser descrito como homologação de zoom.
 
-Contraste calculado pela fórmula de luminância sRGB WCAG para os onze pares
-textuais usados na paleta: mínimo **5,66:1**, máximo 14,95:1. Exemplos:
+Contraste calculado pela fórmula de luminância sRGB WCAG para onze pares
+textuais selecionados da paleta: mínimo **5,66:1**, máximo 14,95:1. Exemplos:
 muted/branco 6,11; muted/fundo 5,74; navegação 10,73; estado ativo 11,07;
 info 8,06; sucesso 6,69; aviso 6,54; erro 7,04.
 Cores não precisaram ser alteradas. Não foi executado axe nem leitor de tela;
@@ -118,11 +118,16 @@ PHP 8.3 e 8.4 aprovados, **111 testes / 1634 asserções** por versão, incluind
 exportador temporário (que não permanece no HEAD final).
 
 Comando do workflow existente: `php artisan test --no-ansi`.
-O CI final após remover o exportador deve ser conferido no
-[PR #32 / Checks](https://github.com/rafhael100/imagine-portal/pull/32/checks);
-o registro de encerramento no PR fornece SHA final, run e totais finais.
-O resultado do run de exportação acima não substitui a validação do SHA final.
-O workflow geral do Portal também deve ser conferido para o mesmo SHA.
+Após remover o exportador, o commit `a55314d4e386fffdd348b8f4af9b4b03d84840cc`
+passou no [CI Laravel #42258473714](https://github.com/rafhael100/imagine-portal/actions/runs/42258473714):
+**110 testes / 1628 asserções em PHP 8.3 e 8.4**, incluindo sete testes de
+componentes. Logs verificados: [PHP 8.3](https://github.com/rafhael100/imagine-portal/actions/runs/42258473714/job/128031855301)
+e [PHP 8.4](https://github.com/rafhael100/imagine-portal/actions/runs/42258473714/job/128031855902).
+O [workflow geral #42258473728](https://github.com/rafhael100/imagine-portal/actions/runs/42258473728)
+também passou em Node 22 e 24. A atualização posterior deste relatório é apenas
+documental. O CI do SHA final e seu identificador são registrados no
+[PR #32 / Checks](https://github.com/rafhael100/imagine-portal/pull/32/checks)
+e no comentário de encerramento, sem substituir o resultado de um SHA por outro.
 
 Não houve teste PHP local, pois o binário está ausente. Não houve banco,
 migrations, testes de produção ou conexão com integrações. As rotas existentes
