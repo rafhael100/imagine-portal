@@ -1,6 +1,6 @@
 # PORTAL-F1-01-B-B-D04 — Matriz de homologação, evidências e gates antes da programação
 
-**Data:** 06/11/2026 · **Estado:** PROPOSTA DOCUMENTAL AINDA NÃO APROVADA.  
+**Data:** 06/11/2026 · **Estado original:** proposta para deliberação. **Atualização posterior:** alternativas A de BBD04-01 a BBD04-06 ratificadas **somente como diretrizes documentais preliminares** pela [DEC-04](PORTAL-F1-01-B-B-DEC-04-RATIFICACAO-BBD04-01-A-06-A-2026-11-06.md). Contratos, segurança e testes permanecem não homologados; **sem código, SQL, migrations, merge ou deploy**.  
 **Precedência:** [D01](PORTAL-F1-01-B-B-D01-MODELO-FISICO-CANDIDATO-ISOLAMENTO-2026-11-06.md), [D02](PORTAL-F1-01-B-B-D02-CONTRATOS-PERMISSOES-REVOGACAO-RLS-PROPOSTA-2026-11-06.md), [D03](PORTAL-F1-01-B-B-D03-CONTRATOS-FISICOS-IDENTIDADE-RLS-REVOGACAO-PROPOSTA-2026-11-06.md) e ratificações documentais [DEC-01](PORTAL-F1-01-B-B-DEC-01-RATIFICACAO-DIRETRIZES-BB01-BB08-2026-11-06.md), [DEC-02](PORTAL-F1-01-B-B-DEC-02-RATIFICACAO-DIRETRIZES-BBD02-01-A-06-A-2026-11-06.md) e [DEC-03](PORTAL-F1-01-B-B-DEC-03-RATIFICACAO-BBD03-01-A-06-A-2026-11-06.md).  
 **Regra de escopo:** definir a evidência necessária para futuras etapas. **Nenhuma execução de SQL, migração, RLS, testes PostgreSQL, login ou deploy está autorizada por D04**. Não realizar merge em `dev`, `main` ou qualquer branch.
 
