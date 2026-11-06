@@ -71,7 +71,7 @@ Fontes: D06 seções G-BB03/04, RV02-03, D07/P01; PR #24 E02 e SEC-P02-RV01 em S
 4. A capacidade de lock/avaliação não pode aceitar tenant/ator arbitrários nem servir de bypass. Isso exige revisão P02/P03 e testes posteriores; P01 não os substitui.
 5. Autenticador real, sessão/MFA, primeiro gestor/reingresso/recuperação e integrações ficam fora do recorte; negativos devem comprovar ausência de autorização implícita.
 
-**Resultado para assinatura:** P01 **AGUARDANDO O RESPONSÁVEL**, com proposta de conclusão “aceitar contrato para planejamento do laboratório sintético, condicionado a P02/P03, sem homologar identidade real”. Não registrar essa conclusão como aprovada sem manifestação específica. Uma devolução deve indicar qual linha/condição precisa ajuste; não pedir nova aprovação genérica das diretrizes A.
+**Parecer P01 — aceite documental com condições registrado em 06/11/2026.** Revisor: responsável do projeto, autodesignado nesta conversa para P01–P06. Manifestação verificável: respondeu **“ok”** à pergunta expressa “Você aceita esse contrato P01 para o laboratório fictício, com essas limitações?”, após apresentação de identidade simulada restrita ao executor, independência Portal/CRM, fontes oficiais servidoras e contexto SQL sem prova de autenticação. Material apresentado: D08 em `5c2939449288f141a5761a2f2d51e60f2953f78d`, seção3, com D06/RV02 e PR24 referenciados. Conclusão: **aceito para planejamento do laboratório sintético, condicionado a P02/P03 e aos testes futuros**. Riscos residuais: origem real não implementada, runtime controlado assumido, bypass/RLS e concorrência ainda sem prova. Não é assinatura por especialista ausente, homologação de identidade real, encerramento de G-BB03 ou autorização de laboratório. Mantêm-se H02/C03/P01 e demais negativas previstas, todos não executados.
 
 ## 4. P02–P06 — Pacote dirigido ao mesmo revisor
 
@@ -89,7 +89,7 @@ Formato para cada manifestação futura: parecer Pxx; responsável identificado;
 
 ## 5. Situação dos gates e execução
 
-G-BB01/06: baseline PG18/PDO direto decidida, patch/manifesto e prova de transação ainda pendentes. G-BB02/05: modelo/RLS requerem P02. G-BB03: análise P01 apresentada, aceite ainda pendente. G-BB04: P03 pendente. G-BB07: retenção de provas sintéticas aprovada, política real/restore e P05 pendentes. G-BB08: plano de 34 cenários preservado, **0 executados**. Nenhum gate fechado/homologado por nomeação ou por teto financeiro.
+G-BB01/06: baseline PG18/PDO direto decidida, patch/manifesto e prova de transação ainda pendentes. G-BB02/05: modelo/RLS requerem P02. G-BB03: contrato P01 aceito documentalmente com condições pelo responsável; autenticação real e evidências continuam pendentes. G-BB04: P03 pendente. G-BB07: retenção de provas sintéticas aprovada, política real/restore e P05 pendentes. G-BB08: plano de 34 cenários preservado, **0 executados**. Nenhum gate fechado/homologado por nomeação ou por teto financeiro.
 
 Não há autorização atual para criar código/SQL/migration, executar PG/testes RLS ou provisionar laboratório. Depois dos pareceres e fatos faltantes, o responsável decide autorização **separada** de código/execução com SHA, branch, arquivos/operacões, ambiente, orçamento e parada. Merge e deploy permanecem decisões distintas. PR #25 continua draft, PRs #19/#24 e Issue #17 preservados; sem edição de dev/main/VPS/CRM.
 
