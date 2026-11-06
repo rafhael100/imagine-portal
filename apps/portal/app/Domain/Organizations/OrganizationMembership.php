@@ -7,8 +7,13 @@ use App\Domain\Identity\PortalUserId;
 use InvalidArgumentException;
 
 /**
- * An explicit actor <-> organization membership. Every permission is scoped
- * to this one organization; role alone does not imply any grant.
+ * An in-memory actor <-> organization membership representation.
+ * Every permission is scoped to one organization; role alone grants nothing.
+ *
+ * Instantiation is NOT evidence of an actual authorized membership.
+ * Only a future trusted server-side authority may supply verified, current
+ * memberships to the evaluator; never hydrate from untrusted HTTP payloads.
+ * This B-A object has no database, signature, issuer or revocation clock.
  */
 final readonly class OrganizationMembership
 {

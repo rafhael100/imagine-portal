@@ -8,9 +8,16 @@ use App\Domain\Organizations\OrganizationMembership;
 /**
  * Pure authorization domain evaluator. Fail-closed and without I/O.
  *
- * The caller must resolve a membership from a trusted future backend.
- * This service does not query storage, trust client-supplied tenant IDs,
- * create CRM access or publish a production authorization endpoint.
+ * SECURITY BOUNDARY (NOT IMPLEMENTED HERE): The caller must obtain actor
+ * identity from the Portal's own authenticated session, and resolve the
+ * membership, permissions and resource owner from trusted server-side
+ * authorities, with freshness/revocation checks. Never construct these
+ * values from client-supplied actor, organization, role or permissions.
+ *
+ * This pure service checks equality and an explicit active grant only;
+ * it cannot validate provenance, an issuer, token, organization ownership,
+ * a trusted membership version, concurrent revocation or a CRM identity.
+ * It does not read storage, perform I/O or expose an authorization endpoint.
  */
 final readonly class OrganizationAuthorizationService
 {
