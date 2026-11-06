@@ -5,8 +5,12 @@ namespace App\Domain\Identity;
 use InvalidArgumentException;
 
 /**
- * Opaque identifier used only inside the Portal domain (not a CRM identity).
- * This is a pure value object, not an authentication credential.
+ * Opaque identifier value for the Portal's future identity domain.
+ * NOT a credential, authenticated issuer or proof of Portal-only origin.
+ * An external service can supply an identical string, and string equality
+ * alone cannot distinguish it from a verified Portal subject. A future
+ * Portal-only authenticator must establish provenance before this value
+ * is used for authorization. No Portal/CRM SSO is created here.
  */
 final readonly class PortalUserId
 {
