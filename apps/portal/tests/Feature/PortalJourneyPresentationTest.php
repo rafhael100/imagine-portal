@@ -24,13 +24,22 @@ final class PortalJourneyPresentationTest extends TestCase
         foreach (ClientSection::cases() as $section) {
             $html = view('portal.demo.'.$section->value)->render();
             self::assertSame(1, substr_count($html, 'aria-current="page"'));
-            self::assertStringContainsString('aria-current="page">'.$section->label().'</span>', $html);
-            $position = -1;
-            foreach (ClientSection::cases() as $item) {
-                $next = strpos($html, '>'.$item->label().'</span>');
-                self::assertNotFalse($next);
-                self::assertGreaterThan($position, $next);
-                $position = $next;
+            $document = new \DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            try {
+                $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            $xpath = new \DOMXPath($document);
+            $active = $xpath->query('//nav//span[@aria-current="page"]');
+            self::assertSame(1, $active->length);
+            self::assertSame($section->label(), trim($active->item(0)->textContent));
+            $items = $xpath->query('//nav/ul/li/span');
+            self::assertSame(count(ClientSection::cases()), $items->length);
+            foreach (ClientSection::cases() as $index => $item) {
+                self::assertSame($item->label(), trim($items->item($index)->textContent));
             }
             self::assertStringContainsString('<title>'.$section->label().' · Portal Imagine</title>', $html);
         }

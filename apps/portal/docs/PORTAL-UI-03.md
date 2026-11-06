@@ -68,3 +68,16 @@ permanece pendente. Não há homologação de acessibilidade completa ou navegad
 
 Gates G-ID, G-BB, SEC-P02 e demais gates preservados. Sem main/dev diretamente,
 merge, deploy, SQL, migrations, pagamentos, contratos reais ou integrações.
+
+## Evidência de revisão do primeiro CI
+
+Run `42270209620`, head `efaee78088c48b731b8adfd1228a576dd0179da2`:
+114 testes passaram e um novo teste falhou por exigir HTML sem espaço antes de
+`>`. A verificação passou a consultar DOM/XPath para checar item ativo e ordem
+sem depender de whitespace. Nenhuma expectativa de DB, rotas ou sessão foi
+alterada. A matriz será reexecutada no commit de correção; resultado final no PR.
+
+Captura não disponibilizada: não há runtime PHP local para renderizar Blade por
+CLI e o workflow existente não exporta HTML/capturas. Não foram criados endpoints,
+workflow alternativo ou imagem que simulasse uma renderização real. QA visual
+permanece pendente, conforme critério condicional da Issue #34.
