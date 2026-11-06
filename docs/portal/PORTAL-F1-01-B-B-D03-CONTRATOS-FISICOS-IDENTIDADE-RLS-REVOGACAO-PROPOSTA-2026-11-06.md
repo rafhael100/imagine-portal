@@ -1,6 +1,6 @@
 # PORTAL-F1-01-B-B-D03 — Contratos físicos candidatos, identidade, RLS e revogação
 
-**Data:** 06/11/2026 · **Estado:** PROPOSTA DOCUMENTAL, AINDA NÃO APROVADA.  
+**Data:** 06/11/2026 · **Estado original:** proposta documental. **Atualização posterior:** as alternativas A de BBD03-01 a BBD03-06 foram ratificadas **apenas como diretrizes preliminares** na [DEC-03](PORTAL-F1-01-B-B-DEC-03-RATIFICACAO-BBD03-01-A-06-A-2026-11-06.md); contratos físicos, gates de segurança e testes permanecem abertos. **Não há autorização de SQL, migrations, código funcional, merge ou deploy.**  
 **Precedentes:** [D01](PORTAL-F1-01-B-B-D01-MODELO-FISICO-CANDIDATO-ISOLAMENTO-2026-11-06.md), [DEC-01 (BB01–BB08 A)](PORTAL-F1-01-B-B-DEC-01-RATIFICACAO-DIRETRIZES-BB01-BB08-2026-11-06.md), [D02](PORTAL-F1-01-B-B-D02-CONTRATOS-PERMISSOES-REVOGACAO-RLS-PROPOSTA-2026-11-06.md) e [DEC-02 (BBD02-01–06 A)](PORTAL-F1-01-B-B-DEC-02-RATIFICACAO-DIRETRIZES-BBD02-01-A-06-A-2026-11-06.md).  
 **Limite:** detalhar alternativas e gates em papel. **Nenhuma aprovação de D03 foi presumida**. Proibidos SQL executável, migrations, conexão PG, Eloquent, backend real, login/MFA, SSO, execução de testes persistentes, merge, `main`, VPS e deploy.
 
