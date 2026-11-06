@@ -1,4 +1,4 @@
-<x-portal.layout title="Módulos Imagine" current="modules">
+<x-portal.layout current="modules">
     <div class="pi-grid pi-grid-two">
         <x-portal.service-card name="Performance AI" description="Acesso ilustrativo ao painel de resultados simulados. Google Ads e Meta não conectados." status="Acesso indisponível" tone="warning" />
         <x-portal.service-card name="Sites" description="Acesso ilustrativo à organização dos seus projetos digitais." status="Acesso indisponível" tone="warning" />
