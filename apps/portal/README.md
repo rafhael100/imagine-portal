@@ -45,3 +45,11 @@ O `composer.lock` **não foi gerado neste scaffold** (Composer/rede indisponíve
 
 Planejamento está na branch documental `docs/portal-f1-00-2026-11-05`, PR #10, arquivo:
 `docs/portal/PORTAL-F1-01-FUNDACAO-TECNICA-ESCOPO-CONTROLADO-PREPARACAO-v0.1-2026-11-05.md`.
+
+## Etapa F1-01-B-A — somente domínio e testes fictícios
+
+A branch filha `dev/portal-f1-01-b-domain-2026-11-05` adiciona objetos imutáveis de identidade própria do Portal, organização, membership, papéis e permissões. O avaliador puro exige **ator, organização ativa, empresa proprietária do recurso, permissão conhecida explícita e vínculo ativo**, negando quando faltar qualquer condição. Papéis não são direitos implícitos.
+
+A suíte PHPUnit agora inclui `tests/Unit` e `tests/Feature`; a validação CI PHP 8.3/8.4 usa o lockfile existente. **Não há HTTP de autorização, cadastro/login, banco, migrações, SSO, armazenamento ou acesso a dados reais**. O avaliador não autentica ninguém e só poderá receber vínculos de uma futura fonte servidora confiável, sujeita a aprovação D02-SEC/P0.
+
+Escopo e autorização: `docs/portal/PORTAL-F1-01-B-DEC-01-APROVACAO-PROGRAMACAO-CONTROLADA-2026-11-05.md` na branch documental. Nenhum merge do PR draft, deploy ou etapa B-B/B-C autorizados.
