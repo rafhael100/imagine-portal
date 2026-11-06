@@ -13,6 +13,7 @@ enum ClientSection: string
     case Contracts = 'contracts';
     case Modules = 'modules';
     case Journey = 'journey';
+    case Requests = 'requests';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum ClientSection: string
             self::Contracts => 'Contratos e assinaturas',
             self::Modules => 'Módulos Imagine',
             self::Journey => 'Jornada do cliente',
+            self::Requests => 'Solicitações',
         };
     }
 }
