@@ -18,15 +18,6 @@ final class PortalUiComponentsTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_export_demo_html_for_temporary_offline_review(): void
-    {
-        foreach (['overview', 'services', 'available', 'contracts', 'modules'] as $screen) {
-            $html = view('portal.demo.'.$screen)->render();
-            self::assertNotEmpty($html);
-            fwrite(STDOUT, "\nPORTAL_UI_HTML:".$screen.":".base64_encode($html)."\n");
-        }
-    }
-
     public function test_all_five_unmounted_screens_render_semantic_demo_content(): void
     {
         foreach (['overview', 'services', 'available', 'contracts', 'modules'] as $screen) {
