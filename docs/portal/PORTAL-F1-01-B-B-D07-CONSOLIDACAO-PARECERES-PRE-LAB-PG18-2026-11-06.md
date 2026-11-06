@@ -1,7 +1,7 @@
 # PORTAL-F1-01-B-B-D07 — Consolidação de pareceres solicitados e pré-requisitos de laboratório PG18
 
 **Data:** 06/11/2026 (America/Sao_Paulo)  
-**Estado:** **CONSOLIDAÇÃO DOCUMENTAL — NÃO HOMOLOGADA — PARECERES INDEPENDENTES PENDENTES**.  
+**Estado original:** consolidação documental. **Atualização DEC-06:** [consolidação D07 aceita pela Direção somente como pacote documental para solicitar pareceres](PORTAL-F1-01-B-B-DEC-06-ACEITE-CONSOLIDACAO-D07-2026-11-06.md); **os pareceres independentes, gates e laboratório continuam pendentes/não homologados**.  
 **Autorização:** “ok pode prosseguir” à recomendação de **consolidar os pareceres técnicos de identidade, segurança RLS, revogação e custos do laboratório**, após a DEC-05. Não autoriza implementação ou execução de laboratório.  
 **Rastreamento:** [Issue #26](https://github.com/rafhael100/imagine-portal/issues/26); [Issue #17](https://github.com/rafhael100/imagine-portal/issues/17); [PR #25](https://github.com/rafhael100/imagine-portal/pull/25), [PR #19](https://github.com/rafhael100/imagine-portal/pull/19), [PR #24](https://github.com/rafhael100/imagine-portal/pull/24).
 
