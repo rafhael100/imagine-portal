@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Database\DatabaseManager;
-use Mockery;
 use Tests\TestCase;
 
 final class PortalUiComponentsTest extends TestCase
@@ -14,8 +13,8 @@ final class PortalUiComponentsTest extends TestCase
         parent::setUp();
 
         // Fail if rendering ever attempts to acquire a database connection.
-        $database = Mockery::mock(DatabaseManager::class);
-        $database->shouldNotReceive('connection');
+        $database = $this->createMock(DatabaseManager::class);
+        $database->expects($this->never())->method('connection');
         $this->app->instance('db', $database);
     }
 
