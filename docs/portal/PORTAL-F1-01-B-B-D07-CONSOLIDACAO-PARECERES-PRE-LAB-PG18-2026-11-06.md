@@ -9,6 +9,8 @@
 
 > **Atualização DEC-06 (06/11/2026):** o responsável aprovou documentalmente ambiente GitHub Actions temporário sujeito à quota, até 30 minutos por perfil PHP e guarda de provas sintéticas por 30 dias com descarte de volumes ao encerrar. Após admitir custo baixo e controlado, aprovou **teto agregado de R$ 50 para a etapa inteira, incluindo repetições e armazenamento**. Ver [DEC-06](PORTAL-F1-01-B-B-DEC-06-CONDICOES-LABORATORIO-CUSTO-CONTROLADO-2026-11-06.md). As pendências de ambiente/pareceres abaixo devem ser lidas com esse aceite parcial: disponibilidade e quota ainda não comprovadas, estimativa/monitoramento e execução ainda pendentes. O teto monetário está aprovado; não representa autorização para gastar ou executar laboratório. Nenhum gate homologado.
 
+> **Atualização D08:** o responsável declarou “eu que farei todas as revisões” e foi designado para P01–P06, sem assinatura antecipada dos pareceres. O [D08 — controle de custo e revisões dirigidas](PORTAL-F1-01-B-B-D08-CONTROLE-CUSTO-REVISOES-DIRIGIDAS-2026-11-06.md) apresenta estimativa com CI induzido, controle do teto R$50, limitações de acesso a billing e o primeiro contrato P01 para exame humano. Menções abaixo a “responsáveis a nomear” são históricas; o parecer técnico de cada item e os fatos de ambiente ainda estão pendentes.
+
 ## 1. Fontes, precedência e limites
 
 | Fonte | Escopo e estado consultado | O que não se pode inferir |
