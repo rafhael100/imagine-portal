@@ -2,6 +2,8 @@
 
 **Data:** 06/11/2026, America/Sao_Paulo. **Entrega:** documentação técnica para revisão; nenhum gate homologado ou encerrado. **Autorização:** instrução específica D06 do responsável, exclusivamente documental. [Issue #17](https://github.com/rafhael100/imagine-portal/issues/17), [PR #19](https://github.com/rafhael100/imagine-portal/pull/19).
 
+> **Revisão documental RV02 (06/11/2026):** o [parecer consolidado RV02](PORTAL-F1-01-B-B-D06-RV02-PARECER-CONSOLIDADO-CONDICOES-LABORATORIO-2026-11-06.md) complementa este D06 e responde à RV01 publicada no PR #25. A recomendação inicial PG17, registrada no commit `4cd28fcc6cec9724141db625d8d1d63c25bd9435`, foi reavaliada: **PG18 passa a ser a recomendação para avaliação**, sem aceite/homologação presumidos. A matriz de prepared statements passa a distinguir PHP 8.3/8.4 e libpq. DEC-01–04 e todos os gates abertos permanecem preservados.
+
 Este pacote detalha os requisitos já orientados pelas DEC-01–04. Não reabre alternativas A/B/C ratificadas nem cria rodada genérica de decisão. Recomendações novas de versão, parâmetros, capacidades e retenção são propostas concretas, não aprovações presumidas. Não contém SQL executável, migrations, funcionalidades ou configuração de infraestrutura.
 
 ## 1. Base factual e precedência
@@ -24,13 +26,13 @@ D01–D05 e DEC-01–04 foram lidos integralmente. As ratificações superam os 
 
 **Requisitos funcionais/técnicos.** Persistência própria Portal, sem dependência do banco CRM; execução futura reprodutível de RLS, FKs e concorrência. Versão suportada, instalação rastreável, driver e biblioteca cliente identificados. Nenhuma conexão ou instalação é realizada nesta entrega.
 
-**Arquitetura recomendada e justificativa.** Recomenda-se **PostgreSQL 17**, minor de segurança vigente na autorização do laboratório, fixada por versão e digest da imagem naquele momento. Tem suporte previsto até **08/11/2029**, oferece os mecanismos necessários e evita exigir recursos mais recentes para provar isolamento. PG18 é uma evolução possível, sem necessidade de suportar duas majors no primeiro recorte. Planejar revisão anual e upgrade homologado pelo menos seis meses antes do EOL; minor exige leitura de release notes, ensaio e restauração verificável, não promoção automática. [Política oficial PostgreSQL](https://www.postgresql.org/support/versioning/).
+**Arquitetura recomendada e justificativa.** Após a comparação RV02-01, recomenda-se **PostgreSQL 18**, minor de segurança vigente na autorização do laboratório, fixada por versão, variante de imagem, arquitetura e digest naquele momento. O suporte é previsto até **14/11/2030**; PG17, com suporte até **08/11/2029**, continua alternativa tecnicamente viável caso a matriz de ambiente favoreça essa escolha. A vantagem de PG18 neste projeto novo é o horizonte maior sem migração de dados existente, não uma promessa de RLS ou desempenho superiores. Nenhuma versão foi aprovada/homologada. Não é necessário suportar duas majors no primeiro recorte. Planejar revisão anual e upgrade homologado pelo menos seis meses antes do EOL; minor exige leitura de release notes, ensaio e restauração verificável, não promoção automática. [Política oficial PostgreSQL](https://www.postgresql.org/support/versioning/).
 
 | Componente | Baseline candidata / evidência do repositório | Verificação futura exigida |
 |---|---|---|
-| Framework | Laravel `v13.40.0` no lock; requisito `^13.0` | Instalação pelo lock sem atualização incidental; testes PG na versão fixada |
+| Framework | Laravel `v13.40.0` no lock; requisito `^13.0` | Instalação pelo lock sem atualização incidental; testes PG18 na versão fixada |
 | PHP | `^8.3`; CI atual em 8.3 e 8.4 | As duas versões com patches suportados na execução; conferir requisitos de todos os pacotes |
-| Driver | PDO + `pdo_pgsql` + libpq fornecida pela imagem | Registrar versão/build de PHP, extensão e libpq, TLS e parâmetros de prepared statements |
+| Driver | PDO + `pdo_pgsql` do build PHP; libpq17 corrigida candidata conforme RV02-02, fixada independentemente da imagem do servidor | Registrar versão/build de PHP, extensão e libpq, TLS e parâmetros de prepared statements |
 | UUID | `ramsey/uuid 4.9.4` e `symfony/uid v7.4.21` já no lock | Sem dependência nova; geração proposta no servidor de aplicação, ver G-BB02 |
 | Conexões | Inicialmente PDO não persistente direto; perfil adicional PgBouncer por transação | Homologar os dois caminhos antes de liberar pool em uso; statement pooling excluído |
 | CI | Workflow PHP atual é sem banco; filtros não cobrem só `docs/` | Plano futuro separado para PG, sem mudar workflow neste PR; verde atual não prova RLS |
@@ -39,11 +41,11 @@ Laravel documenta suporte PostgreSQL, mas isso não comprova a combinação loca
 
 Topologia futura mínima: um banco PG descartável, aplicação/testes isolados, rede privada de laboratório, sem porta pública, volumes temporários, sem acesso a CRM/VPS e sem credenciais de produção. Credenciais efêmeras de laboratório somente sob futura autorização específica. Não criar serviços agora. Orçamento proposto sem nova contratação, usando recurso de CI já autorizado; disponibilidade/quota/custo não foram comprovados. Plataforma deve registrar limite antes de autorizar execução. Testes de falha usam duas ou mais conexões independentes, não um mock de SQLite.
 
-**Decisões pontuais pendentes:** aceite PG17; minor/digest/OS e libpq exatos; versão fixada PgBouncer se incluída; quota de CI, executor e responsável de manutenção. Não é necessário escolher VPS nesta fase.
+**Decisões pontuais pendentes:** aceite PG18 proposto (ou PG17 com justificativa); minor/digest/OS e libpq exatos; versão fixada PgBouncer se incluída; quota de CI, executor e responsável de manutenção. Não é necessário escolher VPS nesta fase.
 
 **Riscos/mitigações:** dependência transitiva incompatível → testar lock nos dois PHPs; versão flutuante → digest e manifesto; pool incompatível → perfil direto obrigatório e perfil pooled separado; EOL → revisão programada. **Dependências:** G-BB05/06/08; políticas de ambiente/backup de G-BB07.
 
-**Homologação futura:** manifesto completo de versões/digests sem segredos; duas células PHP×PG17 aprovadas; instalação sem alteração do lock; driver efetivo e TLS conferidos; perfis direto e pooled identificados nos resultados. Dono proposto **Arquitetura/Plataforma**, revisão Backend/DBA. **Situação: DOCUMENTADO; versão/ambiente pendentes; execução bloqueada por falta de autorização.**
+**Homologação futura:** manifesto completo de versões/digests sem segredos; duas células PHP×PG18 aprovadas; instalação sem alteração do lock; driver efetivo e TLS conferidos; perfis direto e pooled identificados nos resultados. Dono proposto **Arquitetura/Plataforma**, revisão Backend/DBA. **Situação: DOCUMENTADO; versão/ambiente pendentes; execução bloqueada por falta de autorização.**
 
 ## 3. G-BB02 — Modelo físico, integridade e escopo
 
@@ -87,6 +89,8 @@ Toda FK entre tabelas privadas inclui organização; PK global UUID isolada não
 **Riscos/mitigações:** referência cruzada → FK composta + RLS; unicidade revela terceiro → pré-validação e erro genérico; perda de autoria → restrição de delete; duplicatas/reingresso → linha canônica e histórico. **Dependências:** G-BB03/04/05/07. **Homologação:** rejeitar FK cruzada, duplicidade concorrente, revisão regressiva, fim inválido e mudança de tenant sem mutação parcial; comprovar exceções globais e índices por catálogo de laboratório futuro. Dono **Dados/DBA**, revisão Segurança. **Situação: DOCUMENTADO; revisão física pendente; sem tabelas criadas.**
 
 ## 4. G-BB03 — Origem e cadeia de confiança
+
+**Complemento RV02-03:** o parecer complementar explicita as saídas obrigatórias de Identidade, DBA e Segurança para origem, bootstrap e ameaça de runtime; ainda não foram obtidas.
 
 **Requisitos.** Origem Portal verificável para usuário, fonte oficial canônica para vínculo, política e recurso, nenhum objeto de cliente como autoridade. Bootstrap só revela empresas do próprio ator; falhas negam sem enumeração. Independência total de autenticação humana Portal/CRM, sem SSO, cookies ou banco compartilhado.
 
@@ -145,6 +149,8 @@ Revogação de usuário bloqueia todas suas memberships Portal; organização in
 
 ## 6. G-BB05 — RLS e segregação de privilégios
 
+**Complemento RV02-03:** grafo de dependências, assinatura/grants do avaliador e limites de contexto estão sujeitos à revisão independente especificada no parecer RV02; a descrição do autor não a substitui.
+
 **Requisitos.** Inventário completo das relações privadas e exceções globais; regras para todos os comandos; privilégio runtime mínimo; nenhum caminho indireto amplo; avaliador privado sem recursão/oracle. RLS é segunda barreira e nunca substitui identidade, FK ou alçada.
 
 **Arquitetura recomendada.** Owner DDL distinto do runtime; avaliador mínimo consultando metadados privados de autorização; política tenant restritiva combinada com permissões explícitas por comando. Uma política restritiva sozinha não concede acesso: é necessário o conjunto permissivo mínimo do comando, sempre limitado pela barreira restritiva. Revisar a composição efetiva, não cada política isoladamente.
@@ -183,9 +189,9 @@ RLS deve estar habilitada nas tabelas privadas expostas e considerada forçada p
 
 **Requisitos.** Contexto local somente na mesma transação/conexão; nenhum resíduo entre atores; ação sensível e revogação têm ponto de ordenação comum; retries revalidam tudo; perda de conexão não prova rollback nem autoriza repetição cega.
 
-**Algoritmo candidato em descrição, sem SQL.** Usar `READ COMMITTED`, transação explícita no primário, PDO não persistente no primeiro perfil. Antes de ler dado privado, resolver identidade confiável, configurar contexto local e obter barreiras necessárias. Ordem fixa: usuários envolvidos ordenados por UUID → organizações envolvidas ordenadas por UUID → vínculos ordenados → papéis/atribuições ordenados → recurso. Para uma ação comum, bloquear usuário e organização; lock exclusivo da linha de organização serializa ações sensíveis, mudanças de política, grants e último gestor na primeira experiência. É deliberadamente conservador e mensurável, sem otimização prematura. Nunca adquirir usuário depois de organização; identificar conjunto de atores antes e reler vínculo dentro da barreira.
+**Algoritmo candidato em descrição, sem SQL.** Usar `READ COMMITTED`, transação explícita no primário, PDO não persistente no primeiro perfil. Antes de ler dado privado, resolver identidade confiável, configurar contexto local e obter barreiras necessárias. Ordem fixa: usuários envolvidos ordenados por UUID → organizações envolvidas ordenadas por UUID → vínculos ordenados → papéis/atribuições ordenados → marcador idempotente → recurso. Para uma ação comum, bloquear usuário e organização; lock exclusivo da linha de organização serializa ações sensíveis, mudanças de política, grants e último gestor na primeira experiência. É deliberadamente conservador e mensurável, sem otimização prematura. Nunca adquirir usuário depois de organização; identificar conjunto de atores antes e reler vínculo dentro da barreira.
 
-A obtenção de locks exige privilégios próprios no PostgreSQL: não conceder UPDATE genérico de usuário/organização ao runtime apenas para viabilizar a barreira. Recomenda-se operação interna estreita, revisada no G-BB05, que bloqueie somente as referências do contexto validado, na mesma conexão/transação e sem devolver dados ou aceitar tenant arbitrário. O parecer DBA deve verificar sua assinatura, grants e interação com RLS.
+A obtenção de locks exige privilégios próprios no PostgreSQL: não conceder UPDATE genérico de usuário/organização ao runtime apenas para viabilizar a barreira. Recomenda-se operação interna estreita, revisada no G-BB05, que bloqueie somente as referências do contexto validado, na mesma conexão/transação e sem devolver dados ou aceitar tenant arbitrário. O parecer DBA deve verificar sua assinatura, grants e interação com RLS. A RV02-04 detalha a obtenção do conjunto completo de locks antes de liberar dados privados, releitura em instrução posterior à espera e limites de retry/commit inconclusivo; essa revisão é condição do algoritmo candidato.
 
 Revogação global de usuário obtém barreira do usuário, incrementa revisão e audita; todas as ações usam essa barreira antes da organizacional. Revogação organizacional/papel/grant usa barreira da organização, além das identidades pertinentes. Nova verificação após obtenção de locks lê estado/revisões atuais e instante de validade atual; só então decide, grava efeito e evento obrigatório no mesmo commit. Se ação obtém barreira primeiro, revogação espera seu término; se revogação conclui primeiro, ação posterior nega. Duração do lock é limitada pelos timeouts. Isso serializa efeitos locais; não faz promessa sobre efeitos externos, que estão excluídos.
 
@@ -207,7 +213,7 @@ Parâmetros **candidatos de laboratório**, a revisar por medição: espera de l
 
 Para idempotência de escritas fictícias propõe-se marcador privado `authorization_operations`: organização, UUID de operação, ator, ação, fingerprint sem payload sensível, estado/resultado mínimo e correlação, chave única organização/operação. Sua gravação e efeito são atômicos, com RLS e retenção própria G-BB07. É tabela auxiliar proposta em complemento ao inventário G-BB02, não implementada. Consultar resultado de operação já feita não autoriza novo efeito nem libera resposta privada sem autorização atual. Se marcador não puder esclarecer um commit perdido, bloquear repetição e escalar.
 
-Pooling: perfil direto é baseline de comparação; perfil PgBouncer usa transaction pooling, mesma conexão backend durante toda a transação. Statement pooling incompatível. Não depender de SET de sessão, temp table persistente, advisory lock de sessão ou cursor que sobreviva ao commit. Prepared statements em protocolo dependem de versão/configuração do pooler; no laboratório inicial propor desabilitar prepares nomeados reutilizados e documentar opção PDO escolhida, depois testar explicitamente se habilitados. Não modificar configuração agora. [Mapa de compatibilidade PgBouncer](https://www.pgbouncer.org/features.html).
+Pooling: perfil direto é baseline de comparação; perfil PgBouncer usa transaction pooling, mesma conexão backend durante toda a transação. Statement pooling incompatível. Não depender de SET de sessão, temp table persistente, advisory lock de sessão ou cursor que sobreviva ao commit. Prepared statements nomeados no perfil pooled exigem tratamento por célula: PHP 8.3 não é suportado pelo mecanismo de tracking PDO do PgBouncer; sua configuração candidata é `PDO::ATTR_EMULATE_PREPARES=true`, sem server-side named prepares. PHP 8.4 com libpq 17 admite perfil nativo candidato (`PDO::ATTR_EMULATE_PREPARES=false`, `PDO::PGSQL_ATTR_DISABLE_PREPARES=false`) com PgBouncer corrigido 1.21+ e `max_prepared_statements` maior que zero. PHP 8.4 com libpq anterior a 17 não satisfaz esse perfil. A alternativa `PDO::PGSQL_ATTR_DISABLE_PREPARES=true` sem emulação envia parâmetros sem preparar um nome separado, mas fica em perfil experimental próprio até prova da combinação. Nenhuma célula está homologada; a matriz completa, parâmetros e critérios estão em RV02-02. Esses atributos são apenas descritos, sem arquivo de configuração ou código. Não modificar configuração agora. [Mapa de compatibilidade PgBouncer](https://www.pgbouncer.org/features.html).
 
 **Pendências:** DBA/Backend aprovarem algoritmo conservador, conjunto exato de locks, operação idempotente e timeouts; Plataforma fixar pooler/configuração antes de homologar perfil pooled. **Riscos/mitigações:** gargalo organizacional → medir antes de granularizar; deadlock → ordem única em todos os caminhos; TOCTOU → reler após barreira; commit perdido → marcador/consulta; contexto residual → rollback/descarte e teste de reuso. **Dependências:** G-BB01/02/03/04/05/07/08. **Homologação:** duas ordens de corrida coordenadas comprovadas sem sleeps como única sincronização; nenhuma ação com grant antigo após commit de revogação; reuso após todas as falhas sem resíduo; replay sem duplicidade. Dono **Backend/Dados**, revisão Plataforma/DBA/Segurança. **Situação: DOCUMENTADO; algoritmo e parâmetros pendentes; ensaios NÃO EXECUTADOS.**
 
@@ -224,10 +230,10 @@ Pooling: perfil direto é baseline de comparação; perfil PgBouncer usa transac
 | Negativas de autorização futuras | Proposta 30 dias após tentativa, agregação minimizada quando suficiente | Segurança por incidente; antiabuso com limite de volume; legal hold apenas fundamentado |
 | Mudança de vínculo/política | Prazo final **pendente** de finalidade/base legal/necessidade de contestação | Sem assumir perpetuidade ou os 90 dias de leads; Privacidade/Produto devem registrar prazo e evento inicial antes de uso real |
 | Perfil/identidade revogada | Sem exclusão em cascata; minimização/anonimização após obrigações aplicáveis | Prazo e campos a preservar pendentes; manter autoria por referência protegida quando necessário |
-| Marcador idempotente | Horizonte de replay deve ser menor ou igual ao prazo de guarda do marcador | Proposta de laboratório: somente duração do ensaio; produção bloqueada até fixar ambos e impedir replay após expurgo |
+| Marcador idempotente | Horizonte de replay deve ser menor ou igual ao prazo de guarda do marcador | Proposta de laboratório: duração do ensaio e reconciliação, sem expurgo com comando inconclusivo; produção bloqueada até fixar ambos e impedir replay após expurgo |
 | Backups de identidade/autorização | Política/RPO/RTO e prazo de guarda pendentes antes de uso real | Separados de CRM e dos leads; criptografia/acesso/expurgo e holds documentados por Plataforma/Privacidade |
 
-Prazos numéricos acima são recomendações técnicas para revisão, não retenções legalmente aprovadas; não inventar prazo para contratos/auditoria sensível. A coleta real fica bloqueada enquanto faltar base/finalidade, termo inicial, prazo, acesso e procedimento de eliminação. Laboratório só utiliza dados comprovadamente fictícios e pode ter política de descarte distinta.
+A RV02-05 separa histórico de vínculos, eventos de auditoria e marcadores, incluindo retenção/expurgo e restauração com revogações. Prazos numéricos acima são recomendações técnicas para revisão, não retenções legalmente aprovadas; não inventar prazo para contratos/auditoria sensível. A coleta real fica bloqueada enquanto faltar base/finalidade, termo inicial, prazo, acesso e procedimento de eliminação. Laboratório só utiliza dados comprovadamente fictícios e pode ter política de descarte distinta.
 
 Segredos proibidos: senha/hash, sessão/token, chave de API, conteúdo de contrato/anexo/lead, CPF/CNPJ/e-mail real; não copiar ambiente de cliente. Correlacionar por IDs fictícios em testes. Provas de QA registram contagem, revisão e resultado mínimo; não extrair registros completos para “comprovar” negação. Exports e acesso a auditoria geram correlação e alçada própria.
 
@@ -290,7 +296,7 @@ Complementos necessários dentro das mesmas famílias: commit com resposta perdi
 
 | Gate | Contrato entregue por D06 | Falta antes de solicitar laboratório | Prova posterior, só após autorização | Situação final |
 |---|---|---|---|---|
-| G-BB01 | PG17, PHP/driver/lock, topologia e perfis | Aceite versão; minor/digests/libpq/pooler; quota/custo e mantenedor | Manifesto e testes dos perfis escolhidos | Documentado; pendente |
+| G-BB01 | PG18 recomendado após comparação RV02, PHP/driver/lock e perfis separados | Aceite versão; minor/digests/libpq/pooler; quota/custo e mantenedor | Manifesto e testes dos perfis escolhidos | Documentado; pendente |
 | G-BB02 | ERD, UUIDv4, tabelas/FKs/índices e marcador auxiliar | Revisão Dados/Segurança e limites finais do dicionário | Constraints/FKs e unicidade concorrente | Documentado; pendente |
 | G-BB03 | Cadeia de autoridade e bootstrap, fronteira simulada/real | Parecer Identidade/Segurança sobre emissor, simulação e ameaça runtime | Origem/tenant forjados negados; login real continua outro gate | Documentado; uso real bloqueado |
 | G-BB04 | Catálogo, matriz concedente→alvo, ciclo e último gestor | Validar capacidades/mandato e nomear donos da recuperação; exclusões do laboratório | Projeção, autoelevação e concorrência de grants/gestores | Documentado; reingresso/recuperação bloqueados |
@@ -322,5 +328,7 @@ Corpus integral D01–D05/DEC-01–04 em [árvore congelada do PR #19](https://g
 - DEC-04: `PORTAL-F1-01-B-B-DEC-04-RATIFICACAO-BBD04-01-A-06-A-2026-11-06.md`.
 
 Evidências estáticas de compatibilidade e trabalho paralelo: [árvore dev congelada](https://github.com/rafhael100/imagine-portal/tree/0aef6838b0452fcbb195fcad2e50aed748ec41c5/apps/portal), `composer.json`, `composer.lock`, `config/database.php`, `.github/workflows/laravel-f1-01-a.yml`, serviço B-A e `DemoPortalSession`. Fontes externas oficiais foram consultadas em 06/11/2026 e vinculadas nas seções correspondentes; compatibilidade documentada não significa teste executado.
+
+A RV02-03 registra pendências específicas de Identidade/DBA/Segurança sobre bootstrap, contexto e avaliador; a RV02-06 consolida os oito gates sem fechar nenhum.
 
 Validação desta entrega é estática: escopo exclusivamente Markdown, oito gates com requisitos/arquitetura/pendências/riscos/dependências/critério/dono/situação, cobertura dos 34 IDs anteriores, ausência de SQL executável e diff sem erros de whitespace. Nenhum ensaio PG, laboratório, SQL, migration, autenticação, integração, dado real, alteração de credenciais/VPS, merge ou deploy foi executado. Nenhum gate de segurança é encerrado por esta entrega.
