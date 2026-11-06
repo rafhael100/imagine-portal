@@ -3,8 +3,10 @@
 namespace App\Domain\Authorization;
 
 /**
- * Generic decisions prevent leaking the existence of another organization.
- * Not an HTTP authorization policy, session or login implementation.
+ * Generic decisions avoid revealing which authorization predicate failed.
+ * A Decision object is not a signed or transferable permission token:
+ * the caller must invoke the pure evaluator with trusted server-resolved
+ * inputs. Not an HTTP policy, session, login or proof of authorization.
  */
 final readonly class AuthorizationDecision
 {
