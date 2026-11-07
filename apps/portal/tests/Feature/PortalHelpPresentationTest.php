@@ -20,6 +20,19 @@ final class PortalHelpPresentationTest extends TestCase
         $this->app->instance('db', $database);
     }
 
+    private function navigation(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        return new \DOMXPath($document);
+    }
+
     public function test_help_renders_semantic_static_guidance_without_registering_a_navigation_item(): void
     {
         $html = view('portal.demo.help')->render();
@@ -33,17 +46,9 @@ final class PortalHelpPresentationTest extends TestCase
             self::assertStringContainsString('<h3>'.$topic->title.'</h3>', $html);
             self::assertStringContainsString($topic->guidance, $html);
         }
-        $document = new \DOMDocument();
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML('<?xml encoding="UTF-8">'.$html);
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-        $xpath = new \DOMXPath($document);
+        $xpath = $this->navigation($html);
         $items = $xpath->query('//nav/ul/li/span');
-        self::assertSame(6, $items->length);
+        self::assertSame(count(ClientSection::cases()), $items->length);
         foreach (ClientSection::cases() as $index => $section) {
             self::assertSame($section->label(), trim($items->item($index)->textContent));
         }
@@ -74,7 +79,7 @@ final class PortalHelpPresentationTest extends TestCase
         self::assertStringNotContainsString('href=', $html);
     }
 
-    public function test_six_existing_views_and_help_keep_routes_navigation_and_session_unchanged(): void
+    public function test_existing_views_and_help_keep_routes_navigation_and_session_unchanged(): void
     {
         $snapshot = fn () => array_map(
             fn ($route) => [$route->methods(), $route->uri(), $route->getActionName()],
@@ -88,13 +93,28 @@ final class PortalHelpPresentationTest extends TestCase
             foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'src=', 'action=', 'http://', 'https://'] as $forbidden) {
                 self::assertStringNotContainsString($forbidden, $html);
             }
+            $xpath = $this->navigation($html);
+            $labels = array_map(
+                fn ($node) => trim($node->textContent),
+                iterator_to_array($xpath->query('//nav/ul/li/span')),
+            );
+            self::assertSame(array_map(fn ($section) => $section->label(), $sectionsBefore), $labels);
+            $active = $xpath->query('//nav//*[@aria-current]');
+            if ($screen === 'help') {
+                self::assertSame(0, $active->length);
+            } else {
+                self::assertSame(1, $active->length);
+                self::assertSame('page', $active->item(0)->getAttribute('aria-current'));
+                self::assertSame(ClientSection::from($screen)->label(), trim($active->item(0)->textContent));
+            }
             preg_match_all('/href="([^"]*)"/', $html, $links);
             self::assertSame(['#pi-content'], $links[1]);
         }
         self::assertSame($routesBefore, $snapshot());
         self::assertSame(['up', 'storage/{path}'], array_values(array_unique(array_column($routesBefore, 1))));
         self::assertSame($sectionsBefore, ClientSection::cases());
-        self::assertCount(6, ClientSection::cases());
+        self::assertNull(ClientSection::tryFrom('help'));
+        self::assertNotContains('help', array_column($sectionsBefore, 'value'));
         self::assertFalse($this->app['session']->isStarted());
     }
 

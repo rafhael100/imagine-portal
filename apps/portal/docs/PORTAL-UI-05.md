@@ -133,3 +133,39 @@ outros motores/dispositivos e CI oficial. Autenticação, fonte confiável de da
 persistência ou qualquer serviço real exigem novo escopo.
 PR permanece aberto em rascunho, sem merge. Main, dev, VPS, produção e gates
 de Segurança/PostgreSQL preservados.
+
+## RV01 — Navegação derivada do catálogo e compatibilidade provisória
+
+Correção do [parecer RV01](https://github.com/rafhael100/imagine-portal/pull/40#issuecomment-6710394255),
+na mesma branch do PR #40. Somente PortalHelpPresentationTest.php e este relatório
+alterados em relação à entrega inicial.
+
+Removidas as duas contagens rígidas de seis seções; o nome do teste também não
+fixa quantidade. ClientSection é a fonte da quantidade, da ordem e dos rótulos.
+Cada view do catálogo é renderizada e seu menu real é comparado ao catálogo:
+exatamente um item ativo com aria-current=page e rótulo da seção correspondente.
+Help não pertence ao catálogo e deve ter zero itens ativos. Rotas/sessão e o
+mock PHPUnit que proíbe connection() permanecem verificados. Não há alteração
+de view, enum, layout, navegação de produto ou arquivo do PR #37.
+
+Resultados locais efetivos em PHP 8.4.24 / PHPUnit 12.5.43:
+
+| Cenário | Provas Help | Suíte completa |
+| --- | --- | --- |
+| Base atual UI-03 + UI-05 corrigida | 9 testes / 209 asserções OK | 124 testes / 1974 asserções OK |
+| Convivência provisória UI-04 + UI-05 corrigida | 9 testes / 226 asserções OK | 134 testes / 2141 asserções OK |
+
+O segundo cenário foi executado em clone temporário detached,
+`/workspace/work/ui5-rv01-compat`. Aplicou-se apenas na working tree o diff
+`03423d866322c8b01bb856210d2da758b4a33dbf..1499a18c9028c6f9e60811cf8e0914436285cad5`
+do PR #37, mais o teste Help corrigido. git apply --check aprovado.
+Nenhum commit de integração, merge, push ou alteração da branch do PR #37:
+é uma prova provisória com sete seções, não autorização de integração.
+O diff do PR #40 continua sem interseção com os 19 arquivos do PR #37.
+
+Comandos de teste: os mesmos filtros Help e suíte completa documentados acima,
+executados nos dois diretórios. PHP 8.3 continua indisponível localmente.
+O resultado do Actions para o novo SHA e os links dos runs são registrados no
+comentário de encerramento do PR #40; não houve rerun repetitivo. Teste local
+não substitui validação oficial. Continuam pendentes CI efetivamente executado,
+revisão humana e autorização expressa antes de qualquer integração.
