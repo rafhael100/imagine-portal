@@ -1,0 +1,86 @@
+name: Portal PVIEW-03 - real Blade offline browser QA
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/resources/views/components/portal/pview-shell.blade.php'
+      - 'apps/portal/resources/views/portal/demo/pview-navigation.blade.php'
+      - 'apps/portal/tests/Feature/PviewNavigationPresentationTest.php'
+      - 'apps/portal/preview/tests/**'
+      - 'apps/portal/preview/PVIEW-03-README.md'
+      - '.github/workflows/portal-pview-03-blade-browser-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-pview-03-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  blade-browser-offline:
+    if: github.head_ref == 'feat/portal-pview-03-blade-visual-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated branch without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP 8.4 and Laravel test extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Setup Node.js 22 with built-in WebSocket
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install locked Laravel dependencies, never migrations or external services
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+
+      - name: Render Laravel Blade into ephemeral offline HTML
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-03-blade-render.html
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/preview/tests/render_blade_preview.php
+          php apps/portal/preview/tests/render_blade_preview.php
+          test -s "$PVIEW_RENDER_FILE"
+
+      - name: Test rendered Blade on Chromium at 3 viewports
+        env:
+          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-03-blade-render.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: pview-03-blade
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview03-evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          node apps/portal/preview/tests/pview_browser_check.mjs
+
+      - name: Attach synthetic screenshots for review
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: pview-03-blade-screenshots
+          path: ${{ runner.temp }}/pview03-evidence/*.png
+          if-no-files-found: ignore
+          retention-days: 1
