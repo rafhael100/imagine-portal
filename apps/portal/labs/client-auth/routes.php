@@ -108,4 +108,50 @@ Route::prefix('/_lab/portal')->group(static function (): void {
             ]);
         });
     })->name('portal.lab.dashboard');
+
+    // Synthetic write/read, not an operational ticket workflow.
+    Route::post('/organizations/{organization}/requests', static function (Request $request, string $organization, LabPortalGateway $gateway) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $organization, $gateway) {
+            $actor = $gateway->actor($request);
+            if ($actor === null) {
+                return response()->json(['error' => 'unauthenticated'], 401);
+            }
+            if (preg_match('/\A[a-z0-9._:-]{1,64}\z/D', $organization) !== 1) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $data = $request->validate([
+                'service_id' => ['required', 'string', 'max:64', 'regex:/\A[a-z0-9._:-]+\z/D'],
+                'title' => ['required', 'string', 'min:3', 'max:120'],
+            ]);
+
+            $id = $gateway->submitRequest(
+                $actor,
+                $organization,
+                $data['service_id'],
+                $data['title'],
+            );
+
+            return $id === null
+                ? response()->json(['error' => 'not_found'], 404)
+                : response()->json(['request_id' => $id, 'status' => 'received'], 201);
+        });
+    })->name('portal.lab.request-create');
+
+    Route::get('/organizations/{organization}/requests', static function (Request $request, string $organization, LabPortalGateway $gateway) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $organization, $gateway) {
+            $actor = $gateway->actor($request);
+            if ($actor === null) {
+                return response()->json(['error' => 'unauthenticated'], 401);
+            }
+            if (preg_match('/\A[a-z0-9._:-]{1,64}\z/D', $organization) !== 1) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+            $requests = $gateway->requests($actor, $organization);
+            return $requests === null
+                ? response()->json(['error' => 'not_found'], 404)
+                : response()->json(['requests' => $requests]);
+        });
+    })->name('portal.lab.requests');
+
 });
