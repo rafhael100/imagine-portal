@@ -59,8 +59,39 @@ final class PortalPreviewBladeTest extends TestCase
             self::assertSame('#pv-'.$section, $links->item($index)->getAttribute('href'));
             self::assertSame('pv-'.$section, $panels->item($index)->getAttribute('id'));
             self::assertSame('pv-heading-'.$section, $panels->item($index)->getAttribute('aria-labelledby'));
-            self::assertSame(1, $xpath->query('//h1[@id="pv-heading-'.$section.'"]')->length);
+            self::assertSame(1, $xpath->query('//h2[@id="pv-heading-'.$section.'"]')->length);
+            self::assertSame('-1', $panels->item($index)->getAttribute('tabindex'));
         }
+    }
+
+    public function test_heading_hierarchy_mobile_menu_and_focus_hints_are_accessible(): void
+    {
+        $html = view('portal.preview.showcase')->render();
+        $xpath = $this->xpath($html);
+
+        // A single document heading, subordinate headings for six sections.
+        self::assertSame(1, $xpath->query('//main/preceding::h1')->length);
+        self::assertSame(6, $xpath->query('//main/section/h2')->length);
+        self::assertSame(0, $xpath->query('//main/section/h1')->length);
+
+        $menu = $xpath->query('//nav[@aria-label="Navegação entre seções da prévia"]')->item(0);
+        self::assertNotNull($menu);
+        self::assertSame('pv-nav-instructions', $menu->getAttribute('aria-describedby'));
+        self::assertSame(1, $xpath->query('//*[@id="pv-nav-instructions"]')->length);
+        self::assertStringContainsString('deslize o menu', $html);
+
+        $stylesheet = (string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/views/components/portal/preview/styles.blade.php',
+        );
+        foreach ([
+            'position:sticky', 'max-height:100dvh', 'overflow-x:auto',
+            'scroll-snap-type:x proximity', 'scroll-margin-top:165px',
+            'max-width:980px', 'max-width:620px', 'max-width:360px',
+            'prefers-reduced-motion:reduce', '.pv-section:target', '.pv-section:focus-visible',
+        ] as $contract) {
+            self::assertStringContainsString($contract, $stylesheet);
+        }
+        self::assertSame(6, substr_count($stylesheet, '.pv-nav-link[href="#pv-'));
     }
 
     public function test_rendering_does_not_enable_live_financial_ads_or_customer_capabilities(): void
