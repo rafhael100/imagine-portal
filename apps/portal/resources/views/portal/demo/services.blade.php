@@ -1,7 +1,6 @@
 <x-portal.layout current="services">
-    <div class="pi-grid pi-grid-two">
-        <x-portal.service-card name="Performance AI" description="Campanhas e indicadores de exemplo, sem conexão com plataformas de anúncios." status="Contratado · fictício" tone="success" />
-        <x-portal.service-card name="Sites" description="Projeto de site fictício da Empresa Aurora, sem domínio ou publicação." status="Em preparação · fictício" tone="warning" />
-    </div>
+    <x-portal.message title="DEMONSTRAÇÃO — dados fictícios" message="Acompanhamento da Empresa Aurora fictícia. Os estados abaixo não comprovam contratação, elegibilidade ou execução de serviços." />
+    <x-portal.service-tracking :services="\App\Presentation\DemoServiceRequests::services()" />
+    <x-portal.message title="Produtos independentes" message="CRM Imagine possui identidade, login e sessão próprios, sem SSO com o Portal. Universidade Imagine é benefício de clientes elegíveis, não assinatura avulsa; nenhum acesso é concedido neste cenário." />
     <x-portal.unavailable feature="O acompanhamento operacional dos serviços" />
 </x-portal.layout>

@@ -18,9 +18,9 @@ final class PortalUiComponentsTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_all_six_unmounted_screens_render_semantic_demo_content(): void
+    public function test_all_seven_unmounted_screens_render_semantic_demo_content(): void
     {
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey'] as $screen) {
+        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('lang="pt-BR"', $html);
             self::assertStringContainsString('name="viewport"', $html);
@@ -111,7 +111,7 @@ final class PortalUiComponentsTest extends TestCase
         foreach ($this->app['router']->getRoutes() as $route) {
             $routesBefore[] = [$route->methods(), $route->uri(), $route->getActionName()];
         }
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey'] as $screen) {
+        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             view('portal.demo.'.$screen)->render();
         }
         $routesAfter = [];
