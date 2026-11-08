@@ -216,4 +216,90 @@ final class LabPortalPgFeatureTest extends TestCase
         $this->get('/_lab/portal/organizations/org-a/dashboard')->assertNotFound();
     }
 
+
+    public function test_requests_write_stays_within_member_tenant_and_fk_composite(): void
+    {
+        $this->postJson('/_lab/portal/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'Synthetic request',
+        ])->assertUnauthorized();
+
+        $this->loginA();
+
+        $this->postJson('/_lab/portal/organizations/org-b/requests', [
+            'service_id' => 'service-b',
+            'title' => 'Cross tenant write attempt',
+        ])->assertNotFound();
+
+        $this->postJson('/_lab/portal/organizations/org-a/requests', [
+            'service_id' => 'service-b',
+            'title' => 'Forged foreign service',
+        ])->assertNotFound();
+
+        $create = $this->postJson('/_lab/portal/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'Synthetic request for A',
+        ])->assertStatus(201)->assertJsonPath('status', 'received');
+
+        $requestId = $create->json('request_id');
+        $this->assertIsString($requestId);
+        $this->assertSame(1, DB::connection('pgsql')
+            ->table('lab_portal_requests')
+            ->where('org_id', 'org-a')
+            ->where('id', $requestId)
+            ->count());
+
+        $this->getJson('/_lab/portal/organizations/org-a/requests')
+            ->assertOk()
+            ->assertJsonCount(1, 'requests')
+            ->assertJsonPath('requests.0.title', 'Synthetic request for A');
+        $this->getJson('/_lab/portal/organizations/org-b/requests')->assertNotFound();
+
+        // Even an admin-generated cross-tenant FK cannot be inserted.
+        try {
+            DB::connection('pgsql')->table('lab_portal_requests')->insert([
+                'org_id' => 'org-a',
+                'id' => 'bad-fk',
+                'service_id' => 'service-b',
+                'title' => 'Cross tenant reference',
+                'status' => 'received',
+            ]);
+            $this->fail('PostgreSQL accepted cross-tenant composite FK.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')->count());
+    }
+
+    public function test_requests_fail_closed_when_runtime_context_missing_or_member_revoked(): void
+    {
+        $runtime = DB::connection('portal_lab_runtime');
+        try {
+            $runtime->table('lab_portal_requests')->insert([
+                'org_id' => 'org-a',
+                'id' => 'no-actor-context',
+                'service_id' => 'service-a',
+                'title' => 'Missing RLS context',
+                'status' => 'received',
+            ]);
+            $this->fail('Runtime wrote without tenant/actor GUCs.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+
+        $this->loginA();
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-a')
+            ->where('user_id', 'portal-user-a')
+            ->update(['status' => 'revoked']);
+
+        $this->postJson('/_lab/portal/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'After revocation',
+        ])->assertNotFound();
+
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_requests')->count());
+    }
+
 }
