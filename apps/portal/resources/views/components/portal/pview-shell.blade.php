@@ -117,10 +117,16 @@
         </main>
     </div>
 </div>
+@php
+    $pviewLabels = [];
+    foreach (\App\Presentation\PviewSection::cases() as $pviewSection) {
+        $pviewLabels[$pviewSection->value] = $pviewSection->label();
+    }
+@endphp
 <script>
 (function () {
     "use strict";
-    const labels = @json(collect(\App\Presentation\PviewSection::cases())->mapWithKeys(fn ($section) => [$section->value => $section->label()])->all());
+    const labels = @json($pviewLabels);
     const main = document.getElementById("pview-main");
     const screens = Array.from(document.querySelectorAll("[data-screen]"));
     const links = Array.from(document.querySelectorAll("[data-nav]"));
