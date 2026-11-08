@@ -67,6 +67,12 @@ GRANT SELECT ON r07.account, r07.session, r07.membership,
                 r07.resource_index, r07.private_resource, r07.effect TO r07_authority;
 GRANT INSERT ON r07.effect TO r07_authority;
 
+-- A synthetic background job has no direct private-table privileges.
+-- NOLOGIN makes this an inert role used exclusively by the PG18 test runner
+-- with SET ROLE. Real jobs must authenticate to a closed Z2 interface later.
+CREATE ROLE r07_job_no_dml NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+GRANT USAGE ON SCHEMA r07 TO r07_job_no_dml;
+
 -- All authoritative UPDATE/DELETE writers must join the SAME locks that
 -- a simulated effect holds. The web SQL role does NOT receive UPDATE rights.
 -- Hash collisions only cause extra contention; this is a lab proof, not

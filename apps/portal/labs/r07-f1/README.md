@@ -32,9 +32,17 @@ Direção autorizou a PoC R07-F1, Issue #50, com dados fictícios, containers de
 - A ausência de acesso ao banco demonstrada por Docker networking/credenciais é um ensaio de capacidade T2 no contexto Z1. O host GitHub Runner tem poder administrativo; um atacante que comprometa Z2 ou o host foge do escopo.
 - A role SQL Z2 ainda consegue alterar variáveis de RLS se Z2 for comprometida. RLS não se tornou imune a SQL arbitrário. LAB-T07 anterior continua válido para sua fronteira original.
 - A corrida controlada de membership em PG18 abrange apenas o writer-map com triggers desta PoC; não demonstra todos os escritores P→A→S→O→M→R, restore, transação de pagamentos, latência, canal lateral, captura de credencial Z2 ou T3 completo. O próprio T13 documenta risco remanescente.
-- G-ID/G-BB, D02-SEC, D03/RLS, P0 R01-01/02/03/09/10, revisão humana AppSec/DBA e release permanecem ABERTOS. CI verde não aprova produção.
+- G-ID/G-BB, D02-SEC, D03/RLS, P0 R01-01/02/03/09/10, revisões internas AppSec/DBA (#54/#55) e release permanecem ABERTOS. CI verde não aprova produção.
 - Sem merge de PR #47/#49 nem desta PoC, sem VPS, sem deploy. A limpeza do laboratório é automática no workflow.
 
 ## Correção SEC-R01 (Issue #60)
 
 O banco fictício guarda `command_sha256` ligado à identidade da operação; repetir mesma chave com payload divergente resulta em 409, nunca em replay aparentemente exitoso. A PoC emprega `pg_advisory_xact_lock_shared` na autoridade e `BEFORE UPDATE/DELETE` triggers nos writers de conta, sessão, resource owner e membership, sem conceder UPDATE à role HTTP. Os testes usam um gancho `X-R07-Lab-Hold-Ms` que **existe só nesta PoC**. Na produção, triggers podem ser desabilitados por papéis privilegiados, funções/DDL/restore podem escapar do protocolo, e o bloqueio de recursos exige inventário integral e auditoria: os cinco P0 continuam ABERTOS.
+
+## Ampliação SEC-R02 — inventário, job e restore (Issue #63)
+
+Ver [inventário de escritores](WRITERS-INVENTORY-2026-11-08.md). No Portal `dev` ainda **não existem escritores operacionais**: a PoC testa apenas papéis e fluxos sintéticos, não filas reais.
+
+O runner testa a role `r07_job_no_dml` NOLOGIN sem SELECT/INSERT/UPDATE privados, verifica suspensão administrativa de sessão/conta com negação pela autoridade e faz `pg_dump` pré-revogação seguido de `pg_restore` numa **base nova e isolada, nunca servida**.
+
+**Risco de restore esperado e não resolvido:** snapshot anterior à revogação reabre o estado antigo da sessão na base restaurada se não houver reconciliação com um registro monotônico externo ao domínio restaurado. O CI reporta `KNOWN GAP RESTORE`, e não `PASS segurança de restore`. Uma futura política de restore deverá impedir serving até reconciliar revogações, segredos e políticas a partir de autoridade externa. Nenhuma restauração foi efetuada no Portal, VPS ou banco de cliente.
