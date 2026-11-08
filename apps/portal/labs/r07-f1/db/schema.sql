@@ -38,7 +38,8 @@ CREATE TABLE r07.effect (
   effect_id text NOT NULL,
   resource_id text NOT NULL,
   actor_id text NOT NULL,
-  command_sha256 text NOT NULL CHECK (command_sha256 ~ '^[a-f0-9]{64}
+  command_sha256 text NOT NULL CHECK (command_sha256 ~ '^[a-f0-9]{64}$'),
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   PRIMARY KEY (organization_id, effect_id),
   FOREIGN KEY (organization_id, resource_id)
     REFERENCES r07.private_resource(organization_id, resource_id),
