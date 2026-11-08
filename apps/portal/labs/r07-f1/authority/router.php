@@ -50,6 +50,23 @@ if (! ($path === '/v1/resource' && $method === 'GET')
 
 // Any actor/tenant/role/mfa/SQL claims in request URL, headers or JSON are
 // deliberately NOT read as authority.
+// R03 is a disposable, opt-in RESTORED-CLONE probe. Never a Portal route.
+$r03RestoreClone = getenv('R07_R03_CLONE_ONLY') === '1';
+if ($r03RestoreClone) {
+    $fenceUrl = getenv('R07_R03_FENCE_URL');
+    if ($fenceUrl !== 'http://fence:8081/v1/allow') {
+        reply(503, ['error' => 'service_unavailable']);
+    }
+    $ctx = stream_context_create(['http' => [
+        'timeout' => 1.0,
+        'ignore_errors' => true,
+    ]]);
+    $fenceReply = @file_get_contents($fenceUrl, false, $ctx);
+    if ($fenceReply !== '{"allow":true}') {
+        reply(503, ['error' => 'service_unavailable']);
+    }
+}
+
 $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 if (! is_string($authorization)
     || preg_match('/^Bearer ([0-9a-f]{64})$/D', $authorization, $matches) !== 1) {
@@ -78,7 +95,10 @@ try {
     $dsn = getenv('R07_DB_DSN');
     $user = getenv('R07_DB_USER');
     $password = getenv('R07_DB_PASSWORD');
-    if ($dsn !== 'pgsql:host=pg;port=5432;dbname=portal_r07_f1'
+    $permittedDsn = $r03RestoreClone
+        ? 'pgsql:host=pg;port=5432;dbname=portal_r07_restored'
+        : 'pgsql:host=pg;port=5432;dbname=portal_r07_f1';
+    if ($dsn !== $permittedDsn
         || $user !== 'r07_authority'
         || ! is_string($password)
         || strlen($password) < 20) {
