@@ -30,7 +30,7 @@ final class PviewNavigationPresentationTest extends TestCase
 
         $this->assertStringContainsString('DEMONSTRAÇÃO OFFLINE / LARAVEL', $html);
         $this->assertStringContainsString('Empresa Aurora fictícia', $html);
-        $this->assertStringContainsString('connect-src 'none'', $html);
+        $this->assertStringContainsString("connect-src 'none'", $html);
         $this->assertStringContainsString('href="#pview-main"', $html);
 
         foreach (PviewSection::cases() as $section) {
