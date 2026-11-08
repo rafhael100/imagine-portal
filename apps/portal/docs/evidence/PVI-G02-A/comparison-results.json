@@ -1,0 +1,266 @@
+{
+  "approved_commit": "aab05561611f876e5f5a55c9216d2a61e62da273",
+  "approved_artifact": 13631190532,
+  "chromium": "156.0.8078.79",
+  "canonical_html": {
+    "identical": true,
+    "tokens": 425,
+    "sha256": "2a391236c0b597688918f3ebcfe322c2a148ff0a0a8109a8ce8a55099e664751"
+  },
+  "method": "RGB pixel inequality; no tolerance; same environment re-renders approved artifact HTML with unchanged browser smoke; CI images use a different rendering environment.",
+  "comparisons": [
+    {
+      "file": "imagine-portal-celular-390.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 44807,
+      "total_pixels": 329160,
+      "new_sha256": "de82c09d3de018274f0ea2f3806804828b8874d823c45623e8689ea51863e91a"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-320.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 67180,
+      "total_pixels": 236800,
+      "new_sha256": "cae070c11f90b4eb39187d2ce8777bfcec688cc32d77486aedefd1049a66e801"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-financeiro.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 38928,
+      "total_pixels": 236800,
+      "new_sha256": "ddf893760cf8ecdb1548f3e5eeb3d10cd9a9468a25d8a529f914b2cc76cd7145"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-inicio.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 61584,
+      "total_pixels": 236800,
+      "new_sha256": "aa46fc3ead90dc8612a10c11c036dd66b60360707364d9640032466b369c21d3"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-performance.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 28588,
+      "total_pixels": 236800,
+      "new_sha256": "e05f2a7bfcc0c8febaa5bd23c4302839b963ef0e996901c4064f69ecbd8fbd4d"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-servicos.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 64305,
+      "total_pixels": 236800,
+      "new_sha256": "54d657ffa972f893ea55295af0a25ace16b5b6ec4b24c2d866bd9eaea108e874"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-solicitacoes.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 80348,
+      "total_pixels": 236800,
+      "new_sha256": "4896c374cb27e24a71551f428347485af111e80a150233562a03e261b0150971"
+    },
+    {
+      "file": "imagine-portal-celular-estreito-universidade.png",
+      "size": [
+        320,
+        740
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 39739,
+      "total_pixels": 236800,
+      "new_sha256": "3ec73358de444cfd57426b789d007c15054a9189f5c5e80ea0bde498608b09d8"
+    },
+    {
+      "file": "imagine-portal-celular-financeiro.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 41706,
+      "total_pixels": 329160,
+      "new_sha256": "80c85ad31a95b3e9dbcee1970e304e5b32c5a87ef8aa5b1676227c56ea65bd34"
+    },
+    {
+      "file": "imagine-portal-celular-inicio.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 40588,
+      "total_pixels": 329160,
+      "new_sha256": "b57cacaf42be31c765710f6fb624b2afa74c473f3cd62739904ff4199049c68a"
+    },
+    {
+      "file": "imagine-portal-celular-performance.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 87412,
+      "total_pixels": 329160,
+      "new_sha256": "2e63f0344ec23e8147cc6f21a087d5d3eb7099f132740eaf4e2bfa1f9ca65aca"
+    },
+    {
+      "file": "imagine-portal-celular-servicos.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 42174,
+      "total_pixels": 329160,
+      "new_sha256": "88b2ff21215cbb42558a96b4af07c112d0398c07288801c54cb63291874ef028"
+    },
+    {
+      "file": "imagine-portal-celular-solicitacoes.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 47863,
+      "total_pixels": 329160,
+      "new_sha256": "3d057c85bc51da8747f414785001059b1aac6319c1932ea9d475c3e00b70a2f9"
+    },
+    {
+      "file": "imagine-portal-celular-universidade.png",
+      "size": [
+        390,
+        844
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 51729,
+      "total_pixels": 329160,
+      "new_sha256": "17a6a3eef31852ef580e7bc6ec67e2f7e2a8df71ec3d162b6a115451ed4c2508"
+    },
+    {
+      "file": "imagine-portal-desktop-1440.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 92388,
+      "total_pixels": 1296000,
+      "new_sha256": "9b0f3313c15d44fd0c076ad57f1656c16ea0a1890c206202306e8b7a9b9e477f"
+    },
+    {
+      "file": "imagine-portal-desktop-financeiro.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 106705,
+      "total_pixels": 1296000,
+      "new_sha256": "308bf01f79c235c60d924e6f3ed385f58abf3476fadc987d00f64f4a5f86d1a5"
+    },
+    {
+      "file": "imagine-portal-desktop-inicio.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 95499,
+      "total_pixels": 1296000,
+      "new_sha256": "53f150e542603497b1b998319fb202ad1c26c987fd5fc67fa6eeeadd5c52f310"
+    },
+    {
+      "file": "imagine-portal-desktop-performance.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 267298,
+      "total_pixels": 1296000,
+      "new_sha256": "d45a360ebad4d2d6f894f6afcf03a4de0209d37553c211e92d002ee782be7c3e"
+    },
+    {
+      "file": "imagine-portal-desktop-servicos.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 116556,
+      "total_pixels": 1296000,
+      "new_sha256": "66fecfa615aeb6c98fefd0c135db4d5027176d24eacc40729dc95d81a95f6fc2"
+    },
+    {
+      "file": "imagine-portal-desktop-solicitacoes.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 317354,
+      "total_pixels": 1296000,
+      "new_sha256": "548a14fd277d3f13b84b657a8fc27384d9e47a1e58c8068703e094d5715dd83f"
+    },
+    {
+      "file": "imagine-portal-desktop-universidade.png",
+      "size": [
+        1440,
+        900
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 103775,
+      "total_pixels": 1296000,
+      "new_sha256": "21ef8b94a6c4aa066853e98cbb60084f964efa07ae0fe9256b0495e947234a88"
+    },
+    {
+      "file": "imagine-portal-reflow-2x.png",
+      "size": [
+        720,
+        450
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 23101,
+      "total_pixels": 324000,
+      "new_sha256": "a5eb6a6db58e18f608eafa72904d4cc983b4f6cc2a944324785255ac0e562aee"
+    },
+    {
+      "file": "imagine-portal-reflow-4x.png",
+      "size": [
+        360,
+        225
+      ],
+      "same_environment_changed_pixels": 0,
+      "approved_ci_changed_pixels": 10345,
+      "total_pixels": 81000,
+      "new_sha256": "7294262621142dc13c1397ec764f0dc8c4e03a5856b8cba0c4d9ee7bff2beadd"
+    }
+  ]
+}

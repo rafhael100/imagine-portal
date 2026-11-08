@@ -1,0 +1,176 @@
+[
+  {
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "mobile": false
+    },
+    "metrics": {
+      "width": 1440,
+      "visualWidth": 1425,
+      "screenWidth": 800,
+      "documentWidth": 1425,
+      "navWidth": 200,
+      "navScrollWidth": 200,
+      "sidebarWidth": 232,
+      "overflow": false,
+      "headingCount": 1,
+      "sectionCount": 6,
+      "linkCount": 6,
+      "sidebarPosition": "sticky",
+      "navScrollable": false,
+      "warningVisible": true,
+      "warningHeight": 48.140625,
+      "warningText": "PRÉVIA — DADOS 100% FICTÍCIOS. Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.",
+      "helpText": "6 áreas · deslize →Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.",
+      "helpVisible": false,
+      "reducedMotion": "auto",
+      "scripts": 0,
+      "forms": 0
+    },
+    "keyboardDestinations": [
+      "inicio",
+      "servicos",
+      "performance",
+      "solicitacoes",
+      "universidade",
+      "financeiro"
+    ],
+    "result": "PASS"
+  },
+  {
+    "viewport": {
+      "name": "celular",
+      "width": 390,
+      "height": 844,
+      "mobile": true
+    },
+    "metrics": {
+      "width": 390,
+      "visualWidth": 390,
+      "screenWidth": 390,
+      "documentWidth": 390,
+      "navWidth": 362,
+      "navScrollWidth": 636,
+      "sidebarWidth": 390,
+      "overflow": false,
+      "headingCount": 1,
+      "sectionCount": 6,
+      "linkCount": 6,
+      "sidebarPosition": "sticky",
+      "navScrollable": true,
+      "warningVisible": true,
+      "warningHeight": 70.171875,
+      "warningText": "PRÉVIA — DADOS 100% FICTÍCIOS. Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.",
+      "helpText": "6 áreas · deslize →Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.",
+      "helpVisible": true,
+      "reducedMotion": "auto",
+      "scripts": 0,
+      "forms": 0
+    },
+    "keyboardDestinations": [
+      "inicio",
+      "servicos",
+      "performance",
+      "solicitacoes",
+      "universidade",
+      "financeiro"
+    ],
+    "result": "PASS"
+  },
+  {
+    "viewport": {
+      "name": "celular-estreito",
+      "width": 320,
+      "height": 740,
+      "mobile": true
+    },
+    "metrics": {
+      "width": 320,
+      "visualWidth": 320,
+      "screenWidth": 320,
+      "documentWidth": 320,
+      "navWidth": 292,
+      "navScrollWidth": 636,
+      "sidebarWidth": 320,
+      "overflow": false,
+      "headingCount": 1,
+      "sectionCount": 6,
+      "linkCount": 6,
+      "sidebarPosition": "sticky",
+      "navScrollable": true,
+      "warningVisible": true,
+      "warningHeight": 70.171875,
+      "warningText": "PRÉVIA — DADOS 100% FICTÍCIOS. Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.",
+      "helpText": "6 áreas · deslize →Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.",
+      "helpVisible": true,
+      "reducedMotion": "auto",
+      "scripts": 0,
+      "forms": 0
+    },
+    "keyboardDestinations": [
+      "inicio",
+      "servicos",
+      "performance",
+      "solicitacoes",
+      "universidade",
+      "financeiro"
+    ],
+    "result": "PASS"
+  },
+  {
+    "reflowApproximation": 2,
+    "metrics": {
+      "width": 720,
+      "visualWidth": 705,
+      "screenWidth": 800,
+      "documentWidth": 705,
+      "navWidth": 675,
+      "navScrollWidth": 675,
+      "sidebarWidth": 705,
+      "overflow": false,
+      "headingCount": 1,
+      "sectionCount": 6,
+      "linkCount": 6,
+      "sidebarPosition": "sticky",
+      "navScrollable": false,
+      "warningVisible": true,
+      "warningHeight": 68.28125,
+      "warningText": "PRÉVIA — DADOS 100% FICTÍCIOS. Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.",
+      "helpText": "6 áreas · deslize →Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.",
+      "helpVisible": true,
+      "reducedMotion": "auto",
+      "scripts": 0,
+      "forms": 0
+    },
+    "result": "PASS"
+  },
+  {
+    "reflowApproximation": 4,
+    "metrics": {
+      "width": 360,
+      "visualWidth": 345,
+      "screenWidth": 800,
+      "documentWidth": 345,
+      "navWidth": 317,
+      "navScrollWidth": 636,
+      "sidebarWidth": 345,
+      "overflow": false,
+      "headingCount": 1,
+      "sectionCount": 6,
+      "linkCount": 6,
+      "sidebarPosition": "sticky",
+      "navScrollable": true,
+      "warningVisible": true,
+      "warningHeight": 70.171875,
+      "warningText": "PRÉVIA — DADOS 100% FICTÍCIOS. Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.",
+      "helpText": "6 áreas · deslize →Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.",
+      "helpVisible": true,
+      "reducedMotion": "auto",
+      "scripts": 0,
+      "forms": 0
+    },
+    "result": "PASS"
+  }
+]
