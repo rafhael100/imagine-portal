@@ -137,8 +137,8 @@ $session = $admin->prepare(
              clock_timestamp() - interval '2 minutes',
              clock_timestamp() + interval '1 hour')"
 );
-$session->execute(['digest'=>hash('sha256','portal-lab-handle-a'),'actor'=>'actor-a','factor'=>true]);
-$session->execute(['digest'=>hash('sha256','portal-lab-handle-no-mfa'),'actor'=>'actor-b','factor'=>false]);
+$session->execute(['digest'=>hash('sha256','portal-lab-handle-a'),'actor'=>'actor-a','factor'=>'true']);
+$session->execute(['digest'=>hash('sha256','portal-lab-handle-no-mfa'),'actor'=>'actor-b','factor'=>'false']);
 
 $passed = 0;
 function labCase(string $id, string $label, callable $test): void
