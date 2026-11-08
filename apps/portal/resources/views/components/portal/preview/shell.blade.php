@@ -24,7 +24,7 @@
                 <x-portal.preview.nav-item anchor="universidade" label="Universidade" />
                 <x-portal.preview.nav-item anchor="financeiro" label="Financeiro" />
             </nav>
-            <p class="pv-nav-help" id="pv-nav-instructions">No celular, deslize o menu para os lados para encontrar as seis áreas. Os links levam apenas a seções desta prévia.</p>
+            <p class="pv-nav-help" id="pv-nav-instructions"><span aria-hidden="true">6 áreas · deslize →</span><span class="pv-visually-hidden">Seis áreas desta prévia. No celular, deslize o menu para os lados; com teclado, use Tab e Enter para visitar cada seção.</span></p>
             <p class="pv-sidebar-note">Protótipo interno. Não existe sessão, acesso de cliente, contratação, cobrança ou conexão real.</p>
         </aside>
         <div class="pv-main">
@@ -36,7 +36,7 @@
                 <small>Empresa Aurora · fictícia</small>
             </header>
             <main id="pv-content" class="pv-container" tabindex="-1">
-                <div class="pv-demo-warning" role="note">PRÉVIA — DADOS 100% FICTÍCIOS. Esta interface Blade não oferece login, formulários, serviços ativos, anúncios, cobranças ou acesso a clientes.</div>
+                <div class="pv-demo-warning" role="note"><strong>PRÉVIA — DADOS 100% FICTÍCIOS.</strong> Sem login, formulários, contratos, anúncios, cobranças, integrações ou operações reais.</div>
                 {{ $slot }}
             </main>
             <footer class="pv-footer">Imagine Portal · Prévia Blade sem rota pública, autenticação, backend, armazenamento ou integrações.</footer>

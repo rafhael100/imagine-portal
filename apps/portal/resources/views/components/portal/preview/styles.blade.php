@@ -23,6 +23,7 @@
   .pv-sidebar{position:sticky;top:0;align-self:start;min-width:0;max-width:100%;height:100dvh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
   .pv-nav-link{display:flex;align-items:center;min-height:44px;overflow-wrap:anywhere}
   .pv-nav-help{display:none}
+  .pv-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
   .pv-topbar-title{display:grid;gap:2px}
   .pv-topbar-brand{color:var(--pv-muted);font-size:12px;font-weight:700}
   .pv-document-title{font-size:20px;line-height:1.25;letter-spacing:-.5px;margin:0}
@@ -38,6 +39,10 @@
   @media(max-width:980px){
     .pv-sidebar{position:sticky;top:0;z-index:5;height:auto;max-height:none;overflow:visible;box-shadow:0 4px 14px rgba(0,0,0,.13)}
     .pv-nav{width:100%;min-width:0;max-width:100%;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain}
+    .pv-nav:focus-within{scroll-snap-type:x mandatory}
+    .pv-nav:focus-within .pv-nav-link{scroll-snap-align:none}
+    .pv-nav:focus-within .pv-nav-link:focus-visible{scroll-snap-align:center}
+    .pv-nav-link:focus-visible{outline-offset:-3px}
     .pv-nav-link{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;overflow-wrap:normal}
     .pv-nav-help{display:block;margin:6px 0 0;color:#d2e6de;font-size:11px}
     .pv-section{scroll-margin-top:218px}
@@ -47,7 +52,8 @@
     .pv-brand{margin:0 0 8px}
     .pv-nav{flex-wrap:nowrap;gap:2px}
     .pv-nav-link{min-height:42px}
-    .pv-nav-help{margin:5px 0 0;font-size:10px}
+    .pv-nav-help{margin:5px 0 0;font-size:12px;line-height:1.4}
+    .pv-demo-warning{padding:8px 10px;font-size:12px;line-height:1.45}
     .pv-section{scroll-margin-top:165px}
     .pv-topbar{align-items:flex-start;gap:5px;flex-wrap:wrap}
   }

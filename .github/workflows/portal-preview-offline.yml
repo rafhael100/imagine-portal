@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
+      - dev/portal-preview-ux-responsive-2026-11-08
 
 permissions:
   contents: read
