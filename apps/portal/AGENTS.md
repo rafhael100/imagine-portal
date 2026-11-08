@@ -22,3 +22,22 @@ A direção aprovou o merge **exclusivamente** na branch `dev/fast-track-portal-
 O módulo integrado é **somente de domínio em memória**; não comprova autorização operacional com usuário, banco ou empresa real. **Permanecem abertos** a origem confiável do ator/membership e proprietário do recurso, estado da organização, sessão/MFA, isolamento PostgreSQL/RLS, origem de identidade CRM distinta, D02-SEC e P0. **Não iniciar B-B/B-C, P02-A/B/C, login, migrations, PSP, Google/Meta, deploy, novas despesas nem alterar `main` sem autorização expressa específica.**
 
 **Próxima etapa candidata:** `PORTAL-PERF-P02-A`, domínio de catálogo do Performance AI com oferta `not_for_sale` e dados fictícios. Preparação documental não é autorização de programação. A experiência futura do cliente (catálogo, contrato, pagamentos, onboarding, relatórios) será pelo Portal; motor Performance fica tecnicamente independente, CRM com login separado. Não duplicar precificação real ou conectar bancos entre produtos.
+
+
+## Diretriz superveniente da Direção — 08/11/2026 — desenvolvimento autônomo supervisionado
+
+**Autorização expressa do responsável:** "Voce esta com autorização completa para avnçar agora em todos os potnos, So me pergunte aqui o que for realmente estreitamente critico ou necessario. Pode continuar no desenvolvimento do Imagine Portal."
+
+Esta orientação **substitui as proibições de programação por falta de aprovação individual** nas seções históricas acima, mas **NÃO é homologação dos controles P0/D02/D03/SEC-R03, da segurança multiempresa nem liberação de produção**. Codex/IA podem executar recortes funcionais e testes controlados sem microaprovações, em branches isoladas, com revisão de CI e documentação de riscos.
+
+É permitido especificamente no lote `PORTAL-AUTH-LAB-F1` (PR #80, branch filha do PR #78):
+- criar SQL de laboratório sob `apps/portal/labs/client-auth/`, sem migrações carregadas pelo produto;
+- usar PostgreSQL **descartável** em GitHub Actions e dados/credenciais inventados;
+- validar HTTP sintético no **processo CLI PHPUnit**, com rotas que não existem em produção;
+- desenvolver consulta e inclusão fictícia de solicitações, PK/FK composta, RLS, contas de BD restritas e testes negativos;
+- criar/editar workflow de CI restrito na pasta `.github/workflows/` exclusivamente para o laboratório;
+- registrar resultados completos, limitações e correções em PR draft.
+
+Permanecem proibições explícitas até controles técnicos e decisão de risco específica: usar dados pessoais ou credenciais reais, conceder ALLOW com base em mocks, habilitar login ou áreas privadas para clientes, compartilhar sessão Portal/CRM, executar migrations na VPS, apontar para banco operacional, configurar PSP, cobrar valores, ativar integrações de produção, implantar Cloudflare/VPS, fazer merge automático em `main`, remover histórico ou contratar fornecedores. **A autonomia não substitui decisão crítica de credenciais, contratação, exposição pública, migração destrutiva e corte/abertura operacional.**
+
+Cada lote deve ser verificável no GitHub, indicar exatamente quais testes foram executados ou não, manter gates D02-SEC/D03/RLS/P0/SEC-R03/T3 abertos até sua efetiva comprovação e seguir com a próxima entrega técnica sem solicitar confirmação rotineira. Não refazer o Portal todo sem evidências de incompatibilidade.
