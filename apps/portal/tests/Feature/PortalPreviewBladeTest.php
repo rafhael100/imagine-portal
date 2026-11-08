@@ -103,10 +103,16 @@ final class PortalPreviewBladeTest extends TestCase
             self::assertStringNotContainsString($unsafe, $html);
         }
 
-        preg_match_all('/href="([^"]*)"/', $html, $links);
+        // Inspect actual anchor elements: CSS active-link selectors also contain
+        // literal href="#pv-…" and must not be mistaken for rendered links.
+        $xpath = $this->xpath($html);
+        $links = array_map(
+            static fn (\DOMNode $node): string => (string) $node->nodeValue,
+            iterator_to_array($xpath->query('//a/@href')),
+        );
         self::assertSame(
             ['#pv-content', '#pv-inicio', '#pv-servicos', '#pv-performance', '#pv-solicitacoes', '#pv-universidade', '#pv-financeiro'],
-            $links[1]
+            $links
         );
 
         self::assertStringContainsString("connect-src 'none'", $html);
