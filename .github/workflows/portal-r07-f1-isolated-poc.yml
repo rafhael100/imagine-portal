@@ -109,6 +109,13 @@ jobs:
           test "$count_b" = "0"
           echo "[R07-F1] DB effects: exactly 1 in A and 0 in B. KNOWN RESIDUAL T3: not solved."
 
+      - name: Diagnose synthetic lab failure (redacted SQL errors only)
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f "$R07_COMPOSE" logs --tail=120 pg authority 2>&1 \
+            | sed -E 's/(PASSWORD|password|R07_AUTH_PASSWORD|R07_OWNER_PASSWORD)=([^[:space:]]+)/\1=REDACTED/g' || true
+
       - name: Remove disposable containers and volumes
         if: always()
         shell: bash
