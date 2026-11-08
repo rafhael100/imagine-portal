@@ -1,0 +1,36 @@
+# Supplement to the parent R07-F1 lab: PostgreSQL dump excludes fence state.
+services:
+  fence:
+    image: python:3.12-alpine
+    volumes:
+      - ./r03/fence_server.py:/r03/fence_server.py:ro
+      - ${R07_R03_FENCE_DIR:?}:/fence:ro
+    command: ["python", "/r03/fence_server.py"]
+    networks: [data_net]
+
+  restored:
+    build:
+      context: ./authority
+    environment:
+      R07_DB_DSN: pgsql:host=pg;port=5432;dbname=portal_r07_restored
+      R07_DB_USER: r07_authority
+      R07_DB_PASSWORD: ${R07_AUTH_PASSWORD:?}
+      R07_R03_CLONE_ONLY: "1"
+      R07_R03_FENCE_URL: http://fence:8081/v1/allow
+      R07_LAB_HOLD_ENABLED: "0"
+    depends_on:
+      pg:
+        condition: service_healthy
+      fence:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [data_net, front_net]
+
+  edge:
+    volumes:
+      - ./r03/client_probe.py:/r03/client_probe.py:ro
+    entrypoint: ["python", "/r03/client_probe.py"]

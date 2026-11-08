@@ -1,0 +1,79 @@
+name: Portal SEC-R03 - disposable restore fence PoC
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/r07-f1/r03/**'
+      - 'apps/portal/labs/r07-f1/authority/router.php'
+      - '.github/workflows/portal-sec-r03-restore-fence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-sec-r03-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-restore:
+    if: github.head_ref == 'feat/portal-sec-r03-restore-fence-poc-2026-11-08'
+    name: PG18 stale backup and separate fail-closed gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      R07_COMPOSE: apps/portal/labs/r07-f1/compose.yml
+      R07_R03_OVERRIDE: apps/portal/labs/r07-f1/r03/compose.yml
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate disposable synthetic credentials and separate fence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          owner="$(openssl rand -hex 24)"
+          auth="$(openssl rand -hex 24)"
+          actor_a="$(openssl rand -hex 32)"
+          actor_b="$(openssl rand -hex 32)"
+          for secret in "$owner" "$auth" "$actor_a" "$actor_b"; do echo "::add-mask::$secret"; done
+          fence_dir="$RUNNER_TEMP/r03-fence-$$"
+          mkdir -m 700 "$fence_dir"
+          {
+            printf 'R07_OWNER_PASSWORD=%s\n' "$owner"
+            printf 'R07_AUTH_PASSWORD=%s\n' "$auth"
+            printf 'R07_ACTOR_A_HANDLE=%s\n' "$actor_a"
+            printf 'R07_ACTOR_A_DIGEST=%s\n' "$(printf '%s' "$actor_a" | sha256sum | cut -d ' ' -f 1)"
+            printf 'R07_ACTOR_B_DIGEST=%s\n' "$(printf '%s' "$actor_b" | sha256sum | cut -d ' ' -f 1)"
+            printf 'R07_R03_FENCE_DIR=%s\n' "$fence_dir"
+          } >> "$GITHUB_ENV"
+
+      - name: Syntax and isolated compose verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/r07-f1/authority/router.php
+          python3 -m py_compile apps/portal/labs/r07-f1/r03/{fence_server,client_probe,restore_poc}.py
+          docker compose -f "$R07_COMPOSE" -f "$R07_R03_OVERRIDE" config --quiet
+          git diff --check
+
+      - name: Run real PG18 snapshot and negative restore probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 apps/portal/labs/r07-f1/r03/restore_poc.py
+
+      - name: Failure diagnostic without secrets
+        if: failure()
+        run: docker compose -f "$R07_COMPOSE" -f "$R07_R03_OVERRIDE" ps || true
+
+      - name: Destroy all synthetic volumes and state
+        if: always()
+        shell: bash
+        run: |
+          docker compose -f "$R07_COMPOSE" -f "$R07_R03_OVERRIDE" down -v --remove-orphans || true
+          if [ -n "${R07_R03_FENCE_DIR:-}" ] && [ -d "$R07_R03_FENCE_DIR" ]; then
+            rm -rf -- "$R07_R03_FENCE_DIR"
+          fi
