@@ -5,8 +5,11 @@ declare(strict_types=1);
 // Loaded only by routes/web.php when APP_ENV=testing, PHP_SAPI=cli and
 // PORTAL_CLIENT_LAB_ENABLED=1. Never exposed by a real browser server.
 require_once __DIR__.'/LabPortalGateway.php';
+require_once __DIR__.'/LabTotp.php';
+require_once __DIR__.'/LabSecureLogin.php';
 
 use App\Labs\ClientAuth\LabPortalGateway;
+use App\Labs\ClientAuth\LabSecureLogin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -153,5 +156,88 @@ Route::prefix('/_lab/portal')->group(static function (): void {
                 : response()->json(['requests' => $requests]);
         });
     })->name('portal.lab.requests');
+
+
+    // AUTH-F2: do NOT promote these routes to production. Their only
+    // entrypoint is the explicit CLI PHPUnit/test environment guard.
+    Route::post('/secure/login', static function (Request $request, LabSecureLogin $secure) {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+            'password' => ['required', 'string', 'min:8', 'max:256'],
+            'totp' => ['required', 'regex:/\A[0-9]{6}\z/D'],
+        ]);
+
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $data, $secure) {
+            $result = $secure->signIn($data['email'], $data['password'], $data['totp']);
+
+            if ($result['token'] === null) {
+                return response()->json([
+                    'error' => $result['status'] === 429 ? 'too_many_attempts' : 'invalid_credentials',
+                ], $result['status']);
+            }
+
+            $request->session()->regenerate();
+            $request->session()->put('portal_lab_v2_token', $result['token']);
+
+            return response()->json(['message' => 'synthetic_mfa_session_created']);
+        });
+    })->name('portal.lab.secure-login');
+
+    Route::post('/secure/logout', static function (Request $request, LabSecureLogin $secure) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $secure) {
+            $secure->revoke($request);
+            return response()->json(['message' => 'synthetic_session_revoked']);
+        });
+    })->name('portal.lab.secure-logout');
+
+    Route::get('/secure/organizations', static function (Request $request, LabSecureLogin $secure, LabPortalGateway $portal) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $secure, $portal) {
+            $actor = $secure->actor($request);
+            return $actor === null
+                ? response()->json(['error' => 'unauthenticated'], 401)
+                : response()->json(['organizations' => $portal->organizations($actor)]);
+        });
+    })->name('portal.lab.secure-organizations');
+
+    Route::get('/secure/organizations/{organization}/dashboard', static function (
+        Request $request,
+        string $organization,
+        LabSecureLogin $secure,
+        LabPortalGateway $portal,
+    ) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $organization, $secure, $portal) {
+            $actor = $secure->actor($request);
+            if ($actor === null) {
+                return response()->json(['error' => 'unauthenticated'], 401);
+            }
+            if (preg_match('/\A[a-z0-9._:-]{1,64}\z/D', $organization) !== 1) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $selected = null;
+            foreach ($portal->organizations($actor) as $org) {
+                if ($org['id'] === $organization) {
+                    $selected = $org;
+                    break;
+                }
+            }
+            if ($selected === null) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $services = $portal->services($actor, $organization);
+            if ($services === null) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            return response()->view('portal.lab.client-dashboard', [
+                'organization' => $selected,
+                'services' => $services,
+            ], 200, [
+                'Cache-Control' => 'private, no-store',
+                'X-Robots-Tag' => 'noindex, nofollow',
+            ]);
+        });
+    })->name('portal.lab.secure-dashboard');
 
 });

@@ -62,11 +62,48 @@ return new class extends Migration
                 ->references(['org_id', 'id'])->on('lab_portal_services');
         });
 
+        // Synthetic MFA and server-side token records only. Secrets below
+        // are artificial test fixtures, NEVER an operational secret store.
+        Schema::connection('pgsql')->create('lab_portal_auth_factors', static function (Blueprint $t): void {
+            $t->string('user_id', 64)->primary();
+            $t->string('secret_hex', 40);
+            $t->bigInteger('last_step')->default(-1);
+            $t->foreign('user_id')->references('id')->on('lab_portal_users');
+        });
+
+        Schema::connection('pgsql')->create('lab_portal_auth_sessions', static function (Blueprint $t): void {
+            $t->string('token_digest', 64)->primary();
+            $t->string('user_id', 64);
+            $t->unsignedInteger('account_revision');
+            $t->bigInteger('expires_at');
+            $t->boolean('mfa_verified')->default(false);
+            $t->boolean('revoked')->default(false);
+            $t->foreign('user_id')->references('id')->on('lab_portal_users');
+        });
+
+        Schema::connection('pgsql')->create('lab_portal_login_limits', static function (Blueprint $t): void {
+            $t->string('principal_digest', 64)->primary();
+            $t->unsignedInteger('failures')->default(0);
+            $t->bigInteger('locked_until')->default(0);
+        });
+
         // The runtime role can read but cannot grant rights, update users,
         // create accounts, modify memberships or write service records.
         foreach (['lab_portal_users', 'lab_portal_organizations', 'lab_portal_memberships', 'lab_portal_services'] as $table) {
             DB::connection('pgsql')->statement('REVOKE ALL ON TABLE '.$table.' FROM PUBLIC');
             DB::connection('pgsql')->statement('GRANT SELECT ON TABLE '.$table.' TO portal_lab_runtime');
+        }
+
+
+        // These privileges remain in the disposable test role. In production
+        // they would require further separation, encryption and auditing.
+        foreach ([
+            'lab_portal_auth_factors' => 'SELECT, UPDATE',
+            'lab_portal_auth_sessions' => 'SELECT, INSERT, UPDATE',
+            'lab_portal_login_limits' => 'SELECT, INSERT, UPDATE',
+        ] as $table => $verbs) {
+            DB::connection('pgsql')->statement('REVOKE ALL ON TABLE '.$table.' FROM PUBLIC');
+            DB::connection('pgsql')->statement('GRANT '.$verbs.' ON TABLE '.$table.' TO portal_lab_runtime');
         }
 
         DB::connection('pgsql')->statement('REVOKE ALL ON TABLE lab_portal_requests FROM PUBLIC');
@@ -133,7 +170,7 @@ SQL);
         if (! app()->environment('testing') || getenv('PORTAL_CLIENT_LAB_ENABLED') !== '1') {
             throw new RuntimeException('Refusing lab cleanup outside testing.');
         }
-        foreach (['lab_portal_requests', 'lab_portal_services', 'lab_portal_memberships', 'lab_portal_organizations', 'lab_portal_users'] as $table) {
+        foreach (['lab_portal_login_limits', 'lab_portal_auth_sessions', 'lab_portal_auth_factors', 'lab_portal_requests', 'lab_portal_services', 'lab_portal_memberships', 'lab_portal_organizations', 'lab_portal_users'] as $table) {
             Schema::connection('pgsql')->dropIfExists($table);
         }
     }
