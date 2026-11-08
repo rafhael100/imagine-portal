@@ -1,0 +1,58 @@
+name: Portal PVIEW-02 - browser QA offline
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/preview/**'
+      - 'apps/portal/app/Presentation/PviewSection.php'
+      - 'apps/portal/resources/views/components/portal/pview-shell.blade.php'
+      - 'apps/portal/resources/views/portal/demo/pview-navigation.blade.php'
+      - 'apps/portal/tests/Feature/PviewNavigationPresentationTest.php'
+      - '.github/workflows/portal-pview-02-browser-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-pview-02-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-offline:
+    if: github.head_ref == 'feat/portal-pview-02-blade-browser-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout isolated branch without repository credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Node 22, no npm installs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check chromium available and script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+
+      - name: Real browser viewport, keyboard and external-request tests
+        env:
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview-evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node apps/portal/preview/tests/pview_browser_check.mjs
+
+      - name: Upload synthetic screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pview-02-screenshots
+          path: ${{ runner.temp }}/pview-evidence/*.png
+          retention-days: 1
+          if-no-files-found: ignore
