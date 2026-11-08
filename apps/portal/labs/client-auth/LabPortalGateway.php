@@ -119,6 +119,82 @@ final class LabPortalGateway
     }
 
     /**
+     * Lab-only write proof. Tenant and actor are derived from the verified
+     * Portal session and membership in the HTTP route, never from a JSON body.
+     * FK (org_id, service_id) prevents linking a service from a different org.
+     * RLS WITH CHECK enforces the same tenant and active membership on insert.
+     *
+     * @return string|null generated request id, or null when not authorized
+     */
+    public function submitRequest(string $actor, string $org, string $serviceId, string $title): ?string
+    {
+        $db = $this->database();
+
+        return $db->transaction(static function () use ($db, $actor, $org, $serviceId, $title): ?string {
+            $valid = $db->table('lab_portal_memberships as m')
+                ->join('lab_portal_organizations as o', 'o.id', '=', 'm.org_id')
+                ->where('m.user_id', $actor)
+                ->where('m.org_id', $org)
+                ->where('m.status', 'active')
+                ->where('o.status', 'active')
+                ->exists();
+
+            if (! $valid) {
+                return null;
+            }
+
+            $db->select("SELECT set_config('portal.lab_tenant', ?, true)", [$org]);
+            $db->select("SELECT set_config('portal.lab_actor', ?, true)", [$actor]);
+
+            if (! $db->table('lab_portal_services')
+                ->where('org_id', $org)
+                ->where('id', $serviceId)->exists()) {
+                return null;
+            }
+
+            $id = (string) \Illuminate\Support\Str::uuid();
+            $db->table('lab_portal_requests')->insert([
+                'org_id' => $org,
+                'id' => $id,
+                'service_id' => $serviceId,
+                'title' => $title,
+                'status' => 'received',
+            ]);
+
+            return $id;
+        });
+    }
+
+    /** @return list<array{id:string,title:string,status:string}>|null */
+    public function requests(string $actor, string $org): ?array
+    {
+        $db = $this->database();
+
+        return $db->transaction(static function () use ($db, $actor, $org): ?array {
+            $allowed = $db->table('lab_portal_memberships as m')
+                ->join('lab_portal_organizations as o', 'o.id', '=', 'm.org_id')
+                ->where('m.user_id', $actor)
+                ->where('m.org_id', $org)
+                ->where('m.status', 'active')
+                ->where('o.status', 'active')->exists();
+            if (! $allowed) {
+                return null;
+            }
+
+            $db->select("SELECT set_config('portal.lab_tenant', ?, true)", [$org]);
+            $db->select("SELECT set_config('portal.lab_actor', ?, true)", [$actor]);
+
+            return $db->table('lab_portal_requests')
+                ->orderBy('id')->get(['id', 'title', 'status'])
+                ->map(static fn ($row): array => [
+                    'id' => $row->id,
+                    'title' => $row->title,
+                    'status' => $row->status,
+                ])->all();
+        });
+    }
+
+    /**
      * Uniform failure handling for the lab HTTP routes.
      * Intentionally avoids leaking tenant/user/storage identifiers.
      */
