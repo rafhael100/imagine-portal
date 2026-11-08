@@ -70,6 +70,16 @@ jobs:
           set -euo pipefail
           docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=before edge
 
+      - name: Verify revoked membership grants with still-valid session
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
+            "UPDATE r07.membership SET can_read=false, can_write=false WHERE actor_id='actor-a' AND organization_id='org-a'"
+          docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=permission_denied edge
+          docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
+            "UPDATE r07.membership SET can_read=true, can_write=true WHERE actor_id='actor-a' AND organization_id='org-a'"
+
       - name: Assert cross-tenant DB state and revoke synthetic session
         shell: bash
         run: |

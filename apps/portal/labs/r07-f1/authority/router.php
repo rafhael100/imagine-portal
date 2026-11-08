@@ -119,7 +119,9 @@ try {
     }
 
     $membership = $db->prepare(
-        "SELECT can_read, can_write FROM r07.membership
+        "SELECT CASE WHEN can_read THEN 1 ELSE 0 END AS can_read,
+                CASE WHEN can_write THEN 1 ELSE 0 END AS can_write
+         FROM r07.membership
          WHERE actor_id = :actor AND organization_id = :organization"
     );
     $membership->execute(['actor' => $actorId, 'organization' => $organizationId]);

@@ -21,6 +21,7 @@ Direção autorizou a PoC R07-F1, Issue #50, com dados fictícios, containers de
 | T11–T12 | Efeito em A permitido uma vez; retry idempotente não duplica |
 | T13 | Com sessão A válida, edge hostil ainda pode executar ações permitidas a A — risco T3 conhecido, NÃO resolvido |
 | T14–T15 | Após corte por epoch, handle A antigo não pode ler nem gravar |
+| T16–T17 | Com sessão A ainda válida, revogar grants de leitura/escrita exige 403 |
 | Verificação DB | Exatamente um efeito na empresa A, zero na empresa B |
 
 ## Limitações deliberadas

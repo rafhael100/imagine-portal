@@ -113,6 +113,16 @@ if PHASE == "before":
           status == 200 and data.get("payload") == "SYNTHETIC_A_ONLY")
     print("[KNOWN RESIDUAL T3] Compromised edge holding valid A session can request legitimate A actions.", flush=True)
 
+elif PHASE == "permission_denied":
+    status, data = call("GET", "/v1/resource?id=resource-a", HANDLE)
+    check("R07-T16 valid A session with revoked read grant is denied",
+          status == 403 and no_tenant_b(data))
+    status, data = call(
+        "POST", "/v1/effect", HANDLE,
+        payload={"resource_id": "resource-a", "effect_id": "grant-revoked-a"})
+    check("R07-T17 valid A session with revoked write grant is denied",
+          status == 403 and no_tenant_b(data))
+
 elif PHASE == "after":
     status, data = call("GET", "/v1/resource?id=resource-a", HANDLE)
     check("R07-T14 revoked epoch rejects previous A session", status == 401 and no_tenant_b(data))
