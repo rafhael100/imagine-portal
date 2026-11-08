@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Labs\ClientAuth\LabTotp;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -55,6 +56,20 @@ final class LabPortalPgFeatureTest extends TestCase
                 'session_revision' => 1,
             ],
         ]);
+        // Fixed, published artificial MFA fixtures; never use in production.
+        DB::connection('pgsql')->table('lab_portal_auth_factors')->insert([
+            [
+                'user_id' => 'portal-user-a',
+                'secret_hex' => '3132333435363738393031323334353637383930',
+                'last_step' => -1,
+            ],
+            [
+                'user_id' => 'portal-user-b',
+                'secret_hex' => '4142434445464748494a4b4c4d4e4f5051525354',
+                'last_step' => -1,
+            ],
+        ]);
+
         DB::connection('pgsql')->table('lab_portal_organizations')->insert([
             ['id' => 'org-a', 'name' => 'Aurora Synthetic', 'status' => 'active'],
             ['id' => 'org-b', 'name' => 'Boreal Synthetic', 'status' => 'active'],
@@ -300,6 +315,136 @@ final class LabPortalPgFeatureTest extends TestCase
         ])->assertNotFound();
 
         $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_requests')->count());
+    }
+
+
+    private function secureOtpA(): string
+    {
+        return LabTotp::codeAt('3132333435363738393031323334353637383930', time());
+    }
+
+    private function secureSignInA(): void
+    {
+        $this->postJson('/_lab/portal/secure/login', [
+            'email' => 'a@example.invalid',
+            'password' => 'synthetic-pass-A-2026',
+            'totp' => $this->secureOtpA(),
+        ])->assertOk()->assertJsonPath('message', 'synthetic_mfa_session_created');
+    }
+
+    public function test_secure_lab_totp_matches_rfc_test_vector_truncated_to_six_digits(): void
+    {
+        // RFC 6238 SHA1 test vector at 59s => 94287082 (8 digits),
+        // so the equivalent 6-digit code is 287082.
+        $this->assertSame('287082', LabTotp::codeAt(
+            '3132333435363738393031323334353637383930',
+            59,
+        ));
+
+        $this->assertNull(LabTotp::verifiedNewStep(
+            '3132333435363738393031323334353637383930',
+            '287082',
+            59,
+            1,
+        ), 'Already-used counter may never be used again.');
+    }
+
+    public function test_secure_login_requires_totp_and_creates_server_side_hashed_session(): void
+    {
+        $this->getJson('/_lab/portal/secure/organizations')->assertUnauthorized();
+
+        $this->postJson('/_lab/portal/secure/login', [
+            'email' => 'a@example.invalid',
+            'password' => 'synthetic-pass-A-2026',
+            'totp' => '000000',
+        ])->assertUnauthorized();
+
+        $this->secureSignInA();
+
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_auth_sessions')->count());
+        $stored = DB::connection('pgsql')->table('lab_portal_auth_sessions')->first();
+        $this->assertSame(64, strlen($stored->token_digest));
+        $this->assertTrue((bool) $stored->mfa_verified);
+        $this->assertFalse((bool) $stored->revoked);
+        $this->assertSame('portal-user-a', $stored->user_id);
+        $this->assertGreaterThan(time(), (int) $stored->expires_at);
+
+        $this->getJson('/_lab/portal/secure/organizations')
+            ->assertOk()->assertJsonCount(1, 'organizations')
+            ->assertJsonPath('organizations.0.id', 'org-a');
+
+        $this->get('/_lab/portal/secure/organizations/org-a/dashboard')
+            ->assertOk()->assertSee('Onepage synthetic A')->assertDontSee('Performance synthetic B');
+        $this->get('/_lab/portal/secure/organizations/org-b/dashboard')->assertNotFound();
+
+        // A secure bearer never implicitly activates the original legacy
+        // synthetic session route, and a CRM cookie never signs into secure.
+        $this->getJson('/_lab/portal/organizations')->assertUnauthorized();
+    }
+
+    public function test_secure_logout_replay_and_password_revision_invalidate_access(): void
+    {
+        $this->secureSignInA();
+        $this->getJson('/_lab/portal/secure/organizations')->assertOk();
+
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-a')->update(['session_revision' => 2]);
+        $this->getJson('/_lab/portal/secure/organizations')->assertUnauthorized();
+
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-a')->update(['session_revision' => 1]);
+
+        DB::connection('pgsql')->table('lab_portal_auth_sessions')
+            ->update(['expires_at' => time() - 1]);
+        $this->getJson('/_lab/portal/secure/organizations')->assertUnauthorized();
+
+        $this->postJson('/_lab/portal/secure/logout')->assertOk();
+        $this->assertSame(1, DB::connection('pgsql')
+            ->table('lab_portal_auth_sessions')->where('revoked', true)->count());
+        $this->getJson('/_lab/portal/secure/organizations')->assertUnauthorized();
+
+        // The same OTP counter was consumed in the first successful login.
+        $this->postJson('/_lab/portal/secure/login', [
+            'email' => 'a@example.invalid',
+            'password' => 'synthetic-pass-A-2026',
+            'totp' => $this->secureOtpA(),
+        ])->assertUnauthorized();
+    }
+
+    public function test_secure_rate_limit_blocks_three_invalid_attempts_and_even_good_password(): void
+    {
+        for ($n = 1; $n <= 3; $n++) {
+            $response = $this->postJson('/_lab/portal/secure/login', [
+                'email' => 'a@example.invalid',
+                'password' => 'incorrect-password',
+                'totp' => $this->secureOtpA(),
+            ]);
+            $response->assertStatus($n === 3 ? 429 : 401);
+        }
+
+        $this->postJson('/_lab/portal/secure/login', [
+            'email' => 'a@example.invalid',
+            'password' => 'synthetic-pass-A-2026',
+            'totp' => $this->secureOtpA(),
+        ])->assertStatus(429);
+
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_auth_sessions')->count());
+        $limit = DB::connection('pgsql')->table('lab_portal_login_limits')->first();
+        $this->assertSame(3, (int) $limit->failures);
+        $this->assertGreaterThan(time(), (int) $limit->locked_until);
+    }
+
+    public function test_secure_tenant_membership_revocation_denies_dashboard_after_valid_mfa(): void
+    {
+        $this->secureSignInA();
+        $this->get('/_lab/portal/secure/organizations/org-a/dashboard')->assertOk();
+
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-a')->where('user_id', 'portal-user-a')
+            ->update(['status' => 'revoked']);
+
+        $this->get('/_lab/portal/secure/organizations/org-a/dashboard')->assertNotFound();
+        $this->getJson('/_lab/portal/secure/organizations')->assertJsonCount(0, 'organizations');
     }
 
 }
