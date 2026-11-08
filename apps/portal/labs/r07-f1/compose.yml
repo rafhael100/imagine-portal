@@ -1,0 +1,57 @@
+name: portal-r07-f1-synthetic
+
+services:
+  pg:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: portal_r07_f1
+      POSTGRES_USER: lab_owner
+      POSTGRES_PASSWORD: ${R07_OWNER_PASSWORD:?}
+      R07_AUTH_PASSWORD: ${R07_AUTH_PASSWORD:?}
+      R07_ACTOR_A_DIGEST: ${R07_ACTOR_A_DIGEST:?}
+      R07_ACTOR_B_DIGEST: ${R07_ACTOR_B_DIGEST:?}
+    volumes:
+      - ./db/init.sh:/docker-entrypoint-initdb.d/010-r07-init.sh:ro
+      - ./db/schema.sql:/lab/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab_owner -d portal_r07_f1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [data_net]
+
+  authority:
+    build:
+      context: ./authority
+    environment:
+      R07_DB_DSN: pgsql:host=pg;port=5432;dbname=portal_r07_f1
+      R07_DB_USER: r07_authority
+      R07_DB_PASSWORD: ${R07_AUTH_PASSWORD:?}
+      R07_LAB_HOLD_ENABLED: '1'
+      PHP_CLI_SERVER_WORKERS: '4'
+    depends_on:
+      pg:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks: [data_net, front_net]
+
+  edge:
+    image: python:3.12-alpine
+    environment:
+      R07_ACTOR_A_HANDLE: ${R07_ACTOR_A_HANDLE:?}
+    volumes:
+      - ./edge/probe.py:/client/probe.py:ro
+    entrypoint: ["python", "/client/probe.py"]
+    depends_on:
+      authority:
+        condition: service_healthy
+    networks: [front_net]
+
+networks:
+  front_net: {}
+  data_net:
+    internal: true

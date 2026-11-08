@@ -1,0 +1,136 @@
+name: Portal R07-F1 - isolated hostile-edge PoC
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/r07-f1/**'
+      - '.github/workflows/portal-r07-f1-isolated-poc.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-r07-f1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hostile-edge:
+    if: github.head_ref == 'feat/portal-r07-f1-z1-z2-poc-2026-11-08'
+    name: Synthetic Z1 vs Z2 and PostgreSQL 18
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      R07_COMPOSE: apps/portal/labs/r07-f1/compose.yml
+    steps:
+      - name: Checkout isolated PoC
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate ephemeral SYNTHETIC-only credentials and sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          owner="$(openssl rand -hex 24)"
+          auth="$(openssl rand -hex 24)"
+          actor_a="$(openssl rand -hex 32)"
+          actor_b="$(openssl rand -hex 32)"
+          echo "::add-mask::$owner"
+          echo "::add-mask::$auth"
+          echo "::add-mask::$actor_a"
+          echo "::add-mask::$actor_b"
+          {
+            printf 'R07_OWNER_PASSWORD=%s\n' "$owner"
+            printf 'R07_AUTH_PASSWORD=%s\n' "$auth"
+            printf 'R07_ACTOR_A_HANDLE=%s\n' "$actor_a"
+            printf 'R07_ACTOR_A_DIGEST=%s\n' "$(printf '%s' "$actor_a" | sha256sum | cut -d ' ' -f 1)"
+            printf 'R07_ACTOR_B_DIGEST=%s\n' "$(printf '%s' "$actor_b" | sha256sum | cut -d ' ' -f 1)"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate lab syntax and compose before startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/r07-f1/authority/router.php
+          python3 -m py_compile apps/portal/labs/r07-f1/edge/probe.py
+          sh -n apps/portal/labs/r07-f1/db/init.sh
+          docker compose -f "$R07_COMPOSE" config --quiet
+          git diff --check
+
+      - name: Start ephemeral authority and PG18 (no published DB port)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$R07_COMPOSE" up -d --build pg authority
+
+      - name: Probe hostile edge before revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=before edge
+
+      - name: Verify revoked membership grants with still-valid session
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
+            "UPDATE r07.membership SET can_read=false, can_write=false WHERE actor_id='actor-a' AND organization_id='org-a'"
+          docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=permission_denied edge
+          docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
+            "UPDATE r07.membership SET can_read=true, can_write=true WHERE actor_id='actor-a' AND organization_id='org-a'"
+
+      - name: Adversarial PostgreSQL concurrency and strict idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/labs/r07-f1/tests/race_controller.py
+          python3 apps/portal/labs/r07-f1/tests/race_controller.py
+
+      - name: Verify job, administrative revocations and snapshot before epoch cut
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/labs/r07-f1/tests/writer_restore_audit.py
+          python3 apps/portal/labs/r07-f1/tests/writer_restore_audit.py before
+
+      - name: Assert cross-tenant DB state and revoke synthetic session
+        shell: bash
+        run: |
+          set -euo pipefail
+          count_a="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-a'")"
+          count_b="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-b'")"
+          test "$count_a" = "2"
+          test "$count_b" = "0"
+          docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
+            "UPDATE r07.account SET session_epoch=session_epoch+1 WHERE actor_id='actor-a' AND session_epoch=1"
+
+      - name: Probe hostile edge after revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=after edge
+          count_a="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-a'")"
+          count_b="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-b'")"
+          test "$count_a" = "2"
+          test "$count_b" = "0"
+          echo "[R07-F1] DB effects: exactly 2 in A and 0 in B. KNOWN RESIDUAL T3: not solved."
+
+      - name: Test stale backup recovery as a KNOWN GAP, do not serve restored DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 apps/portal/labs/r07-f1/tests/writer_restore_audit.py after
+
+      - name: Diagnose synthetic lab failure (redacted SQL errors only)
+        if: failure()
+        shell: bash
+        run: |
+          docker compose -f "$R07_COMPOSE" logs --tail=120 pg authority 2>&1 \
+            | sed -E 's/(PASSWORD|password|R07_AUTH_PASSWORD|R07_OWNER_PASSWORD)=([^[:space:]]+)/\1=REDACTED/g' || true
+
+      - name: Remove disposable containers and volumes
+        if: always()
+        shell: bash
+        run: |
+          docker compose -f "$R07_COMPOSE" down -v --remove-orphans || true
