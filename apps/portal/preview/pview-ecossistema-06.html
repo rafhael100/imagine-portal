@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src data:; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <title>Imagine Portal — Prévia navegável de seis produtos (PVIEW-03)</title>
+  <style>
+    :root { font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#19233d; background:#f5f7fb; --ink:#18233d;--muted:#66718a;--line:#e3e8f0;--nav:#14223f;--blue:#3159c7;--wash:#edf2ff;--card:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:290px; }
+    a { color:inherit; }
+    button { font:inherit; }
+    a:focus-visible, button:focus-visible { outline:3px solid #f5a624; outline-offset:3px; border-radius:4px; }
+    .skip { position:absolute; top:-100px; left:12px; z-index:99; background:#fff; padding:10px 16px; }
+    .skip:focus { top:10px; }
+    .layout { display:grid; grid-template-columns:258px minmax(0,1fr); min-height:100dvh; }
+    .sidebar { padding:26px 17px 22px; background:var(--nav); color:#e7edfa; display:flex; flex-direction:column; gap:20px; }
+    .identity { display:flex; align-items:center; padding:8px 12px; gap:12px; font-weight:800; letter-spacing:.01em; font-size:20px; }
+    .mark { display:grid; place-items:center; border-radius:12px; width:40px; height:40px; color:white; background:linear-gradient(145deg,#3f79ff,#9078ee); font-size:23px; }
+    .identity small { display:block; font-size:10px; font-weight:650; color:#b6c4df; letter-spacing:.15em; text-transform:uppercase; }
+    .nav-h { color:#92a6cd; text-transform:uppercase; font-size:10px; padding:0 14px; letter-spacing:.17em; font-weight:700; }
+    nav { display:flex; flex-direction:column; gap:4px; }
+    nav a { display:flex; align-items:center; gap:11px; text-decoration:none; font-size:13px; font-weight:570; color:#c2cee6; padding:12px 13px; border-radius:10px; }
+    nav a:hover { background:#243553; color:white; }
+    nav a[aria-current="page"] { color:#fff; background:#354c7d; box-shadow:inset 3px 0 #88afff; }
+    .navicon { width:22px; height:19px; text-align:center; font-size:17px; line-height:19px; }
+    .sidefoot { margin-top:auto; padding:18px 12px 2px; border-top:1px solid #2b3a57; color:#afbeda; font-size:11px; line-height:1.8; }
+    .sidefoot strong { color:white; display:block; font-size:12px; }
+    .main { min-width:0; }
+    .topbar { display:flex; gap:14px; align-items:center; justify-content:space-between; padding:22px 40px 18px; background:#fff; border-bottom:1px solid var(--line); }
+    .breadcrumb { color:var(--muted); font-size:12px; }
+    .breadcrumb strong { color:var(--ink); font-weight:650; }
+    .identitypill { display:flex; align-items:center; gap:9px; background:#f1f4fa; border:1px solid var(--line); color:#3c4e70; padding:7px 11px; border-radius:24px; font-size:12px; font-weight:650; }
+    .identitypill::before { content:"A"; background:#cbdafd; color:#3158a5; display:grid; place-items:center; border-radius:50%; width:26px; height:26px; font-weight:800; }
+    .content { max-width:1370px; margin:auto; padding:30px 40px 70px; }
+    .warning { border:1px solid #e7d49d; background:#fff8e7; color:#654d17; border-radius:11px; padding:11px 15px; font-size:12px; display:flex; align-items:center; gap:10px; margin-bottom:28px; }
+    .warning b { white-space:nowrap; }
+    .screen[hidden] { display:none !important; }
+    .eyebrow { color:var(--blue); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.13em; }
+    h1 { margin:6px 0 9px; font-size:clamp(26px,3vw,37px); letter-spacing:-.045em; line-height:1.15; }
+    h2 { margin:0; font-size:17px; letter-spacing:-.02em; }
+    h3 { margin:0 0 8px; font-size:15px; }
+    p { margin:0; line-height:1.65; }
+    .lede { color:var(--muted); font-size:13px; max-width:700px; }
+    .page-head { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:28px; }
+    .pill { font-size:11px; font-weight:750; border-radius:99px; padding:6px 10px; white-space:nowrap; background:#eaf0ff; color:#3e61ac; }
+    .pill.amber { background:#fff4d9; color:#906700; }
+    .pill.green { background:#e7f7f0; color:#277659; }
+    .pill.gray { background:#edf0f6; color:#617088; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+    .cards4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; min-width:0; }
+    .kpi-label { color:var(--muted); font-size:12px; font-weight:650; }
+    .kpi-val { font-size:29px; font-weight:780; letter-spacing:-.05em; padding:10px 0 4px; }
+    .kpi-note { color:#7d899d; font-size:11px; }
+    .rowhead { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:17px; }
+    .sectionspace { margin-top:28px; }
+    .feature { display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+    .hero { background:linear-gradient(110deg,#1c3463,#395ec0); color:white; padding:29px; border-radius:14px; }
+    .hero h2 { font-size:23px; letter-spacing:-.03em; margin:0 0 9px; }
+    .hero p { color:#d9e5ff; font-size:13px; max-width:570px; }
+    .hero a { display:inline-block; margin-top:23px; text-decoration:none; background:white; border-radius:9px; padding:11px 15px; font-size:12px; font-weight:750; color:#244697; }
+    .soft { background:#f0f4ff; border:1px solid #e0e7fa; padding:24px; border-radius:14px; }
+    .soft h2 { color:#263c71; margin-bottom:12px; }
+    .soft p { color:#66769b; font-size:12px; }
+    .soft a, .textlink { display:inline-block; color:#2853bf; font-weight:700; font-size:12px; margin-top:18px; text-decoration:underline; text-underline-offset:3px; }
+    .list { display:grid; gap:0; }
+    .item { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:17px 0; border-bottom:1px solid var(--line); }
+    .item:last-child { border-bottom:0; }
+    .item .body { min-width:0; }
+    .item b { display:block; font-size:13px; margin-bottom:3px; }
+    .item small { display:block; color:var(--muted); font-size:11px; line-height:1.5; }
+    .iconbox { flex:0 0 42px; width:42px; height:42px; background:#eff3ff; color:#3359b6; border-radius:11px; display:grid; place-items:center; font-size:21px; }
+    .inlineitem { display:flex; align-items:center; gap:12px; }
+    .tile { min-height:196px; display:flex; flex-direction:column; gap:10px; }
+    .tile h3 { margin:3px 0 0; font-size:16px; }
+    .tile p { color:var(--muted); font-size:12px; }
+    .tile .textlink { margin-top:auto; }
+    .empty { text-align:center; padding:45px 24px; border:1px dashed #cdd6e5; background:#fff; border-radius:13px; }
+    .empty .symbol { font-size:32px; margin-bottom:15px; color:#5874a8; }
+    .empty p { max-width:480px; margin:10px auto 0; color:var(--muted); font-size:13px; }
+    .tablewrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:510px; }
+    th,td { text-align:left; border-bottom:1px solid var(--line); padding:16px 14px; font-size:12px; }
+    th { font-size:11px; color:#71809a; background:#f9fbff; }
+    td { color:#3e4c67; }
+    .footer { color:#8793a9; text-align:center; font-size:11px; margin-top:50px; }
+    .showcase { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:20px 0 12px; }
+    .showcase a { display:block;text-decoration:none;background:white;border:1px solid var(--line);border-radius:12px;padding:16px;min-height:105px; }
+    .showcase a:hover { border-color:#a4b6dd;background:#f8faff; }
+    .showcase b { display:block;font-size:13px;margin-bottom:6px; }
+    .showcase small { display:block;color:var(--muted);font-size:11px;line-height:1.5; }
+    .columns { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px; }
+    .stage {background:#f0f3f9;border-radius:12px;padding:14px;}
+    .stage h2 {font-size:14px;}
+    .stage .card {padding:14px;margin-top:13px;}
+    .stage small {display:block;margin-top:7px;color:var(--muted);font-size:11px;}
+    .mock-site { background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden; }
+    .mock-site header {padding:18px;color:white;background:var(--nav);font-weight:700;font-size:12px;}
+    .mock-site .mock-hero {padding:35px;background:linear-gradient(120deg,#eef3ff,#fff);}
+    .mock-site .mock-hero h2 {font-size:26px;margin-bottom:10px;}
+    @media (max-width:850px) {.showcase,.columns{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:570px) {.showcase,.columns{grid-template-columns:1fr}}
+    @media (max-width:1100px) {
+      .grid.cards4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .feature { grid-template-columns:1fr; }
+      .content { padding:26px; }
+      .topbar { padding:18px 26px; }
+    }
+    @media (max-width:720px) {
+      .layout { display:block; }
+      .sidebar { padding:13px 13px 9px; gap:12px; }
+      .identity { font-size:17px; padding:0 3px; }
+      .mark { height:33px; width:33px; }
+      .nav-h, .sidefoot { display:none; }
+      nav { flex-direction:row; overflow-x:auto; scrollbar-width:thin; gap:3px; padding:0 0 5px; }
+      nav a { flex:0 0 auto; font-size:12px; padding:9px 11px; }
+      nav .navicon { display:none; }
+      .topbar { padding:15px 17px; }
+      .content { padding:21px 17px 45px; }
+      .grid { grid-template-columns:1fr; }
+      .grid.cards4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .page-head { align-items:flex-start; }
+      .warning { align-items:flex-start; flex-wrap:wrap; }
+    }
+    @media (max-width:410px) { .grid.cards4 { grid-template-columns:1fr; } .identitypill { font-size:10px; } .page-head { flex-direction:column; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo principal</a>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="identity"><span class="mark" aria-hidden="true">✦</span><span>imagine<small>Portal de clientes</small></span></div>
+    <span class="nav-h">Espaço do cliente</span>
+    <nav aria-label="Navegação da demonstração">
+      <a href="#overview" data-nav="overview"><span class="navicon" aria-hidden="true">▦</span>Visão geral</a>
+      <a href="#services" data-nav="services"><span class="navicon" aria-hidden="true">◈</span>Meus serviços</a>
+      <a href="#catalog" data-nav="catalog"><span class="navicon" aria-hidden="true">◇</span>Serviços disponíveis</a>
+      <a href="#requests" data-nav="requests"><span class="navicon" aria-hidden="true">▤</span>Solicitações</a>
+      <a href="#contracts" data-nav="contracts"><span class="navicon" aria-hidden="true">▣</span>Contratos</a>
+      <a href="#sites" data-nav="sites"><span class="navicon" aria-hidden="true">▤</span>Imagine Sites</a>
+      <a href="#crm" data-nav="crm"><span class="navicon" aria-hidden="true">◇</span>Imagine CRM</a>
+      <a href="#performance" data-nav="performance"><span class="navicon" aria-hidden="true">◎</span>Performance AI</a>
+      <a href="#university" data-nav="university"><span class="navicon" aria-hidden="true">◉</span>Universidade</a>
+      <a href="#agents" data-nav="agents"><span class="navicon" aria-hidden="true">✧</span>Agentes de IA</a>
+      <a href="#notices" data-nav="notices"><span class="navicon" aria-hidden="true">◌</span>Avisos</a>
+    </nav>
+    <div class="sidefoot"><strong>Protótipo PVIEW-03</strong>Sem contas reais, sem cobrança, sem conexão com CRM ou fornecedores.<br>Todos os dados são fictícios.</div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><div class="breadcrumb">Portal Imagine <span aria-hidden="true">/</span> <strong id="breadcrumb-section">Visão geral</strong></div><div class="identitypill" aria-label="Empresa Aurora, organização fictícia">Empresa Aurora · Fictícia</div></header>
+    <main class="content" id="main" tabindex="-1">
+      <div class="warning" role="note"><b>DEMONSTRAÇÃO OFFLINE</b><span>Interface ilustrativa. Sem login, dados pessoais, serviços contratados, compra, pagamento ou operações reais.</span></div>
+      <section class="screen" id="overview" data-screen="overview" aria-labelledby="h-overview">
+        <div class="page-head"><div><span class="eyebrow">Bem-vindo ao ecossistema Imagine</span><h1 id="h-overview">Visão geral</h1><p class="lede">Tudo sobre a sua empresa, serviços e próximas etapas em um único espaço. Informações demonstrativas.</p></div><span class="pill">Prévia visual</span></div>
+        <div class="grid cards4">
+          <article class="card"><div class="kpi-label">Serviços no exemplo</div><div class="kpi-val">02</div><div class="kpi-note">Dados fictícios</div></article>
+          <article class="card"><div class="kpi-label">Solicitações ilustrativas</div><div class="kpi-val">03</div><div class="kpi-note">Sem chamados reais</div></article>
+          <article class="card"><div class="kpi-label">Etapas em destaque</div><div class="kpi-val">04</div><div class="kpi-note">Fluxos de exemplo</div></article>
+          <article class="card"><div class="kpi-label">Notificações de exemplo</div><div class="kpi-val">03</div><div class="kpi-note">Sem envio ou leitura real</div></article>
+        </div>
+        <div class="card sectionspace"><div class="rowhead"><h2>Navegue pelos seis projetos Imagine</h2><span class="pill gray">Prévia offline</span></div><p class="lede">Estas áreas ilustram a experiência futura, sem conceder acesso a produtos ou executar ações reais.</p><div class="showcase" aria-label="Projetos Imagine">
+          <a href="#overview"><b>Portal Imagine</b><small>Serviços e solicitações fictícias.</small></a>
+          <a href="#sites"><b>Imagine Sites</b><small>Briefing e prévia Onepage ilustrativos.</small></a>
+          <a href="#crm"><b>Imagine CRM</b><small>Funil comercial sintético.</small></a>
+          <a href="#performance"><b>Performance AI</b><small>Painel de campanhas ilustrativo.</small></a>
+          <a href="#university"><b>Universidade Imagine</b><small>Catálogo educacional fictício.</small></a>
+          <a href="#agents"><b>Agentes IA</b><small>Catálogo e supervisão simulados.</small></a>
+        </div></div>
+        <div class="feature sectionspace">
+          <div class="hero"><h2>Sua operação, mais simples.</h2><p>Visualize os serviços Imagine, acompanhe jornadas e conheça as soluções disponíveis no mesmo painel.</p><a href="#services">Conhecer meus serviços →</a></div>
+          <div class="soft"><h2>Explore as soluções Imagine</h2><p>Sites, CRM, Performance AI e aprendizagem para negócios, cada serviço com seu próprio contrato e regras.</p><a href="#catalog">Explorar catálogo →</a></div>
+        </div>
+        <div class="card sectionspace"><div class="rowhead"><h2>Atividades recentes</h2><span class="pill gray">Exemplos</span></div><div class="list">
+          <div class="item"><div class="inlineitem"><div class="iconbox" aria-hidden="true">◈</div><div class="body"><b>Briefing demonstrativo preparado</b><small>Exemplo de jornada de um projeto Onepage</small></div></div><span class="pill green">Ilustrativo</span></div>
+          <div class="item"><div class="inlineitem"><div class="iconbox" aria-hidden="true">▤</div><div class="body"><b>Solicitação de exemplo registrada</b><small>Não existe chamado em produção</small></div></div><span class="pill gray">Demo</span></div>
+        </div></div>
+      </section>
+      <section class="screen" id="services" data-screen="services" aria-labelledby="h-services" hidden>
+        <div class="page-head"><div><span class="eyebrow">Sua central de serviços</span><h1 id="h-services">Meus serviços Imagine</h1><p class="lede">Um lugar para acompanhar produtos diferentes, cada um com seus contratos e acessos próprios.</p></div><span class="pill gray">Exemplo fictício</span></div>
+        <div class="grid">
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◈</span><h3>Imagine Sites</h3><p>Onepage demonstrativa · etapa ilustrativa de briefing e produção.</p><span class="pill amber">Em preparação (fictício)</span><a href="#requests" class="textlink">Ver jornada ilustrativa →</a></article>
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◎</span><h3>Imagine Performance AI</h3><p>Painel de acompanhamento de campanhas, com métricas apenas visuais.</p><span class="pill gray">Prévia sem conexão</span><a href="#performance" class="textlink">Visualizar módulo →</a></article>
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◇</span><h3>Imagine CRM</h3><p>Produto independente: login, dados e assinatura separados do Portal.</p><span class="pill gray">Integração não ativa</span><a href="#catalog" class="textlink">Sobre os produtos →</a></article>
+        </div>
+      </section>
+      <section class="screen" id="catalog" data-screen="catalog" aria-labelledby="h-catalog" hidden>
+        <div class="page-head"><div><span class="eyebrow">Descubra novas possibilidades</span><h1 id="h-catalog">Serviços disponíveis</h1><p class="lede">Conheça o ecossistema Imagine. Esta prévia não oferece contratação ou preço real.</p></div><span class="pill">Catálogo demonstrativo</span></div>
+        <div class="grid">
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◈</span><h3>Imagine Sites</h3><p>Onepage e Landing Page com identidade profissional e integração autorizada ao CRM, quando aplicável.</p><span class="pill gray">Sem contratação</span></article>
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◇</span><h3>Imagine CRM</h3><p>Relacionamento, oportunidades e automações, como sistema próprio e independente.</p><span class="pill gray">Sem contratação</span></article>
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◎</span><h3>Imagine Performance AI</h3><p>Planejamento e acompanhamento de campanhas, com motor técnico independente.</p><span class="pill gray">Sem contratação</span></article>
+          <article class="card tile"><span class="iconbox" aria-hidden="true">◉</span><h3>Universidade Imagine</h3><p>Benefício educacional associado a serviços elegíveis ativos. Não é assinatura avulsa.</p><span class="pill gray">Elegibilidade não avaliada</span></article>
+        </div>
+      </section>
+      <section class="screen" id="requests" data-screen="requests" aria-labelledby="h-requests" hidden>
+        <div class="page-head"><div><span class="eyebrow">Acompanhe suas demandas</span><h1 id="h-requests">Solicitações</h1><p class="lede">Veja como pedidos e acompanhamentos poderão aparecer no seu Portal.</p></div><span class="pill gray">Sem abertura de chamados</span></div>
+        <div class="card"><div class="tablewrap"><table><thead><tr><th>Solicitação fictícia</th><th>Categoria</th><th>Estado de exemplo</th></tr></thead><tbody>
+        <tr><td>Atualização de conteúdo do site</td><td>Imagine Sites</td><td><span class="pill amber">Em análise</span></td></tr>
+        <tr><td>Orientação sobre catálogo</td><td>Atendimento</td><td><span class="pill gray">Recebida</span></td></tr>
+        <tr><td>Revisão de briefing</td><td>Produção</td><td><span class="pill green">Exemplo concluído</span></td></tr>
+        </tbody></table></div></div><div class="soft sectionspace"><h2>Solicitações reais ainda não estão disponíveis</h2><p>Quando esta etapa for implementada e autorizada, haverá histórico, responsável e atualização de estado com origem confiável.</p></div>
+      </section>
+      <section class="screen" id="contracts" data-screen="contracts" aria-labelledby="h-contracts" hidden>
+        <div class="page-head"><div><span class="eyebrow">Gestão transparente</span><h1 id="h-contracts">Contratos e assinaturas</h1><p class="lede">Um espaço futuro para consultar vínculos contratuais de cada produto Imagine.</p></div><span class="pill gray">Sem contratos reais</span></div>
+        <div class="empty"><div class="symbol" aria-hidden="true">▣</div><h2>Nenhum contrato conectado</h2><p>Esta demonstração não acessa informações financeiras, assinaturas, pagamentos ou documentos jurídicos.</p><a href="#catalog" class="textlink">Conhecer o catálogo ilustrativo →</a></div>
+      </section>
+      <section class="screen" id="sites" data-screen="sites" aria-labelledby="h-sites" hidden>
+        <div class="page-head"><div><span class="eyebrow">Imagine Sites · demonstração</span><h1 id="h-sites">Onepage e Landing Page</h1><p class="lede">Jornada visual de briefing, prévia e aprovação, sem publicação de domínio e sem captação de leads.</p></div><span class="pill gray">Site fictício</span></div>
+        <div class="grid sectionspace">
+          <div class="card"><h3>1 · Briefing</h3><p class="lede">Coleta de materiais do cliente somente após acesso autorizado, em produto futuro.</p></div>
+          <div class="card"><h3>2 · Prévia</h3><p class="lede">Apresentação de textos e aparência para revisão antes da publicação.</p></div>
+          <div class="card"><h3>3 · Aprovação</h3><p class="lede">Publicação exige aceite expresso. Silêncio não vale como autorização.</p></div>
+        </div>
+        <div class="mock-site sectionspace" aria-label="Exemplo de página institucional fictícia">
+          <header>Estúdio Aurora · empresa fictícia</header><div class="mock-hero"><span class="eyebrow">Exemplo não publicado</span><h2>Ideias que ganham forma.</h2><p class="lede">Um exemplo estático de página profissional. Não existe formulário, integração CRM, contato ou contratação operacional.</p></div>
+        </div>
+        <div class="soft sectionspace"><h2>Regra de integração</h2><p>Formulários só poderão funcionar quando houver destino CRM oficialmente vinculado e autorizado. Nenhum formulário existe nesta demonstração.</p></div>
+      </section>
+      <section class="screen" id="crm" data-screen="crm" aria-labelledby="h-crm" hidden>
+        <div class="page-head"><div><span class="eyebrow">Imagine CRM · demonstração</span><h1 id="h-crm">Funil de oportunidades</h1><p class="lede">Apenas uma representação visual do CRM independente, sem autenticação, dados pessoais ou movimentação de oportunidades reais.</p></div><span class="pill gray">Dados sintéticos</span></div>
+        <div class="grid sectionspace">
+          <div class="card"><div class="kpi-label">Oportunidades ilustrativas</div><div class="kpi-val">03</div><div class="kpi-note">Sem banco de dados</div></div>
+          <div class="card"><div class="kpi-label">Fases visuais</div><div class="kpi-val">03</div><div class="kpi-note">Sem alterações de status</div></div>
+          <div class="card"><div class="kpi-label">Automações executadas</div><div class="kpi-val">0</div><div class="kpi-note">Sem motor conectado</div></div>
+        </div>
+        <div class="columns sectionspace" aria-label="Funil fictício">
+          <div class="stage"><h2>Novos leads</h2><div class="card"><b>Empresa Exemplo A</b><small>Interesse demonstrativo</small></div></div>
+          <div class="stage"><h2>Em contato</h2><div class="card"><b>Empresa Exemplo B</b><small>Atendimento fictício</small></div></div>
+          <div class="stage"><h2>Proposta</h2><div class="card"><b>Empresa Exemplo C</b><small>Nenhuma proposta enviada</small></div></div>
+        </div>
+        <div class="soft sectionspace"><h2>Independência do CRM</h2><p>Esta página não compartilha banco, contas, sessões ou permissões com o Portal; é apenas uma tela ilustrativa offline.</p></div>
+      </section>
+      <section class="screen" id="performance" data-screen="performance" aria-labelledby="h-performance" hidden>
+        <div class="page-head"><div><span class="eyebrow">Marketing e inteligência</span><h1 id="h-performance">Imagine Performance AI</h1><p class="lede">Acompanhamento de campanhas Google Ads e Meta em um módulo conectado futuramente por integração autorizada.</p></div><span class="pill gray">Sem Google ou Meta</span></div>
+        <div class="grid">
+          <div class="card"><div class="kpi-label">Campanhas fictícias</div><div class="kpi-val">—</div><div class="kpi-note">Nenhuma campanha consultada</div></div>
+          <div class="card"><div class="kpi-label">Investimento em mídia</div><div class="kpi-val">—</div><div class="kpi-note">Nenhum valor real exibido</div></div>
+          <div class="card"><div class="kpi-label">Leads</div><div class="kpi-val">—</div><div class="kpi-note">Nenhuma integração ativa</div></div>
+        </div><div class="soft sectionspace"><h2>Módulo em preparação</h2><p>O motor de anúncios continuará independente do Portal. Esta tela não cria campanhas, não gera recargas e não consulta contas de publicidade.</p></div>
+      </section>
+      <section class="screen" id="university" data-screen="university" aria-labelledby="h-university" hidden>
+        <div class="page-head"><div><span class="eyebrow">Aprendizado para negócios</span><h1 id="h-university">Universidade Imagine</h1><p class="lede">Orientações para negócios, marketing, produtividade e inteligência artificial.</p></div><span class="pill gray">Acesso não validado</span></div>
+        <div class="grid">
+          <div class="card tile"><span class="iconbox" aria-hidden="true">◉</span><h3>Marketing e vendas</h3><p>Conteúdo de aprendizagem ilustrativo, sem curso disponível nesta prévia.</p></div>
+          <div class="card tile"><span class="iconbox" aria-hidden="true">✧</span><h3>Inteligência artificial</h3><p>Uso responsável de IA para processos empresariais e atendimento.</p></div>
+          <div class="card tile"><span class="iconbox" aria-hidden="true">◇</span><h3>Produtividade</h3><p>Organização de trabalho e práticas do dia a dia.</p></div>
+        </div><div class="soft sectionspace"><h2>Benefício exclusivo</h2><p>O acesso real depende de um serviço Imagine elegível e ativo. Esta tela não concede elegibilidade nem oferece cursos ou certificações.</p></div>
+      </section>
+      <section class="screen" id="agents" data-screen="agents" aria-labelledby="h-agents" hidden>
+        <div class="page-head"><div><span class="eyebrow">Imagine AI Agents · demonstração</span><h1 id="h-agents">Central de Agentes</h1><p class="lede">Modelos visuais de catálogo, versões e aprovações. Não há IA, API, prompt ou ferramenta sendo executada.</p></div><span class="pill gray">Execuções reais: zero</span></div>
+        <div class="grid">
+          <div class="card tile"><span class="iconbox" aria-hidden="true">✧</span><h3>Agente consultivo</h3><p>Exemplo de assistente que futuramente poderá propor recomendações para revisão humana.</p><span class="pill gray">Inerte</span></div>
+          <div class="card tile"><span class="iconbox" aria-hidden="true">▤</span><h3>Catálogo de versões</h3><p>Exemplo de versões com avaliação e possibilidade de suspensão antes de uso operacional.</p><span class="pill gray">Simulado</span></div>
+          <div class="card tile"><span class="iconbox" aria-hidden="true">◎</span><h3>Central de aprovações</h3><p>Visualização ilustrativa de políticas e revisão antes de qualquer ação sensível.</p><span class="pill gray">Sem aprovações reais</span></div>
+        </div>
+        <div class="soft sectionspace"><h2>Controle humano</h2><p>IA propõe, regras oficiais validam e pessoas autorizadas decidem nas ações críticas. Nenhuma integração com CRM ou outros produtos está habilitada aqui.</p></div>
+      </section>
+      <section class="screen" id="notices" data-screen="notices" aria-labelledby="h-notices" hidden>
+        <div class="page-head"><div><span class="eyebrow">Comunicação centralizada</span><h1 id="h-notices">Central de avisos</h1><p class="lede">Um exemplo de como novidades e atualizações futuras poderão ser organizadas.</p></div><span class="pill gray">Não envia notificações</span></div>
+        <div class="card"><div class="list">
+          <div class="item"><div class="inlineitem"><span class="iconbox" aria-hidden="true">◈</span><div class="body"><b>Orientação sobre o briefing</b><small>Aviso demonstrativo de jornada de site.</small></div></div><span class="pill gray">Demo</span></div>
+          <div class="item"><div class="inlineitem"><span class="iconbox" aria-hidden="true">◎</span><div class="body"><b>Como funcionará o acompanhamento de mídia</b><small>Informação ilustrativa de Performance AI; sem cobranças.</small></div></div><span class="pill gray">Demo</span></div>
+          <div class="item"><div class="inlineitem"><span class="iconbox" aria-hidden="true">◉</span><div class="body"><b>Aprendizado empresarial no ecossistema</b><small>Sem decisão de elegibilidade ou liberação de cursos.</small></div></div><span class="pill gray">Demo</span></div>
+        </div></div>
+      </section>
+      <footer class="footer">Imagine Portal · PVIEW-03 · seis produtos · protótipo estático offline · 08/11/2026 · sem conexão com produção</footer>
+    </main>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const labels = {
+    overview:"Visão geral",services:"Meus serviços",catalog:"Serviços disponíveis",
+    requests:"Solicitações",contracts:"Contratos",sites:"Imagine Sites",crm:"Imagine CRM",performance:"Performance AI",
+    university:"Universidade Imagine",agents:"Agentes de IA",notices:"Central de avisos"
+  };
+  const links = Array.from(document.querySelectorAll("[data-nav]"));
+  const screens = Array.from(document.querySelectorAll("[data-screen]"));
+  const crumb = document.getElementById("breadcrumb-section");
+  const main = document.getElementById("main");
+  function render() {
+    const raw = window.location.hash.slice(1);
+    const route = Object.prototype.hasOwnProperty.call(labels,raw) ? raw : "overview";
+    for (const screen of screens) screen.hidden = (screen.dataset.screen !== route);
+    for (const link of links) {
+      if (link.dataset.nav === route) link.setAttribute("aria-current","page");
+      else link.removeAttribute("aria-current");
+    }
+    crumb.textContent = labels[route];
+    document.title = labels[route] + " · Imagine Portal — Demonstração";
+    if (raw && raw !== route) window.history.replaceState(null,"","#overview");
+  }
+  window.addEventListener("hashchange", function () { render(); main.focus({preventScroll:true}); window.scrollTo(0,0); });
+  render();
+}());
+</script>
+</body>
+</html>
