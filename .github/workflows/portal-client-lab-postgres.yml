@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/portal/labs/client-auth/**'
       - 'apps/portal/tests/Feature/LabPortalPgFeatureTest.php'
+      - 'apps/portal/AGENTS.md'
       - 'apps/portal/routes/web.php'
       - '.github/workflows/portal-client-lab-postgres.yml'
 
