@@ -73,9 +73,9 @@ Se o efeito envolver provedor externo não transacionável (ex.: pagamento), a a
 
 ## 7. Impedimentos expressos (NO-GO)
 
-Não há autenticador humano, WebAuthn, MFA, OTP, push, e-mail transacional, canal separado, assinatura, schema de intenção, SQL, API ou endpoint implementados por este contrato. Também NÃO há revisões independentes recebidas. O PR #51 permanece PoC sintética; um teste verde não comprova segurança da experiência de usuário nem eficácia contra Z1 comprometida com sessão legítima.
+Não há autenticador humano, WebAuthn, MFA, OTP, push, e-mail transacional, canal separado, assinatura, schema de intenção, SQL, API ou endpoint implementados por este contrato. Também NÃO há homologação operacional interna concluída; a governança de revisão passou a ser interna, com IA/Codex e decisão gerencial, conforme GOV-SEC-INT-01 / Issue #58. O PR #51 permanece PoC sintética; um teste verde não comprova segurança da experiência de usuário nem eficácia contra Z1 comprometida com sessão legítima.
 
-Os P0 R01-01, R01-02, R01-03, R01-09 e R01-10, G-ID, G-BB, D02-SEC, D03/RLS e release continuam ABERTOS. Merge, deploy, custos, VPS, infraestrutura e qualquer serviço real exigem autorização separada.
+Os P0 R01-01, R01-02, R01-03, R01-09 e R01-10, G-ID, G-BB, D02-SEC, D03/RLS e release continuam ABERTOS. A exigência interna de revisão externa foi substituída pelo protocolo interno GOV-SEC-INT-01, sem gastos com fornecedores e sem alegar independência de auditoria. Merge, deploy, custos, VPS, infraestrutura e qualquer serviço real exigem autorização separada.
 
 ## 8. Referências técnicas
 
@@ -83,4 +83,4 @@ Os P0 R01-01, R01-02, R01-03, R01-09 e R01-10, G-ID, G-BB, D02-SEC, D03/RLS e re
 - OWASP Authentication Cheat Sheet — reautenticação para funcionalidades sensíveis: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 - W3C WebAuthn Level 3 — verificação challenge/origin/RP ID/UV como semântica de autenticação, não substituto de display confiável: https://www.w3.org/TR/webauthn-3/
 
-**Próxima decisão:** escolher classes C2/C3, política de confirmações independentes e modelo de risco/recuperação antes de aprovar um laboratório sintético; revisão AppSec e DBA humanas independentes necessária.
+**Próxima decisão:** escolher classes C2/C3, política de confirmações independentes e modelo de risco/recuperação antes de aprovar um laboratório sintético; revisões internas AppSec e DBA com evidências verificáveis e aprovação expressa da Direção necessárias.
