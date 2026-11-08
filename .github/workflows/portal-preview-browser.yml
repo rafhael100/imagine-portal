@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
+      - dev/portal-preview-ux-responsive-2026-11-08
     paths:
       - 'apps/portal/resources/views/components/portal/preview/**'
       - 'apps/portal/resources/views/portal/preview/**'
@@ -66,5 +67,7 @@ jobs:
           name: imagine-portal-preview-desktop-celular
           path: |
             ${{ runner.temp }}/portal-ux-preview/imagine-portal-*.png
+            ${{ runner.temp }}/portal-ux-preview/browser-results.json
+            ${{ runner.temp }}/portal-ux-preview/showcase.html
           if-no-files-found: ignore
           retention-days: 7

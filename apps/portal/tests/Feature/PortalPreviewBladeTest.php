@@ -78,7 +78,12 @@ final class PortalPreviewBladeTest extends TestCase
         self::assertNotNull($menu);
         self::assertSame('pv-nav-instructions', $menu->getAttribute('aria-describedby'));
         self::assertSame(1, $xpath->query('//*[@id="pv-nav-instructions"]')->length);
-        self::assertStringContainsString('deslize o menu', $html);
+        self::assertStringContainsString('6 áreas · deslize →', $html);
+        self::assertStringContainsString('use Tab e Enter', $html);
+        $warning = $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " pv-demo-warning ")]')->item(0);
+        foreach (['100% FICTÍCIOS', 'login', 'formulários', 'contratos', 'anúncios', 'cobranças', 'integrações', 'operações reais'] as $disclaimer) {
+            self::assertStringContainsString($disclaimer, $warning->textContent);
+        }
 
         $stylesheet = (string) file_get_contents(
             dirname(__DIR__, 2).'/resources/views/components/portal/preview/styles.blade.php',
