@@ -240,4 +240,50 @@ Route::prefix('/_lab/portal')->group(static function (): void {
         });
     })->name('portal.lab.secure-dashboard');
 
+
+    Route::post('/secure/organizations/{organization}/requests', static function (
+        Request $request,
+        string $organization,
+        LabSecureLogin $secure,
+        LabPortalGateway $portal,
+    ) {
+        // This route is only installed in PHPUnit CLI tests, not live HTTP.
+        $data = $request->validate([
+            'service_id' => ['required', 'string', 'max:64', 'regex:/\A[a-z0-9._:-]+\z/D'],
+            'title' => ['required', 'string', 'min:3', 'max:120'],
+            'idempotency_key' => ['required', 'string', 'min:8', 'max:128', 'regex:/\A[a-zA-Z0-9-]+\z/D'],
+        ]);
+
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $organization, $secure, $portal, $data) {
+            $actor = $secure->actor($request);
+            if ($actor === null) {
+                return response()->json(['error' => 'unauthenticated'], 401);
+            }
+            if (preg_match('/\A[a-z0-9._:-]{1,64}\z/D', $organization) !== 1) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $result = $portal->submitIdempotentRequest(
+                $actor,
+                $organization,
+                $data['service_id'],
+                $data['title'],
+                $data['idempotency_key'],
+            );
+
+            if ($result === null) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+            if ($result['outcome'] === 'conflict') {
+                return response()->json(['error' => 'idempotency_conflict'], 409);
+            }
+
+            return response()->json([
+                'request_id' => $result['id'],
+                'status' => 'received',
+                'replayed' => $result['outcome'] === 'replayed',
+            ], $result['outcome'] === 'created' ? 201 : 200);
+        });
+    })->name('portal.lab.secure-request-create');
+
 });
