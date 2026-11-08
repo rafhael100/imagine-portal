@@ -107,7 +107,7 @@ jobs:
           count_b="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-b'")"
           test "$count_a" = "2"
           test "$count_b" = "0"
-          echo "[R07-F1] DB effects: exactly 1 in A and 0 in B. KNOWN RESIDUAL T3: not solved."
+          echo "[R07-F1] DB effects: exactly 2 in A and 0 in B. KNOWN RESIDUAL T3: not solved."
 
       - name: Diagnose synthetic lab failure (redacted SQL errors only)
         if: failure()
