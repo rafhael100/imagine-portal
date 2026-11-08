@@ -165,6 +165,90 @@ final class LabPortalGateway
         });
     }
 
+    /**
+     * AUTH-F3 lab-only idempotent create. A stable idempotency key is scoped
+     * by tenant and request fingerprint, never by a global/shared CRM key.
+     * Unique (org_id, idempotency_digest) decides duplicates atomically.
+     *
+     * @return array{outcome:string,id:?string}|null
+     */
+    public function submitIdempotentRequest(
+        string $actor,
+        string $org,
+        string $serviceId,
+        string $title,
+        string $key,
+    ): ?array {
+        $db = $this->database();
+        $keyDigest = hash('sha256', $key);
+        $payloadDigest = hash('sha256', json_encode([$serviceId, $title], JSON_THROW_ON_ERROR));
+
+        return $db->transaction(static function () use ($db, $actor, $org, $serviceId, $title, $keyDigest, $payloadDigest): ?array {
+            $valid = $db->table('lab_portal_memberships as m')
+                ->join('lab_portal_organizations as o', 'o.id', '=', 'm.org_id')
+                ->where('m.user_id', $actor)
+                ->where('m.org_id', $org)
+                ->where('m.status', 'active')
+                ->where('o.status', 'active')->exists();
+
+            if (! $valid) {
+                return null;
+            }
+
+            $db->select("SELECT set_config('portal.lab_tenant', ?, true)", [$org]);
+            $db->select("SELECT set_config('portal.lab_actor', ?, true)", [$actor]);
+
+            // RLS must prove the service also belongs to this organization.
+            $serviceExists = $db->table('lab_portal_services')
+                ->where('org_id', $org)->where('id', $serviceId)->exists();
+            if (! $serviceExists) {
+                return null;
+            }
+
+            $existing = $db->table('lab_portal_requests')
+                ->where('org_id', $org)
+                ->where('idempotency_digest', $keyDigest)
+                ->first(['id', 'payload_digest']);
+
+            if ($existing !== null) {
+                return $existing->payload_digest === $payloadDigest
+                    ? ['outcome' => 'replayed', 'id' => $existing->id]
+                    : ['outcome' => 'conflict', 'id' => null];
+            }
+
+            $id = (string) \Illuminate\Support\Str::uuid();
+            $created = $db->table('lab_portal_requests')->insertOrIgnore([
+                'org_id' => $org,
+                'id' => $id,
+                'service_id' => $serviceId,
+                'title' => $title,
+                'idempotency_digest' => $keyDigest,
+                'payload_digest' => $payloadDigest,
+                'status' => 'received',
+            ]);
+
+            if ($created === 1) {
+                return ['outcome' => 'created', 'id' => $id];
+            }
+
+            // Concurrent unique conflict: re-read the winning transaction.
+            // Do not claim concurrent linearizability until an adversarial
+            // multi-connection suite has actually exercised this branch.
+            $winner = $db->table('lab_portal_requests')
+                ->where('org_id', $org)
+                ->where('idempotency_digest', $keyDigest)
+                ->first(['id', 'payload_digest']);
+
+            if ($winner === null) {
+                return null; // fail-closed on unexpected conflict/RLS state
+            }
+
+            return $winner->payload_digest === $payloadDigest
+                ? ['outcome' => 'replayed', 'id' => $winner->id]
+                : ['outcome' => 'conflict', 'id' => null];
+        }, 3);
+    }
+
     /** @return list<array{id:string,title:string,status:string}>|null */
     public function requests(string $actor, string $org): ?array
     {
