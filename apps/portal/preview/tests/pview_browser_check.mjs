@@ -10,7 +10,9 @@ const sleep = (n) => new Promise((resolve) => setTimeout(resolve,n));
 function check(ok,msg) { if(!ok) throw Error(msg); }
 
 async function test() {
-  const pageFile=path.resolve("apps/portal/preview/pview-01.html");
+  const pageFile=path.resolve(process.env.PVIEW_HTML_FILE || "apps/portal/preview/pview-01.html");
+  const hashPrefix=process.env.PVIEW_HASH_PREFIX || "";
+  const screenshotPrefix=process.env.PVIEW_SHOT_PREFIX || "pview-01";
   check((await readFile(pageFile,"utf8")).includes("DEMONSTRAÇÃO OFFLINE"),"Missing demo notice");
   const bin=spawnSync("bash",["-lc","command -v google-chrome || command -v chromium || command -v chromium-browser"],{encoding:"utf8"});
   check(bin.status===0 && bin.stdout.trim(),"Chrome binary not available on runner");
@@ -73,7 +75,7 @@ async function test() {
       await cdp("Emulation.setDeviceMetricsOverride",{width:v.w,height:v.h,deviceScaleFactor:1,mobile:false});
       await sleep(100);
       for(const route of routes){
-        await evalJs("location.hash="+JSON.stringify(route));
+        await evalJs("location.hash="+JSON.stringify(hashPrefix+route));
         await sleep(55);
         const state=JSON.parse(await evalJs("JSON.stringify({width:innerWidth,scroll:document.documentElement.scrollWidth,visible:[...document.querySelectorAll('[data-screen]')].filter(e=>!e.hidden).map(e=>e.dataset.screen),selected:[...document.querySelectorAll('[data-nav]')].filter(e=>e.getAttribute('aria-current')==='page').map(e=>e.dataset.nav),warning:document.body.innerText.includes('DEMONSTRAÇÃO OFFLINE')})"));
         check(state.visible.length===1 && state.visible[0]===route,"Wrong visible screen "+v.name+"/"+route+" "+JSON.stringify(state));
@@ -82,16 +84,16 @@ async function test() {
         check(state.warning,"Missing demo notice "+v.name+"/"+route);
         total++;
       }
-      await evalJs("location.hash='overview'");await sleep(100);
+      await evalJs("location.hash="+JSON.stringify(hashPrefix+"overview"));await sleep(100);
       const png=await cdp("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});
-      await writeFile(path.join(evidence,"pview-01-"+v.name+".png"),Buffer.from(png.data,"base64"));
+      await writeFile(path.join(evidence,screenshotPrefix+"-"+v.name+".png"),Buffer.from(png.data,"base64"));
       console.log("[PASS PVIEW] "+v.name+" / eight screens");
     }
     await evalJs("document.querySelector('[data-nav=\"catalog\"]').focus()");
     await cdp("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13,nativeVirtualKeyCode:13});
     await cdp("Input.dispatchKeyEvent",{type:"keyUp",key:"Enter",code:"Enter",windowsVirtualKeyCode:13,nativeVirtualKeyCode:13});
     await sleep(150);
-    check((await evalJs("location.hash"))==="#catalog","Enter keyboard navigation failed");
+    check((await evalJs("location.hash"))==="#"+hashPrefix+"catalog","Enter keyboard navigation failed");
     console.log("[PASS PVIEW] keyboard Enter opens catalog");
     check(network.length===0,"Unexpected external HTTP requests: "+network.join(","));
     console.log("[PASS PVIEW] no external HTTP requests; "+total+" viewport/route checks; 3 screenshots");
