@@ -85,6 +85,12 @@ const metricsExpression = [
   ' const warning = document.querySelector(".pv-demo-warning");',
   ' return {',
   ' width: innerWidth,',
+  ' visualWidth: visualViewport ? visualViewport.width : null,',
+  ' screenWidth: screen.width,',
+  ' documentWidth: document.documentElement.scrollWidth,',
+  ' navWidth: nav.clientWidth,',
+  ' navScrollWidth: nav.scrollWidth,',
+  ' sidebarWidth: aside.getBoundingClientRect().width,',
   ' overflow: document.documentElement.scrollWidth > innerWidth + 1,',
   ' headingCount: document.querySelectorAll("h1").length,',
   ' sectionCount: document.querySelectorAll(".pv-section").length,',
@@ -122,6 +128,10 @@ try {
     await cdp.call('Page.navigate', { url: pathToFileURL(htmlPath).href });
     await sleep(260);
     const m = await cdp.evaluate(metricsExpression);
+    console.log('BROWSER METRICS', v.name, JSON.stringify(m));
+    const image = await cdp.call('Page.captureScreenshot', { format: 'png', fromSurface: true });
+    writeFileSync(join(outputDir, 'imagine-portal-' + v.name + '-' + v.width + '.png'),
+      Buffer.from(image.data, 'base64'));
     assert.equal(m.width, v.width, v.name + ' viewport');
     assert.equal(m.overflow, false, v.name + ' horizontal overflow');
     assert.equal(m.headingCount, 1, v.name + ' primary heading');
@@ -133,11 +143,6 @@ try {
     assert.equal(m.forms, 0, v.name + ' no forms');
     if (v.width === 390) assert.equal(m.navScrollable, true, '390px menu must scroll');
 
-    const image = await cdp.call('Page.captureScreenshot', {
-      format: 'png', fromSurface: true,
-    });
-    writeFileSync(join(outputDir, 'imagine-portal-' + v.name + '-' + v.width + '.png'),
-      Buffer.from(image.data, 'base64'));
 
     const hash = await cdp.evaluate('(() => { document.querySelector("a[href=\\"#pv-financeiro\\"]").click(); return location.hash; })()');
     assert.equal(hash, '#pv-financeiro', v.name + ' anchor navigation');
