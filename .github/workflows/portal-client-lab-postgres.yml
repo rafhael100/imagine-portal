@@ -1,0 +1,100 @@
+name: Portal - isolated client auth and PostgreSQL 18 RLS lab
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/client-auth/**'
+      - 'apps/portal/tests/Feature/LabPortalPgFeatureTest.php'
+      - 'apps/portal/routes/web.php'
+      - '.github/workflows/portal-client-lab-postgres.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-client-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-postgres:
+    if: github.head_ref == 'feat/portal-f1-auth-tenant-pg-lab-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      PORTAL_CLIENT_LAB_ENABLED: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: portal-lab-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: portal-lab-admin-only
+          POSTGRES_DB: portal_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - name: Checkout isolated PR without credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4, Composer, and PostgreSQL extension
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Install locked dependencies, never migrations on non-lab DB
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+
+      - name: Lint PHP lab sources
+        run: |
+          set -euo pipefail
+          php -l labs/client-auth/create_lab_schema.php
+          php -l labs/client-auth/LabPortalGateway.php
+          php -l labs/client-auth/routes.php
+          php -l labs/client-auth/bootstrap_lab.php
+          php -l tests/Feature/LabPortalPgFeatureTest.php
+
+      - name: Bootstrap synthetic restricted runtime role only
+        run: |
+          set -euo pipefail
+          php labs/client-auth/bootstrap_lab.php
+
+      - name: Exercise real PostgreSQL RLS and Laravel HTTP tests with fictional data
+        run: |
+          set -euo pipefail
+          php vendor/bin/phpunit --configuration=labs/client-auth/phpunit-lab.xml --colors=never --no-progress
+
+      - name: Runner cleanup state (ephemeral service destroyed after job)
+        if: always()
+        run: |
+          echo "No production DB, VPS, customer, provider, migration, or deploy was accessed."
+          echo "PostgreSQL and synthetic accounts are disposable GitHub Actions service containers."
