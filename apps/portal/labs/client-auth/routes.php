@@ -68,4 +68,44 @@ Route::prefix('/_lab/portal')->group(static function (): void {
             return response()->json(['services' => $services]);
         });
     })->name('portal.lab.services');
+
+
+    Route::get('/organizations/{organization}/dashboard', static function (Request $request, string $organization, LabPortalGateway $gateway) {
+        return LabPortalGateway::denyOnFailure(static function () use ($request, $organization, $gateway) {
+            $actor = $gateway->actor($request);
+            if ($actor === null) {
+                return response()->json(['error' => 'unauthenticated'], 401);
+            }
+
+            if (preg_match('/\A[a-z0-9._:-]{1,64}\z/D', $organization) !== 1) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $organizations = $gateway->organizations($actor);
+            $selected = null;
+            foreach ($organizations as $candidate) {
+                if ($candidate['id'] === $organization) {
+                    $selected = $candidate;
+                    break;
+                }
+            }
+
+            if ($selected === null) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            $services = $gateway->services($actor, $organization);
+            if ($services === null) {
+                return response()->json(['error' => 'not_found'], 404);
+            }
+
+            return response()->view('portal.lab.client-dashboard', [
+                'organization' => $selected,
+                'services' => $services,
+            ], 200, [
+                'Cache-Control' => 'private, no-store',
+                'X-Robots-Tag' => 'noindex, nofollow',
+            ]);
+        });
+    })->name('portal.lab.dashboard');
 });
