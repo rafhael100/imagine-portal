@@ -1,0 +1,70 @@
+name: Imagine Portal - Browser QA visual isolado
+
+on:
+  pull_request:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+    paths:
+      - 'apps/portal/resources/views/components/portal/preview/**'
+      - 'apps/portal/resources/views/portal/preview/**'
+      - 'apps/portal/tests/Visual/PreviewBrowserSmoke.mjs'
+      - '.github/workflows/portal-preview-browser.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-preview:
+    name: Blade preview - Chromium desktop e celular (dados ficticios)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - name: Checkout isolado
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 para renderizacao sintética
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, curl, fileinfo
+
+      - name: Node 22 para QA Chromium sem bibliotecas externas
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dependencias PHP travadas (sem scripts ou plugins)
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+
+      - name: Renderizar Blade offline sem rotas nem banco
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          mkdir -p "$RUNNER_TEMP/portal-ux-preview"
+          php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo view("portal.preview.showcase")->render();' > "$RUNNER_TEMP/portal-ux-preview/showcase.html"
+          test -s "$RUNNER_TEMP/portal-ux-preview/showcase.html"
+          command -v google-chrome || command -v chromium
+
+      - name: Testar layout real, ancora e screenshots em tres resolucoes
+        run: node tests/Visual/PreviewBrowserSmoke.mjs "$RUNNER_TEMP/portal-ux-preview/showcase.html" "$RUNNER_TEMP/portal-ux-preview"
+
+      - name: Salvar capturas do navegador (somente dados ficticios)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-preview-desktop-celular
+          path: |
+            ${{ runner.temp }}/portal-ux-preview/imagine-portal-*.png
+          if-no-files-found: ignore
+          retention-days: 7
