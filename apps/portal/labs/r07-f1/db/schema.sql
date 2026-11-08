@@ -66,34 +66,6 @@ GRANT USAGE ON SCHEMA r07 TO r07_authority;
 GRANT SELECT ON r07.account, r07.session, r07.membership,
                 r07.resource_index, r07.private_resource, r07.effect TO r07_authority;
 GRANT INSERT ON r07.effect TO r07_authority;
-),
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  PRIMARY KEY (organization_id, effect_id),
-  FOREIGN KEY (organization_id, resource_id)
-    REFERENCES r07.private_resource(organization_id, resource_id),
-  FOREIGN KEY (organization_id, actor_id)
-    REFERENCES r07.membership(organization_id, actor_id)
-);
--- RLS is only defense-in-depth inside Z2; not proof of user identity.
-ALTER TABLE r07.private_resource ENABLE ROW LEVEL SECURITY;
-ALTER TABLE r07.private_resource FORCE ROW LEVEL SECURITY;
-CREATE POLICY resource_read ON r07.private_resource
-  FOR SELECT TO r07_authority
-  USING (organization_id = current_setting('r07.tenant', true));
-ALTER TABLE r07.effect ENABLE ROW LEVEL SECURITY;
-ALTER TABLE r07.effect FORCE ROW LEVEL SECURITY;
-CREATE POLICY effect_select ON r07.effect
-  FOR SELECT TO r07_authority
-  USING (organization_id = current_setting('r07.tenant', true));
-CREATE POLICY effect_insert ON r07.effect
-  FOR INSERT TO r07_authority
-  WITH CHECK (organization_id = current_setting('r07.tenant', true));
-REVOKE ALL ON DATABASE portal_r07_f1 FROM PUBLIC;
-GRANT CONNECT ON DATABASE portal_r07_f1 TO r07_authority;
-GRANT USAGE ON SCHEMA r07 TO r07_authority;
-GRANT SELECT ON r07.account, r07.session, r07.membership,
-                r07.resource_index, r07.private_resource, r07.effect TO r07_authority;
-GRANT INSERT ON r07.effect TO r07_authority;
 
 -- All authoritative UPDATE/DELETE writers must join the SAME locks that
 -- a simulated effect holds. The web SQL role does NOT receive UPDATE rights.
