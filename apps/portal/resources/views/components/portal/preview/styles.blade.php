@@ -15,12 +15,12 @@
   .pv-callout{background:#eaf5ef;border:1px solid #cfe6db;border-radius:15px;padding:22px;margin-top:18px}.pv-callout strong{display:block}.pv-callout p{margin:6px 0 0;color:#41665c}
   .pv-summary{font-size:12px;color:var(--pv-muted)}.pv-footer{font-size:12px;color:var(--pv-muted);padding:20px 5% 35px}.pv-list{padding-left:20px;color:#48695f}
   a:focus-visible{outline:3px solid #c78b20;outline-offset:3px}
-  @media(max-width:980px){.pv-layout{grid-template-columns:1fr}.pv-sidebar{padding:15px}.pv-brand{margin:0 0 11px}.pv-nav-label,.pv-sidebar-note{display:none}.pv-nav{display:flex;flex-wrap:wrap}.pv-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:980px){.pv-layout{grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%}.pv-sidebar{padding:15px}.pv-brand{margin:0 0 11px}.pv-nav-label,.pv-sidebar-note{display:none}.pv-nav{display:flex;flex-wrap:wrap}.pv-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:620px){.pv-nav{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}.pv-nav-link{padding:9px 11px;font-size:13px}.pv-grid{grid-template-columns:1fr}.pv-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.pv-card{padding:16px}.pv-metric-number{font-size:25px}.pv-topbar{padding:17px 5%}}
   @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
   /* PORTAL-PREVIEW-UX-01: pure-CSS responsive navigation, no routes or JS. */
-  .pv-sidebar{position:sticky;top:0;align-self:start;height:100dvh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+  .pv-sidebar{position:sticky;top:0;align-self:start;min-width:0;max-width:100%;height:100dvh;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
   .pv-nav-link{display:flex;align-items:center;min-height:44px;overflow-wrap:anywhere}
   .pv-nav-help{display:none}
   .pv-topbar-title{display:grid;gap:2px}
@@ -37,7 +37,7 @@
   body:has(#pv-financeiro:target) .pv-nav-link[href="#pv-financeiro"]{background:#2d5a51;color:#fff}
   @media(max-width:980px){
     .pv-sidebar{position:sticky;top:0;z-index:5;height:auto;max-height:none;overflow:visible;box-shadow:0 4px 14px rgba(0,0,0,.13)}
-    .pv-nav{overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain}
+    .pv-nav{width:100%;min-width:0;max-width:100%;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin;overscroll-behavior-x:contain}
     .pv-nav-link{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;overflow-wrap:normal}
     .pv-nav-help{display:block;margin:6px 0 0;color:#d2e6de;font-size:11px}
     .pv-section{scroll-margin-top:218px}
