@@ -16,7 +16,7 @@
         <aside class="pv-sidebar">
             <div class="pv-brand"><span class="pv-brand-mark" aria-hidden="true">✦</span>Imagine Portal</div>
             <p class="pv-nav-label">Áreas ilustrativas</p>
-            <nav aria-label="Navegação entre seções da prévia" class="pv-nav">
+            <nav aria-label="Navegação entre seções da prévia" aria-describedby="pv-nav-instructions" class="pv-nav">
                 <x-portal.preview.nav-item anchor="inicio" label="Visão geral" />
                 <x-portal.preview.nav-item anchor="servicos" label="Meus serviços" />
                 <x-portal.preview.nav-item anchor="performance" label="Performance AI" />
@@ -24,11 +24,15 @@
                 <x-portal.preview.nav-item anchor="universidade" label="Universidade" />
                 <x-portal.preview.nav-item anchor="financeiro" label="Financeiro" />
             </nav>
+            <p class="pv-nav-help" id="pv-nav-instructions">No celular, deslize o menu para os lados para encontrar as seis áreas. Os links levam apenas a seções desta prévia.</p>
             <p class="pv-sidebar-note">Protótipo interno. Não existe sessão, acesso de cliente, contratação, cobrança ou conexão real.</p>
         </aside>
         <div class="pv-main">
             <header class="pv-topbar">
-                <strong>Imagine Comunicação Digital</strong>
+                <div class="pv-topbar-title">
+                    <span class="pv-topbar-brand">Imagine Comunicação Digital</span>
+                    <h1 class="pv-document-title">Espaço do cliente · prévia</h1>
+                </div>
                 <small>Empresa Aurora · fictícia</small>
             </header>
             <main id="pv-content" class="pv-container" tabindex="-1">
