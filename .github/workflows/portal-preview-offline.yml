@@ -1,0 +1,24 @@
+name: Imagine Portal - Preview Offline
+
+on:
+  pull_request:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+
+permissions:
+  contents: read
+
+jobs:
+  preview-offline:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js without package installation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test offline preview with synthetic content
+        run: node --test apps/portal/prototypes/navegacao-imagine/preview.test.mjs
