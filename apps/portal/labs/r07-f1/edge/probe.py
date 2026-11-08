@@ -133,7 +133,7 @@ elif PHASE == "permission_denied":
 elif PHASE == "race_writer":
     status, data = call("POST", "/v1/effect", HANDLE,
         payload={"resource_id": "resource-a", "effect_id": "race-before-revoke"},
-        extra_headers={"X-R07-Lab-Hold-Ms": "1800"})
+        extra_headers={"X-R07-Lab-Hold-Ms": "4000"})
     check("R07-T19 write holding transaction barrier commits before revoker",
           status == 201 and data.get("recorded") is True)
 

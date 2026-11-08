@@ -35,6 +35,9 @@ def query(sql):
 def wait_sql(name, condition):
     deadline = time.monotonic() + 12
     while time.monotonic() < deadline:
+        if "writer" in name and "writer" in globals() and writer.poll() is not None:
+            out, err = writer.communicate()
+            raise AssertionError("Writer exited before holding a barrier: " + err[-900:] + out[-900:])
         if query(condition) == "1":
             return
         time.sleep(0.12)
@@ -58,7 +61,7 @@ try:
     wait_sql("the writer holding its transaction",
              "SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END "
              "FROM pg_stat_activity WHERE usename='r07_authority' "
-             "AND state='active' AND query LIKE '%SELECT pg_sleep(3.0)%'")
+             "AND state='active' AND query LIKE '%SELECT pg_sleep(4.0)%'")
     blocked = invoke(
         PG + ["-c", "SET lock_timeout='350ms'; "
               "UPDATE r07.membership SET can_write=false "

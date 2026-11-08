@@ -182,8 +182,8 @@ try {
     // Controlled and explicit LAB-ONLY concurrency hook after all barriers.
     // Never copy this into Portal production services or migrations.
     if (getenv('R07_LAB_HOLD_ENABLED') === '1'
-        && ($_SERVER['HTTP_X_R07_LAB_HOLD_MS'] ?? '') === '1800') {
-        $db->query('SELECT pg_sleep(1.8)');
+        && ($_SERVER['HTTP_X_R07_LAB_HOLD_MS'] ?? '') === '4000') {
+        $db->query('SELECT pg_sleep(4.0)');
     }
 
     // The SAME idempotency key with DIFFERENT business intent must be an
