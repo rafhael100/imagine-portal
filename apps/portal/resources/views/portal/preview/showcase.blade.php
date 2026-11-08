@@ -29,8 +29,8 @@
             <x-portal.preview.metric label="Relatórios" value="01" detail="Projeção meramente visual" />
         </div>
         <div class="pv-grid" style="margin-top:16px">
-            <article class="pv-card"><h2>Pesquisa de serviços</h2><p>Google Ads · Campanha inventada · Não publicada.</p><span class="pv-service-status">Simulação</span></article>
-            <article class="pv-card"><h2>Divulgação de marca</h2><p>Meta (Instagram e/ou Facebook) · Exemplo de rascunho sem conta conectada.</p><span class="pv-service-status">Simulação</span></article>
+            <x-portal.preview.service-card name="Pesquisa de serviços" description="Google Ads · Campanha inventada · Não publicada." status="Simulação" />
+            <x-portal.preview.service-card name="Divulgação de marca" description="Meta (Instagram e/ou Facebook) · Exemplo de rascunho sem conta conectada." status="Simulação" />
         </div>
         <div class="pv-callout"><strong>Nenhuma conta de anúncios está conectada</strong><p>Não existe saldo, recarga, gasto, boleto, Pix, impulsionamento ou execução automática nesta prévia.</p></div>
     </x-portal.preview.section>
