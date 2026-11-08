@@ -56,8 +56,11 @@ return new class extends Migration
             $t->string('id', 64);
             $t->string('service_id', 64);
             $t->string('title', 120);
+            $t->string('idempotency_digest', 64)->nullable();
+            $t->string('payload_digest', 64)->nullable();
             $t->string('status', 16)->default('received');
             $t->primary(['org_id', 'id']);
+            $t->unique(['org_id', 'idempotency_digest']);
             $t->foreign(['org_id', 'service_id'])
                 ->references(['org_id', 'id'])->on('lab_portal_services');
         });

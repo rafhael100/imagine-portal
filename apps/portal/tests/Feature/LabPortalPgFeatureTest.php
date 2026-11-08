@@ -447,4 +447,91 @@ final class LabPortalPgFeatureTest extends TestCase
         $this->getJson('/_lab/portal/secure/organizations')->assertJsonCount(0, 'organizations');
     }
 
+
+    public function test_secure_idempotent_request_returns_same_id_and_rejects_payload_conflict(): void
+    {
+        $payload = [
+            'service_id' => 'service-a',
+            'title' => 'Authorized request one',
+            'idempotency_key' => 'REQ-SYNTHETIC-2026-A',
+        ];
+
+        $this->postJson('/_lab/portal/secure/organizations/org-a/requests', $payload)
+            ->assertUnauthorized();
+
+        $this->secureSignInA();
+
+        $this->postJson('/_lab/portal/secure/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'Authorized request one',
+        ])->assertUnprocessable();
+
+        $first = $this->postJson('/_lab/portal/secure/organizations/org-a/requests', $payload)
+            ->assertCreated()->assertJsonPath('replayed', false);
+        $requestId = $first->json('request_id');
+        $this->assertIsString($requestId);
+
+        $again = $this->postJson('/_lab/portal/secure/organizations/org-a/requests', $payload)
+            ->assertOk()->assertJsonPath('replayed', true);
+        $this->assertSame($requestId, $again->json('request_id'));
+
+        $this->postJson('/_lab/portal/secure/organizations/org-a/requests', array_merge($payload, [
+            'title' => 'Same key with changed payload',
+        ]))->assertStatus(409)->assertJsonPath('error', 'idempotency_conflict');
+
+        $this->postJson('/_lab/portal/secure/organizations/org-b/requests', [
+            'service_id' => 'service-b',
+            'title' => 'Attempt foreign tenant',
+            'idempotency_key' => $payload['idempotency_key'],
+        ])->assertNotFound();
+
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')->count());
+        $record = DB::connection('pgsql')->table('lab_portal_requests')->first();
+        $this->assertSame(hash('sha256', $payload['idempotency_key']), $record->idempotency_digest);
+        $this->assertSame('org-a', $record->org_id);
+    }
+
+    public function test_secure_idempotency_is_scoped_per_organization_and_revoked_member_cannot_replay(): void
+    {
+        $key = 'SAME-KEY-DIFFERENT-ORGS-2026';
+        $this->secureSignInA();
+
+        $a = $this->postJson('/_lab/portal/secure/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'Tenant A task',
+            'idempotency_key' => $key,
+        ])->assertCreated();
+
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-a')->where('user_id', 'portal-user-a')
+            ->update(['status' => 'revoked']);
+
+        $this->postJson('/_lab/portal/secure/organizations/org-a/requests', [
+            'service_id' => 'service-a',
+            'title' => 'Tenant A task',
+            'idempotency_key' => $key,
+        ])->assertNotFound();
+
+        $this->postJson('/_lab/portal/secure/logout')->assertOk();
+
+        $this->postJson('/_lab/portal/secure/login', [
+            'email' => 'b@example.invalid',
+            'password' => 'synthetic-pass-B-2026',
+            'totp' => LabTotp::codeAt('4142434445464748494a4b4c4d4e4f5051525354', time()),
+        ])->assertOk();
+
+        $b = $this->postJson('/_lab/portal/secure/organizations/org-b/requests', [
+            'service_id' => 'service-b',
+            'title' => 'Tenant B independent task',
+            'idempotency_key' => $key,
+        ])->assertCreated();
+
+        $this->assertNotSame($a->json('request_id'), $b->json('request_id'));
+        $this->assertSame(2, DB::connection('pgsql')->table('lab_portal_requests')->count());
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')
+            ->where('org_id', 'org-a')->count());
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')
+            ->where('org_id', 'org-b')->count());
+    }
+
 }
