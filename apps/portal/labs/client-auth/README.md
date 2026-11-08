@@ -4,11 +4,11 @@
 
 ## Entregas concretas
 
-- Schema lab fora das migrations automáticas: usuários do Portal, empresas, vínculos e serviços; chaves (org_id,id); papéis SQL e RLS para serviço sintético.
+- Schema lab fora das migrations automáticas: usuários do Portal, empresas, vínculos e serviços; chaves (org_id,id); papéis SQL, RLS em serviços sintéticos e RLS para leitura/inserção de solicitações, com FK composta (org_id, service_id).
 - Login de teste com verificação de hash de senha, cookie/sessão Laravel de processo de teste e revisão de sessão consultada a cada request.
 - GET das empresas ativas do usuário; GET dos serviços por empresa com checagem do vínculo e FORCE RLS em transação; Blade do painel alimentado por registros **sintéticos** autorizados, escaped por padrão.
-- POST logout invalida sessão, além de revogação por alteração da revisão no banco. Role SQL de runtime só leitura.
-- Testes negativos: usuário sem sessão, credencial errada, CRM não aceito como Portal, tentativa A→B, vínculo/organização suspensos, sessão revogada, SQL read-only, falta de contexto RLS, vazamento por pooling e HTML injetado.
+- POST logout invalida sessão, além de revogação por alteração da revisão no banco. Role SQL de runtime com leitura dos registros de identidade/vínculos/serviços e somente SELECT/INSERT nas solicitações, sob políticas RLS; sem UPDATE/DELETE ou escrita de memberships.
+- Testes negativos: usuário sem sessão, credencial errada, CRM não aceito como Portal, tentativa A→B, vínculo/organização suspensos, sessão revogada, SQL read-only, falta de contexto RLS, vazamento por pooling e HTML injetado, tentativa de INSERT sem ator, FK de serviço de outra empresa e POST de solicitação após revogação.
 - Workflow `.github/workflows/portal-client-lab-postgres.yml` com PG18 descartável. Recurso **não é deploy**, migrations reais, nova VPS ou banco do CRM.
 
 ## Guardrails contra exposição inadvertida
@@ -33,7 +33,7 @@ As rotas exclusivas de teste usam o prefixo `/_lab/portal` e jamais serão carre
 - **MFA ainda ausente.** Login é demonstrativo; não liberar para clientes.
 - **CSRF real não comprovado:** Laravel desativa verificação CSRF em testes Feature. Produção exige teste HTTP real com cookie e token, rate limits e antiabuso.
 - **Sessão Array é efêmera:** não representa persistência segura e revogação distribuída. Cookies Secure/HttpOnly/SameSite, sessão guardada em store oficial, reset/recuperação e autenticação de dispositivos exigem nova implementação.
-- **Escopo RLS é parcial:** apenas `lab_portal_services` usa policy SELECT; não são testes de segurança de todas as entidades do Portal. Os outros dados são acessados por role de consulta restrita, controlados em aplicação. Contexto GUC pode ser forjado caso Z2 seja comprometida; não há prova T3/comprometimento do app.
+- **Escopo RLS é parcial:** `lab_portal_services` tem policy SELECT e `lab_portal_requests` tem policies SELECT/INSERT; não são testes de segurança de todas as entidades do Portal. Os outros dados são acessados por role de consulta restrita, controlados em aplicação. Contexto GUC pode ser forjado caso Z2 seja comprometida; não há prova T3/comprometimento do app.
 - **Concorrência e anti-rollback não testados:** corte/revogação no momento de commit, jobs/outbox, transações simultâneas, pools externos e restauração anterior à revogação ainda bloqueados.
 - **Sem identidades reais:** cadastro, verificação, CNPJ, convite, claims, conectores CRM/Performance e Universidade ficam fora de escopo.
 - Não utilizar `LabPortalGateway` ou seus handlers como middleware de produção ou como fonte autorizativa definitiva; reusar as interfaces abstratas originais de Session/Membership/Resource Authority em implementação própria, após controles e testes.
