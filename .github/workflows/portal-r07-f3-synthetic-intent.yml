@@ -1,0 +1,39 @@
+name: Portal R07-F3 - offline synthetic intent tests
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/r07-f3/**'
+      - '.github/workflows/portal-r07-f3-synthetic-intent.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-r07-f3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-intent:
+    if: github.head_ref == 'test/portal-r07-f3-intent-state-lab-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout isolated lab
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12 standard library
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run synthetic tests ONLY
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q apps/portal/labs/r07-f3
+          python3 -m unittest discover -s apps/portal/labs/r07-f3 -p 'test_*.py' -v
+      - name: Verify no operational module changes in this PR
+        run: |
+          git diff --check
+          test -f apps/portal/labs/r07-f3/intent_model.py
+          test -f apps/portal/labs/r07-f3/README.md
