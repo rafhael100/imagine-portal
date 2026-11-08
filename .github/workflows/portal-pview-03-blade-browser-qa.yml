@@ -22,12 +22,6 @@ jobs:
     if: github.head_ref == 'feat/portal-pview-03-blade-visual-2026-11-08'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-03-blade-render.html
-      PVIEW_HTML_FILE: ${{ runner.temp }}/pview-03-blade-render.html
-      PVIEW_HASH_PREFIX: pview-
-      PVIEW_SHOT_PREFIX: pview-03-blade
-      PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview03-evidence
     steps:
       - name: Checkout isolated branch without persisted credentials
         uses: actions/checkout@v7
@@ -60,6 +54,8 @@ jobs:
           git diff --exit-code -- composer.lock
 
       - name: Render Laravel Blade into ephemeral offline HTML
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-03-blade-render.html
         shell: bash
         run: |
           set -euo pipefail
@@ -68,6 +64,11 @@ jobs:
           test -s "$PVIEW_RENDER_FILE"
 
       - name: Test rendered Blade on Chromium at 3 viewports
+        env:
+          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-03-blade-render.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: pview-03-blade
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview03-evidence
         shell: bash
         run: |
           set -euo pipefail
