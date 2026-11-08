@@ -80,13 +80,20 @@ jobs:
           docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
             "UPDATE r07.membership SET can_read=true, can_write=true WHERE actor_id='actor-a' AND organization_id='org-a'"
 
+      - name: Adversarial PostgreSQL concurrency and strict idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/labs/r07-f1/tests/race_controller.py
+          python3 apps/portal/labs/r07-f1/tests/race_controller.py
+
       - name: Assert cross-tenant DB state and revoke synthetic session
         shell: bash
         run: |
           set -euo pipefail
           count_a="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-a'")"
           count_b="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-b'")"
-          test "$count_a" = "1"
+          test "$count_a" = "2"
           test "$count_b" = "0"
           docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -v ON_ERROR_STOP=1 -c \
             "UPDATE r07.account SET session_epoch=session_epoch+1 WHERE actor_id='actor-a' AND session_epoch=1"
@@ -98,7 +105,7 @@ jobs:
           docker compose -f "$R07_COMPOSE" run --rm -e R07_PHASE=after edge
           count_a="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-a'")"
           count_b="$(docker compose -f "$R07_COMPOSE" exec -T pg psql -U lab_owner -d portal_r07_f1 -Atc "SELECT count(*) FROM r07.effect WHERE organization_id='org-b'")"
-          test "$count_a" = "1"
+          test "$count_a" = "2"
           test "$count_b" = "0"
           echo "[R07-F1] DB effects: exactly 1 in A and 0 in B. KNOWN RESIDUAL T3: not solved."
 

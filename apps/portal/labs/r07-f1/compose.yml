@@ -27,6 +27,8 @@ services:
       R07_DB_DSN: pgsql:host=pg;port=5432;dbname=portal_r07_f1
       R07_DB_USER: r07_authority
       R07_DB_PASSWORD: ${R07_AUTH_PASSWORD:?}
+      R07_LAB_HOLD_ENABLED: '1'
+      PHP_CLI_SERVER_WORKERS: '4'
     depends_on:
       pg:
         condition: service_healthy

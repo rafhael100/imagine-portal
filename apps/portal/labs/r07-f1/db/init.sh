@@ -26,8 +26,9 @@ INSERT INTO r07.membership(organization_id, actor_id, can_read, can_write)
   VALUES ('org-a', 'actor-a', true, true),
          ('org-b', 'actor-b', true, true);
 INSERT INTO r07.resource_index(organization_id, resource_id)
-  VALUES ('org-a','resource-a'), ('org-b','resource-b');
+  VALUES ('org-a','resource-a'), ('org-a','resource-a2'), ('org-b','resource-b');
 INSERT INTO r07.private_resource(organization_id, resource_id, payload)
   VALUES ('org-a','resource-a','SYNTHETIC_A_ONLY'),
+         ('org-a','resource-a2','SYNTHETIC_A2_ONLY'),
          ('org-b','resource-b','SYNTHETIC_B_ONLY');
 PSQL

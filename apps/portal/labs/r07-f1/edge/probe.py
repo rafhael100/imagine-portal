@@ -108,6 +108,13 @@ if PHASE == "before":
     check("R07-T12 idempotent replay does not insert a second effect",
           status == 200 and data.get("idempotent_replay") is True)
 
+    status, data = call(
+        "POST", "/v1/effect", HANDLE,
+        payload={"resource_id": "resource-a2", "effect_id": "idempotent-a"})
+    check("R07-T18 conflicting resource under same idempotency key gets 409",
+          status == 409 and data.get("error") == "idempotency_conflict"
+          and no_tenant_b(data))
+
     status, data = call("GET", "/v1/resource?id=resource-a", HANDLE)
     check("R07-T13 stolen valid A handle still allows A operations (T3 residual)",
           status == 200 and data.get("payload") == "SYNTHETIC_A_ONLY")
@@ -121,6 +128,25 @@ elif PHASE == "permission_denied":
         "POST", "/v1/effect", HANDLE,
         payload={"resource_id": "resource-a", "effect_id": "grant-revoked-a"})
     check("R07-T17 valid A session with revoked write grant is denied",
+          status == 403 and no_tenant_b(data))
+
+elif PHASE == "race_writer":
+    status, data = call("POST", "/v1/effect", HANDLE,
+        payload={"resource_id": "resource-a", "effect_id": "race-before-revoke"},
+        extra_headers={"X-R07-Lab-Hold-Ms": "1800"})
+    check("R07-T19 write holding transaction barrier commits before revoker",
+          status == 201 and data.get("recorded") is True)
+
+elif PHASE == "race_revoker_first":
+    status, data = call("POST", "/v1/effect", HANDLE,
+        payload={"resource_id": "resource-a", "effect_id": "race-after-revoke"})
+    check("R07-T20 revoker already holding barrier forces denial",
+          status == 403 and no_tenant_b(data))
+
+elif PHASE == "race_after":
+    status, data = call("POST", "/v1/effect", HANDLE,
+        payload={"resource_id": "resource-a", "effect_id": "race-post-cut"})
+    check("R07-T21 grant revoked after commit stops next write",
           status == 403 and no_tenant_b(data))
 
 elif PHASE == "after":

@@ -21,7 +21,8 @@ function deny(PDO $db, int $status): never
     if ($db->inTransaction()) {
         $db->rollBack();
     }
-    reply($status, ['error' => $status === 401 ? 'unauthorized' : 'access_denied']);
+    reply($status, ['error' => $status === 401 ? 'unauthorized'
+        : ($status === 409 ? 'idempotency_conflict' : 'access_denied')]);
 }
 
 function safeId(mixed $id): ?string
@@ -92,6 +93,28 @@ try {
 
     $db->beginTransaction();
 
+    // Preliminary actor lookup is NOT authority. Recheck AFTER acquiring
+    // advisory barriers inside this transaction, prior to any real effect.
+    $verifierDigest = hash('sha256', $matches[1]);
+    $precheck = $db->prepare(
+        "SELECT actor_id FROM r07.session WHERE verifier_sha256 = :verifier"
+    );
+    $precheck->execute(['verifier' => $verifierDigest]);
+    $candidateActor = $precheck->fetchColumn();
+    if (! is_string($candidateActor)) {
+        deny($db, 401);
+    }
+
+    // Every synthetic UPDATE/DELETE writer participates through BEFORE
+    // triggers in schema.sql. Lock order A -> S -> O -> M in this lab;
+    // the full Portal P -> A -> S -> O -> M -> R protocol is STILL UNPROVEN.
+    $lock = $db->prepare(
+        "SELECT pg_advisory_xact_lock_shared(:namespace, hashtext(CAST(:key AS text)))"
+    );
+    $lock->execute(['namespace' => 771001, 'key' => $candidateActor]);
+    $lock->execute(['namespace' => 771002, 'key' => $verifierDigest]);
+
+
     // Synthetic verifier / epoch, solely from protected PostgreSQL authority.
     $session = $db->prepare(
         "SELECT s.actor_id
@@ -109,6 +132,7 @@ try {
     }
 
     // Derive organization from the protected resource index, NOT user claims.
+    $lock->execute(['namespace' => 771003, 'key' => $resourceId]);
     $resource = $db->prepare(
         'SELECT organization_id FROM r07.resource_index WHERE resource_id = :resource_id'
     );
@@ -118,6 +142,8 @@ try {
         deny($db, 403);
     }
 
+    $lock->execute(['namespace' => 771004,
+                    'key' => $actorId . ':' . $organizationId]);
     $membership = $db->prepare(
         "SELECT CASE WHEN can_read THEN 1 ELSE 0 END AS can_read,
                 CASE WHEN can_write THEN 1 ELSE 0 END AS can_write
@@ -152,9 +178,28 @@ try {
         reply(200, ['payload' => $data]);
     }
 
+
+    // Controlled and explicit LAB-ONLY concurrency hook after all barriers.
+    // Never copy this into Portal production services or migrations.
+    if (getenv('R07_LAB_HOLD_ENABLED') === '1'
+        && ($_SERVER['HTTP_X_R07_LAB_HOLD_MS'] ?? '') === '1800') {
+        $db->query('SELECT pg_sleep(1.8)');
+    }
+
+    // The SAME idempotency key with DIFFERENT business intent must be an
+    // explicit conflict, not an apparently successful replay.
+    $commandDigest = hash('sha256', json_encode([
+        'domain' => 'R07-F1-SYNTHETIC-EFFECT-V2',
+        'operation' => 'create_effect',
+        'organization_id' => $organizationId,
+        'actor_id' => $actorId,
+        'resource_id' => $resourceId,
+        'effect_id' => $effectId,
+    ], JSON_THROW_ON_ERROR));
+
     $write = $db->prepare(
-        "INSERT INTO r07.effect (organization_id, effect_id, resource_id, actor_id)
-         VALUES (:organization, :effect, :resource, :actor)
+        "INSERT INTO r07.effect (organization_id, effect_id, resource_id, actor_id, command_sha256)
+         VALUES (:organization, :effect, :resource, :actor, :digest)
          ON CONFLICT (organization_id, effect_id) DO NOTHING
          RETURNING effect_id"
     );
@@ -163,8 +208,20 @@ try {
         'effect' => $effectId,
         'resource' => $resourceId,
         'actor' => $actorId,
+        'digest' => $commandDigest,
     ]);
     $inserted = $write->fetchColumn() !== false;
+    if (! $inserted) {
+        $previous = $db->prepare(
+            "SELECT command_sha256 FROM r07.effect
+             WHERE organization_id = :organization AND effect_id = :effect"
+        );
+        $previous->execute(['organization' => $organizationId, 'effect' => $effectId]);
+        $savedDigest = $previous->fetchColumn();
+        if (! is_string($savedDigest) || ! hash_equals($savedDigest, $commandDigest)) {
+            deny($db, 409);
+        }
+    }
     $db->commit();
     reply($inserted ? 201 : 200, [
         'recorded' => true,
