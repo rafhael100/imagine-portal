@@ -24,22 +24,36 @@ final class PviewNavigationPresentationTest extends TestCase
         }
     }
 
-    public function test_blade_preview_renders_links_with_section_targets_and_no_operational_ui(): void
+    public function test_blade_preview_renders_eight_visual_screens_without_real_services(): void
     {
         $html = view('portal.demo.pview-navigation')->render();
 
         $this->assertStringContainsString('DEMONSTRAÇÃO OFFLINE / LARAVEL', $html);
-        $this->assertStringContainsString('Empresa Aurora fictícia', $html);
+        $this->assertStringContainsString('Empresa Aurora', $html);
         $this->assertStringContainsString("connect-src 'none'", $html);
+        $this->assertStringContainsString("form-action 'none'", $html);
         $this->assertStringContainsString('href="#pview-main"', $html);
+        $this->assertStringContainsString('data-screen=', $html);
+        $this->assertStringContainsString('aria-current', $html);
+        $this->assertStringContainsString('Sem login', $html);
+
+        $this->assertSame(8, preg_match_all('/data-screen="[a-z]+"/', $html));
+        $this->assertSame(8, preg_match_all('/data-nav="[a-z]+"/', $html));
 
         foreach (PviewSection::cases() as $section) {
             $this->assertStringContainsString('href="#pview-'.$section->value.'"', $html);
             $this->assertStringContainsString('id="pview-'.$section->value.'"', $html);
+            $this->assertStringContainsString('data-screen="'.$section->value.'"', $html);
+            $this->assertStringContainsString('data-nav="'.$section->value.'"', $html);
             $this->assertStringContainsString($section->label(), $html);
         }
 
-        foreach (['<script', '<form', '<input', '<iframe', 'http://', 'https://', 'fetch(', 'localStorage', 'WebSocket'] as $dangerous) {
+        // Exactly one bounded, inline-only navigator. This demo CSP is not a
+        // production security policy and MUST NOT be copied to operational UI.
+        $this->assertSame(1, substr_count($html, '<script>'));
+        foreach (['<form', '<input', '<iframe', '<script src', 'http://', 'https://',
+                  'fetch(', 'XMLHttpRequest', 'WebSocket', 'localStorage',
+                  'sessionStorage', 'navigator.sendBeacon'] as $dangerous) {
             $this->assertStringNotContainsString($dangerous, $html);
         }
     }
