@@ -184,4 +184,36 @@ final class LabPortalPgFeatureTest extends TestCase
         $this->getJson('/_lab/portal/organizations/%2e%2e/services')->assertNotFound();
         $this->getJson('/_lab/portal/organizations/org-b/services')->assertNotFound();
     }
+
+    public function test_tenant_dashboard_renders_authorized_blade_and_escapes_html(): void
+    {
+        $this->get('/_lab/portal/organizations/org-a/dashboard')->assertUnauthorized();
+        $this->loginA();
+
+        $this->get('/_lab/portal/organizations/org-a/dashboard')
+            ->assertOk()
+            ->assertSeeText('Aurora Synthetic')
+            ->assertSeeText('Onepage synthetic A')
+            ->assertDontSee('Performance synthetic B')
+            ->assertSee('LABORATÓRIO ISOLADO')
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        $this->get('/_lab/portal/organizations/org-b/dashboard')->assertNotFound();
+
+        DB::connection('pgsql')->table('lab_portal_services')
+            ->where('org_id', 'org-a')
+            ->update(['label' => '<script>alert("untrusted")</script>']);
+
+        $response = $this->get('/_lab/portal/organizations/org-a/dashboard')->assertOk();
+        $response->assertSee('&lt;script&gt;', false);
+        $response->assertDontSee('<script>alert("untrusted")</script>', false);
+
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-a')
+            ->where('user_id', 'portal-user-a')
+            ->update(['status' => 'revoked']);
+
+        $this->get('/_lab/portal/organizations/org-a/dashboard')->assertNotFound();
+    }
+
 }
