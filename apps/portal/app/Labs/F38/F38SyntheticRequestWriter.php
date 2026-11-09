@@ -33,7 +33,10 @@ final readonly class F38SyntheticRequestWriter
         $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES,false);
     }
 
-    public function apply(DemoRequestCommand $command): F38SyntheticWriteResult
+    public function apply(
+        DemoRequestCommand $command,
+        bool $writeSyntheticOutbox = false,
+    ): F38SyntheticWriteResult
     {
         if ($this->pdo->inTransaction()) {
             return F38SyntheticWriteResult::blocked('source_unavailable');
@@ -95,6 +98,31 @@ final readonly class F38SyntheticRequestWriter
                 $names[$object['relname']]=true;
             }
 
+            // F39: optionally demand the independent outbox fixture
+            // BEFORE locking or altering any business row. A future
+            // provider must never treat this flag as customer authority.
+            if ($writeSyntheticOutbox) {
+                if (getenv('F39_ENABLE_LAB') !== 'TRANSACTIONAL_OUTBOX_CI_ONLY') {
+                    $this->pdo->rollBack();
+                    return F38SyntheticWriteResult::blocked('unsafe_synthetic_schema');
+                }
+                $f39=$this->pdo->query(
+                    "SELECT c.relname,c.relrowsecurity AS enabled,
+                            c.relforcerowsecurity AS forced
+                       FROM pg_catalog.pg_class c
+                       JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+                      WHERE n.nspname='f39'
+                        AND c.relname='synthetic_request_outbox'
+                        AND c.relkind='r'"
+                )->fetchAll(PDO::FETCH_ASSOC);
+                if (!is_array($f39) || count($f39)!==1
+                    || !$this->pgTrue($f39[0]['enabled'] ?? null)
+                    || !$this->pgTrue($f39[0]['forced'] ?? null)) {
+                    $this->pdo->rollBack();
+                    return F38SyntheticWriteResult::blocked('unsafe_synthetic_schema');
+                }
+            }
+
             $stmt = $this->pdo->prepare(
                 'SELECT request_id,organization_id,service_reference,
                         current_status,revision
@@ -135,6 +163,26 @@ final readonly class F38SyntheticRequestWriter
                     || !hash_equals($row['payload_fingerprint'],$command->fingerprint())) {
                     $this->pdo->rollBack();
                     return F38SyntheticWriteResult::blocked('idempotency_conflict');
+                }
+                // Never present a receipt-only legacy F38 write as a
+                // delivered F39 outbox event. Both must have committed
+                // atomically for the outbox-enabled code path.
+                if ($writeSyntheticOutbox) {
+                    $check=$this->pdo->prepare(
+                        'SELECT outbox_reference FROM f39.synthetic_request_outbox
+                          WHERE organization_id=:org AND command_id=:cmd
+                          LIMIT 2'
+                    );
+                    $check->execute([
+                        'org'=>$command->organizationId->value,
+                        'cmd'=>$command->commandId,
+                    ]);
+                    $events=$check->fetchAll(PDO::FETCH_ASSOC);
+                    if (count($events)!==1
+                        || $events[0]['outbox_reference']!=='F39-'.$command->commandId) {
+                        $this->pdo->rollBack();
+                        return F38SyntheticWriteResult::blocked('missing_synthetic_outbox');
+                    }
                 }
                 $status=ServiceRequestStatus::tryFrom($row['result_status']);
                 if ($status===null || !is_numeric($row['result_revision'])) {
@@ -223,6 +271,34 @@ final readonly class F38SyntheticRequestWriter
                 'status'=>$next->status->value,
                 'at'=>$command->occurredAt,
             ]);
+            if ($writeSyntheticOutbox) {
+                $payload=json_encode([
+                    'schema'=>'f39.demo.v1',
+                    'organization_id'=>$command->organizationId->value,
+                    'request_id'=>$command->requestId,
+                    'service_reference'=>$next->serviceReference,
+                    'command_id'=>$command->commandId,
+                    'action'=>$command->action->value,
+                    'from_status'=>$current->status->value,
+                    'to_status'=>$next->status->value,
+                    'revision'=>$next->revision,
+                ], JSON_THROW_ON_ERROR);
+                $outbox=$this->pdo->prepare(
+                    'INSERT INTO f39.synthetic_request_outbox
+                     (organization_id,command_id,outbox_reference,
+                      event_type,payload,occurred_at)
+                     VALUES
+                     (:org,:cmd,:reference,:event_type,:payload,:at)'
+                );
+                $outbox->execute([
+                    'org'=>$command->organizationId->value,
+                    'cmd'=>$command->commandId,
+                    'reference'=>'F39-'.$command->commandId,
+                    'event_type'=>'service_request.status_changed.demo',
+                    'payload'=>$payload,
+                    'at'=>$command->occurredAt,
+                ]);
+            }
             $this->pdo->commit();
             return new F38SyntheticWriteResult('applied_synthetic_sql',$next);
         } catch (Throwable) {
