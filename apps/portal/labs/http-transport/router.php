@@ -11,14 +11,14 @@ declare(strict_types=1);
  */
 $host = $_SERVER['HTTP_HOST'] ?? '';
 $remote = $_SERVER['REMOTE_ADDR'] ?? '';
-$server = $_SERVER['SERVER_ADDR'] ?? '';
+$serverPort = (int) ($_SERVER['SERVER_PORT'] ?? 0);
 
 if (
     PHP_SAPI !== 'cli-server'
     || getenv('GITHUB_ACTIONS') !== 'true'
     || getenv('PORTAL_HTTP_LOOPBACK_LAB') !== '1'
     || getenv('APP_ENV') !== 'local'
-    || $server !== '127.0.0.1'
+    || ! in_array($serverPort, [18945, 18946], true)
     || $remote !== '127.0.0.1'
     || ! in_array($host, ['127.0.0.1:18945', '127.0.0.1:18946'], true)
     || ! str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/_loopback/transport/')
