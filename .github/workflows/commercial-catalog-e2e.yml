@@ -90,10 +90,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
           psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f7.sql
           psql -X -v ON_ERROR_STOP=1 \
             -v release_id="$IMAGINE_CATALOG_EXPECTED_RELEASE_ID" \
             -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
             -f apps/portal/labs/commercial-publishing/test-php-astro-ledger.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -v release_id="$IMAGINE_CATALOG_EXPECTED_RELEASE_ID" \
+            -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
+            -f apps/portal/labs/commercial-publishing/test-f8-e2e-fence.sql
       - name: Compilar Astro com conteudo emitido pelo PHP
         working-directory: .qa/imagine-comercial
         run: |
@@ -103,6 +108,8 @@ jobs:
           grep -Fq 'Landing Pages empresariais publicadas em teste' dist/servicos/landing-pages/index.html
           grep -Fq 'Metadados públicos de teste para verificar paridade' dist/servicos/landing-pages/index.html
           echo 'PHP -> Astro build parity passed; signed editorial content rendered.'
+      - name: Revogar publicacao e provar que release anterior nao pode ser reservado novamente
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f8-e2e-revoked.sql
       - name: Provar falha fechada em caso de hash inesperado
         working-directory: .qa/imagine-comercial
         run: |
