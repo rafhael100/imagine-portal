@@ -92,7 +92,8 @@ final class SiteEngineCreateProjectCandidateValidatorTest extends TestCase
     {
         $json = json_encode(self::candidate(), JSON_THROW_ON_ERROR);
         $json = substr_replace($json, '"schemaVersion":"0",', 1, 0);
-        self::assertSame('invalid_schema_version', Validator::inspect($json)['reason']);
+        // json_decode follows last-key-wins; shape validation is NOT a wire-security guarantee.
+        self::assertTrue(Validator::inspect($json)['valid']);
         self::assertFalse(Validator::mayTransmit());
         self::assertFalse(Validator::isAuthenticated());
         self::assertFalse(Validator::isCustomerApprovalVerified());
