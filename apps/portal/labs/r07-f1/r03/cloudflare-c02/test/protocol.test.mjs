@@ -199,6 +199,23 @@ test("R2 evidence chain is illustrative and does not assume retention lock", asy
   }), TypeError);
 });
 
+
+test("missing or nonstring actor and organization cannot be coerced to IDs", async () => {
+  const opened = labOpen();
+  for (const missing of [
+    { type: "revoke", expectedSequence: opened.sequence, actor: undefined, org: "org-a" },
+    { type: "revoke", expectedSequence: opened.sequence, actor: "actor-a", org: undefined },
+    { type: "revoke", expectedSequence: opened.sequence, actor: 55, org: "org-a" },
+  ]) {
+    denies(() => transition(opened, missing), "invalid_revocation");
+  }
+  assert.equal(wouldAllowFixture(opened, undefined, "org-a", 1, 1), false);
+  assert.equal(wouldAllowFixture(opened, "actor-a", undefined, 1, 1), false);
+  await assert.rejects(() => planEvidence({
+    installation: undefined, generation: 2, sequence: 1, kind: "revoke",
+  }), TypeError);
+});
+
 test("Cloudflare candidate configuration disables routes and all preview URLs", () => {
   const config = JSON.parse(
     readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8")
