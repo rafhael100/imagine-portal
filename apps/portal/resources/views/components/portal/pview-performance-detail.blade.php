@@ -1,20 +1,30 @@
 {{-- PVIEW-PERF-04: purely synthetic presentation inside the OFFLINE Portal demo.
      No server connection, auth, SSO, Google/Meta API, billing or actual client data. --}}
+@php
+    // Static offline fixture only. No HTTP, DB, cookies or client sessions.
+    $performanceSnapshot = \App\Presentation\Preview\PerformanceDemoSnapshot::loadStatic('org-demo-aurora');
+@endphp
 <div data-pview-perf="offline-demo" aria-label="Painel ilustrativo de Performance AI">
+@if ($performanceSnapshot === null)
+    <section class="pi-soft" role="alert">
+        <h2>Dados fictícios indisponíveis</h2>
+        <p>Contrato demonstrativo incompatível ou inválido. Nenhum dado real foi consultado; a visualização foi bloqueada por segurança.</p>
+    </section>
+@else
     <div class="pi-grid four" aria-label="Indicadores ilustrativos, não reais">
         <article class="pi-card">
             <div class="pi-metric-label">Campanhas sob gestão (exemplo)</div>
-            <div class="pi-metric-value">02</div>
-            <div class="pi-metric-note">Uma ativa e uma pausada, ambas fictícias</div>
+            <div class="pi-metric-value">{{ str_pad((string) $performanceSnapshot['metrics']['campaigns_managed'], 2, '0', STR_PAD_LEFT) }}</div>
+            <div class="pi-metric-note">Estados demonstrativos, sem publicação de anúncios</div>
         </article>
         <article class="pi-card">
             <div class="pi-metric-label">Cliques de demonstração</div>
-            <div class="pi-metric-value">264</div>
+            <div class="pi-metric-value">{{ $performanceSnapshot['metrics']['clicks'] }}</div>
             <div class="pi-metric-note">Número ilustrativo, sem fonte publicitária</div>
         </article>
         <article class="pi-card">
             <div class="pi-metric-label">Aprovações em análise (exemplo)</div>
-            <div class="pi-metric-value">01</div>
+            <div class="pi-metric-value">{{ str_pad((string) $performanceSnapshot['metrics']['approvals_pending'], 2, '0', STR_PAD_LEFT) }}</div>
             <div class="pi-metric-note">Nenhuma aprovação real emitida</div>
         </article>
         <article class="pi-card">
@@ -31,20 +41,18 @@
                 <span class="pi-pill gray">Dados de exemplo</span>
             </div>
             <p>Os canais abaixo são apenas uma demonstração da gestão independente do Imagine Performance AI.</p>
-            <div class="pi-listitem">
-                <div class="pi-listcontent">
-                    <span class="pi-symbol" aria-hidden="true">◎</span>
-                    <div><b>Google Ads</b><small>Campanha de pesquisa ilustrativa; sem acesso à conta</small></div>
+            @foreach ($performanceSnapshot['campaigns'] as $campaign)
+                <div class="pi-listitem">
+                    <div class="pi-listcontent">
+                        <span class="pi-symbol" aria-hidden="true">◎</span>
+                        <div>
+                            <b>{{ \App\Presentation\Preview\PerformanceDemoSnapshot::channelLabel($campaign['channel']) }}</b>
+                            <small>{{ $campaign['title'] }} · registro fictício, sem acesso à conta</small>
+                        </div>
+                    </div>
+                    <span class="pi-pill gray">{{ \App\Presentation\Preview\PerformanceDemoSnapshot::stateLabel($campaign['state']) }}</span>
                 </div>
-                <span class="pi-pill gray">Ativa (DEMO)</span>
-            </div>
-            <div class="pi-listitem">
-                <div class="pi-listcontent">
-                    <span class="pi-symbol" aria-hidden="true">◇</span>
-                    <div><b>Meta (Instagram e/ou Facebook)</b><small>Exemplo de conjunto de anúncios; sem publicidade veiculada</small></div>
-                </div>
-                <span class="pi-pill amber">Pausada (DEMO)</span>
-            </div>
+            @endforeach
         </section>
 
         <aside class="pi-soft" aria-labelledby="pview-perf-plan">
@@ -74,24 +82,14 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr>
-                    <td>Pesquisa — novos contatos (exemplo)</td>
-                    <td>Google Ads</td>
-                    <td>Ativa (DEMO)</td>
-                    <td>Ocupa vaga ilustrativa</td>
-                </tr>
-                <tr>
-                    <td>Reconhecimento — marca (exemplo)</td>
-                    <td>Meta</td>
-                    <td>Pausada (DEMO)</td>
-                    <td>Ocupa vaga ilustrativa</td>
-                </tr>
-                <tr>
-                    <td>Campanha antiga arquivada (exemplo)</td>
-                    <td>Google Ads</td>
-                    <td>Fora da gestão (DEMO)</td>
-                    <td>Não ocupa vaga</td>
-                </tr>
+                @foreach ($performanceSnapshot['campaigns'] as $campaign)
+                    <tr>
+                        <td>{{ $campaign['title'] }}</td>
+                        <td>{{ \App\Presentation\Preview\PerformanceDemoSnapshot::channelLabel($campaign['channel']) }}</td>
+                        <td>{{ \App\Presentation\Preview\PerformanceDemoSnapshot::stateLabel($campaign['state']) }}</td>
+                        <td>Ocupa vaga ilustrativa</td>
+                    </tr>
+                @endforeach
                 </tbody>
             </table>
         </div>
@@ -101,7 +99,7 @@
         <section class="pi-card" aria-labelledby="pview-perf-approvals">
             <div class="pi-rowhead">
                 <h2 id="pview-perf-approvals">Central de aprovações ilustrativa</h2>
-                <span class="pi-pill amber">Pendente (DEMO)</span>
+                <span class="pi-pill amber">{{ \App\Presentation\Preview\PerformanceDemoSnapshot::approvalLabel($performanceSnapshot['approvals'][0]['status']) }}</span>
             </div>
             <p>Recomendação fictícia: avaliar nova variação criativa de campanha. A decisão precisa de uma pessoa autorizada, versão imutável e verificação de alçada.</p>
             <div class="pi-listitem">
@@ -132,4 +130,5 @@
         <h2>Prévia offline, sem contratação ou conexão</h2>
         <p>Esta área representa visualmente os módulos F1-03, F1-04 e F1-05 em desenvolvimento no motor independente. Não existe API Portal ↔ Performance ativa, identidade real, anúncio publicado, cobrança, lead captado ou permissão de cliente.</p>
     </div>
+@endif
 </div>
