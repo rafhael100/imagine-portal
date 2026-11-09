@@ -19,6 +19,9 @@ on:
       - 'apps/portal/app/Labs/F34/**'
       - 'apps/portal/app/Labs/F35/**'
       - 'apps/portal/app/Labs/F36/**'
+      - 'apps/portal/app/Labs/F38/**'
+      - 'apps/portal/tests/Integration/F38SyntheticRequestWriteIntegrationTest.php'
+      - 'apps/portal/labs/service-requests-f38/**'
       - 'apps/portal/tests/Integration/F36PagedAcknowledgementTest.php'
       - 'apps/portal/labs/service-relations-f36/**'
       - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
@@ -60,6 +63,9 @@ on:
       - 'apps/portal/app/Labs/F34/**'
       - 'apps/portal/app/Labs/F35/**'
       - 'apps/portal/app/Labs/F36/**'
+      - 'apps/portal/app/Labs/F38/**'
+      - 'apps/portal/tests/Integration/F38SyntheticRequestWriteIntegrationTest.php'
+      - 'apps/portal/labs/service-requests-f38/**'
       - 'apps/portal/tests/Integration/F36PagedAcknowledgementTest.php'
       - 'apps/portal/labs/service-relations-f36/**'
       - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
@@ -157,6 +163,9 @@ jobs:
           php -l tests/Integration/F35AcknowledgedReconciliationTest.php
           php -l app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php
           php -l tests/Integration/F36PagedAcknowledgementTest.php
+          php -l app/Labs/F38/F38SyntheticWriteResult.php
+          php -l app/Labs/F38/F38SyntheticRequestWriter.php
+          php -l tests/Integration/F38SyntheticRequestWriteIntegrationTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -164,12 +173,14 @@ jobs:
           admin_password="$(openssl rand -hex 32)"
           role_a_password="$(openssl rand -hex 32)"
           role_b_password="$(openssl rand -hex 32)"
+          f38_writer_a_password="$(openssl rand -hex 32)"
+          f38_writer_b_password="$(openssl rand -hex 32)"
           witness_admin_password="$(openssl rand -hex 32)"
           witness_reader_password="$(openssl rand -hex 32)"
           f33_publisher_password="$(openssl rand -hex 32)"
           f34_reader_password="$(openssl rand -hex 32)"
           f35_ack_password="$(openssl rand -hex 32)"
-          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password" "$witness_admin_password" "$witness_reader_password" "$f33_publisher_password" "$f34_reader_password" "$f35_ack_password"
+          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password" "$f38_writer_a_password" "$f38_writer_b_password" "$witness_admin_password" "$witness_reader_password" "$f33_publisher_password" "$f34_reader_password" "$f35_ack_password"
           # Only loopback host binding: 127.0.0.1 random ephemeral port.
           # No domain, no customer account, no durable volumes, no VPS.
           docker run -d --rm --name "$F22_PG_CONTAINER" \
@@ -197,6 +208,11 @@ jobs:
           docker exec -i "$F22_PG_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             < labs/service-relations-f25/schema.sql >/dev/null
+          # F38: separate synthetic request-writing roles/fixtures. Never
+          # expose as real Portal HTTP or use a customer database.
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-requests-f38/schema.sql >/dev/null
           # F30: synthetic schema view fingerprint only. No secrets or
           # customer SQL, used to pin expected PG18 deparser output.
           f30_view="$(docker exec "$F22_PG_CONTAINER" psql -X -qAt             -v ON_ERROR_STOP=1 -U postgres -d postgres             -c "SELECT pg_catalog.pg_get_viewdef('f21.service_summary'::regclass, false)")"
@@ -206,6 +222,13 @@ jobs:
             -v "password_a=$role_a_password" -v "password_b=$role_b_password" <<'SQL'
           ALTER ROLE f21_org_a PASSWORD :'password_a';
           ALTER ROLE f21_org_b PASSWORD :'password_b';
+          SQL
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -v "f38_password_a=$f38_writer_a_password" \
+            -v "f38_password_b=$f38_writer_b_password" <<'SQL'
+          ALTER ROLE f38_writer_a PASSWORD :'f38_password_a';
+          ALTER ROLE f38_writer_b PASSWORD :'f38_password_b';
           SQL
 
           # Parse the ephemeral loopback host port without displaying secrets.
@@ -222,6 +245,9 @@ jobs:
           export F22_PG_PASSWORD_A="$role_a_password"
           export F22_PG_PASSWORD_B="$role_b_password"
           export F22_PG_PASSWORD_ADMIN="$admin_password"
+          export F38_ENABLE_LAB=SYNTHETIC_REQUEST_WRITE_ONLY
+          export F38_PG_PASSWORD_A="$f38_writer_a_password"
+          export F38_PG_PASSWORD_B="$f38_writer_b_password"
 
           # F31: entirely separate PostgreSQL 18 instance with its OWN
           # temporary data directory/admin/reader credentials. Both bind
@@ -346,3 +372,4 @@ jobs:
           echo "F34 LAB ONLY: reconciliation is invoked explicitly inside CI, not a durable background worker or ack protocol."
           echo "F35 LAB ONLY: witness ACK is a DB receipt based on observed primary state, not independent attestation."
           echo "F36 LAB ONLY: repeated limited pages are manually invoked; no deployed worker or time guarantee."
+          echo "F38 LAB ONLY: row-locked transactional writes/receipts are synthetic and are NOT Portal HTTP authorization."
