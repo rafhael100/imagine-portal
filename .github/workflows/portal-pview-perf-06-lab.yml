@@ -1,0 +1,29 @@
+name: Portal PVIEW-PERF-06 - S2S synthetic parity laboratory
+
+on:
+  push:
+    branches:
+      - feat/portal-perf-pview-06-s2s-contract-lab-2026-11-08
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-parity:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      PERF_SNAPSHOT_FIXTURE: apps/portal/preview/fixtures/performance-dashboard-v1.json
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Test-only PHP protocol parity - no external data
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          php -l apps/portal/preview/contracts/SyntheticS2SProtocol.php
+          php -l apps/portal/preview/contracts/SyntheticS2SProtocolTest.php
+          php apps/portal/preview/contracts/SyntheticS2SProtocolTest.php
