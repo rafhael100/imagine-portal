@@ -225,4 +225,58 @@ final class F22PgServiceReadIntegrationTest extends TestCase
         }
         self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
     }
+
+    public function test_disabling_force_rls_on_any_relation_blocks_all_results(): void
+    {
+        $admin = $this->connect('postgres');
+        $reader = new SyntheticPgServiceReadAdapter($this->connect('a'));
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
+
+        $admin->exec('ALTER TABLE f21.service NO FORCE ROW LEVEL SECURITY');
+        try {
+            $this->blocked($reader->read(new OrganizationId('org-a')), 'unsafe_db_schema');
+        } finally {
+            $admin->exec('ALTER TABLE f21.service FORCE ROW LEVEL SECURITY');
+        }
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
+    }
+
+    public function test_disabling_rls_on_child_table_blocks_before_reading_any_data(): void
+    {
+        $admin = $this->connect('postgres');
+        $reader = new SyntheticPgServiceReadAdapter($this->connect('a'));
+        $admin->exec('ALTER TABLE f21.contract DISABLE ROW LEVEL SECURITY');
+        try {
+            $this->blocked($reader->read(new OrganizationId('org-a')), 'unsafe_db_schema');
+        } finally {
+            $admin->exec('ALTER TABLE f21.contract ENABLE ROW LEVEL SECURITY');
+        }
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
+    }
+
+    public function test_view_changed_to_security_definer_is_rejected_even_if_query_is_read_only(): void
+    {
+        $admin = $this->connect('postgres');
+        $reader = new SyntheticPgServiceReadAdapter($this->connect('a'));
+        $admin->exec('ALTER VIEW f21.service_summary SET (security_invoker=false)');
+        try {
+            $this->blocked($reader->read(new OrganizationId('org-a')), 'unsafe_db_schema');
+        } finally {
+            $admin->exec('ALTER VIEW f21.service_summary SET (security_invoker=true)');
+        }
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
+    }
+
+    public function test_reader_sql_identity_with_bypassrls_privilege_is_rejected(): void
+    {
+        $admin = $this->connect('postgres');
+        $reader = new SyntheticPgServiceReadAdapter($this->connect('a'));
+        $admin->exec('ALTER ROLE f21_org_a BYPASSRLS');
+        try {
+            $this->blocked($reader->read(new OrganizationId('org-a')), 'unsafe_db_schema');
+        } finally {
+            $admin->exec('ALTER ROLE f21_org_a NOBYPASSRLS');
+        }
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
+    }
 }
