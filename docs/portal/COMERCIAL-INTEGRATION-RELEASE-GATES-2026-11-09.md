@@ -66,3 +66,11 @@ Esta seção é mais recente que a tabela inicial e substitui **somente** as ref
 - **ACK continua bloqueado**: falta obter testemunho assinado por destino independente de verdade, nonce emitido por serviço confiável, banco transacional com registro de consumo único e piso externo de revogação/rollback, acesso de serviço mínimo e confirmação da mesma árvore de arquivos no destino. Nunca chamar `ack_delivery_lease` apenas com confirmação de origem não autenticada.
 - Não confundir os controles atuais de catálogo público (assinatura Portal→Astro) com a prova inversa de entrega (destino→Portal), que exige chaves e domínios criptográficos distintos.
 - PRs empilhados, `main`, DNS, Cloudflare e produção seguem intactos.
+
+
+### F26-B — complemento de nonce e ACK local descartável
+
+- [CI #42663904358](https://github.com/rafhael100/imagine-portal/actions/runs/42663904358) executou **26 checagens criptográficas PHP** e ensaio PostgreSQL 18 real **apenas na CI**, recebendo o digest SHA-256 do build Astro F24.
+- O banco experimental emitiu nonce único por tentativa, conservou histórico imutável, negou tentativa vencida, geração errada, digest/destino discrepante e replay, e aceitou **um único ACK local** dentro da transação de laboratório.
+- **Não altera o gate operacional:** o recibo assinado foi validado por uma fixture PHP separada; ainda não existe prova remota recebida de destino autenticado nem ligação de identidade/grants/assinatura em uma única transação operacional. A credencial de um serviço consumidor mínimo e a proteção contra rollback de banco também não estão operacionais.
+- O encerramento de publicação produtiva e o DNS ficam estritamente bloqueados. Prova SQL não é atestado Cloudflare, e o CI não deve reportar uma publicação realmente realizada.
