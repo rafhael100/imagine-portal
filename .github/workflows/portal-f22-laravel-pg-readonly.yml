@@ -15,6 +15,8 @@ on:
       - 'apps/portal/app/Labs/F29/**'
       - 'apps/portal/app/Labs/F30/**'
       - 'apps/portal/app/Labs/F31/**'
+      - 'apps/portal/tests/Integration/F32ActualPgRestoreWitnessTest.php'
+      - 'apps/portal/labs/service-relations-f32/**'
       - 'apps/portal/tests/Integration/F31IndependentRevocationFloorTest.php'
       - 'apps/portal/labs/service-relations-f31/**'
       - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
@@ -42,6 +44,8 @@ on:
       - 'apps/portal/app/Labs/F29/**'
       - 'apps/portal/app/Labs/F30/**'
       - 'apps/portal/app/Labs/F31/**'
+      - 'apps/portal/tests/Integration/F32ActualPgRestoreWitnessTest.php'
+      - 'apps/portal/labs/service-relations-f32/**'
       - 'apps/portal/tests/Integration/F31IndependentRevocationFloorTest.php'
       - 'apps/portal/labs/service-relations-f31/**'
       - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
@@ -115,6 +119,7 @@ jobs:
           php -l app/Labs/F31/F31ExternalWitnessReader.php
           php -l app/Labs/F31/F31RollbackAwareLabReader.php
           php -l tests/Integration/F31IndependentRevocationFloorTest.php
+          php -l tests/Integration/F32ActualPgRestoreWitnessTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -222,6 +227,46 @@ jobs:
           vendor/bin/phpunit --configuration phpunit.xml \
             tests/Integration
 
+          # F32: ACTUAL LOGICAL BACKUP and RESTORE of the entire primary
+          # PostgreSQL 18 *lab* database. Witness stays separate and
+          # untouched. Never point this sequence at a real server.
+          umask 077
+          f32_backup="$(mktemp /tmp/f32-primary-lab-XXXXXXXX.backup)"
+          trap 'rm -f "$f32_backup"; docker rm -fv "$F22_PG_CONTAINER" "$F31_WITNESS_CONTAINER" >/dev/null 2>&1 || true' EXIT
+
+          docker exec "$F22_PG_CONTAINER" \
+            pg_dump -U postgres -d postgres -Fc > "$f32_backup"
+          if [[ ! -s "$f32_backup" ]]; then
+            echo "F32 expected non-empty disposable PG dump." >&2
+            exit 1
+          fi
+
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "UPDATE f24.session_fixture SET mock_state='revoked',session_revision=2
+                 WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'" >/dev/null
+
+          # A separate admin updates only the ephemeral witness. The
+          # entire witness instance is deliberately excluded from restore.
+          docker exec "$F31_WITNESS_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "UPDATE f31.revocation_floor
+                    SET session_floor=2,sequence_number=2,changed_at=1800000031
+                  WHERE organization_id='org-a'" >/dev/null
+
+          # Full primary-DB pg_restore --clean overwrites its fictional
+          # database objects/data back to snapshot revision 1.
+          docker exec -i "$F22_PG_CONTAINER" \
+            pg_restore -U postgres -d postgres --clean --if-exists \
+              --exit-on-error < "$f32_backup" >/dev/null
+          export F32_AFTER_RESTORE=DUMP_RESTORE_COMPLETED
+          vendor/bin/phpunit --configuration phpunit.xml \
+            tests/Integration/F32ActualPgRestoreWitnessTest.php
+          unset F32_AFTER_RESTORE
+          rm -f "$f32_backup"
+
+          echo "F32 ACTUAL SYNTHETIC PG_DUMP/PG_RESTORE: primary restored; independent witness retained newer floor."
+          echo "F32 RESTRICTION: no production backup, PITR, physical restore, external trust domain or Z4 certification."
           echo "F22/F24 LAB ONLY: PHP PDO verified local DB identities/RLS and synthetic revocation; no real IAM."
           echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
           echo "F22 LAB ONLY: P0, D02/D03, SEC-R03, release still BLOCKED."
