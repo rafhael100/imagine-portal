@@ -12,4 +12,8 @@ enum Permission: string
     case ManageServices = 'services.manage';
     case ViewBilling = 'billing.view';
     case ManageMembers = 'members.manage';
+    // Nao concedidas por role. Exigem membership e escopo verificados no Portal.
+    case CommercialEditCatalog = 'commercial.catalog.edit';
+    case CommercialApproveCatalog = 'commercial.catalog.approve';
+    case CommercialReservePublish = 'commercial.catalog.publish';
 }
