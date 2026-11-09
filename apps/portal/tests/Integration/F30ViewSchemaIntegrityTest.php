@@ -91,25 +91,10 @@ final class F30ViewSchemaIntegrityTest extends TestCase
         self::assertFalse($page->grantsUniversityBenefit());
     }
 
-    private function syntheticDiagnostics(): string
-    {
-        $admin = $this->db('admin');
-        $schemas = $admin->query(
-            "SELECT nspname, nspacl::text AS acl, pg_get_userbyid(nspowner) AS owner
-               FROM pg_namespace WHERE nspname IN ('f21','f24') ORDER BY nspname"
-        )->fetchAll(PDO::FETCH_ASSOC);
-        $view = $admin->query(
-            "SELECT relname, relacl::text AS acl, pg_get_userbyid(relowner) AS owner,
-                    md5(pg_get_viewdef(oid, false)) AS view_md5
-               FROM pg_class WHERE oid='f21.service_summary'::regclass"
-        )->fetchAll(PDO::FETCH_ASSOC);
-        return json_encode(['schemas' => $schemas, 'view' => $view]) ?: 'fixture diagnostic error';
-    }
-
     private function healthy(): void
     {
         $a = $this->preview('a');
-        self::assertTrue($a->isPreparedPreview(), 'After restore: '.$a->reason.'; '.$this->syntheticDiagnostics());
+        self::assertTrue($a->isPreparedPreview(), 'After synthetic restore: '.$a->reason);
         self::assertSame(4, $a->totalServices);
         self::assertSame(3, $a->totalRequests);
         self::assertSame(3, $a->totalContracts);
@@ -219,7 +204,10 @@ final class F30ViewSchemaIntegrityTest extends TestCase
         try {
             $this->denied($this->preview('a'));
         } finally {
+            // PostgreSQL drops the former owner's explicit ACL entry
+            // during ownership transfer. Restore the original grant too.
             $admin->exec('ALTER SCHEMA f21 OWNER TO postgres');
+            $admin->exec('GRANT USAGE ON SCHEMA f21 TO f21_org_a');
         }
         $this->healthy();
     }
@@ -231,7 +219,10 @@ final class F30ViewSchemaIntegrityTest extends TestCase
         try {
             $this->denied($this->preview('a'));
         } finally {
+            // A view owner transfer removes an explicit grant for that
+            // former owner. A plain ALTER OWNER back is not sufficient.
             $admin->exec('ALTER VIEW f21.service_summary OWNER TO postgres');
+            $admin->exec('GRANT SELECT ON f21.service_summary TO f21_org_b');
         }
         $this->healthy();
     }
