@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "sites.synthetic.review-handoff.v2",
+  "issuer": "imagine-sites",
+  "audience": "imagine-portal",
+  "issuedAt": 1790000000,
+  "expiresAt": 1790000060,
+  "nonce": "portal-receive-nonce-000001",
+  "authorizationRevision": 9,
+  "candidate": {
+    "schemaVersion": "sites.synthetic.review-candidate.v1",
+    "tenantRef": "tenant-demo-sites-12",
+    "siteRef": "site-demo-sites-12",
+    "workflowRef": "workflow-demo-sites-12",
+    "workflowRevision": 3,
+    "releaseRef": "release-demo-sites-12",
+    "artifactDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "portalAuthorityRequired": true,
+    "officialClientAcceptance": false,
+    "publishable": false
+  },
+  "mac": "9dffa7b0a93f2f10289c0f306cf6a913d70abd5741bb318cd4b4509397eacb6a"
+}
