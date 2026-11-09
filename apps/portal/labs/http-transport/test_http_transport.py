@@ -102,7 +102,7 @@ assert_true("access-control-allow-origin" not in str(ready[1]).lower(), "Unexpec
 
 if MODE == "secure-attribute":
     assert_true("; secure" in header, "Secure attribute missing from hardened cookie")
-    assert_true(ready[1].get("Cache-Control") == "no-store", "CSRF response cached")
+    assert_true("no-store" in (ready[1].get("Cache-Control") or "").lower(), "CSRF response cached")
     print(f"[PASS F5 HTTP] SECURE attribute only: {checks} checks at 127.0.0.1:{PORT}; no HTTPS claimed")
     sys.exit(0)
 
@@ -145,5 +145,5 @@ replay = req(PREFIX + "login", "POST", {"proof": "lab-only"}, token=new_token, o
 assert_true(replay[0] == 419, "Stale CSRF token accepted after logout")
 assert_true(not response_json(req(PREFIX + "state"))["authenticated"], "Stale CSRF reauthenticated actor")
 
-assert_true(ready[1].get("Cache-Control") == "no-store", "CSRF response cached")
+assert_true("no-store" in (ready[1].get("Cache-Control") or "").lower(), "CSRF response cached")
 print(f"[PASS F5 HTTP] {checks} checks; missing/invalid CSRF=419; session rotation, file persistence, logout and replay blocked; localhost={PORT}")
