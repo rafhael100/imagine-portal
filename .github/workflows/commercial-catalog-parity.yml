@@ -1,0 +1,65 @@
+name: Portal x Imagine Comercial - Paridade Ed25519
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/CommercialPublishing/**'
+      - 'apps/portal/tests/Unit/PublicCatalogSignerTest.php'
+      - 'apps/portal/tests/Contract/**'
+      - '.github/workflows/commercial-catalog-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: PHP issuer x Node verifier (synthetic)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout Portal
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: PHP 8.3 Sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          extensions: sodium, mbstring
+      - name: Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verificar sintaxe PHP
+        run: |
+          php -l apps/portal/app/Domain/CommercialPublishing/PublicCatalogSigner.php
+          php -l apps/portal/tests/Contract/emit-signed-commercial-fixture.php
+      - name: Emitir somente fixture e chave pública descartáveis
+        run: php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
+      - name: Obter verificador da Imagine em SHA fixo
+        uses: actions/checkout@v7
+        with:
+          repository: rafhael100/imagine-comercial
+          ref: e90dfd8d56ce5b1beeb2e80605b63f9b3ba878df
+          path: .qa/imagine-comercial
+          persist-credentials: false
+      - name: Conferir interoperabilidade criptográfica PHP -> Node
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          import {verifySignedCatalog} from './.qa/imagine-comercial/src/lib/verify-signed-catalog.mjs';
+          const folder=process.env.RUNNER_TEMP;
+          const envelope=JSON.parse(readFileSync(folder+'/commercial-envelope.json','utf8'));
+          const key=readFileSync(folder+'/commercial-public.pem','utf8');
+          const verified=verifySignedCatalog(envelope,new Map([['portal_contract_01',key]]));
+          assert.equal(verified.items.length,1);
+          assert.equal(verified.items[0].slug,'landing-pages');
+          assert.equal(verified.items[0].version,2);
+          envelope.payloadBase64=Buffer.from('{"forged":true}').toString('base64');
+          assert.throws(()=>verifySignedCatalog(envelope,new Map([['portal_contract_01',key]])),/verification failed/);
+          console.log('PHP -> Node Ed25519 parity passed with synthetic content, tampering rejected.');
+          NODE
