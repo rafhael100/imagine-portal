@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - 'apps/portal/labs/http-pg/**'
-      - 'apps/portal/labs/client-auth/LabSecureLogin.php'
+      - 'apps/portal/labs/client-auth/**'
+      - 'apps/portal/tests/Feature/LabPortalPgFeatureTest.php'
       - '.github/workflows/portal-f6-http-pg-mfa.yml'
 
 permissions:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   real-http-mfa-pg:
-    if: github.head_ref == 'feat/portal-f6-http-pg-mfa-2026-11-08'
+    if: github.head_ref == 'feat/portal-f6-http-pg-mfa-2026-11-08' || github.head_ref == 'feat/portal-f7-outbox-revocation-2026-11-08'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
@@ -79,6 +80,12 @@ jobs:
           php -l labs/http-pg/seed_lab.php
           php -l labs/http-pg/revoke_lab.php
           php -l labs/client-auth/LabSecureLogin.php
+          php -l labs/client-auth/LabOutboxPublisher.php
+          php -l labs/client-auth/LabOutboxWorker.php
+          php -l labs/client-auth/LabMembershipFence.php
+          php -l labs/client-auth/create_lab_schema.php
+          php -l labs/client-auth/bootstrap_lab.php
+          php -l tests/Feature/LabPortalPgFeatureTest.php
           python3 -m py_compile labs/http-pg/test_http_pg.py
           if grep -R "http-pg/router.php" routes/ bootstrap/ app/; then
             echo "ERROR: F6 router referenced by operational app"; exit 1
