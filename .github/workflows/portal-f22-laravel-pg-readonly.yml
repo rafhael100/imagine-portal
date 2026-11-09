@@ -14,6 +14,9 @@ on:
       - 'apps/portal/app/Labs/F28/**'
       - 'apps/portal/app/Labs/F29/**'
       - 'apps/portal/app/Labs/F30/**'
+      - 'apps/portal/app/Labs/F31/**'
+      - 'apps/portal/tests/Integration/F31IndependentRevocationFloorTest.php'
+      - 'apps/portal/labs/service-relations-f31/**'
       - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
       - 'apps/portal/labs/service-relations-f30/**'
       - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
@@ -38,6 +41,9 @@ on:
       - 'apps/portal/app/Labs/F28/**'
       - 'apps/portal/app/Labs/F29/**'
       - 'apps/portal/app/Labs/F30/**'
+      - 'apps/portal/app/Labs/F31/**'
+      - 'apps/portal/tests/Integration/F31IndependentRevocationFloorTest.php'
+      - 'apps/portal/labs/service-relations-f31/**'
       - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
       - 'apps/portal/labs/service-relations-f30/**'
       - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
@@ -65,6 +71,7 @@ jobs:
         php: ['8.3', '8.4']
     env:
       F22_PG_CONTAINER: f22-db-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.php }}
+      F31_WITNESS_CONTAINER: f31-db-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.php }}
     defaults:
       run:
         working-directory: apps/portal
@@ -104,6 +111,10 @@ jobs:
           php -l tests/Integration/F29RlsPolicyGrantDriftTest.php
           php -l app/Labs/F30/F30SyntheticViewSchemaInspector.php
           php -l tests/Integration/F30ViewSchemaIntegrityTest.php
+          php -l app/Labs/F31/F31ExternalFloorSnapshot.php
+          php -l app/Labs/F31/F31ExternalWitnessReader.php
+          php -l app/Labs/F31/F31RollbackAwareLabReader.php
+          php -l tests/Integration/F31IndependentRevocationFloorTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -111,7 +122,9 @@ jobs:
           admin_password="$(openssl rand -hex 32)"
           role_a_password="$(openssl rand -hex 32)"
           role_b_password="$(openssl rand -hex 32)"
-          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password"
+          witness_admin_password="$(openssl rand -hex 32)"
+          witness_reader_password="$(openssl rand -hex 32)"
+          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password" "$witness_admin_password" "$witness_reader_password"
           # Only loopback host binding: 127.0.0.1 random ephemeral port.
           # No domain, no customer account, no durable volumes, no VPS.
           docker run -d --rm --name "$F22_PG_CONTAINER" \
@@ -119,7 +132,9 @@ jobs:
             -e POSTGRES_PASSWORD="$admin_password" \
             -e POSTGRES_INITDB_ARGS="--auth-host=scram-sha-256" \
             postgres:18 >/dev/null
-          trap 'docker rm -fv "$F22_PG_CONTAINER" >/dev/null 2>&1 || true' EXIT
+          # Always destroy BOTH independent fixture databases, including
+          # anonymous Docker volumes, even on assertion or provisioning failure.
+          trap 'docker rm -fv "$F22_PG_CONTAINER" "$F31_WITNESS_CONTAINER" >/dev/null 2>&1 || true' EXIT
 
           for attempt in $(seq 1 50); do
             if docker exec "$F22_PG_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
@@ -163,6 +178,45 @@ jobs:
           export F22_PG_PASSWORD_B="$role_b_password"
           export F22_PG_PASSWORD_ADMIN="$admin_password"
 
+          # F31: entirely separate PostgreSQL 18 instance with its OWN
+          # temporary data directory/admin/reader credentials. Both bind
+          # only to random localhost ports on this GitHub runner.
+          docker run -d --rm --name "$F31_WITNESS_CONTAINER" \
+            --publish 127.0.0.1::5432 \
+            -e POSTGRES_PASSWORD="$witness_admin_password" \
+            -e POSTGRES_INITDB_ARGS="--auth-host=scram-sha-256" \
+            postgres:18 >/dev/null
+
+          for attempt in $(seq 1 50); do
+            if docker exec "$F31_WITNESS_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec "$F31_WITNESS_CONTAINER" pg_isready -U postgres >/dev/null
+          docker exec -i "$F31_WITNESS_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f31/witness-schema.sql >/dev/null
+          docker exec -i "$F31_WITNESS_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -v "witness_password=$witness_reader_password" <<'SQL'
+          ALTER ROLE f31_witness_reader PASSWORD :'witness_password';
+          SQL
+
+          witness_port="$(docker port "$F31_WITNESS_CONTAINER" 5432/tcp | awk -F: 'END {print $NF}')"
+          if [[ ! "$witness_port" =~ ^[0-9]{4,5}$ || "$witness_port" == "$port" ]]; then
+            echo "F31 must use a different disposable PostgreSQL loopback port." >&2
+            exit 1
+          fi
+
+          export F31_ENABLE_LAB=INDEPENDENT_DISPOSABLE_WITNESS
+          export F31_PG_HOST=127.0.0.1
+          export F31_PG_PORT="$witness_port"
+          export F31_PG_PASSWORD_READER="$witness_reader_password"
+          export F31_PG_PASSWORD_ADMIN="$witness_admin_password"
+          echo "F31 synthetic external witness is a SECOND disposable container."
+          echo "F31 neither survives this runner nor represents an independently operated trust domain."
+
           # phpunit.xml does not discover tests/Integration automatically;
           # target this file explicitly, without modifying Laravel routes.
           vendor/bin/phpunit --configuration phpunit.xml \
@@ -171,3 +225,4 @@ jobs:
           echo "F22/F24 LAB ONLY: PHP PDO verified local DB identities/RLS and synthetic revocation; no real IAM."
           echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
           echo "F22 LAB ONLY: P0, D02/D03, SEC-R03, release still BLOCKED."
+          echo "F31 LAB ONLY: rollback simulation is not actual pg_restore or independent audit/witness attestation."
