@@ -106,6 +106,18 @@ final readonly class F24LabSessionProof
     }
 
     /**
+     * These fixed public identifiers are NOT secrets. Session-level shared
+     * lock must be acquired BEFORE starting the REPEATABLE READ snapshot.
+     */
+    public function syntheticFenceKey(): int
+    {
+        return match ($this->claims['org']) {
+            'org-a' => 9402400001,
+            'org-b' => 9402400002,
+        };
+    }
+
+    /**
      * Must be invoked INSIDE F22's own transaction immediately before the
      * service view read. No separate read-before-transaction race.
      *
