@@ -4,7 +4,7 @@
         <p class="pi-eyebrow">Prévia interna do Backoffice comercial</p>
         <p>Compare versões antes de solicitar uma publicação no site Imagine. Todos os registros desta tela são fictícios e nenhuma ação é executada.</p>
         <p class="pi-muted">Versão anterior: {{ $review['oldReleaseId'] }} · Candidata: {{ $review['candidateReleaseId'] }}</p>
-        <x-portal.badge tone="warning">Sem conexão com clientes, CMS real ou publicação</x-portal.badge>
+        <x-portal.badge tone="warning" label="Sem conexão com clientes, CMS real ou publicação" />
     </x-portal.panel>
 
     <div class="pi-grid" aria-label="Resumo da revisão fictícia">
@@ -30,10 +30,10 @@
                             <td>
                                 @if($item['flags'] !== [])
                                     @foreach($item['flags'] as $flag)
-                                        <p><x-portal.badge tone="warning">{{ $flag }}</x-portal.badge></p>
+                                        <p><x-portal.badge tone="warning" :label="$flag" /></p>
                                     @endforeach
                                 @else
-                                    <x-portal.badge tone="neutral">Revisão humana necessária</x-portal.badge>
+                                    <x-portal.badge tone="neutral" label="Revisão humana necessária" />
                                 @endif
                             </td>
                         </tr>
