@@ -834,4 +834,112 @@ final class LabPortalPgFeatureTest extends TestCase
         $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
     }
 
+    public function test_f10_performance_issuer_rechecks_mfa_membership_rls_and_revocation(): void
+    {
+        // Reuse the actual F6 synthetic MFA/session verifier and F4 lock
+        // rather than trusting an actor supplied to a separate mock issuer.
+        require_once base_path('labs/client-auth/LabSecureLogin.php');
+        require_once base_path('labs/client-auth/LabPerformanceMfaIssuer.php');
+
+        $login = app(\App\Labs\ClientAuth\LabSecureLogin::class)->signIn(
+            'b@example.invalid',
+            'synthetic-pass-B-2026',
+            LabTotp::codeAt('4142434445464748494a4b4c4d4e4f5051525354', time()),
+        );
+        $this->assertIsString($login['token'], 'B must pass the synthetic MFA lab.');
+
+        $request = \Illuminate\Http\Request::create('/synthetic-performance-lab', 'POST');
+        $request->setLaravelSession(app('session')->driver());
+        $request->session()->put('portal_lab_v2_token', $login['token']);
+
+        $issuer = new \App\Labs\ClientAuth\LabPerformanceMfaIssuer();
+        $secret = random_bytes(32);
+        $issuedAt = 1799999940;
+        $expiresAt = 1800000060;
+        $emit = static fn (string $org, string $service, string $id, string $nonce) =>
+            $issuer->issue($request, $org, $service, $id, $nonce, $issuedAt, $expiresAt, $secret);
+
+        $envelope = $emit('org-b', 'service-b', 'req-demo-b1', 'nonce-demo-b1');
+        $this->assertIsArray($envelope, 'Active synthetic MFA B can emit only the allowlisted lab service.');
+        $this->assertSame('org-demo-b', $envelope['organization_ref']);
+        $this->assertSame('perf-demo-b', $envelope['tenant_ref']);
+        $this->assertSame('svc-demo-b', $envelope['service_ref']);
+        $this->assertSame(1, $envelope['grant_revision']);
+        $this->assertSame('portal-imagine-mock', $envelope['producer']);
+        $this->assertArrayNotHasKey('actor_id', $envelope);
+        $this->assertArrayNotHasKey('session_token', $envelope);
+        $this->assertArrayNotHasKey('password', $envelope);
+
+        $fixture = (string) file_get_contents(base_path(
+            'labs/performance-contract/performance-dashboard-v1.json'
+        ));
+        $digest = hash('sha256', $fixture);
+        $this->assertSame($digest, $envelope['payload_sha256']);
+        $verifier = new \Imagine\Protocol\Lab\SyntheticS2SProtocol();
+        $this->assertSame('accepted_synthetic_only', $verifier->verifyForLab(
+            $envelope, $secret, 'org-demo-b', 'perf-demo-b', 'svc-demo-b',
+            $digest, 1, 1800000000, true,
+        ));
+        $this->assertSame('mock_replay_denied', $verifier->verifyForLab(
+            $envelope, $secret, 'org-demo-b', 'perf-demo-b', 'svc-demo-b',
+            $digest, 1, 1800000000, true,
+        ));
+
+        $tampered = $envelope;
+        $tampered['tenant_ref'] = 'perf-demo-a';
+        $this->assertSame('invalid_lab_signature',
+            (new \Imagine\Protocol\Lab\SyntheticS2SProtocol())->verifyForLab(
+                $tampered, $secret, 'org-demo-b', 'perf-demo-b', 'svc-demo-b',
+                $digest, 1, 1800000000, true,
+            ));
+
+        $this->assertNull($emit('org-a', 'service-a', 'req-demo-foreign', 'nonce-demo-foreign'));
+        $this->assertNull($emit('org-b', 'service-a', 'req-demo-other', 'nonce-demo-other'));
+        $this->assertNull($emit('org-b', 'service-absent', 'req-demo-missing', 'nonce-demo-missing'));
+        $this->assertNull($issuer->issue(
+            $request, 'org-b', 'service-b', 'req-demo-weak', 'nonce-demo-weak',
+            $issuedAt, $expiresAt, 'weak',
+        ));
+
+        // No session is a hard denial even if the requester names a valid B service.
+        $request->session()->forget('portal_lab_v2_token');
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-blank', 'nonce-demo-blank'));
+        $request->session()->put('portal_lab_v2_token', $login['token']);
+
+        // Server-side session invalidation invalidates the projected grant.
+        DB::connection('pgsql')->table('lab_portal_auth_sessions')
+            ->where('user_id', 'portal-user-b')->update(['revoked' => true]);
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-session', 'nonce-demo-session'));
+        DB::connection('pgsql')->table('lab_portal_auth_sessions')
+            ->where('user_id', 'portal-user-b')->update(['revoked' => false, 'expires_at' => time() - 1]);
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-exp', 'nonce-demo-exp'));
+        DB::connection('pgsql')->table('lab_portal_auth_sessions')
+            ->where('user_id', 'portal-user-b')->update(['expires_at' => time() + 600]);
+
+        // Password/account revision invalidates the previously verified session.
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-b')->update(['session_revision' => 2]);
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-revision', 'nonce-demo-revision'));
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-b')->update(['session_revision' => 1]);
+
+        DB::connection('pgsql')->table('lab_portal_organizations')
+            ->where('id', 'org-b')->update(['status' => 'suspended']);
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-suspended', 'nonce-demo-suspended'));
+        DB::connection('pgsql')->table('lab_portal_organizations')
+            ->where('id', 'org-b')->update(['status' => 'active']);
+
+        $this->assertSame(1, LabMembershipFence::revoke('portal-user-b', 'org-b'));
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-revoked', 'nonce-demo-revoked'));
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-b')->where('user_id', 'portal-user-b')
+            ->update(['status' => 'active']);
+        $this->assertNull($emit('org-b', 'service-b', 'req-demo-reopened', 'nonce-demo-reopened'),
+            'Reactivating membership at a newer revision does not silently restore the old grant.');
+
+        $this->assertSame(2, (int) DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-b')->where('user_id', 'portal-user-b')->value('revision'));
+        $this->get('/_lab/portal/performance/emit')->assertNotFound();
+    }
+
 }
