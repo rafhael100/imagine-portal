@@ -34,4 +34,23 @@ final class DemoRequestInbox
     {
         return (new RequestInboxPreview())->project(self::examples(), self::organization(), limit: 10);
     }
+
+    /** @return list<list<string>> */
+    public static function rows(): array
+    {
+        $inbox = self::preview();
+        if (!$inbox->isPreparedPreview()) {
+            return [];
+        }
+
+        return array_map(
+            static fn (ServiceRequestSnapshot $request): array => [
+                $request->requestId,
+                $request->serviceReference,
+                $request->status->label(),
+                'Revisão fictícia '.$request->revision,
+            ],
+            $inbox->items,
+        );
+    }
 }
