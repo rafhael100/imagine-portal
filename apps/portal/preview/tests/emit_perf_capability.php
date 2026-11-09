@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // CI-only cross-repository test bridge. Never writes private key to disk.
-require_once dirname(__DIR__, 2).'/vendor/autoload.php';
+require_once dirname(__DIR__, 2).'/app/Domain/PerformanceBridge/SyntheticCapabilityIssuer.php';
 
 use App\Domain\PerformanceBridge\SyntheticCapabilityIssuer;
 
