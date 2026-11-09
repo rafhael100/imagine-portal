@@ -26,4 +26,10 @@ $connection->statement(
 );
 $connection->statement('GRANT CONNECT ON DATABASE portal_lab TO portal_lab_runtime');
 $connection->statement('GRANT USAGE ON SCHEMA public TO portal_lab_runtime');
-echo "[PASS LAB BOOTSTRAP] separate read-only runtime role created in ephemeral portal_lab\n";
+$connection->statement(
+    "CREATE ROLE portal_lab_worker LOGIN PASSWORD 'portal-lab-worker-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
+);
+$connection->statement('GRANT CONNECT ON DATABASE portal_lab TO portal_lab_worker');
+$connection->statement('GRANT USAGE ON SCHEMA public TO portal_lab_worker');
+
+echo "[PASS LAB BOOTSTRAP] separate runtime and worker restricted roles created in ephemeral portal_lab\n";
