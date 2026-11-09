@@ -64,9 +64,9 @@ final class PortalLabIsolationBootGateTest extends TestCase
         $routes = [];
         foreach ($this->app['router']->getRoutes() as $route) {
             $routes[] = $route->uri();
-            self::assertNotContains(
+            self::assertStringNotContainsString(
                 'App\\Labs\\',
-                [$route->getActionName()],
+                $route->getActionName(),
                 'Never bind the synthetic database readers into actual routes.',
             );
         }
