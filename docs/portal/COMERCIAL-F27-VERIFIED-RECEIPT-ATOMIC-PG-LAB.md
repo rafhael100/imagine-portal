@@ -23,3 +23,12 @@ Chave não confiável, tree SHA-256 diferente, tenant adulterado, nonce inexiste
 - A função SQL `consume_preverified_delivery_receipt` depende de identidade do chamador. A F27 só mostra o caminho seguro **quando chamado pelo serviço local de prova**. Jamais liberar acesso de execução direto a usuários, Workers ou clientes.
 
 Nenhum merge na main, troca de DNS, contrato pago, publicação externa ou credencial operacional está autorizado. O PR de integração do Comercial continua exclusivamente de revisão.
+
+
+## Evidência CI F27 verificada — 09/11/2026
+
+- [Pipeline PHP→PostgreSQL 18→Astro #42666716318 — aprovada](https://github.com/rafhael100/imagine-portal/actions/runs/42666716318).
+- Verificador de destino F26 preservado: **26 verificações** criptográficas positivas/negativas.
+- Consumidor F27 testado com nonce de tentativa 1 expirado, retry para tentativa 2, prova de destino assinada válida e **um único ACK local**; **9 cenários rejeitados**, incluindo assinatura falsa, árvore SHA-256/tenant/nonce errados, prova fora do prazo, tentativa anterior, lease expirado com assinatura válida e rollback integral, replay e revogação.
+- [Ledger PostgreSQL LAB #42666716645](https://github.com/rafhael100/imagine-portal/actions/runs/42666716645), [testes Portal #42666716399](https://github.com/rafhael100/imagine-portal/actions/runs/42666716399) e [validação Laravel isolada #42666716450](https://github.com/rafhael100/imagine-portal/actions/runs/42666716450): aprovados.
+- Este relatório atesta **somente a integração sintética**. Não há recibo real Cloudflare, grants autenticados de serviço, canal seguro do destino, witness externo de rollback, nem deploy.
