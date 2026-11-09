@@ -111,6 +111,12 @@ final readonly class F24LabSessionProof
         return $this->claims['sub'];
     }
 
+    /** Only the synthetic session label from a lab-signed fixture. */
+    public function syntheticSessionId(): string
+    {
+        return $this->claims['sid'];
+    }
+
     /**
      * These fixed public identifiers are NOT secrets. Session-level shared
      * lock must be acquired BEFORE starting the REPEATABLE READ snapshot.
