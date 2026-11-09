@@ -21,17 +21,31 @@ O contrato exige, para um payload JSON canônico de até 4 KiB:
 - Janela de observação: até 5 minutos no passado e tolerância de 30 segundos no futuro.
 - Campos inesperados, JSON ambíguo com chaves duplicadas, Base64 não canônico e omissão de campos são rejeitados.
 
-## Fluxo futuro — NÃO implementado aqui
+## Laboratório PostgreSQL de nonce e ACK local — SIMULADO
 
-1. Serviço de publicação com identidade do Portal validada, MFA e grants atuais reserva uma tentativa no PostgreSQL em transação.
-2. Serviço de destino verdadeiramente independente observa a publicação e assina um atestado com nonce e SHA-256 da árvore de arquivos implantados.
-3. O Portal busca o atestado por canal autenticado, usa chave pública de confiança pinada e confere toda a identidade com o verificador F26.
-4. **Ainda falta** transação que verifique o estado atual do fence, commit/lease, nonce já consumido, replay e ACK. Nunca chamar ack_delivery_lease somente com base em conteúdo de requisição ou assinatura válida.
-5. Reconciliar estados em timeout, reprocessamento, revogação e restauração de backup. Exigir testemunha durável externa para evitar que rollback de banco reabilite releases e nonces antigos.
+O escopo F26-B acrescentou os scripts descartáveis:
+- apps/portal/labs/commercial-publishing/schema-f26-receipt-consumption.sql
+- apps/portal/labs/commercial-publishing/test-f26-receipt-consumption.sql
+
+Após compilar o catálogo PHP assinado em Astro, o CI transfere o treeSha256 real do build para o PostgreSQL 18 **descartável**. O banco grava um alvo imutável de revisão (organização, release, digest, geração, destino e ambiente), emite um nonce aleatório por tentativa de lease e o registra de forma imutável. A função de laboratório consome somente claims **supostamente já validadas por uma aplicação confiável**, confere lease atual, geração, digest, árvore de build, despacho, destino, ambiente, prazo e nonce emitido, registra o consumo uma única vez e executa ACK **local** na mesma transação.
+
+O ensaio força expiração/recuperação de lease, rejeita nonce de tentativa anterior, árvore errada, geração indevida, nonce inexistente, despacho/destino/ambiente incorretos, recibo vencido e replay após ACK. Um leitor PostgreSQL sem privilégios não pode emitir novo nonce.
+
+**Não existe nesta versão uma ligação operacional entre a assinatura PHP do destino e a chamada SQL.** Os testes do verificador Ed25519 e do consumidor de nonce usam fixtures sintéticos em módulos separados do mesmo workflow. O banco recebe claims como pré-verificadas por um chamador de laboratório; portanto, ele NÃO autentica o detentor real da chave e não substitui uma autoridade de aplicação protegida. Nenhuma função nova é concedida a papéis operacionais.
+
+## Fluxo operacional futuro — ainda pendente
+
+1. Sessão Portal autêntica, MFA, escopo empresarial e grants frescos reservam a tentativa no PostgreSQL mediante serviço autorizado.
+2. O destino real observa o build efetivamente implantado, assina o digest com chave de destino independente e devolve atestado por canal autenticado.
+3. O Portal PINa a chave pública do destino, exige claims correspondentes a desafio/lease/fence atual e executa o verificador F26 com relógio confiável.
+4. O serviço consumidor, com privilégios mínimos, liga **a mesma prova validada** à transação SQL de consumo único/ACK. Também precisa validar acesso a tabelas e impedimento de bypass.
+5. Registro de uso único e geração de revogação precisam sobreviver a rollback/restore com testemunha externa durável. Idempotência remota, entrega confirmada, monitoração, compensações e staging protegido continuam ausentes.
 
 ## Testes
 
 O script apps/portal/tests/Contract/test-destination-receipt-f26.php gera pares Ed25519 descartáveis, incluindo chave de emissor Portal diferente da chave do destino. A CI roda PHP 8.3 + sodium com testes positivos e negativos para assinatura, chave, tenant, release, payload/tree hash, dispatch, geração, tentativa, destino, environment, nonce, validade temporal e JSON ambíguo.
+
+O mesmo workflow executa uma simulação de consumo único e ACK local em PostgreSQL 18: [GitHub Actions #42663904358](https://github.com/rafhael100/imagine-portal/actions/runs/42663904358) — **26 verificações criptográficas PHP e regressão de nonce/retry/fence/ack SQL aprovadas**.
 
 **Limites essenciais:** o F26 verifica uma *declaração criptograficamente assinada*, não prova que um site foi realmente publicado no Cloudflare ou que um operador remoto foi honesto. Sem integração com um testemunho realmente independente, registro de uso único durável, credencial segura ou observação HTTP real, **não existe recibo de entrega operacional**. Não habilitar ack nem tratar a prova como autorização produtiva.
 
