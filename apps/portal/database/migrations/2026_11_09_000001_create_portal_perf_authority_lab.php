@@ -21,6 +21,7 @@ return new class extends Migration
         Schema::create('portal_perf_authority_sessions',function(Blueprint $table):void {
             $table->uuid('id')->primary();
             $table->char('session_hash',64)->unique();
+            $table->string('session_ref',128)->unique();
             $table->string('actor_ref',128);
             $table->string('organization_ref',128);
             $table->string('status',24);
