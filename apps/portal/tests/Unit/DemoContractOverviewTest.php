@@ -80,9 +80,13 @@ final class DemoContractOverviewTest extends TestCase
     public function test_missing_or_oversized_descriptions_are_rejected(): void
     {
         foreach ([' ', str_repeat('X', 161)] as $label) {
-            $this->expectException(InvalidArgumentException::class);
-            new DemoContractRecord('DEMO-CTR-X', new OrganizationId('DEMO-ORG'),
-                'DEMO-SVC-X', $label, DemoContractStage::Draft);
+            try {
+                new DemoContractRecord('DEMO-CTR-X', new OrganizationId('DEMO-ORG'),
+                    'DEMO-SVC-X', $label, DemoContractStage::Draft);
+                self::fail('Invalid fictional contract description accepted.');
+            } catch (InvalidArgumentException) {
+                self::addToAssertionCount(1);
+            }
         }
     }
 
