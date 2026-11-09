@@ -155,6 +155,10 @@ $expectDenied('expired observation',
 $run($pdo,'UPDATE commercial_publishing_lab.delivery_leases
     SET lease_until=clock_timestamp()-interval \'1 second\'
     WHERE organization_id=? AND release_id=?',[$org,$release]);
+// A correctly signed receipt must still fail if the current SQL lease has
+// already expired; the transaction must roll back without consuming the nonce.
+$expectDenied('valid signature with expired SQL lease',
+    $signReceipt($first),'receipt: stale, expired or already acknowledged lease');
 if($lease()!==2)throw new RuntimeException('F27: crash retry missing.');
 $nonce2=$nonce(2);
 if($nonce1===$nonce2)throw new RuntimeException('F27: nonce reused on retry.');
@@ -193,6 +197,6 @@ catch(RuntimeException $error){
     if(!str_contains($error->getMessage(),'authority missing or disabled'))throw $error;
     $rejections++;
 }
-if($rejections!==8)throw new RuntimeException('F27: insufficient negative cases: '.$rejections);
+if($rejections!==9)throw new RuntimeException('F27: insufficient negative cases: '.$rejections);
 echo "F27 PHP signature -> locked PostgreSQL -> one local ACK passed: ".
     $rejections." rejected scenarios; no HTTP, no external witness, no deployment.\n";
