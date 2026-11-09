@@ -47,7 +47,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
-          extensions: sodium, mbstring
+          extensions: sodium, mbstring, pdo_pgsql, pgsql
       - name: Configurar Node 22
         uses: actions/setup-node@v7
         with:
@@ -189,6 +189,15 @@ jobs:
             -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
             -v tree_sha256="$TREE_SHA" \
             -f apps/portal/labs/commercial-publishing/test-f26-receipt-consumption.sql
+      - name: F27 vincular recibo Ed25519 verificado ao nonce e ACK SQL na mesma transacao (LAB)
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-publishing/VerifiedDeliveryReceiptConsumerLab.php
+          php -l apps/portal/labs/commercial-publishing/test-f27-verified-ack.php
+          php -r "if (!extension_loaded('pdo_pgsql')) exit(1);"
+          php apps/portal/labs/commercial-publishing/test-f27-verified-ack.php \
+            "$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
+            "$RUNNER_TEMP/commercial-tree-sha256.txt"
       - name: Revogar publicacao e provar que release anterior nao pode ser reservado novamente
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f8-e2e-revoked.sql
       - name: Provar falha fechada em caso de hash inesperado

@@ -74,3 +74,10 @@ Esta seção é mais recente que a tabela inicial e substitui **somente** as ref
 - O banco experimental emitiu nonce único por tentativa, conservou histórico imutável, negou tentativa vencida, geração errada, digest/destino discrepante e replay, e aceitou **um único ACK local** dentro da transação de laboratório.
 - **Não altera o gate operacional:** o recibo assinado foi validado por uma fixture PHP separada; ainda não existe prova remota recebida de destino autenticado nem ligação de identidade/grants/assinatura em uma única transação operacional. A credencial de um serviço consumidor mínimo e a proteção contra rollback de banco também não estão operacionais.
 - O encerramento de publicação produtiva e o DNS ficam estritamente bloqueados. Prova SQL não é atestado Cloudflare, e o CI não deve reportar uma publicação realmente realizada.
+
+
+### F27 — vínculo PHP de assinatura e consumo SQL, somente ensaio
+
+- [PR #159](https://github.com/rafhael100/imagine-portal/pull/159): adicionou um consumidor de laboratório **não roteado no Laravel**, que busca diretamente do PostgreSQL o nonce e o escopo confiável do lease atual, verifica recibo de destino Ed25519 com chave pública pinada e consome o nonce/ACK local **na mesma transação**, com rollback de qualquer falha.
+- [CI F27 integrada #42666716318 aprovada](https://github.com/rafhael100/imagine-portal/actions/runs/42666716318): 9 cenários negativos, incluindo uma assinatura válida recusada porque o lease expirou antes da atualização SQL; único ACK local confirmado.
+- Nenhum desses testes conclui os gates operacionais G01/G02: o CI usa banco privilegiado descartável e destino fictício, sem login/MFA de produção, sem role de serviço mínimo, sem witness externo independente, sem anti-rollback durable e sem Cloudflare público. **Não executar `main`/deploy ou transformar este serviço de laboratório em endpoint.**
