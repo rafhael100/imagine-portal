@@ -73,6 +73,7 @@ final readonly class DemoServiceRelationPage
             'untrusted_lab_authority', 'unsafe_revocation_fence',
             'unsafe_rls_policy_contract',
             'unsafe_service_view_schema',
+            'unavailable_external_witness', 'stale_external_witness',
         ], true)) {
             throw new InvalidArgumentException('Unknown relation preview rejection.');
         }
