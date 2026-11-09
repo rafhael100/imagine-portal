@@ -69,11 +69,9 @@ final class PublicCatalogSigner
         $seenId = [];
         $seenPath = [];
         foreach ($snapshot['items'] as $entry) {
-            if (!is_array($entry) || !array_is_list($entry) === false) {
-                // Individual entries must be associative (not lists).
-                if (!is_array($entry) || array_is_list($entry)) {
-                    throw new InvalidArgumentException('Catalog item must be an associative object.');
-                }
+            // Individual entries must be associative objects, never indexed lists.
+            if (!is_array($entry) || array_is_list($entry)) {
+                throw new InvalidArgumentException('Catalog item must be an associative object.');
             }
             self::fields($entry,
                 ['id','slug','title','description','path','status','version','offerRef'], 'service');
