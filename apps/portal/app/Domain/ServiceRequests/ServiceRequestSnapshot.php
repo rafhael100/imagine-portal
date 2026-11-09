@@ -26,9 +26,4 @@ final readonly class ServiceRequestSnapshot
             throw new InvalidArgumentException('Invalid revision for a workflow preview.');
         }
     }
-
-    public function withNextStatus(ServiceRequestStatus $status): self
-    {
-        return new self($this->requestId, $this->organizationId, $this->serviceReference, $status, $this->revision + 1);
-    }
 }
