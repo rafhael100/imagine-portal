@@ -1,0 +1,49 @@
+name: Portal SEC-R03 C01 - synthetic hybrid recovery model
+# Independent, read-only Python test job. NO deployment, external APIs,
+# database service, container, paid integration, secrets or real customer data.
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/r07-f1/r03/model_c_lab/**'
+      - '.github/workflows/portal-sec-r03-model-c-lab.yml'
+  push:
+    branches:
+      - test/portal-sec-r03-model-c-hybrid-z4-lab-2026-11-09
+    paths:
+      - 'apps/portal/labs/r07-f1/r03/model_c_lab/**'
+      - '.github/workflows/portal-sec-r03-model-c-lab.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-sec-r03-c01-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-disposable-model-c:
+    name: Python stdlib / disposable Z3-Z4 model
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout immutable revision without saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Show Python runtime
+        run: python3 --version
+      - name: Syntax check without installing packages
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            apps/portal/labs/r07-f1/r03/model_c_lab/hybrid_model.py \
+            apps/portal/labs/r07-f1/r03/model_c_lab/test_hybrid_model.py
+          git diff --check
+      - name: Execute adversarial fixtures in temporary directories
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover \
+            -s apps/portal/labs/r07-f1/r03/model_c_lab \
+            -p 'test_*.py' -v
+      - name: Explicitly mark absent production proof
+        run: |
+          echo "MODEL C LAB ONLY: NO actual Z4 external durability, distributed commit, identities, TLS, signed human approval, real SQL RLS, failover or production recovery."
