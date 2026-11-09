@@ -1,0 +1,151 @@
+name: Portal F6 - localhost HTTP MFA + PostgreSQL 18 RLS integration
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/http-pg/**'
+      - 'apps/portal/labs/client-auth/LabSecureLogin.php'
+      - '.github/workflows/portal-f6-http-pg-mfa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f6-http-pg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-http-mfa-pg:
+    if: github.head_ref == 'feat/portal-f6-http-pg-mfa-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GITHUB_ACTIONS: 'true'
+      PORTAL_HTTP_PG_LAB: '1'
+      PORTAL_CLIENT_LAB_ENABLED: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_lab
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: portal-lab-admin-only
+          POSTGRES_DB: portal_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - name: Checkout isolated PR, no persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 and PostgreSQL extension
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Install Composer lock only and generate disposable APP_KEY
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache
+          git diff --exit-code -- composer.lock
+
+      - name: Validate isolation guards and PHP/Python syntax
+        run: |
+          set -euo pipefail
+          php -l labs/http-pg/router.php
+          php -l labs/http-pg/seed_lab.php
+          php -l labs/http-pg/revoke_lab.php
+          php -l labs/client-auth/LabSecureLogin.php
+          python3 -m py_compile labs/http-pg/test_http_pg.py
+          if grep -R "http-pg/router.php" routes/ bootstrap/ app/; then
+            echo "ERROR: F6 router referenced by operational app"; exit 1
+          fi
+          if grep -R "PORTAL_HTTP_PG_LAB" routes/ bootstrap/ app/; then
+            echo "ERROR: F6 env flag referenced by operational app"; exit 1
+          fi
+
+      - name: Create synthetic PG role and run all historical PG tests
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_USERNAME: postgres
+          DB_PASSWORD: portal-lab-admin-only
+          SESSION_DRIVER: array
+          LOG_CHANNEL: stderr
+        run: |
+          set -euo pipefail
+          php labs/client-auth/bootstrap_lab.php
+          php vendor/bin/phpunit --configuration=labs/client-auth/phpunit-lab.xml --colors=never --no-progress
+
+      - name: Seed fresh artificial accounts after isolated regression
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_USERNAME: postgres
+          DB_PASSWORD: portal-lab-admin-only
+          SESSION_DRIVER: array
+          LOG_CHANNEL: stderr
+        run: |
+          set -euo pipefail
+          php labs/http-pg/seed_lab.php
+
+      - name: Start loopback-only Laravel HTTP with least privilege PG role and verify
+        env:
+          APP_ENV: local
+          APP_DEBUG: 'false'
+          APP_URL: http://127.0.0.1:18947
+          DB_USERNAME: portal_lab_runtime
+          DB_PASSWORD: portal-lab-runtime-only
+          SESSION_DRIVER: file
+          SESSION_COOKIE: portal_f6_session
+          SESSION_SAME_SITE: strict
+          SESSION_HTTP_ONLY: 'true'
+          SESSION_SECURE_COOKIE: 'false'
+          SESSION_ENCRYPT: 'true'
+          SESSION_LIFETIME: '15'
+          LOG_CHANNEL: stderr
+        run: |
+          set -euo pipefail
+          pid=''
+          cleanup() {
+            if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+
+          php -S 127.0.0.1:18947 labs/http-pg/router.php > "$RUNNER_TEMP/portal-f6-http.log" 2>&1 &
+          pid=$!
+          if ! python3 labs/http-pg/test_http_pg.py; then
+            echo "F6 HTTP test failure. Sanitized server log follows:"
+            tail -n 80 "$RUNNER_TEMP/portal-f6-http.log"
+            exit 1
+          fi
+          echo "[PASS F6] HTTP + PostgreSQL + MFA localhost synthetic integration complete."
+
+      - name: Verify product entrypoints and Composer remain unchanged
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- composer.lock routes/web.php bootstrap/app.php public/index.php
+          echo "[PASS F6 GUARD] no operational customer routes or deployments"
