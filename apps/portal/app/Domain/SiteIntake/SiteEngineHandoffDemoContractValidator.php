@@ -43,7 +43,7 @@ final readonly class SiteEngineHandoffDemoContractValidator
         } catch (JsonException) {
             return SiteEngineHandoffDemoValidationResult::denied('malformed_json');
         }
-        if (!is_array($decoded)) {
+        if (!is_array($decoded) || array_is_list($decoded)) {
             return SiteEngineHandoffDemoValidationResult::denied('malformed_json');
         }
 
