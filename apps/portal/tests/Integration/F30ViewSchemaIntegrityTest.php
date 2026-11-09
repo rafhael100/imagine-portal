@@ -91,10 +91,25 @@ final class F30ViewSchemaIntegrityTest extends TestCase
         self::assertFalse($page->grantsUniversityBenefit());
     }
 
+    private function syntheticDiagnostics(): string
+    {
+        $admin = $this->db('admin');
+        $schemas = $admin->query(
+            "SELECT nspname, nspacl::text AS acl, pg_get_userbyid(nspowner) AS owner
+               FROM pg_namespace WHERE nspname IN ('f21','f24') ORDER BY nspname"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        $view = $admin->query(
+            "SELECT relname, relacl::text AS acl, pg_get_userbyid(relowner) AS owner,
+                    md5(pg_get_viewdef(oid, false)) AS view_md5
+               FROM pg_class WHERE oid='f21.service_summary'::regclass"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        return json_encode(['schemas' => $schemas, 'view' => $view]) ?: 'fixture diagnostic error';
+    }
+
     private function healthy(): void
     {
         $a = $this->preview('a');
-        self::assertTrue($a->isPreparedPreview());
+        self::assertTrue($a->isPreparedPreview(), 'After restore: '.$a->reason.'; '.$this->syntheticDiagnostics());
         self::assertSame(4, $a->totalServices);
         self::assertSame(3, $a->totalRequests);
         self::assertSame(3, $a->totalContracts);
