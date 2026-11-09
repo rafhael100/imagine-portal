@@ -1,0 +1,122 @@
+name: Portal F22 - PHP Laravel adapter vs disposable PG18
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Labs/F22/**'
+      - 'apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php'
+      - 'apps/portal/tests/Integration/F22PgServiceReadIntegrationTest.php'
+      - 'apps/portal/labs/service-relations-f22/**'
+      - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
+  push:
+    branches:
+      - test/portal-f22-laravel-pg-readonly-adapter-2026-11-09
+    paths:
+      - 'apps/portal/app/Labs/F22/**'
+      - 'apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php'
+      - 'apps/portal/tests/Integration/F22PgServiceReadIntegrationTest.php'
+      - 'apps/portal/labs/service-relations-f22/**'
+      - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f22-read-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php-pdo-pgsql-lab:
+    name: PHP ${{ matrix.php }} / PG18 / per-role SQL access
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      F22_PG_CONTAINER: f22-db-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.php }}
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install PHP runtime and pdo_pgsql (runner only)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+
+      - name: Verify PHP and checked-in Composer lockfile
+        run: |
+          set -euo pipefail
+          php -r 'if (!extension_loaded("pdo_pgsql")) exit(2);'
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          php -l app/Labs/F22/SyntheticPgServiceReadAdapter.php
+          php -l tests/Integration/F22PgServiceReadIntegrationTest.php
+
+      - name: Exercise authenticated PDO connections against disposable PG18
+        run: |
+          set -euo pipefail
+          admin_password="$(openssl rand -hex 32)"
+          role_a_password="$(openssl rand -hex 32)"
+          role_b_password="$(openssl rand -hex 32)"
+          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password"
+          # Only loopback host binding: 127.0.0.1 random ephemeral port.
+          # No domain, no customer account, no durable volumes, no VPS.
+          docker run -d --rm --name "$F22_PG_CONTAINER" \
+            --publish 127.0.0.1::5432 \
+            -e POSTGRES_PASSWORD="$admin_password" \
+            -e POSTGRES_INITDB_ARGS="--auth-host=scram-sha-256" \
+            postgres:18 >/dev/null
+          trap 'docker rm -fv "$F22_PG_CONTAINER" >/dev/null 2>&1 || true' EXIT
+
+          for attempt in $(seq 1 50); do
+            if docker exec "$F22_PG_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec "$F22_PG_CONTAINER" pg_isready -U postgres >/dev/null
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f21/schema.sql >/dev/null
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -v "password_a=$role_a_password" -v "password_b=$role_b_password" <<'SQL'
+          ALTER ROLE f21_org_a PASSWORD :'password_a';
+          ALTER ROLE f21_org_b PASSWORD :'password_b';
+          SQL
+
+          # Parse the ephemeral loopback host port without displaying secrets.
+          mapped_port="$(docker port "$F22_PG_CONTAINER" 5432/tcp)"
+          port="$(printf '%s\n' "$mapped_port" | awk -F: 'END {print $NF}')"
+          if [[ ! "$port" =~ ^[0-9]{4,5}$ ]]; then
+            echo "F22 requires a random local PostgreSQL host port." >&2
+            exit 1
+          fi
+          echo "F22 PostgreSQL 18 available exclusively at localhost:ephemeral."
+          export F22_ENABLE_LAB=NON_OPERATIONAL_F22
+          export F22_PG_HOST=127.0.0.1
+          export F22_PG_PORT="$port"
+          export F22_PG_PASSWORD_A="$role_a_password"
+          export F22_PG_PASSWORD_B="$role_b_password"
+          export F22_PG_PASSWORD_ADMIN="$admin_password"
+
+          # phpunit.xml does not discover tests/Integration automatically;
+          # target this file explicitly, without modifying Laravel routes.
+          vendor/bin/phpunit --configuration phpunit.xml \
+            tests/Integration/F22PgServiceReadIntegrationTest.php
+
+          echo "F22 LAB ONLY: PHP PDO verified local DB identities and RLS; no real IAM."
+          echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
+          echo "F22 LAB ONLY: P0, D02/D03, SEC-R03, release still BLOCKED."
