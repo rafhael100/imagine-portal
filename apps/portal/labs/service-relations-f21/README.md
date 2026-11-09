@@ -16,8 +16,10 @@ Este F21 não cria Eloquent Models, migrations nem conexões SQL da aplicação.
 - Tabelas sob o schema **f21**, isolado: `service`, `request`, `contract`.
 - Cada linha e cada chave primária e estrangeira tem **organization_id**
   como parte da chave; impede referência cruzada entre empresas.
-- Roles de laboratório `f21_org_a` e `f21_org_b`, sem login nem herança;
-  somente SELECT; sem direitos de INSERT/UPDATE/DELETE/DDL.
+- Roles de laboratório `f21_org_a` e `f21_org_b`, com LOGIN restrito
+  a sessões locais descartáveis e sem herança; somente SELECT,
+  sem direitos de INSERT/UPDATE/DELETE/DDL. Os testes conectam
+  como cada role real, em vez de usar uma sessão superusuária.
 - Políticas RLS específicas por role e `session_user`, com ENABLE + FORCE
   RLS nas três tabelas. **Não** confiam em `current_setting('app.tenant_id')`
   fornecido por um chamador.
@@ -63,9 +65,11 @@ e schema e pressupõe superusuário de teste.
 ## Restrições cruciais
 
 - O runner usa superusuário de testes para executar
-  `SET SESSION AUTHORIZATION` e simular `session_user` A/B.
-  Isso não autentica usuário real, nem prova que uma aplicação
-  comprometida não possa escolher outra identidade no serviço.
+  a conexão local `postgres` **exclusivamente para criar as fixtures**.
+  Os testes do usuário A e B se conectam como roles SQL distintos com
+  privilégios de leitura. A conexão local depende da confiança do
+  container descartável; isso não autentica usuário real, nem prova que
+  uma aplicação comprometida não possa escolher outra identidade no serviço.
 - Um banco de produção exige identidade derivada de um emissor confiável,
   conexão sem SUPERUSER/BYPASSRLS, política de pool, escopo por tenant,
   segregação de owner/migrator e revisão de AppSec/DBA.
