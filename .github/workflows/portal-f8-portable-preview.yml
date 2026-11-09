@@ -1,0 +1,113 @@
+name: Portal F8 - downloadable navigable offline preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/preview/**'
+      - '.github/workflows/portal-f8-portable-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f8-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable-blade-preview:
+    if: github.head_ref == 'feat/portal-f8-portable-preview-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - name: Checkout preview-only PR without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: PHP 8.4 for synthetic Laravel Blade render
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, curl, fileinfo, intl, bcmath, zip
+
+      - name: Node.js 22 for real Chromium CDP tests
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install only existing Composer lock dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+
+      - name: Build portable single-file Blade preview under runner temp
+        shell: bash
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/Imagine-Portal-Demonstracao/index.html
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$PVIEW_RENDER_FILE")"
+          php -l apps/portal/preview/tests/render_blade_preview.php
+          php apps/portal/preview/tests/render_blade_preview.php
+          test -s "$PVIEW_RENDER_FILE"
+          test "$(grep -o 'data-screen=' "$PVIEW_RENDER_FILE" | wc -l)" -eq 8
+          if grep -Eiq '<(form|iframe)([[:space:]>])' "$PVIEW_RENDER_FILE"; then
+            echo "ERROR: a real form/iframe appeared in the synthetic preview"
+            exit 1
+          fi
+          cat > "$(dirname "$PVIEW_RENDER_FILE")/LEIA-ME.txt" <<'TEXT'
+          IMAGINE PORTAL - DEMONSTRACAO NAVEGAVEL OFFLINE
+
+          1. Extraia o arquivo ZIP que o GitHub Actions forneceu.
+          2. Abra index.html com Chrome, Firefox ou Edge.
+          3. Navegue pelas oito areas com a barra lateral ou os links.
+          4. Nao e necessario servidor, internet, login, senha, instalacao,
+             banco de dados, VPS nem Cloudflare.
+
+          IMPORTANTE: todas as empresas, servicos, contratos, numeros,
+          pedidos e estados exibidos sao inteiramente FICTICIOS.
+          Nenhum botao executa contratacao, pagamento ou suporte.
+          Esta previa NAO representa uma area de clientes autenticada.
+          A interface operacional continua bloqueada por homologacao.
+          TEXT
+
+      - name: Validate offline navigation in Chromium at three screen sizes
+        shell: bash
+        env:
+          PVIEW_HTML_FILE: ${{ runner.temp }}/Imagine-Portal-Demonstracao/index.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: imagine-portal-f8
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/Imagine-Portal-Demonstracao/capturas
+        run: |
+          set -euo pipefail
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          node apps/portal/preview/tests/pview_browser_check.mjs
+          test -f "$PVIEW_HTML_FILE"
+          echo "[PASS PVIEW-F8] Single-file offline Blade demo with 8 navigable fictional screens verified in Chromium"
+
+      - name: Upload portable HTML, instructions and synthetic screenshots
+        uses: actions/upload-artifact@v5
+        with:
+          name: Imagine-Portal-Demonstracao-Navegavel
+          path: ${{ runner.temp }}/Imagine-Portal-Demonstracao/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: false
+
+      - name: Verify no product route or dependency was touched
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- apps/portal/routes/web.php apps/portal/bootstrap/app.php apps/portal/public/index.php apps/portal/composer.lock
+          echo "[PASS PVIEW-F8] No merge, no deploy, no public URL, no operational customer route"
