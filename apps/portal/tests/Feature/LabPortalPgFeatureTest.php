@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Labs\ClientAuth\LabMembershipFence;
+use App\Labs\ClientAuth\LabPortalGateway;
 use App\Labs\ClientAuth\LabTotp;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -532,6 +534,119 @@ final class LabPortalPgFeatureTest extends TestCase
             ->where('org_id', 'org-a')->count());
         $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')
             ->where('org_id', 'org-b')->count());
+    }
+
+
+    public function test_f4_writer_first_holds_grant_lock_until_commit_then_revoker_succeeds(): void
+    {
+        $writer = DB::connection('portal_lab_runtime');
+        $revoker = DB::connection('pgsql');
+        $this->assertNotSame(
+            $writer->selectOne('SELECT pg_backend_pid() AS pid')->pid,
+            $revoker->selectOne('SELECT pg_backend_pid() AS pid')->pid,
+            'F4 needs genuinely independent PostgreSQL backend connections.',
+        );
+
+        $writer->beginTransaction();
+
+        try {
+            // Real synthetic write runs under nested transaction/savepoint.
+            // Shared lock must survive its inner COMMIT until outer COMMIT.
+            $result = app(LabPortalGateway::class)->submitIdempotentRequest(
+                'portal-user-a',
+                'org-a',
+                'service-a',
+                'F4 synthetic writer before revoke',
+                'F4-WRITER-FIRST-2026',
+            );
+            $this->assertSame('created', $result['outcome']);
+
+            $revoker->beginTransaction();
+            try {
+                $revoker->statement("SET LOCAL lock_timeout = '180ms'");
+
+                try {
+                    LabMembershipFence::lockRevoker($revoker, 'portal-user-a', 'org-a');
+                    $this->fail('Exclusive revocation acquired a lock while writer had shared lock.');
+                } catch (QueryException $exception) {
+                    $this->assertStringContainsString('lock timeout', strtolower($exception->getMessage()));
+                }
+            } finally {
+                if ($revoker->transactionLevel() > 0) {
+                    $revoker->rollBack();
+                }
+            }
+
+            // Writer may finish before revocation commits, not afterwards.
+            $writer->commit();
+            $this->assertSame(1, LabMembershipFence::revoke('portal-user-a', 'org-a'));
+            $this->assertNull(app(LabPortalGateway::class)->submitIdempotentRequest(
+                'portal-user-a', 'org-a', 'service-a',
+                'F4 rejected after revocation', 'F4-AFTER-REVOCATION',
+            ));
+            $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_requests')->count());
+        } finally {
+            if ($writer->transactionLevel() > 0) {
+                $writer->rollBack();
+            }
+            if ($revoker->transactionLevel() > 0) {
+                $revoker->rollBack();
+            }
+        }
+    }
+
+    public function test_f4_revoker_first_blocks_writer_then_rechecks_revoked_membership(): void
+    {
+        $writer = DB::connection('portal_lab_runtime');
+        $revoker = DB::connection('pgsql');
+        $this->assertNotSame(
+            $writer->selectOne('SELECT pg_backend_pid() AS pid')->pid,
+            $revoker->selectOne('SELECT pg_backend_pid() AS pid')->pid,
+        );
+
+        $revoker->beginTransaction();
+
+        try {
+            LabMembershipFence::lockRevoker($revoker, 'portal-user-a', 'org-a');
+            $revoker->table('lab_portal_memberships')
+                ->where('org_id', 'org-a')->where('user_id', 'portal-user-a')
+                ->update(['status' => 'revoked']);
+
+            // On independent DB connection, the write must wait for the
+            // revoker's exclusive lock. lock_timeout bounds this lab test.
+            $writer->statement("SET lock_timeout = '180ms'");
+            try {
+                try {
+                    app(LabPortalGateway::class)->submitIdempotentRequest(
+                        'portal-user-a', 'org-a', 'service-a',
+                        'F4 must not bypass pending revocation', 'F4-REVOKER-FIRST',
+                    );
+                    $this->fail('Writer bypassed the open revocation transaction.');
+                } catch (QueryException $exception) {
+                    $this->assertStringContainsString('lock timeout', strtolower($exception->getMessage()));
+                }
+            } finally {
+                $writer->statement('RESET lock_timeout');
+            }
+
+            $revoker->commit();
+
+            // After revocation commits, the lock is available, but current
+            // membership is revoked. Rechecking MUST reject the write.
+            $this->assertNull(app(LabPortalGateway::class)->submitIdempotentRequest(
+                'portal-user-a', 'org-a', 'service-a',
+                'F4 rejected after revocation', 'F4-POST-COMMIT',
+            ));
+            $this->assertSame(0, $revoker->table('lab_portal_requests')->count());
+        } finally {
+            if ($revoker->transactionLevel() > 0) {
+                $revoker->rollBack();
+            }
+            if ($writer->transactionLevel() > 0) {
+                $writer->rollBack();
+            }
+            $writer->statement('RESET lock_timeout');
+        }
     }
 
 }
