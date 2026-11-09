@@ -10,6 +10,8 @@ on:
       - 'apps/portal/labs/service-relations-f25/**'
       - 'apps/portal/app/Labs/F24/**'
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
+      - 'apps/portal/app/Labs/F26/**'
+      - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
   push:
     branches:
@@ -23,6 +25,8 @@ on:
       - 'apps/portal/labs/service-relations-f25/**'
       - 'apps/portal/app/Labs/F24/**'
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
+      - 'apps/portal/app/Labs/F26/**'
+      - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
 
 permissions:
@@ -74,6 +78,8 @@ jobs:
           php -l app/Labs/F24/F24LabSessionProof.php
           php -l app/Labs/F24/F24SyntheticAuthorizedReader.php
           php -l tests/Integration/F24SessionRevocationIntegrationTest.php
+          php -l app/Labs/F26/F26AuthorityReadRehearsal.php
+          php -l tests/Integration/F26AuthorityReadRehearsalTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
