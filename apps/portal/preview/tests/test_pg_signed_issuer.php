@@ -119,7 +119,7 @@ $check('22 wrong bearer cannot generate a claim',
     $sign('portal-f08-opaque-session-test-ccccccccccccccccccc'),null);
 $check('23 no bearer cannot generate a claim',
     $sign(''),null);
-$check('24 foreign organization's session cannot sign for service A',
+$check('24 another organization session cannot sign for service A',
     $sign('portal-f08-opaque-session-test-bbbbbbbbbbbbbbbbbbb'),null);
 $check('25 caller cannot select service B',
     $sign($token,'svc-demo-b'),null);
