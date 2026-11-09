@@ -41,6 +41,7 @@ jobs:
       DB_DATABASE: portal_lab
       DB_USERNAME: postgres
       DB_PASSWORD: portal-lab-admin-only
+      PGPASSWORD: portal-lab-admin-only
       SESSION_DRIVER: array
       CACHE_STORE: array
       QUEUE_CONNECTION: sync
