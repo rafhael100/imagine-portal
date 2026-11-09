@@ -38,7 +38,7 @@ $connect = static fn (string $role, string $password): PDO => new PDO(
 );
 // Portal F11 gives the worker only SELECT of the service outbox. A dedicated
 // ACK role is created by the disposable CI and cannot mutate service grants.
-$reader = $connect('portal_lab_worker', 'portal-lab-worker-only');
+$reader = $connect('portal_perf_source_reader', 'ci-only-portal-perf-reader');
 $acker = $connect('portal_perf_ack_demo', 'ci-only-portal-perf-ack');
 
 $statement = $reader->query(
