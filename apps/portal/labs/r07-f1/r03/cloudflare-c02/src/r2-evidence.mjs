@@ -24,7 +24,7 @@ export async function planEvidence({
   previousDigest = null,
   fixture = "NON_OPERATIONAL_LAB",
 }) {
-  if (!KEY.test(installation)
+  if (typeof installation !== "string" || !KEY.test(installation)
     || !Number.isSafeInteger(generation) || generation < 1
     || !Number.isSafeInteger(sequence) || sequence < 1
     || !ALLOWED.has(kind)
