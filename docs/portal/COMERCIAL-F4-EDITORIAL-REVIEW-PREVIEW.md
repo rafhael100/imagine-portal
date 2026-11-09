@@ -16,3 +16,8 @@
 Construir adaptadores autenticados ao repositório transacional do Portal, permissões de editor/revisor/publicador, outbox e trilha de auditoria por empresa; só depois expor rota protegida. Testar alterações na integridade do catálogo, rollback e envio assinado ao build Astro.
 
 PR draft empilhado sobre F3, sem merge main ou deploy.
+
+## Exportação HTML offline
+- `php bin/export-commercial-editorial-demo.php artifacts/editorial-demo/LEIA-ME-preview-interno.html` a partir de `apps/portal` após `composer install`.
+- GitHub Actions arquiva somente a prévia HTML fictícia, sem rota, dados de clientes ou autenticação.
+- A prévia serve para revisar o layout, não para editar, aprovar ou publicar.
