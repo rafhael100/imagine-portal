@@ -47,6 +47,7 @@ psql_lab < apps/portal/labs/service-relations-f21/schema.sql >/dev/null
 printf '[PASS F21] Disposable PG18 schema/fixtures created with RLS on all three tables\n'
 
 audit="$(psql_lab <<'SQL'
+SELECT 'pg_major=' || (current_setting('server_version_num')::int / 10000);
 SELECT 'rls_tables=' || count(*)
   FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='f21' AND c.relname IN ('service','request','contract')
@@ -56,6 +57,7 @@ SELECT 'security_invoker=' || ('security_invoker=true' = ANY(c.reloptions))::tex
  WHERE n.nspname='f21' AND c.relname='service_summary';
 SQL
 )"
+assert_contains "$audit" "pg_major=18"
 assert_contains "$audit" "rls_tables=3"
 assert_contains "$audit" "security_invoker=true"
 
@@ -106,10 +108,13 @@ SELECT 'spoofed_guc_still_a=' || count(*)
   FROM f21.service WHERE organization_id='org-a';
 SELECT 'spoofed_guc_sees_b=' || count(*)
   FROM f21.service WHERE organization_id='org-b';
+SELECT 'spoofed_guc_view_sees_b=' || count(*)
+  FROM f21.service_summary WHERE organization_id='org-b';
 SQL
 )"
 assert_contains "$forged" "spoofed_guc_still_a=4"
 assert_contains "$forged" "spoofed_guc_sees_b=0"
+assert_contains "$forged" "spoofed_guc_view_sees_b=0"
 
 expect_denied "read-only A cannot INSERT" f21_org_a \
   "INSERT INTO f21.service VALUES ('org-a','DEMO-SVC-INJECTED','Never');"
