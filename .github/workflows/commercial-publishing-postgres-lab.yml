@@ -46,7 +46,13 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Criar somente ledger de laboratório, sem Laravel migrations
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema.sql
+      - name: Criar barreira experimental de revogacao e ledger de dispatch F7
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f7.sql
       - name: Provar isolamento RLS e rejeicoes de historico em dados ficticios
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-ledger.sql
+      - name: Provar revogacao, reativacao, RLS e bloqueio de geracao obsoleta
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f7-revocation.sql
+      - name: Provar idempotencia contra duas conexoes simultaneas
+        run: bash apps/portal/labs/commercial-publishing/test-f7-race.sh
       - name: Confirmar ausencia de ambiente operacional
         run: echo "Somente banco descartavel no service container de GitHub Actions; sem VPS, API, tenants ou chaves reais."
