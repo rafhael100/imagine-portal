@@ -1,0 +1,100 @@
+name: Portal PERF-F14 - restricted outbox dispatcher preparation
+
+on:
+  push:
+    branches:
+      - feat/portal-perf-f14-loopback-outbox-dispatcher-2026-11-09
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-perf-f14-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restricted-dispatch-lab:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: portal-lab-admin-only
+          POSTGRES_DB: portal_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_CLIENT_LAB_ENABLED: '1'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: portal-lab-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: PHP 8.4 Composer with local PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring,dom,xml,pdo,pdo_pgsql,curl,fileinfo,intl,bcmath,zip
+      - name: Validate no operational routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/performance-contract/dispatch-loopback-outbox.php
+          bash -n <(printf '%s\n' 'true')
+          if grep -R 'dispatch-loopback-outbox' apps/portal/routes/ apps/portal/app/ apps/portal/bootstrap/; then
+            echo 'F14 laboratory dispatcher wired to operational Portal'
+            exit 1
+          fi
+      - name: Install locked Portal dependencies and verify historical MFA tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-progress --no-interaction --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php labs/client-auth/bootstrap_lab.php
+          php vendor/bin/phpunit --configuration=labs/client-auth/phpunit-lab.xml --no-progress
+      - name: Create synthetic revoke and restricted F14 roles
+        shell: bash
+        env:
+          PORTAL_PERF_F11_LAB_ENABLED: '1'
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          php labs/performance-contract/test-perf-f11-revocation.php
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres -d portal_lab -f labs/performance-contract/portal-perf-f14-restricted-roles.sql
+          export PORTAL_PERF_F14_LAB_ENABLED=1
+          export PORTAL_PERF_F14_DISPATCH_MODE=transport_loss
+          export PERF_WIRE_LAB_TEST_KEY_HEX="$(php -r 'echo bin2hex(random_bytes(32));')"
+          php labs/performance-contract/dispatch-loopback-outbox.php
+          test "$(psql -X -A -t -h 127.0.0.1 -U postgres -d portal_lab -c "SELECT status FROM lab_portal_perf_revocation_outbox WHERE service_ref='svc-demo-b'")" = pending
+          test "$(psql -X -A -t -h 127.0.0.1 -U postgres -d portal_lab -c "SELECT attempts FROM lab_portal_perf_revocation_outbox WHERE service_ref='svc-demo-b'")" = 0
+      - name: Guard production entrypoints and Composer lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- apps/portal/composer.lock apps/portal/routes/web.php apps/portal/bootstrap/app.php
