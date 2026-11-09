@@ -68,6 +68,7 @@ final readonly class DemoServiceRelationPage
             'missing_organization', 'invalid_fixture_input', 'duplicate_reference',
             'foreign_organization', 'inconsistent_service_reference',
             'invalid_pagination', 'unknown_cursor',
+            'source_unavailable', 'untrusted_db_session',
         ], true)) {
             throw new InvalidArgumentException('Unknown relation preview rejection.');
         }
