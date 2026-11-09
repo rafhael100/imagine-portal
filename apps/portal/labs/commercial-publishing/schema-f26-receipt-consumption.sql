@@ -113,7 +113,7 @@ CREATE FUNCTION commercial_publishing_lab.consume_preverified_delivery_receipt(
 ) RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER AS $lab$
 DECLARE
   current_gen bigint; enabled_now boolean;
-  dispatch_gen bigint; dispatch_digest text; dispatch_id text;
+  dispatch_gen bigint; dispatch_digest text; receipt_dispatch_id text;
   build_tree text; build_destination text; build_environment text;
   lease_gen bigint; lease_attempt bigint; lease_digest text;
   lease_expires timestamptz; lease_acked timestamptz;
@@ -132,13 +132,13 @@ BEGIN
      current_gen IS DISTINCT FROM p_generation THEN
     RAISE EXCEPTION 'receipt: revoked or stale authority generation';
   END IF;
-  SELECT generation,payload_sha256,dispatch_id
-    INTO dispatch_gen,dispatch_digest,dispatch_id
-    FROM commercial_publishing_lab.dispatch_receipts
-    WHERE organization_id=p_org AND release_id=p_release;
+  SELECT r.generation,r.payload_sha256,r.dispatch_id
+    INTO dispatch_gen,dispatch_digest,receipt_dispatch_id
+    FROM commercial_publishing_lab.dispatch_receipts r
+    WHERE r.organization_id=p_org AND r.release_id=p_release;
   IF NOT FOUND OR dispatch_gen IS DISTINCT FROM p_generation OR
      dispatch_digest IS DISTINCT FROM p_payload OR
-     dispatch_id IS DISTINCT FROM p_dispatch THEN
+     receipt_dispatch_id IS DISTINCT FROM p_dispatch THEN
     RAISE EXCEPTION 'receipt: dispatch identity mismatch';
   END IF;
   SELECT tree_sha256,destination_id,environment
