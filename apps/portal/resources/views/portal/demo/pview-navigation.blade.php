@@ -64,12 +64,7 @@
                 <div class="pi-empty"><h2>Nenhum contrato conectado</h2><p>Esta demonstração não carrega informações financeiras, assinaturas, documentos jurídicos, cartões ou pagamentos.</p><a class="pi-link" href="#pview-catalog">Explorar produtos ilustrativos</a></div>
 
             @elseif ($section === \App\Presentation\PviewSection::Performance)
-                <div class="pi-grid">
-                    <article class="pi-card"><div class="pi-metric-label">Campanhas</div><div class="pi-metric-value">—</div><div class="pi-metric-note">Nenhuma campanha conectada</div></article>
-                    <article class="pi-card"><div class="pi-metric-label">Investimento em mídia</div><div class="pi-metric-value">—</div><div class="pi-metric-note">Nenhum valor real exibido</div></article>
-                    <article class="pi-card"><div class="pi-metric-label">Leads</div><div class="pi-metric-value">—</div><div class="pi-metric-note">Nenhuma integração ativa</div></article>
-                </div>
-                <div class="pi-soft pi-section-gap"><h2>Imagine Performance AI — conceito de painel</h2><p>O motor de campanhas será um serviço separado. Este mock não acessa Google, Meta, CRM, recarga ou pagamento.</p></div>
+                <x-portal.pview-performance-detail />
 
             @elseif ($section === \App\Presentation\PviewSection::University)
                 <div class="pi-grid">
