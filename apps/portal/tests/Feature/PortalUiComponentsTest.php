@@ -121,7 +121,7 @@ final class PortalUiComponentsTest extends TestCase
         self::assertSame($routesBefore, $routesAfter);
         // Existing framework routes: health-check and the local disk's signed file endpoint.
         // The filesystem already has serve=true; rendering must not add any routes.
-        self::assertSame(['up', 'storage/{path}'], array_values(array_unique(array_column($routesAfter, 1))));
+        self::assertSame(['up'], array_values(array_unique(array_column($routesAfter, 1))));
         self::assertFalse($this->app['session']->isStarted());
     }
 }
