@@ -9,7 +9,7 @@ O Portal é tratado como autoridade conceitual de identidade, vínculo e estado 
 - `LabPerformanceRevocationPublisher` verifica sessão MFA fictícia, organização e perfil de laboratório, adquire lock exclusivo F4, revalida associação, usuário e empresa ativos, bloqueia a linha do serviço e faz na **mesma transação SQL** (i) `active=false`, `revision=2`, (ii) insert do evento na `lab_portal_perf_revocation_outbox`.
 - O antigo `LabPerformanceMfaIssuer` ganha uma checagem extra de concessão e revisão no banco **somente quando `PORTAL_PERF_F11_LAB_ENABLED=1`**. Os testes F1-F10 não usam a nova tabela e continuam intactos.
 - O evento possui, nesta ordem, exatamente `event_id, service_ref, organization_ref, tenant_ref, source_revision, event_type, status, attempts` conforme o consumidor Performance F1-11. `perf-revocation-contract-v1.json` fixa o contrato de comparação; o evento não inclui sessão, e-mail, senha ou valor.
-- O script `test-perf-f11-revocation.php` executa **47 asserções**: MFA, isolamento, permissões reais SQL, rollback por conflito de `UNIQUE(service_ref, source_revision)`, idempotência da revogação e bloqueio de emissão após a revogação, além da conformidade do evento.
+- O script `test-perf-f11-revocation.php` executa **48 asserções**: MFA, isolamento, permissões reais SQL, rollback por conflito de `UNIQUE(service_ref, source_revision)`, idempotência da revogação e bloqueio de emissão após a revogação, além da conformidade do evento.
 - CI no runner público padrão, PHP 8.4, PostgreSQL 18 descartável; roda F1-F10 e depois F11. Sem ação de rede, webhook, fila, deploy ou alteração em produção.
 
 ## Limites explícitos
