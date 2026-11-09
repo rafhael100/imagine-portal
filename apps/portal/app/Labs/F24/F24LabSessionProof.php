@@ -117,6 +117,17 @@ final readonly class F24LabSessionProof
         return $this->claims['sid'];
     }
 
+    /** Monotonic revision claims in the deliberately fake F24 envelope. */
+    public function syntheticSessionRevision(): int
+    {
+        return $this->claims['srev'];
+    }
+
+    public function syntheticMembershipRevision(): int
+    {
+        return $this->claims['mrev'];
+    }
+
     /**
      * These fixed public identifiers are NOT secrets. Session-level shared
      * lock must be acquired BEFORE starting the REPEATABLE READ snapshot.
