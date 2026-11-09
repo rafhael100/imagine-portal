@@ -1,0 +1,93 @@
+name: Portal PERF-F10 - MFA tenant grant lab and synthetic Performance contract
+
+on:
+  push:
+    branches:
+      - feat/portal-perf-f10-mfa-grant-issuer-lab-2026-11-08
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-perf-f10-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-portal-identity:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: portal-lab-admin-only
+          POSTGRES_DB: portal_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PORTAL_CLIENT_LAB_ENABLED: '1'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: portal-lab-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Setup PHP 8.4 Composer and PDO PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+      - name: Verify locked dependencies with no hooks, migration or deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+      - name: Syntax and production-route isolation guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/client-auth/LabPerformanceMfaIssuer.php
+          php -l apps/portal/labs/performance-contract/SyntheticS2SProtocol.php
+          php -l apps/portal/tests/Feature/LabPortalPgFeatureTest.php
+          if grep -R "LabPerformanceMfaIssuer" apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/; then
+            echo 'FAIL: laboratory issuer referenced by operational application'
+            exit 1
+          fi
+      - name: Bootstrap restricted SQL roles, run existing F1-F7 + new F10 PG laboratory suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          php labs/client-auth/bootstrap_lab.php
+          php vendor/bin/phpunit --configuration=labs/client-auth/phpunit-lab.xml --no-progress
+      - name: Confirm all relevant entrypoints remain unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          git diff --exit-code -- composer.lock routes/web.php bootstrap/app.php public/index.php
