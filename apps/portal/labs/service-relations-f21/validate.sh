@@ -8,6 +8,15 @@ psql_lab() {
   docker exec -i "$F21_PG_CONTAINER" \
     psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres
 }
+psql_role() {
+  local role="$1"
+  if [[ "$role" != "f21_org_a" && "$role" != "f21_org_b" ]]; then
+    printf 'Refuse non-laboratory SQL session role.\n' >&2
+    return 1
+  fi
+  docker exec -i "$F21_PG_CONTAINER" \
+    psql -X -qAt -v ON_ERROR_STOP=1 -U "$role" -d postgres
+}
 assert_contains() {
   local output="$1" expected="$2"
   if ! grep -Fxq -- "$expected" <<< "$output"; then
@@ -17,8 +26,17 @@ assert_contains() {
   printf '[PASS F21] %s\n' "$expected"
 }
 expect_denied() {
-  local label="$1" sql="$2"
-  if printf '%s\n' "$sql" | psql_lab >/dev/null 2>&1; then
+  local label="$1" role="$2" sql="$3"
+  if [[ "$role" != "postgres" && "$role" != "f21_org_a" && "$role" != "f21_org_b" ]]; then
+    printf 'Unknown synthetic expected-deny role.\n' >&2
+    return 1
+  fi
+  if [[ "$role" == "postgres" ]]; then
+    if printf '%s\n' "$sql" | psql_lab >/dev/null 2>&1; then
+      printf '[FAIL F21] Denied action succeeded: %s\n' "$label" >&2
+      exit 1
+    fi
+  elif printf '%s\n' "$sql" | psql_role "$role" >/dev/null 2>&1; then
     printf '[FAIL F21] Denied action succeeded: %s\n' "$label" >&2
     exit 1
   fi
@@ -41,8 +59,7 @@ SQL
 assert_contains "$audit" "rls_tables=3"
 assert_contains "$audit" "security_invoker=true"
 
-a="$(psql_lab <<'SQL'
-SET SESSION AUTHORIZATION f21_org_a;
+a="$(psql_role f21_org_a <<'SQL'
 SELECT 'a_identity=' || session_user;
 SELECT 'a_services=' || count(*) FROM f21.service;
 SELECT 'a_requests=' || count(*) FROM f21.request;
@@ -66,8 +83,7 @@ for result in \
   a_zero=0:0 a_onepage=2:1 a_landing=0:2 a_summary_totals=3:3
 do assert_contains "$a" "$result"; done
 
-b="$(psql_lab <<'SQL'
-SET SESSION AUTHORIZATION f21_org_b;
+b="$(psql_role f21_org_b <<'SQL'
 SELECT 'b_identity=' || session_user;
 SELECT 'b_services=' || count(*) FROM f21.service;
 SELECT 'b_requests=' || count(*) FROM f21.request;
@@ -84,8 +100,7 @@ for result in \
 do assert_contains "$b" "$result"; done
 
 # This GUC is controlled by a mock caller; it MUST NOT affect RLS.
-forged="$(psql_lab <<'SQL'
-SET SESSION AUTHORIZATION f21_org_a;
+forged="$(psql_role f21_org_a <<'SQL'
 SET app.tenant_id = 'org-b';
 SELECT 'spoofed_guc_still_a=' || count(*)
   FROM f21.service WHERE organization_id='org-a';
@@ -96,19 +111,19 @@ SQL
 assert_contains "$forged" "spoofed_guc_still_a=4"
 assert_contains "$forged" "spoofed_guc_sees_b=0"
 
-expect_denied "read-only A cannot INSERT" \
-  "SET SESSION AUTHORIZATION f21_org_a; INSERT INTO f21.service VALUES ('org-a','DEMO-SVC-INJECTED','Never');"
-expect_denied "read-only B cannot DELETE" \
-  "SET SESSION AUTHORIZATION f21_org_b; DELETE FROM f21.service WHERE organization_id='org-a';"
-expect_denied "read-only A cannot UPDATE foreign row" \
-  "SET SESSION AUTHORIZATION f21_org_a; UPDATE f21.service SET label='Bad' WHERE organization_id='org-b';"
-expect_denied "A cannot SET ROLE B" \
-  "SET SESSION AUTHORIZATION f21_org_a; SET ROLE f21_org_b;"
-expect_denied "A cannot impersonate B session user" \
-  "SET SESSION AUTHORIZATION f21_org_a; SET SESSION AUTHORIZATION f21_org_b;"
-expect_denied "A cannot ALTER security policy" \
-  "SET SESSION AUTHORIZATION f21_org_a; ALTER TABLE f21.service DISABLE ROW LEVEL SECURITY;"
-expect_denied "cross-tenant composite FK rejected even for fixture owner" \
+expect_denied "read-only A cannot INSERT" f21_org_a \
+  "INSERT INTO f21.service VALUES ('org-a','DEMO-SVC-INJECTED','Never');"
+expect_denied "read-only B cannot DELETE" f21_org_b \
+  "DELETE FROM f21.service WHERE organization_id='org-a';"
+expect_denied "read-only A cannot UPDATE foreign row" f21_org_a \
+  "UPDATE f21.service SET label='Bad' WHERE organization_id='org-b';"
+expect_denied "A cannot SET ROLE B" f21_org_a \
+  "SET ROLE f21_org_b;"
+expect_denied "A cannot impersonate B session user" f21_org_a \
+  "SET SESSION AUTHORIZATION f21_org_b;"
+expect_denied "A cannot ALTER security policy" f21_org_a \
+  "ALTER TABLE f21.service DISABLE ROW LEVEL SECURITY;"
+expect_denied "cross-tenant composite FK rejected even for fixture owner" postgres \
   "INSERT INTO f21.request VALUES ('org-a','DEMO-REQ-FOREIGN-FK','DEMO-SVC-PRIVATE-B','draft');"
 
 post="$(psql_lab <<'SQL'
@@ -122,5 +137,5 @@ assert_contains "$post" "total_request_rows=4"
 assert_contains "$post" "total_contract_rows=4"
 
 printf '[F21] All synthetic PG18 assertions passed.\n'
-printf '[F21] WARNING: superuser-set SESSION AUTHORIZATION is a LAB FIXTURE, not real IAM.\n'
+printf '[F21] WARNING: local-socket login roles do not establish trusted application identity.\n'
 printf '[F21] WARNING: no real Laravel DB source, customer authorizer, grants or production RLS was tested.\n'
