@@ -8,6 +8,7 @@
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const IDENTIFIER = /^[a-z][a-z0-9-]{0,39}$/;
 const MODES = new Set(["DENY", "READY", "OPEN", "BLOCKED"]);
+const isId = (v) => typeof v === "string" && IDENTIFIER.test(v);
 
 export class LabDenied extends Error {
   constructor(reason) {
@@ -51,8 +52,8 @@ export function verifyState(state) {
       && state.restoreReceipt.digest === state.snapshotDigest
       && state.restoreReceipt.generation === state.generation
     ))
-    || state.revocations.some((r) => !r || !IDENTIFIER.test(r.actor)
-      || !IDENTIFIER.test(r.org))) {
+    || state.revocations.some((r) => !r || !isId(r.actor)
+      || !isId(r.org))) {
     deny("corrupt_z4_state");
   }
   return state;
@@ -95,8 +96,8 @@ export function transition(current, command) {
     }
     case "revoke": {
       checkSeq(current, command.expectedSequence);
-      if (current.mode !== "OPEN" || !IDENTIFIER.test(command.actor)
-        || !IDENTIFIER.test(command.org)) deny("invalid_revocation");
+      if (current.mode !== "OPEN" || !isId(command.actor)
+        || !isId(command.org)) deny("invalid_revocation");
       if (current.revocations.some((r) => r.actor === command.actor && r.org === command.org)) {
         return next; // idempotent within the synthetic state
       }
@@ -179,8 +180,8 @@ export function wouldAllowFixture(state, actor, org, generation, epoch) {
   return state.mode === "OPEN"
     && state.generation === generation
     && state.sessionEpoch === epoch
-    && IDENTIFIER.test(actor)
-    && IDENTIFIER.test(org)
+    && isId(actor)
+    && isId(org)
     && !state.revocations.some((r) => r.actor === actor && r.org === org);
 }
 
