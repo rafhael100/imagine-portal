@@ -28,6 +28,7 @@ O arquivo `.github/workflows/portal-sec-r03-model-c-lab.yml` executa sintaxe e t
 | Assunto da matriz | Experimento parcial nesta PoC | Limitação crítica |
 | --- | --- | --- |
 | X01/X02 — restore antigo / geração | Snapshot Z3 antigo, Z4 conserva geração e nega A | Mesmo runner; não é restore de host |
+| X03/X22 — rollback/cópia antiga do próprio Z4 | **KNOWN GAP reproduzido:** uma cópia antiga de Z4, sem âncora independente, autoriza o ator A já revogado pela Z4 atual | **Falha de segurança propositalmente demonstrada; NÃO passou o requisito de anti-rollback** |
 | X04/X05 — Z4 ausente | Arquivo Z4 retirado em teste, requisições negadas | Sem serviço externo HA ou timeout real |
 | X06/X24 — concorrência/repetição CAS | Duas threads tentam recuperar; uma vence | Sem dois coordenadores em hosts distintos |
 | X07/X08/X23 — writers e revogação | Lock SQLite impede commit sintético após corte; geração velha negada | Não prova commits distribuídos nem writers reais |
@@ -40,7 +41,7 @@ O arquivo `.github/workflows/portal-sec-r03-model-c-lab.yml` executa sintaxe e t
 
 ## Limitações e próximas decisões
 
-1. **Independência física de Z4 NÃO demonstrada.** Dois arquivos no mesmo GitHub runner podem ser perdidos/alterados no mesmo desastre. Um atacante com controle de arquivos ou operador privilegiado pode reverter Z4; falta âncora monotônica externa, cópias geograficamente independentes e ameaça real a administradores.
+1. **Independência física de Z4 NÃO demonstrada — e lacuna reproduzida.** O teste `test_known_gap_stale_z4_clone_can_authorize_without_independent_anchor` confirma que copiar a autoridade antes de uma revogação permite que uma instância desatualizada autorize um ator revogado pela autoridade vigente. O teste termina com `OK` porque verifica corretamente a existência desta **falha conhecida**, não porque o sistema seja seguro contra rollback de Z4. Dois arquivos no mesmo GitHub runner podem ser perdidos/alterados no mesmo desastre; falta âncora monotônica externa, prevenção de split-brain, cópias geograficamente independentes e ameaça real a administradores.
 2. **OPEN NÃO autentica aprovação humana.** O parâmetro `approval_fixture=True` é só teste de contrato e não equivale a assinatura de Diretor, controle de dupla custódia, WebAuthn ou autorização comercial.
 3. **Revogação e commit são simulados por locks locais.** Não existe transação distribuída Z3↔Z4, prova de linearização em PostgreSQL, workers/filas/n8n/CRM/Sites/Performance, revogação de tokens reais, sessões HTTPS, mTLS ou auditoria independente.
 4. **Z4 não é um produto selecionado ou contratado.** A topologia com domínio de falha separado, consistência CAS, custo, backups externos, manifesto completo de writers e recuperação de Z4 seguem sem escolha/homologação.
