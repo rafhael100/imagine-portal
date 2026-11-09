@@ -228,6 +228,12 @@ $check('26 event matches service', $event['service_ref'], 'svc-demo-b');
 $check('27 event organization is bound', $event['organization_ref'], 'org-demo-b');
 $check('28 event tenant is bound', $event['tenant_ref'], 'perf-demo-b');
 $check('29 event revision increases monotonically', $event['source_revision'], 2);
+$canonical = json_decode((string) file_get_contents(base_path(
+    'labs/performance-contract/perf-revocation-event-example-v1.json'
+)), true, 512, JSON_THROW_ON_ERROR);
+$normalized = $event;
+$normalized['event_id'] = $canonical['event_id']; // actual event IDs are generated server-side
+$check('29A emitted event values match pinned Performance example', $normalized, $canonical);
 $check('30 event status pending for retry', $event['status'], 'pending');
 $check('31 no actor or personal details in event',
     array_key_exists('actor_id', $event) || array_key_exists('email', $event)
