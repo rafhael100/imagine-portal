@@ -32,11 +32,11 @@ checagem do catálogo PostgreSQL como uma autoridade externa confiável.
   Retorna `null` se houver deriva, que o reconciliador interpreta
   como `ack_unavailable`, **nunca** como fila vazia nem
   confirmação válida.
-- `F36AckCatalogDriftTest.php` faz 10 testes com mudanças
+- `F36AckCatalogDriftTest.php` faz 11 testes com mudanças
   no **banco testemunha descartável**: baseline, RLS desabilitado,
   FORCE removido, policy `USING TRUE`, policy TO PUBLIC, policy
   extra permissiva, GRANT UPDATE indevido, GRANT SELECT PUBLIC,
-  role INHERIT, troca de proprietário. Cada teste usa
+  role INHERIT, vínculo inesperado entre roles, troca de proprietário. Cada teste usa
   `finally` para restaurar grants/owner e exige recuperação.
 - Os jobs GitHub Actions PHP 8.3/8.4 carregam o mesmo
   PostgreSQL 18 temporário de F31–F35 e executam F36
