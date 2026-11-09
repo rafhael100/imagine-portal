@@ -8,6 +8,7 @@ protection. All subjects, sessions, writers and effects are fictitious.
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 from pathlib import Path
 import shutil
 import sqlite3
@@ -43,7 +44,7 @@ class HybridLab:
         lab = cls(root)
         lab.z3.parent.mkdir(parents=True, exist_ok=True)
         lab.z4.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(lab.z4) as db:
+        with closing(sqlite3.connect(lab.z4)) as db:
             db.executescript("""
                 CREATE TABLE fence(
                     id INTEGER PRIMARY KEY CHECK (id=1),
@@ -66,7 +67,7 @@ class HybridLab:
                     PRIMARY KEY(digest,generation)
                 );
             """)
-        with sqlite3.connect(lab.z3) as db:
+        with closing(sqlite3.connect(lab.z3)) as db:
             db.executescript("""
                 CREATE TABLE membership(
                     subject TEXT NOT NULL, organization TEXT NOT NULL,
@@ -122,7 +123,7 @@ class HybridLab:
             raise Denied("Refuse overwriting a laboratory snapshot.")
         source = self._connect(self.z3)
         try:
-            with sqlite3.connect(target) as copy:
+            with closing(sqlite3.connect(target)) as copy:
                 source.backup(copy)
         finally:
             source.close()
@@ -241,10 +242,16 @@ class HybridLab:
             auth.close()
 
     def open_for_lab(self, expected_seq: int, approval_fixture: bool) -> None:
-        """A Boolean TEST FIXTURE is *not* independent human approval."""
+        """A Boolean TEST FIXTURE is *not* independent human approval.
+
+        Recheck *current* Z3 state against Z4 under both toy SQLite locks;
+        the recorded earlier reconcile alone is not sufficient to re-open.
+        This is still NOT a distributed barrier or privileged-owner defense.
+        """
         if approval_fixture is not True:
             raise Denied("Lab approval fixture absent.")
         auth = self._connect(self.z4)
+        data = None
         try:
             auth.execute("BEGIN IMMEDIATE")
             gen, seq, mode, _, reconciled, sha, manifest = self._state(auth)
@@ -252,12 +259,32 @@ class HybridLab:
                 raise Conflict("Stale lab OPEN attempt.")
             if mode != "READY" or not reconciled or not sha or manifest != MANIFEST:
                 raise Denied("Reconciliation incomplete.")
+            if auth.execute("""SELECT 1 FROM restore_receipt WHERE
+                               generation=? AND digest=?""",
+                            (gen, sha)).fetchone() is None:
+                raise Denied("Z4 restore receipt missing before open.")
+
+            data = self._connect(self.z3)
+            data.execute("BEGIN IMMEDIATE")
+            if data.execute("SELECT 1 FROM session WHERE active != 0 LIMIT 1").fetchone():
+                raise Denied("An old synthetic session was reactivated.")
+            revoked = auth.execute("SELECT subject,organization FROM revoked").fetchall()
+            for subject, org in revoked:
+                if data.execute("""SELECT 1 FROM membership
+                                   WHERE subject=? AND organization=? AND active!=0""",
+                                (subject, org)).fetchone():
+                    raise Denied("Z3 membership disagrees with Z4 revocation.")
             auth.execute("UPDATE fence SET mode='OPEN',sequence=? WHERE id=1", (seq + 1,))
             auth.commit()
+            data.commit()
         except Exception:
+            if data is not None:
+                data.rollback()
             auth.rollback()
             raise
         finally:
+            if data is not None:
+                data.close()
             auth.close()
 
     def fixture_reauthenticate(self, subject: str) -> None:
