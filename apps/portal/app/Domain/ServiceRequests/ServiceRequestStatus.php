@@ -15,4 +15,16 @@ enum ServiceRequestStatus: string
     case WaitingOnCustomer = 'waiting_on_customer';
     case Resolved = 'resolved';
     case Closed = 'closed';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Draft => 'Rascunho',
+            self::Submitted => 'Enviada',
+            self::InReview => 'Em análise',
+            self::WaitingOnCustomer => 'Aguardando informações do cliente',
+            self::Resolved => 'Resolvida',
+            self::Closed => 'Encerrada',
+        };
+    }
 }
