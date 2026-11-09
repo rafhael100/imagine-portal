@@ -262,6 +262,39 @@ class HybridModelCTest(unittest.TestCase):
             self.lab.attempt("actor-a", "org-a", 1, 1, nonce="corrupt")
         self.assertEqual([], self.lab.effects())
 
+    def test_reactivated_revoked_grant_between_ready_and_open_is_blocked(self):
+        generation = self.recover()
+        ready_seq = self.lab.reconcile(generation)
+        with sqlite3.connect(self.lab.z3) as db:
+            db.execute("""UPDATE membership SET active=1
+                          WHERE subject='actor-a' AND organization='org-a'""")
+        with self.assertRaises(Denied):
+            self.lab.open_for_lab(ready_seq, approval_fixture=True)
+        self.assertEqual("READY", self.lab.state()[2])
+        self.assertEqual([], self.lab.effects())
+        with sqlite3.connect(self.lab.z3) as db:
+            db.execute("""UPDATE membership SET active=0
+                          WHERE subject='actor-a' AND organization='org-a'""")
+        self.lab.open_for_lab(ready_seq, approval_fixture=True)
+        self.assertEqual("OPEN", self.lab.state()[2])
+        with self.assertRaises(Denied):
+            self.lab.attempt("actor-a", "org-a", generation, 2, nonce="revoked-after-open")
+        self.assertEqual([], self.lab.effects())
+
+    def test_old_session_resurrected_between_ready_and_open_is_blocked(self):
+        generation = self.recover()
+        ready_seq = self.lab.reconcile(generation)
+        with sqlite3.connect(self.lab.z3) as db:
+            db.execute("UPDATE session SET active=1 WHERE subject='actor-b'")
+        with self.assertRaises(Denied):
+            self.lab.open_for_lab(ready_seq, approval_fixture=True)
+        self.assertEqual("READY", self.lab.state()[2])
+        self.assertEqual([], self.lab.effects())
+        with sqlite3.connect(self.lab.z3) as db:
+            db.execute("UPDATE session SET active=0 WHERE subject='actor-b'")
+        self.lab.open_for_lab(ready_seq, approval_fixture=True)
+        self.assertEqual("OPEN", self.lab.state()[2])
+
 
 if __name__ == "__main__":
     unittest.main()
