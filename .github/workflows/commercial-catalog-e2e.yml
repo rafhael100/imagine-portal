@@ -35,6 +35,8 @@ jobs:
       - name: Criar contrato assinado ficticio fora do repositorio
         run: |
           php -l apps/portal/app/Domain/CommercialPublishing/PublicCatalogSigner.php
+          php -l apps/portal/app/Domain/CommercialPublishing/PublicationApprovalGate.php
+          php -l apps/portal/app/Domain/CommercialPublishing/ApprovedPublicCatalogIssuer.php
           php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
       - name: Checkout Imagine Comercial no commit validado
         uses: actions/checkout@v7

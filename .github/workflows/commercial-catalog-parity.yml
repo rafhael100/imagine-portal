@@ -36,6 +36,8 @@ jobs:
       - name: Verificar sintaxe PHP
         run: |
           php -l apps/portal/app/Domain/CommercialPublishing/PublicCatalogSigner.php
+          php -l apps/portal/app/Domain/CommercialPublishing/PublicationApprovalGate.php
+          php -l apps/portal/app/Domain/CommercialPublishing/ApprovedPublicCatalogIssuer.php
           php -l apps/portal/tests/Contract/emit-signed-commercial-fixture.php
       - name: Emitir somente fixture e chave pública descartáveis
         run: php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
