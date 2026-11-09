@@ -9,6 +9,12 @@
             @endforeach
         </ul>
     </x-portal.panel>
+    <x-portal.panel title="Fila de solicitações — somente demonstração">
+        <p>Lista fictícia da Empresa Aurora; nenhum filtro autoriza acesso a dados reais, nenhum SLA ou prazo é demonstrado.</p>
+        <x-portal.table caption="Fila fictícia de solicitações — sem dados reais"
+            :columns="['Referência', 'Serviço', 'Estado ilustrativo', 'Versão de exemplo']"
+            :rows="\App\Presentation\DemoRequestInbox::rows()" />
+    </x-portal.panel>
     <x-portal.message title="Serviços independentes" message="Onepage e Landing Page são serviços independentes. Performance AI possui motor de execução separado. CRM Imagine mantém identidade, login e sessão próprios, sem SSO. Universidade Imagine é benefício de clientes elegíveis, não assinatura avulsa; nenhuma elegibilidade é concedida neste exemplo." />
     <x-portal.unavailable feature="A abertura, edição, envio e anexação de solicitações" />
 </x-portal.layout>
