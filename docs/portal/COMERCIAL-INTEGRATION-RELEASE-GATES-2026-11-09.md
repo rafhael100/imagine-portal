@@ -45,3 +45,14 @@ As branches não estão integradas à `main`. Todos os PRs citados são **rascun
 Concentrar-se em resolver dependências de autenticação e grants do Portal já existentes em outras branches, criar um plano de integração de código sem perder mudanças paralelas, realizar revisão de segurança de outbox/revogações e exercitar staging protegido **somente quando houver autorização e infraestrutura aprovada**. Priorizar resultados verificáveis por CI em vez de multiplicar PRs de PoC.
 
 Nenhuma alteração neste documento autoriza merge, deploy, mudança de domínio, contratação de serviços ou acesso a dados reais.
+
+
+## Atualização de dependências Comercial F25 — 09/11/2026
+
+Esta seção é mais recente que a tabela inicial e substitui **somente** as referências de ponta do Comercial para fins de planejamento de homologação.
+
+- Imagine Comercial: [PR #25](https://github.com/rafhael100/imagine-comercial/pull/25), branch `feat/f25-signed-catalog-required-mode-2026-11-09`. [CI #42657373288](https://github.com/rafhael100/imagine-comercial/actions/runs/42657373288): 99/99 testes do site e 35/35 SEO Engine, build Astro e QA navegador.
+- Portal integração cruzada: [PR #153](https://github.com/rafhael100/imagine-portal/pull/153), empilhado sobre #151/#142; [CI #42657709386](https://github.com/rafhael100/imagine-portal/actions/runs/42657709386). Contrato sintético PHP+PostgreSQL→Astro aponta para commit F25 fixado e **rejeita ausência de todos os parâmetros do catálogo** quando `IMAGINE_CATALOG_REQUIRE_SIGNED=1`.
+- F25 não atesta identidade, MFA, grants duráveis, aprovação editorial em sistema autenticado, replay após restauração de backup, writer com credenciais mínimas, idempotência de entrega e recibo do destino. O controle só proíbe fallback silencioso no build quando a intenção obrigatória é externamente definida.
+- Antes de mexer em `main`: montar branch **exclusiva de integração**, revisar ancestrais e contratos atuais entre as frentes Comercial, Portal e SEO; executar CI cross-repo completo em ambiente protegido. Não mesclar cadeias de PRs automaticamente ou ignorar os trabalhos paralelos da família PORTAL-F22..F30.
+- As despesas de infraestrutura, DNS, Cloudflare público, credenciais e dados reais seguem bloqueadas até autorização específica.
