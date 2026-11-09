@@ -17,8 +17,31 @@ infraestruturas não foram conectados a este laboratório.
 | `routes/web.php` | Sem rotas de negócio; `/up` é health do Laravel | Não criar login, API ou preview SQL real |
 | `routes/console.php` | Sem comandos de negócio | Não permitir runner de laboratório como job |
 | `public/index.php` | Bootstrap padrão do Laravel | Não importar laboratórios |
+| `config/filesystems.php` | **`local.serve=false` após inspeção de CI**; disco privado sem rota de entrega de arquivos | Não reativar até política de arquivos e autorização homologadas |
 | `config/*.php` | Configuração do scaffold Laravel | Não colocar chaves, credenciais nem classes F22–F26 |
 | `phpunit.xml` | Suites `tests/Unit` e `tests/Feature` | F22–F26 integração só via CI PG18 opt-in |
+
+## Descoberta real do CI F27: rota de arquivos não planejada
+
+Na primeira execução do novo teste F27, o Laravel 13 registrou **duas
+entradas `storage/{path}`**, embora `routes/web.php` estivesse vazio.
+A origem verificada foi a configuração `'serve' => true` no disco local
+privado de `config/filesystems.php`, que habilita endpoints de entrega
+de arquivos do framework. Essa descoberta por si só não prova
+vazamento de dados, mas não existe política de arquivos de cliente
+homologada para permitir essa superfície no Portal.
+
+**Correção no próprio F27:** alterar `local.serve` para `false` e testar
+que permanece desabilitado e que só `/up` está registrado. Três testes
+legados de interface (`PortalHelpPresentationTest`,
+`PortalNoticesPresentationTest` e `PortalUiComponentsTest`)
+tinham como pressuposto a presença dessa rota; foram atualizados
+para a nova política de não exposição. O teste F27 permanece rígido
+para detectar reintrodução de endpoints.
+
+Essa alteração não implementa downloads, controle de acesso a arquivos,
+assinatura de URLs, upload, storage real nem tratamento LGPD.
+Eventual reativação precisa de desenho e aprovação de AppSec/DBA.
 
 O teste `tests/Feature/PortalLabIsolationBootGateTest.php` confere
 automaticamente esse estado e verifica que apenas a rota health está
