@@ -131,4 +131,6 @@
         <p>Esta área representa visualmente os módulos F1-03, F1-04 e F1-05 em desenvolvimento no motor independente. Não existe API Portal ↔ Performance ativa, identidade real, anúncio publicado, cobrança, lead captado ou permissão de cliente.</p>
     </div>
 @endif
+{{-- Independent PG-derived static preview; no runtime Portal service call. --}}
+@include('components.portal.pview-performance-storage')
 </div>
