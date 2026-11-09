@@ -54,5 +54,11 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f7-revocation.sql
       - name: Provar idempotencia contra duas conexoes simultaneas
         run: bash apps/portal/labs/commercial-publishing/test-f7-race.sh
+      - name: Criar leases de recuperacao F11 em banco descartavel
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f11-recovery.sql
+      - name: Verificar reprocessamento apos falha, ack, RLS e revogacao
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f11-recovery.sql
+      - name: Concorrencia de dois workers no mesmo delivery lease
+        run: bash apps/portal/labs/commercial-publishing/test-f11-recovery-race.sh
       - name: Confirmar ausencia de ambiente operacional
         run: echo "Somente banco descartavel no service container de GitHub Actions; sem VPS, API, tenants ou chaves reais."
