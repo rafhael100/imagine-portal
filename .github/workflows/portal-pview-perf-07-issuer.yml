@@ -1,0 +1,29 @@
+name: Portal PVIEW-PERF-07 - synthetic grant issuer lab
+
+on:
+  push:
+    branches:
+      - feat/portal-pview-perf-07-synthetic-issuer-2026-11-08
+
+permissions:
+  contents: read
+
+jobs:
+  offline-issuer-contract:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      PERF_SNAPSHOT_FIXTURE: apps/portal/preview/fixtures/performance-dashboard-v1.json
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: PHP syntax and Portal issuer to Performance verifier tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          php -l apps/portal/preview/contracts/SyntheticPortalGrantIssuer.php
+          php -l apps/portal/preview/contracts/SyntheticPortalGrantIssuerTest.php
+          php apps/portal/preview/contracts/SyntheticPortalGrantIssuerTest.php
