@@ -54,8 +54,8 @@ $check=static function(string $label,mixed $actual,mixed $expected) use(&$n):voi
     ++$n;
     echo "PASS F09 $n $label\n";
 };
-$sign=static fn(string $bearer=$token,string $service='svc-demo-a',?int $clock=null)=>
-    $issuer->issue($bearer,$service,$secret,$clock??$now);
+$sign=static fn(?string $bearer=null,string $service='svc-demo-a',?int $clock=null)=>
+    $issuer->issue($bearer??$token,$service,$secret,$clock??$now);
 $decode=static fn(string $b64):string=>
     (string)base64_decode(strtr($b64,'-_','+/'),true);
 $packet=$sign();
