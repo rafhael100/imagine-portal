@@ -1,0 +1,79 @@
+name: Portal PHP -> Astro - Catálogo assinado no build
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/CommercialPublishing/**'
+      - 'apps/portal/tests/Contract/**'
+      - '.github/workflows/commercial-catalog-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: PHP 8.3 assina, Astro compila e recusa adulteracao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Portal somente leitura
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configurar PHP 8.3 com sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          extensions: sodium, mbstring
+      - name: Configurar Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Criar contrato assinado ficticio fora do repositorio
+        run: |
+          php -l apps/portal/app/Domain/CommercialPublishing/PublicCatalogSigner.php
+          php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
+      - name: Checkout Imagine Comercial no commit validado
+        uses: actions/checkout@v7
+        with:
+          repository: rafhael100/imagine-comercial
+          ref: 54853ffbb063292b26d45ded7746f895dbd693f7
+          path: .qa/imagine-comercial
+          persist-credentials: false
+      - name: Instalar dependencias fixadas do Astro
+        working-directory: .qa/imagine-comercial
+        run: npm ci --no-audit --no-fund
+      - name: Fixar lote e hash a partir do fixture no ambiente de CI
+        run: |
+          set -euo pipefail
+          PAYLOAD_SHA=$(node -e 'const fs=require("node:fs");const cr=require("node:crypto");const e=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));console.log(cr.createHash("sha256").update(Buffer.from(e.payloadBase64,"base64")).digest("hex"))' "$RUNNER_TEMP/commercial-envelope.json")
+          {
+            echo "IMAGINE_CATALOG_ENVELOPE_FILE=$RUNNER_TEMP/commercial-envelope.json"
+            echo "IMAGINE_CATALOG_PUBLIC_KEY_FILE=$RUNNER_TEMP/commercial-public.pem"
+            echo "IMAGINE_CATALOG_TRUSTED_KEY_ID=portal_contract_01"
+            echo "IMAGINE_CATALOG_EXPECTED_RELEASE_ID=release_20261109_parity"
+            echo "IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256=$PAYLOAD_SHA"
+          } >> "$GITHUB_ENV"
+      - name: Compilar Astro com conteudo emitido pelo PHP
+        working-directory: .qa/imagine-comercial
+        run: |
+          set -euo pipefail
+          npm run build
+          node scripts/verify-dist.mjs
+          grep -Fq 'Landing Pages empresariais publicadas em teste' dist/servicos/landing-pages/index.html
+          grep -Fq 'Metadados públicos de teste para verificar paridade' dist/servicos/landing-pages/index.html
+          echo 'PHP -> Astro build parity passed; signed editorial content rendered.'
+      - name: Provar falha fechada em caso de hash inesperado
+        working-directory: .qa/imagine-comercial
+        run: |
+          set -euo pipefail
+          BAD_HASH="0000000000000000000000000000000000000000000000000000000000000000"
+          if IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256="$BAD_HASH" npm run build > "$RUNNER_TEMP/rejected-build.txt" 2>&1; then
+            echo 'ERROR: Build accepted unapproved payload hash' >&2
+            exit 1
+          fi
+          grep -Eq 'payload digest|release pin' "$RUNNER_TEMP/rejected-build.txt"
+          echo 'Unapproved hash correctly rejected without publication.'
