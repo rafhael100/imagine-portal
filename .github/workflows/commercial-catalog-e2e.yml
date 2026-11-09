@@ -135,7 +135,7 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
-          import {readFileSync,readdirSync} from 'node:fs';
+          import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
           import {join} from 'node:path';
           import {createSignedBuildReview} from './src/lib/signed-build-review.mjs';
           function scan(dir='dist',relative=''){
@@ -170,9 +170,25 @@ jobs:
           assert.throws(()=>createSignedBuildReview(altered,envelope,trust,pins),
             /HTML title differs|description differs|intro differs/);
           console.log('Portal PHP -> Astro F24 signed build verified; tree SHA-256:',report.treeSha256);
+          writeFileSync(process.env.RUNNER_TEMP+'/commercial-tree-sha256.txt',report.treeSha256+'\n');
           NODE
       - name: Auditar HTML final com SEO Engine revisado
         run: node .qa/seo-engine/scripts/audit-dist.mjs .qa/imagine-comercial/dist https://imaginecomunicacao.com.br/ --fail-on-warnings
+      - name: F26 exercitar consumo unico de recibo ja verificado no PostgreSQL isolado
+        run: |
+          set -euo pipefail
+          TREE_SHA="$(tr -d '\n' < "$RUNNER_TEMP/commercial-tree-sha256.txt")"
+          if [[ ! "$TREE_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'F26: Invalid Astro build digest' >&2
+            exit 1
+          fi
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f11-recovery.sql
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f26-receipt-consumption.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -v release_id="$IMAGINE_CATALOG_EXPECTED_RELEASE_ID" \
+            -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
+            -v tree_sha256="$TREE_SHA" \
+            -f apps/portal/labs/commercial-publishing/test-f26-receipt-consumption.sql
       - name: Revogar publicacao e provar que release anterior nao pode ser reservado novamente
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f8-e2e-revoked.sql
       - name: Provar falha fechada em caso de hash inesperado
