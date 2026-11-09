@@ -211,17 +211,18 @@ final class F22PgServiceReadIntegrationTest extends TestCase
         self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
     }
 
-    public function test_missing_view_permission_or_db_availability_does_not_emit_partial_rows(): void
+    public function test_revoked_sql_view_permission_fails_closed_without_partial_counts(): void
     {
-        $pdo = $this->connect('a');
-        $reader = new SyntheticPgServiceReadAdapter($pdo);
+        $admin = $this->connect('postgres');
+        $reader = new SyntheticPgServiceReadAdapter($this->connect('a'));
         self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
 
-        // A permitted SELECT is disrupted by a forced connection failure;
-        // do not retry with admin or switch tenant.
-        $pdo = null;
-        // Disruption of actual DB host is tested in the disposable CI runner
-        // after the PHPUnit test suite, not from within a shared live fixture.
-        self::assertFalse($reader->read(new OrganizationId('org-b'))->mayExposeCustomerData());
+        $admin->exec('REVOKE SELECT ON f21.service_summary FROM f21_org_a');
+        try {
+            $this->blocked($reader->read(new OrganizationId('org-a')), 'source_unavailable');
+        } finally {
+            $admin->exec('GRANT SELECT ON f21.service_summary TO f21_org_a');
+        }
+        self::assertTrue($reader->read(new OrganizationId('org-a'))->isPreparedPreview());
     }
 }
