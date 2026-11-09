@@ -62,6 +62,38 @@ final readonly class F35PrimaryStateVerifier
                 return null;
             }
 
+            // An ACK must not be issued if the observation side has lost
+            // its FORCE RLS or tenant SQL role isolation. This remains
+            // negative drift detection of fake fixtures, not IAM proof.
+            $security = $pdo->query(
+                "SELECT c.relname AS object_name,
+                        c.relrowsecurity AS rls_on,
+                        c.relforcerowsecurity AS rls_forced,
+                        (SELECT (NOT r.rolsuper AND NOT r.rolbypassrls
+                                      AND NOT r.rolinherit AND r.rolcanlogin)
+                          FROM pg_catalog.pg_roles r WHERE r.rolname=current_user)
+                          AS restricted_role
+                   FROM pg_catalog.pg_class c
+                   JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+                  WHERE n.nspname='f24'
+                    AND c.relname IN ('session_fixture','membership_fixture')
+                    AND c.relkind='r'"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            if (!is_array($security) || count($security) !== 2) {
+                $pdo->rollBack();
+                return null;
+            }
+            foreach ($security as $relation) {
+                if (!in_array($relation['object_name'] ?? null,
+                      ['session_fixture','membership_fixture'],true)
+                    || !$this->pgTrue($relation['rls_on'] ?? null)
+                    || !$this->pgTrue($relation['rls_forced'] ?? null)
+                    || !$this->pgTrue($relation['restricted_role'] ?? null)) {
+                    $pdo->rollBack();
+                    return null;
+                }
+            }
+
             $table = $event->kind === 'session'
                 ? 'session_fixture' : 'membership_fixture';
             $column = $event->kind === 'session' ? 'session_id' : 'actor_id';
@@ -121,5 +153,10 @@ final readonly class F35PrimaryStateVerifier
             }
             return null;
         }
+    }
+
+    private function pgTrue(mixed $value): bool
+    {
+        return in_array($value,[true,'t','true',1,'1'],true);
     }
 }
