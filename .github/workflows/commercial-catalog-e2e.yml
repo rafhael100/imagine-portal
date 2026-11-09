@@ -61,6 +61,11 @@ jobs:
           php -l apps/portal/app/Domain/CommercialPublishing/TenantScopedPublicCatalogIssuer.php
           php -l apps/portal/app/Domain/CommercialPublishing/CommercialPublicationPermissionGate.php
           php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
+      - name: F26 verificar recibo assinado do destino (somente fixture local)
+        run: |
+          php -l apps/portal/app/Domain/CommercialPublishing/DestinationDeliveryReceiptVerifier.php
+          php -l apps/portal/tests/Contract/test-destination-receipt-f26.php
+          php apps/portal/tests/Contract/test-destination-receipt-f26.php
       - name: Checkout Imagine Comercial no commit validado
         uses: actions/checkout@v7
         with:
