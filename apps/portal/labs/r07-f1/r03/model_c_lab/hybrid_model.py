@@ -60,6 +60,11 @@ class HybridLab:
                     subject TEXT NOT NULL, organization TEXT NOT NULL,
                     PRIMARY KEY(subject,organization)
                 );
+                -- Toy proof of successful Z3 copy, stored OUTSIDE Z3.
+                CREATE TABLE restore_receipt(
+                    digest TEXT NOT NULL, generation INTEGER NOT NULL,
+                    PRIMARY KEY(digest,generation)
+                );
             """)
         with sqlite3.connect(lab.z3) as db:
             db.executescript("""
@@ -152,6 +157,7 @@ class HybridLab:
                 raise Conflict("Stale recovery coordinator.")
             if mode != "OPEN":
                 raise Denied("Recovery already active or authority not open.")
+            db.execute("DELETE FROM restore_receipt")
             db.execute("""UPDATE fence SET generation=?,sequence=?,
                           mode='DENY', session_epoch=?,reconciled=0,
                           snapshot_sha=?,manifest=? WHERE id=1""",
@@ -174,6 +180,22 @@ class HybridLab:
         finally:
             db.close()
         shutil.copyfile(backup, self.z3)
+        # Receipt is recorded ONLY after a successfully completed lab copy.
+        # The authority is independent from the restored *file*, not host.
+        auth = self._connect(self.z4)
+        try:
+            auth.execute("BEGIN IMMEDIATE")
+            gen, _, current_mode, _, _, current_sha, _ = self._state(auth)
+            if current_mode != "DENY" or current_sha != digest(backup):
+                raise Denied("Recovery changed while copying synthetic backup.")
+            auth.execute("INSERT OR REPLACE INTO restore_receipt VALUES (?,?)",
+                         (current_sha, gen))
+            auth.commit()
+        except Exception:
+            auth.rollback()
+            raise
+        finally:
+            auth.close()
 
     def reconcile(self, generation: int, partial: bool = False) -> int:
         """Invalidate all old sessions; project external revocations onto Z3."""
@@ -184,6 +206,10 @@ class HybridLab:
             gen, seq, mode, epoch, reconciled, sha, manifest = self._state(auth)
             if gen != generation or mode != "DENY" or reconciled or not sha or manifest != MANIFEST:
                 raise Denied("Reconciliation prerequisites not satisfied.")
+            if auth.execute("""SELECT 1 FROM restore_receipt
+                               WHERE digest=? AND generation=?""",
+                            (sha, gen)).fetchone() is None:
+                raise Denied("No verified synthetic restore receipt in Z4.")
             revoked = auth.execute("SELECT subject,organization FROM revoked").fetchall()
             data = self._connect(self.z3)
             data.execute("BEGIN IMMEDIATE")
