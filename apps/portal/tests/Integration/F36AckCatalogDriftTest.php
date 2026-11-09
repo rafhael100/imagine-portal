@@ -195,6 +195,18 @@ final class F36AckCatalogDriftTest extends TestCase
         $this->assertRecovered();
     }
 
+    public function test_ack_role_membership_drift_cannot_be_silently_accepted(): void
+    {
+        $admin=$this->db('admin');
+        $admin->exec('GRANT f34_reconciliation_reader TO f35_ack_worker WITH INHERIT FALSE, SET FALSE');
+        try {
+            $this->assertRejected();
+        } finally {
+            $admin->exec('REVOKE f34_reconciliation_reader FROM f35_ack_worker');
+        }
+        $this->assertRecovered();
+    }
+
     public function test_ack_table_owner_transfer_requires_restoring_explicit_grants(): void
     {
         $admin=$this->db('admin');
