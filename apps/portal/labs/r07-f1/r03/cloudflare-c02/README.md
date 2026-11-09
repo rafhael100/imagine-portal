@@ -8,12 +8,12 @@
 - src/worker.mjs: adaptador para Durable Objects com SQLite. A classe SyntheticFence inicializa um registro bloqueado (DENY), oferece apenas diagnóstico inofensivo via RPC; fetch público do Worker e do objeto sempre responde 404. **Não há RPC que permita avançar estado.**
 - wrangler.jsonc: classe declarativa com storage sqlite, workers_dev=false, preview_urls=false, routes=[], crons=[]; não vincula domínio, conta ou bucket.
 - src/r2-evidence.mjs: gera em memória nomes e conteúdo de objetos fictícios com SHA-256 e encadeamento referencial. **Não escreve no R2 nem cria bucket ou política de retenção.**
-- test/protocol.test.mjs: 15 testes de segurança sintéticos em Node 22/24 com biblioteca padrão.
-- .github/workflows/portal-sec-r03-c02-cloudflare-local.yml: lint e testes Node, sem instalar Wrangler ou executar Cloudflare.
+- test/protocol.test.mjs: 16 testes de segurança sintéticos em Node 22/24 com biblioteca padrão; uma prova de integração local adicional exercita workerd, Durable Object SQLite e R2 simulado.
+- .github/workflows/portal-sec-r03-c02-cloudflare-local.yml: lint, testes Node e um teste workerd/Miniflare instalado exclusivamente no runner, sem Wrangler deploy nem acessar conta Cloudflare.
 
 ## Importante sobre a prova
 
-Esta entrega NÃO executou Durable Objects nem R2 na conta Cloudflare. O CI verifica a sintaxe do adaptador e a máquina de estados isolada, não o runtime workerd. O objeto Cloudflare somente inicializa DENY; transições sintéticas existem fora dele e **não podem ser expostas como RPC público ou endpoint operacional**.
+Esta entrega NÃO executou Durable Objects nem R2 em uma **conta Cloudflare real**. O CI testa a máquina de estados e também executa um Durable Object SQLite e um bucket R2 **locais no Miniflare/workerd**. O ensaio confirma a inicialização DENY e ausência de rota pública, além de demonstrar que um objeto R2 sem política de retenção pode ser sobrescrito. Nenhuma persistência ou proteção contra rollback em infraestrutura externa foi demonstrada. Transições sintéticas existem fora do Durable Object e **não podem ser expostas como RPC público ou endpoint operacional**.
 
 É mantida a falha conhecida X03/X22: uma cópia antiga da própria Z4 pode novamente autorizar o ator fictício A já revogado na cópia atual. A PoC testa esse risco deliberadamente e registra seu resultado. Mesmo Durable Objects com SQLite e transações fortes possuem PITR; a aplicação precisa de uma âncora monotônica independente de restauração, segregação de administração e proteção contra split-brain.
 
@@ -22,7 +22,7 @@ R2 com objetos hash-encadeados não é imutabilidade por si só. Bucket Locks s�
 ## Próximas ações para usar conta Cloudflare
 
 1. Inspecionar a conta e o orçamento existente, conferir a franquia Workers Free e eventual ativação/billing R2. **Não pressupor custo zero sem consultar a conta.**
-2. Executar teste workerd/Miniflare apenas em runtime local, com bindings locais e dependências fixadas; nenhum uso de remote bindings.
+2. Executar teste workerd/Miniflare apenas em runtime local, com bindings locais e dependências fixadas; nenhum uso de remote bindings. O CI usa miniflare@4.20260730.0 fixado, instalado em runner descartável, não associado a conta Cloudflare.
 3. Validar a configuração tanto para workers.dev quanto para preview URLs; publicar ou criar namespace exige liberação separada se isso criar superfície acessível/alterar recursos.
 4. Para R2, preparar bucket privado com dados 100% sintéticos, limites de operações/armazenamento e sem acesso público r2.dev; ainda não criado.
 5. Para teste em nuvem, usar uma conexão autorizada/ambiente operacional próprio de menor privilégio. **Não enviar tokens ou credenciais no chat.**
