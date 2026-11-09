@@ -58,17 +58,32 @@ jobs:
           php -l apps/portal/app/Domain/CommercialPublishing/PublicCatalogSigner.php
           php -l apps/portal/app/Domain/CommercialPublishing/PublicationApprovalGate.php
           php -l apps/portal/app/Domain/CommercialPublishing/ApprovedPublicCatalogIssuer.php
+          php -l apps/portal/app/Domain/CommercialPublishing/TenantScopedPublicCatalogIssuer.php
+          php -l apps/portal/app/Domain/CommercialPublishing/CommercialPublicationPermissionGate.php
           php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
       - name: Checkout Imagine Comercial no commit validado
         uses: actions/checkout@v7
         with:
           repository: rafhael100/imagine-comercial
-          ref: 54853ffbb063292b26d45ded7746f895dbd693f7
+          ref: 365a6be1ac2a16f9eb39522ceb0c308e05f75302
           path: .qa/imagine-comercial
           persist-credentials: false
       - name: Instalar dependencias fixadas do Astro
         working-directory: .qa/imagine-comercial
         run: npm ci --no-audit --no-fund
+      - name: Verificar contratos do Imagine Comercial integrado
+        working-directory: .qa/imagine-comercial
+        run: npm test
+      - name: Checkout auditor SEO no commit revisado do motor
+        uses: actions/checkout@v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 238acb0772dc7597f23ce3fd1761d68be1d35179
+          path: .qa/seo-engine
+          persist-credentials: false
+      - name: Verificar biblioteca SEO fixada independentemente
+        working-directory: .qa/seo-engine
+        run: npm test
       - name: Fixar lote e hash a partir do fixture no ambiente de CI
         run: |
           set -euo pipefail
@@ -108,6 +123,8 @@ jobs:
           grep -Fq 'Landing Pages empresariais publicadas em teste' dist/servicos/landing-pages/index.html
           grep -Fq 'Metadados públicos de teste para verificar paridade' dist/servicos/landing-pages/index.html
           echo 'PHP -> Astro build parity passed; signed editorial content rendered.'
+      - name: Auditar HTML final com SEO Engine revisado
+        run: node .qa/seo-engine/scripts/audit-dist.mjs .qa/imagine-comercial/dist https://imaginecomunicacao.com.br/ --fail-on-warnings
       - name: Revogar publicacao e provar que release anterior nao pode ser reservado novamente
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f8-e2e-revoked.sql
       - name: Provar falha fechada em caso de hash inesperado
