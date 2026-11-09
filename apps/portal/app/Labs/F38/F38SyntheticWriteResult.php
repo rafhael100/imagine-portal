@@ -22,6 +22,7 @@ final readonly class F38SyntheticWriteResult
         'idempotency_conflict',
         'transition_not_permitted',
         'source_unavailable',
+        'missing_synthetic_outbox',
     ];
 
     public function __construct(
