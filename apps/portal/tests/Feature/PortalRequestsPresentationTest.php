@@ -114,4 +114,23 @@ final class PortalRequestsPresentationTest extends TestCase
             self::assertStringNotContainsString($forbidden, $html);
         }
     }
+
+    public function test_synthetic_request_inbox_is_displayed_without_leaking_live_data_or_enabling_actions(): void
+    {
+        $html = view('portal.demo.requests')->render();
+        self::assertStringContainsString('Fila de solicitações — somente demonstração', $html);
+        self::assertStringContainsString('Fila fictícia de solicitações — sem dados reais', $html);
+        self::assertStringContainsString('nenhum filtro autoriza acesso a dados reais', $html);
+        foreach (['DEMO-REQ-LANDING', 'DEMO-REQ-ONEPAGE', 'DEMO-REQ-PERFORMANCE'] as $id) {
+            self::assertSame(1, substr_count($html, '<td>'.$id.'</td>'));
+        }
+        foreach (['Aguardando informações do cliente', 'Em análise', 'Resolvida'] as $label) {
+            self::assertStringContainsString($label, $html);
+        }
+        foreach (['<form', '<button', '<input', '<script', 'action=', 'http://', 'https://'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $html);
+        }
+        preg_match_all('/href="([^"]*)"/', $html, $links);
+        self::assertSame(['#pi-content'], $links[1]);
+    }
 }
