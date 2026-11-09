@@ -31,8 +31,17 @@ final readonly class F34SyntheticLedgerReader
     }
 
     /** @return list<F33SyntheticRevocationEvent>|null */
-    public function readBatch(bool $onlyUnacknowledged = false): ?array
+    public function readBatch(
+        bool $onlyUnacknowledged = false,
+        bool $pageMode = false,
+    ): ?array
     {
+        // A page has no cursor: confirmed receipts remove handled events
+        // from the pending set before the next bounded fetch. This prevents
+        // offset skipping when ACKs are written between pages.
+        if ($pageMode && !$onlyUnacknowledged) {
+            return null;
+        }
         if ($this->pdo->inTransaction()) {
             return null;
         }
@@ -122,9 +131,16 @@ final readonly class F34SyntheticLedgerReader
                          LIMIT 21";
             }
             $rows = $this->pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-            if (!is_array($rows) || count($rows) > self::MAX_EVENTS) {
+            if (!is_array($rows)
+                || (!$pageMode && count($rows) > self::MAX_EVENTS)) {
                 $this->pdo->rollBack();
                 return null;
+            }
+            if ($pageMode && count($rows) > self::MAX_EVENTS) {
+                // Query returned 21, proving there is more work. Process
+                // ONLY the first 20; next query starts with remaining
+                // unacknowledged events, never an untrusted offset.
+                $rows = array_slice($rows, 0, self::MAX_EVENTS);
             }
 
             $events = [];
