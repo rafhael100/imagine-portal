@@ -17,6 +17,9 @@ on:
       - 'apps/portal/app/Labs/F31/**'
       - 'apps/portal/app/Labs/F33/**'
       - 'apps/portal/app/Labs/F34/**'
+      - 'apps/portal/app/Labs/F35/**'
+      - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
+      - 'apps/portal/labs/service-relations-f35/**'
       - 'apps/portal/tests/Integration/F34ReconciliationReplayTest.php'
       - 'apps/portal/labs/service-relations-f34/**'
       - 'apps/portal/tests/Integration/F33WitnessFirstRevocationPublisherTest.php'
@@ -52,6 +55,9 @@ on:
       - 'apps/portal/app/Labs/F31/**'
       - 'apps/portal/app/Labs/F33/**'
       - 'apps/portal/app/Labs/F34/**'
+      - 'apps/portal/app/Labs/F35/**'
+      - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
+      - 'apps/portal/labs/service-relations-f35/**'
       - 'apps/portal/tests/Integration/F34ReconciliationReplayTest.php'
       - 'apps/portal/labs/service-relations-f34/**'
       - 'apps/portal/tests/Integration/F33WitnessFirstRevocationPublisherTest.php'
@@ -139,6 +145,11 @@ jobs:
           php -l app/Labs/F34/F34ReplayOutcome.php
           php -l app/Labs/F34/F34ReconciliationRunner.php
           php -l tests/Integration/F34ReconciliationReplayTest.php
+          php -l app/Labs/F35/F35WitnessAckStore.php
+          php -l app/Labs/F35/F35PrimaryStateVerifier.php
+          php -l app/Labs/F35/F35ReplayOutcome.php
+          php -l app/Labs/F35/F35AcknowledgedReconciliationRunner.php
+          php -l tests/Integration/F35AcknowledgedReconciliationTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -150,7 +161,8 @@ jobs:
           witness_reader_password="$(openssl rand -hex 32)"
           f33_publisher_password="$(openssl rand -hex 32)"
           f34_reader_password="$(openssl rand -hex 32)"
-          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password" "$witness_admin_password" "$witness_reader_password" "$f33_publisher_password" "$f34_reader_password"
+          f35_ack_password="$(openssl rand -hex 32)"
+          printf '::add-mask::%s\n' "$admin_password" "$role_a_password" "$role_b_password" "$witness_admin_password" "$witness_reader_password" "$f33_publisher_password" "$f34_reader_password" "$f35_ack_password"
           # Only loopback host binding: 127.0.0.1 random ephemeral port.
           # No domain, no customer account, no durable volumes, no VPS.
           docker run -d --rm --name "$F22_PG_CONTAINER" \
@@ -231,6 +243,9 @@ jobs:
             < labs/service-relations-f34/reconciliation-reader-schema.sql >/dev/null
           docker exec -i "$F31_WITNESS_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f35/ack-schema.sql >/dev/null
+          docker exec -i "$F31_WITNESS_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             -v "witness_password=$witness_reader_password" <<'SQL'
           ALTER ROLE f31_witness_reader PASSWORD :'witness_password';
           SQL
@@ -243,6 +258,11 @@ jobs:
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             -v "replay_password=$f34_reader_password" <<'SQL'
           ALTER ROLE f34_reconciliation_reader PASSWORD :'replay_password';
+          SQL
+          docker exec -i "$F31_WITNESS_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -v "ack_password=$f35_ack_password" <<'SQL'
+          ALTER ROLE f35_ack_worker PASSWORD :'ack_password';
           SQL
 
           witness_port="$(docker port "$F31_WITNESS_CONTAINER" 5432/tcp | awk -F: 'END {print $NF}')"
@@ -260,6 +280,8 @@ jobs:
           export F33_PG_PASSWORD_PUBLISHER="$f33_publisher_password"
           export F34_ENABLE_LAB=BOUNDED_REPLAY_ONLY
           export F34_PG_PASSWORD_READER="$f34_reader_password"
+          export F35_ENABLE_LAB=ACK_ONLY_DISPOSABLE_PG18
+          export F35_PG_PASSWORD_ACK="$f35_ack_password"
           echo "F31 synthetic external witness is a SECOND disposable container."
           echo "F31 neither survives this runner nor represents an independently operated trust domain."
 
@@ -314,3 +336,4 @@ jobs:
           echo "F31 LAB ONLY: rollback simulation is not actual pg_restore or independent audit/witness attestation."
           echo "F33 LAB ONLY: witness-first event commits and constrained SQL procedure do NOT guarantee delivery or independence."
           echo "F34 LAB ONLY: reconciliation is invoked explicitly inside CI, not a durable background worker or ack protocol."
+          echo "F35 LAB ONLY: acknowledgements are same-runner synthetic checkpoints, not durable independent delivery proofs."
