@@ -220,6 +220,30 @@ $admin->table('lab_portal_perf_revocation_outbox')
     ->where('event_id', 'evt-demo-collision')->delete();
 
 $event = $publisher->revokeForLab($request, 'org-b', 'service-b');
+// F13: optionally export the EVENT ACTUALLY ISSUED BY PORTAL's MFA/outbox
+// publisher, not the pinned static JSON fixture. CI temp files only.
+$export = getenv('PORTAL_F13_EVENT_EXPORT');
+if (is_string($export) && $export !== '') {
+    $tmpDir = realpath((string) getenv('RUNNER_TEMP'));
+    $parent = realpath(dirname($export));
+    if (!is_array($event)
+        || !is_string($tmpDir) || !is_string($parent)
+        || $parent !== $tmpDir
+        || basename($export) !== 'portal-perf-f13-event.json'
+        || file_exists($export)
+        || $event['service_ref'] !== 'svc-demo-b'
+        || $event['organization_ref'] !== 'org-demo-b'
+        || $event['tenant_ref'] !== 'perf-demo-b'
+        || $event['source_revision'] !== 2
+        || $event['status'] !== 'pending') {
+        throw new RuntimeException('Refusing unsafe or non-synthetic F13 export.');
+    }
+    $payload = json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if (file_put_contents($export, $payload."\n", LOCK_EX) === false) {
+        throw new RuntimeException('F13 synthetic event export failed.');
+    }
+    chmod($export, 0600);
+}
 $check('23 real synthetic revocation produces event object', is_array($event), true);
 $check('24 event has exactly F1-11 contract keys', array_keys($event), $expectedFields);
 $check('25 event ID is generated server side',
