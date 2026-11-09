@@ -10,9 +10,9 @@
     </section>
 @else
     <section class="pi-card pi-section-gap" data-pview-perf-storage="synthetic-pg-offline" aria-labelledby="pview-perf-storage-title">
-        <div class="pi-rowhead">
-            <h2 id="pview-perf-storage-title">Campanhas e aprovações registradas — ambiente de demonstração</h2>
-            <span class="pi-pill gray">Exemplo PostgreSQL · somente leitura</span>
+        <div class="pi-rowhead" style="flex-wrap:wrap;min-width:0">
+            <h2 id="pview-perf-storage-title" style="min-width:0;overflow-wrap:anywhere">Campanhas e aprovações registradas — ambiente de demonstração</h2>
+            <span class="pi-pill gray" style="max-width:100%;white-space:normal">Exemplo PostgreSQL · somente leitura</span>
         </div>
         <p>Dados fictícios produzidos por testes do motor Imagine Performance AI e copiados para uma amostra JSON estática. Não existe conexão em tempo real, anúncio publicado ou investimento em mídia.</p>
 
@@ -40,7 +40,7 @@
         </div>
 
         <h3 style="margin-top:18px">Campanhas registradas no banco de teste</h3>
-        <div class="pi-tablewrap">
+        <div class="pi-tablewrap" style="max-width:100%;min-width:0;overflow-x:auto">
             <table>
                 <thead><tr>
                     <th scope="col">Campanha fictícia</th>
@@ -62,7 +62,7 @@
         </div>
 
         <h3 style="margin-top:18px">Solicitações registradas no banco de teste</h3>
-        <div class="pi-tablewrap">
+        <div class="pi-tablewrap" style="max-width:100%;min-width:0;overflow-x:auto">
             <table>
                 <thead><tr>
                     <th scope="col">Solicitação fictícia</th>
