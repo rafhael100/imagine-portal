@@ -13,18 +13,31 @@ use Illuminate\Support\Facades\Hash;
  * AUTH-F2 disposable PostgreSQL exercise — NOT a production login provider.
  *
  * The secret is a plaintext synthetic fixture; MFA enrollment, key custody,
- * session cookie durability, CSRF in real HTTP, distributed abuse handling,
+ * end-to-end HTTPS, CSRF in a real customer UI, distributed abuse handling,
  * concurrency with grant revocation and disaster recovery remain unproven.
  */
 final class LabSecureLogin
 {
     private function db(): ConnectionInterface
     {
-        if (! app()->environment('testing')
-            || PHP_SAPI !== 'cli'
-            || getenv('PORTAL_CLIENT_LAB_ENABLED') !== '1'
-            || config('database.connections.portal_lab_runtime') === null) {
-            throw new \RuntimeException('Refusing the auth lab outside isolated tests.');
+        $testCli = app()->environment('testing')
+            && PHP_SAPI === 'cli'
+            && getenv('PORTAL_CLIENT_LAB_ENABLED') === '1';
+
+        $httpLoopback = app()->environment('local')
+            && PHP_SAPI === 'cli-server'
+            && getenv('GITHUB_ACTIONS') === 'true'
+            && getenv('PORTAL_HTTP_PG_LAB') === '1'
+            && (int) ($_SERVER['SERVER_PORT'] ?? 0) === 18947
+            && ($_SERVER['REMOTE_ADDR'] ?? '') === '127.0.0.1'
+            && ($_SERVER['HTTP_HOST'] ?? '') === '127.0.0.1:18947';
+
+        if ((! $testCli && ! $httpLoopback)
+            || getenv('DB_DATABASE') !== 'portal_lab'
+            || config('database.connections.portal_lab_runtime') === null
+            || config('database.connections.portal_lab_runtime.database') !== 'portal_lab'
+            || config('database.connections.portal_lab_runtime.username') !== 'portal_lab_runtime') {
+            throw new \RuntimeException('Refusing the auth lab outside disposable PostgreSQL test environment.');
         }
 
         return DB::connection('portal_lab_runtime');
@@ -32,7 +45,7 @@ final class LabSecureLogin
 
     /**
      * @return array{status:int,token:?string}
-     * The token is transferred ONLY into the local Laravel test session.
+     * The token remains only in Laravel's server-side test session (array/file),
      * The database stores a SHA-256 digest, never this bearer token.
      */
     public function signIn(string $email, string $password, string $otp): array
