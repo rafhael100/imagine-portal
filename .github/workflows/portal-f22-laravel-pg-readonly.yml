@@ -11,6 +11,9 @@ on:
       - 'apps/portal/app/Labs/F24/**'
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - 'apps/portal/app/Labs/F26/**'
+      - 'apps/portal/app/Labs/F28/**'
+      - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
+      - 'apps/portal/labs/service-relations-f28/**'
       - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
   push:
@@ -26,6 +29,9 @@ on:
       - 'apps/portal/app/Labs/F24/**'
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - 'apps/portal/app/Labs/F26/**'
+      - 'apps/portal/app/Labs/F28/**'
+      - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
+      - 'apps/portal/labs/service-relations-f28/**'
       - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
 
@@ -80,6 +86,8 @@ jobs:
           php -l tests/Integration/F24SessionRevocationIntegrationTest.php
           php -l app/Labs/F26/F26AuthorityReadRehearsal.php
           php -l tests/Integration/F26AuthorityReadRehearsalTest.php
+          php -l app/Labs/F28/F28RevocationFenceInspector.php
+          php -l tests/Integration/F28RevocationFenceIntegrityTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
