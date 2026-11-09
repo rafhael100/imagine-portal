@@ -124,7 +124,7 @@ BEGIN;
 SET LOCAL ROLE commercial_lab_reader;
 DO $scope$
 BEGIN
-  IF current_setting('commercial_lab.organization_id',true) IS NOT NULL THEN
+  IF nullif(current_setting('commercial_lab.organization_id',true),'') IS NOT NULL THEN
     RAISE EXCEPTION 'tenant context leaked across transactions';
   END IF;
   IF (SELECT count(*) FROM commercial_publishing_lab.releases)<>0 THEN
