@@ -1,0 +1,122 @@
+name: Portal AUTH-PERF-07 - ephemeral signed capability and offline Portal regression
+
+on:
+  push:
+    branches:
+      - feat/portal-auth-perf-07-ed25519-lab-2026-11-09
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-perf-signed-capability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-contract:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Checkout pinned public Performance F1-25 fixture producer
+        uses: actions/checkout@v5
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 68ad8e26eb3ee7d93f1a1cb484d1b3b0b031d4dc
+          path: performance-source
+          persist-credentials: false
+      - name: Prove exact motor fixture and no standalone API dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C performance-source rev-parse HEAD)" = 68ad8e26eb3ee7d93f1a1cb484d1b3b0b031d4dc
+          cmp performance-source/contracts/demo/performance-storage-preview-v1.json apps/portal/preview/fixtures/performance-storage-preview-v1.json
+          test "$(git -C performance-source rev-parse HEAD)" != ""
+          echo 'PASS PVIEW-PERF-06 source bytes pinned to approved engine CI commit'
+      - name: PHP 8.4 and locked Composer toolchain
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip, sodium
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked Laravel without migrations or external providers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+      - name: Run versioned snapshot validation and preview tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Presentation/Preview/PerformanceDemoSnapshot.php
+          php -l apps/portal/tests/Feature/PerformanceDemoSnapshotContractTest.php
+          php -l apps/portal/app/Presentation/Preview/PerformanceStoragePreview.php
+          php -l apps/portal/tests/Feature/PerformanceStoragePreviewContractTest.php
+          cd apps/portal
+          ./vendor/bin/phpunit tests/Feature/PerformanceDemoSnapshotContractTest.php
+          ./vendor/bin/phpunit tests/Feature/PerformanceStoragePreviewContractTest.php
+          ./vendor/bin/phpunit tests/Feature/PviewPerformanceDetailTest.php
+          ./vendor/bin/phpunit tests/Feature/PviewNavigationPresentationTest.php
+      - name: Validate Ed25519 synthetic capability without public auth route
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_PERF_SIGNED_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -m | grep -i '^sodium        shell: bash
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
+          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: pview-perf-storage
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview-perf-storage-evidence
+        run: |
+          set -euo pipefail
+          php apps/portal/preview/tests/render_blade_preview.php
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+          node apps/portal/preview/tests/pview_browser_check.mjs
+
+          php -l apps/portal/app/Domain/PerformanceBridge/SyntheticCapabilityIssuer.php
+          php -l apps/portal/preview/tests/emit_perf_capability.php
+          php -l apps/portal/tests/Feature/SyntheticCapabilityIssuerTest.php
+          cd apps/portal
+          ./vendor/bin/phpunit tests/Feature/SyntheticCapabilityIssuerTest.php
+          cd ../..
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          php apps/portal/preview/tests/emit_perf_capability.php "$tmpdir/public.hex" 1800000000 > "$tmpdir/claim.json"
+          test "$(wc -c < "$tmpdir/public.hex")" -eq 64
+          php -r '$x=json_decode(file_get_contents($argv[1]),true,16,JSON_THROW_ON_ERROR); if(($x["version"]??"")!=="portal-capability-envelope.v1") exit(1);' "$tmpdir/claim.json"
+          test "$(git status --porcelain -- apps/portal/preview/fixtures)" = ""
+          if grep -R 'SyntheticCapabilityIssuer' apps/portal/routes/ apps/portal/app/Providers/; then
+            echo 'FAIL: production Portal capability issuance accidentally enabled'
+            exit 1
+          fi
+          echo 'PASS ephemeral real signature and absence of production login path'
+      - name: Render offline Blade and test browser navigation
+        shell: bash
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
+          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: pview-perf-storage
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview-perf-storage-evidence
+        run: |
+          set -euo pipefail
+          php apps/portal/preview/tests/render_blade_preview.php
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+          node apps/portal/preview/tests/pview_browser_check.mjs
