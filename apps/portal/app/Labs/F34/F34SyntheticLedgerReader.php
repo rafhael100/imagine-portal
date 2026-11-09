@@ -31,7 +31,7 @@ final readonly class F34SyntheticLedgerReader
     }
 
     /** @return list<F33SyntheticRevocationEvent>|null */
-    public function readBatch(): ?array
+    public function readBatch(bool $onlyUnacknowledged = false): ?array
     {
         if ($this->pdo->inTransaction()) {
             return null;
@@ -78,13 +78,50 @@ final readonly class F34SyntheticLedgerReader
                 return null;
             }
 
-            $rows = $this->pdo->query(
-                "SELECT event_id, organization_id, kind, subject_ref,
-                        session_floor, membership_floor, changed_at, sequence_number
-                   FROM f33.publication_ledger
-                  ORDER BY organization_id, sequence_number, event_id
-                  LIMIT 21"
-            )->fetchAll(PDO::FETCH_ASSOC);
+            if ($onlyUnacknowledged) {
+                // F35 receipts must be protected with the same restricted
+                // ledger-reader role. Do not silently interpret missing
+                // receipt privileges as "nothing to process".
+                $ackCatalog = $this->pdo->query(
+                    "SELECT c.relrowsecurity AS rls_on,
+                            c.relforcerowsecurity AS rls_force,
+                            (SELECT count(*)::int FROM pg_catalog.pg_policy p
+                              WHERE p.polrelid=c.oid
+                                AND p.polname='f35_receipts_reader'
+                                AND p.polcmd='r') AS policy_count,
+                            (SELECT count(*)::int FROM pg_catalog.pg_policy p
+                              WHERE p.polrelid=c.oid) AS policy_total
+                       FROM pg_catalog.pg_class c
+                       JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+                      WHERE n.nspname='f35'
+                        AND c.relname='applied_receipt' AND c.relkind='r'"
+                )->fetchAll(PDO::FETCH_ASSOC);
+                if (!is_array($ackCatalog) || count($ackCatalog) !== 1
+                    || !$this->pgTrue($ackCatalog[0]['rls_on'] ?? null)
+                    || !$this->pgTrue($ackCatalog[0]['rls_force'] ?? null)
+                    || !in_array($ackCatalog[0]['policy_count'] ?? null, [1,'1'], true)
+                    || !in_array($ackCatalog[0]['policy_total'] ?? null, [1,'1'], true)) {
+                    $this->pdo->rollBack();
+                    return null;
+                }
+                $sql = "SELECT e.event_id, e.organization_id, e.kind,
+                               e.subject_ref, e.session_floor,
+                               e.membership_floor, e.changed_at,
+                               e.sequence_number
+                          FROM f33.publication_ledger e
+                          LEFT JOIN f35.applied_receipt a
+                            ON a.event_id=e.event_id
+                         WHERE a.event_id IS NULL
+                         ORDER BY e.organization_id,e.sequence_number,e.event_id
+                         LIMIT 21";
+            } else {
+                $sql = "SELECT event_id, organization_id, kind, subject_ref,
+                               session_floor, membership_floor, changed_at, sequence_number
+                          FROM f33.publication_ledger
+                         ORDER BY organization_id, sequence_number, event_id
+                         LIMIT 21";
+            }
+            $rows = $this->pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
             if (!is_array($rows) || count($rows) > self::MAX_EVENTS) {
                 $this->pdo->rollBack();
                 return null;
