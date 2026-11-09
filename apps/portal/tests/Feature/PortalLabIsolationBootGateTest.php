@@ -74,6 +74,12 @@ final class PortalLabIsolationBootGateTest extends TestCase
         self::assertSame(['up'], $routes);
     }
 
+    public function test_private_local_storage_cannot_serve_files_via_framework_route(): void
+    {
+        self::assertFalse(config('filesystems.disks.local.serve'));
+        self::assertSame('local', config('filesystems.default'));
+    }
+
     public function test_auth_payment_service_and_lab_endpoints_remain_404(): void
     {
         foreach ([
