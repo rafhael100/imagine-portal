@@ -198,6 +198,15 @@ jobs:
           php apps/portal/labs/commercial-publishing/test-f27-verified-ack.php \
             "$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
             "$RUNNER_TEMP/commercial-tree-sha256.txt"
+      - name: F28 provar papel restrito PostgreSQL e recibo Ed25519 no ACK atomico (LAB)
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema-f28-restricted-consumer.sql
+          php -l apps/portal/labs/commercial-publishing/RestrictedVerifiedDeliveryReceiptConsumerLab.php
+          php -l apps/portal/labs/commercial-publishing/test-f28-restricted-verified-ack.php
+          php apps/portal/labs/commercial-publishing/test-f28-restricted-verified-ack.php \
+            "$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
+            "$RUNNER_TEMP/commercial-tree-sha256.txt"
       - name: Revogar publicacao e provar que release anterior nao pode ser reservado novamente
         run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-f8-e2e-revoked.sql
       - name: Provar falha fechada em caso de hash inesperado
