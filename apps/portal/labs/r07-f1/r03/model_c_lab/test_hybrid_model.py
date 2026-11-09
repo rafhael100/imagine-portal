@@ -296,5 +296,32 @@ class HybridModelCTest(unittest.TestCase):
         self.assertEqual("OPEN", self.lab.state()[2])
 
 
+    def test_known_gap_stale_z4_clone_can_authorize_without_independent_anchor(self):
+        """EXPECTED KNOWN GAP, not a pass of the real X03/X22 security gate.
+
+        A file copied before revocation forms a second unfenced authority.
+        This proves why two files on one runner do NOT create durable Z4.
+        """
+        stale_authority = self.root / "unanchored-z4-old.sqlite"
+        shutil.copyfile(self.lab.z4, stale_authority)
+        self.lab.revoke("actor-a", "org-a")
+        with self.assertRaises(Denied):
+            self.lab.attempt("actor-a", "org-a", 1, 1, nonce="refused-by-current-z4")
+
+        # Threat demonstration: an old authority copy accepts stale grants.
+        # Uses the SAME disposable Z3; no customer effects or network.
+        shadow = HybridLab(self.lab.root)
+        shadow.z4 = stale_authority
+        self.assertTrue(shadow.attempt("actor-a", "org-a", 1, 1,
+                                       nonce="known-gap-stale-z4"))
+        self.assertEqual(
+            [("known-gap-stale-z4", "actor-a", "org-a", "portal-http")],
+            self.lab.effects(),
+        )
+        # The real authority continues to deny the already-revoked actor.
+        with self.assertRaises(Denied):
+            self.lab.attempt("actor-a", "org-a", 1, 1, nonce="still-refused")
+
+
 if __name__ == "__main__":
     unittest.main()
