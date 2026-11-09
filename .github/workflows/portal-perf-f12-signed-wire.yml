@@ -1,0 +1,31 @@
+name: Portal PERF-F12 - signed HTTP lab protocol (offline only)
+
+on:
+  push:
+    branches:
+      - feat/portal-perf-f12-signed-wire-loopback-2026-11-08
+
+permissions:
+  contents: read
+
+jobs:
+  signed-wire-v1:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Validate PHP signed wire protocol with no network, framework or secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          php -l apps/portal/labs/performance-contract/SyntheticWireEnvelope.php
+          php -l apps/portal/labs/performance-contract/test-synthetic-wire.php
+          php apps/portal/labs/performance-contract/test-synthetic-wire.php
+          if grep -R 'SyntheticWireEnvelope' apps/portal/routes/ apps/portal/app/ apps/portal/bootstrap/; then
+            echo 'FAIL protocol lab wired into operational Laravel'
+            exit 1
+          fi
