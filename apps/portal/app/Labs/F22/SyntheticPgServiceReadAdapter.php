@@ -81,6 +81,41 @@ final readonly class SyntheticPgServiceReadAdapter
                 return DemoServiceRelationPage::blocked('untrusted_db_session');
             }
 
+            // F23 NEGATIVE SECURITY PROBE. Before reading, check the
+            // database-side guarantees assumed by this exact F21 fixture.
+            // A name match alone cannot prove that RLS remains enabled.
+            // This is NOT a signed schema attestation or production IAM.
+            $assurance = $this->pdo->query(
+                "SELECT (
+                    SELECT count(*)::int
+                      FROM pg_catalog.pg_class c
+                      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                     WHERE n.nspname = 'f21'
+                       AND c.relname IN ('service', 'request', 'contract')
+                       AND c.relkind = 'r'
+                       AND c.relrowsecurity AND c.relforcerowsecurity
+                ) AS protected_tables,
+                (
+                    SELECT ('security_invoker=true' = ANY(c.reloptions))
+                      FROM pg_catalog.pg_class c
+                      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                     WHERE n.nspname = 'f21'
+                       AND c.relname = 'service_summary'
+                       AND c.relkind = 'v'
+                ) AS invoker_view,
+                (
+                    SELECT (NOT r.rolsuper AND NOT r.rolbypassrls AND r.rolcanlogin)
+                      FROM pg_catalog.pg_roles r WHERE r.rolname = current_user
+                ) AS restricted_role",
+            )->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($assurance)
+                || !in_array($assurance['protected_tables'] ?? null, [3, '3'], true)
+                || !$this->pgTrue($assurance['invoker_view'] ?? null)
+                || !$this->pgTrue($assurance['restricted_role'] ?? null)) {
+                $this->pdo->rollBack();
+                return DemoServiceRelationPage::blocked('unsafe_db_schema');
+            }
+
             // The schema/view are FIXED lab identifiers. No user-supplied SQL.
             // The filter is a parameter in a real server-side prepared query.
             // Always fetch the full bounded fixture collection before slicing.
@@ -168,6 +203,12 @@ final readonly class SyntheticPgServiceReadAdapter
             }
             return DemoServiceRelationPage::blocked('source_unavailable');
         }
+    }
+
+    private function pgTrue(mixed $value): bool
+    {
+        // PDO_pgsql may fetch PostgreSQL bool as bool, 't' or '1'.
+        return in_array($value, [true, 't', 'true', 1, '1'], true);
     }
 
     private function boundedCount(mixed $raw): ?int
