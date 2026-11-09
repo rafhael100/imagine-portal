@@ -1,0 +1,114 @@
+name: Portal F5 - real HTTP loopback CSRF and cookie verification
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/http-transport/**'
+      - '.github/workflows/portal-f5-http-loopback.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f5-http-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-http-laravel:
+    if: github.head_ref == 'feat/portal-f5-http-csrf-loopback-2026-11-08'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout PR without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP 8.4 (no database or extra server)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, curl, fileinfo, intl, zip
+
+      - name: Install locked Laravel dependencies without scripts or plugins
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache
+          git diff --exit-code -- composer.lock
+
+      - name: Verify syntaxes and exclusive HTTP router guards
+        run: |
+          set -euo pipefail
+          php -l labs/http-transport/router.php
+          python3 -m py_compile labs/http-transport/test_http_transport.py
+          if grep -R "http-transport/router" bootstrap/ routes/; then
+            echo "ERROR: Loopback router must not be imported by product bootstrap"
+            exit 1
+          fi
+          if grep -R "PORTAL_HTTP_LOOPBACK_LAB" bootstrap/ routes/; then
+            echo "ERROR: Loopback mode must not appear in product routes"
+            exit 1
+          fi
+
+      - name: Real HTTP 419 CSRF, session and cookie attributes (127.0.0.1 only)
+        env:
+          APP_ENV: local
+          APP_DEBUG: 'false'
+          APP_URL: http://127.0.0.1:18945
+          PORTAL_HTTP_LOOPBACK_LAB: '1'
+          SESSION_DRIVER: file
+          SESSION_COOKIE: portal_loopback_session
+          SESSION_SAME_SITE: strict
+          SESSION_HTTP_ONLY: 'true'
+          SESSION_SECURE_COOKIE: 'false'
+          SESSION_ENCRYPT: 'true'
+          SESSION_LIFETIME: '15'
+          CACHE_STORE: array
+          QUEUE_CONNECTION: sync
+          DB_CONNECTION: sqlite
+          LOG_CHANNEL: stderr
+        run: |
+          set -euo pipefail
+          pid=''
+          cleanup() {
+            if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+
+          php -S 127.0.0.1:18945 labs/http-transport/router.php > "$RUNNER_TEMP/portal-f5-http.log" 2>&1 &
+          pid=$!
+          if ! python3 labs/http-transport/test_http_transport.py normal; then
+            tail -n 80 "$RUNNER_TEMP/portal-f5-http.log"
+            exit 1
+          fi
+
+          cleanup
+          pid=''
+          APP_URL=http://127.0.0.1:18946 SESSION_SECURE_COOKIE=true \
+            php -S 127.0.0.1:18946 labs/http-transport/router.php > "$RUNNER_TEMP/portal-f5-cookie-secure.log" 2>&1 &
+          pid=$!
+          if ! python3 labs/http-transport/test_http_transport.py secure-attribute; then
+            tail -n 80 "$RUNNER_TEMP/portal-f5-cookie-secure.log"
+            exit 1
+          fi
+          echo "[PASS F5] Both loopback variants completed. No public HTTPS or auth claim."
+
+      - name: Assert product routes remain unchanged
+        run: |
+          set -euo pipefail
+          if grep -R "PORTAL_HTTP_LOOPBACK_LAB" app/ routes/ bootstrap/; then
+            echo "Unexpected production reference to loopback harness"
+            exit 1
+          fi
+          git diff --exit-code -- composer.lock routes/web.php bootstrap/app.php
