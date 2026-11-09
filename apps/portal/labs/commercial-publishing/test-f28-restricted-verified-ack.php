@@ -43,7 +43,7 @@ $privilegeQueries=[
        'commercial_publishing_lab.commit_verified_delivery_receipt(text,text,text,text,text,bigint,bigint,text,text,text,timestamptz)','EXECUTE')"
 ];
 foreach($privilegeQueries as $query){
-    if(filter_var($pdo->query($query)->fetchColumn(),FILTER_VALIDATE_BOOLEAN)){
+    if(in_array($pdo->query($query)->fetchColumn(),[true,'t','1',1],true)){
         throw new RuntimeException('F28: service/reader received prohibited direct permission.');
     }
 }
@@ -53,14 +53,14 @@ foreach([
 ] as $signature){
     $stmt=$pdo->prepare("SELECT has_function_privilege('commercial_lab_receipt_consumer',?, 'EXECUTE')");
     $stmt->execute([$signature]);
-    if(!filter_var($stmt->fetchColumn(),FILTER_VALIDATE_BOOLEAN)){
+    if(!in_array($stmt->fetchColumn(),[true,'t','1',1],true)){
         throw new RuntimeException('F28: expected narrowly-scoped wrapper grant is missing.');
     }
 }
 $role=$pdo->query("SELECT rolcanlogin,rolbypassrls FROM pg_roles
     WHERE rolname='commercial_lab_receipt_consumer'")->fetch(PDO::FETCH_ASSOC);
-if(!$role || filter_var($role['rolcanlogin'],FILTER_VALIDATE_BOOLEAN) ||
-   filter_var($role['rolbypassrls'],FILTER_VALIDATE_BOOLEAN)){
+if(!$role || in_array($role['rolcanlogin'],[true,'t','1',1],true) ||
+   in_array($role['rolbypassrls'],[true,'t','1',1],true)){
     throw new RuntimeException('F28: restricted receipt role must be NOLOGIN and NOBYPASSRLS.');
 }
 
