@@ -199,7 +199,7 @@ final class SiteEngineHandoffDemoContractValidatorTest extends TestCase
         [$candidate,$journal,$json]=$this->sample();
         foreach ([
             '{invalid',
-            $json.$json,
+            '{}{}',
             '[1,2,3]',
             '"string"',
             'true',
@@ -209,6 +209,10 @@ final class SiteEngineHandoffDemoContractValidatorTest extends TestCase
             self::assertSame('malformed_json',$out->reason);
             self::assertFalse($out->isAuthenticatedTransport());
         }
+        // Two complete canonical envelopes exceed the explicit 1024-byte
+        // safety cap and are denied BEFORE JSON parsing.
+        self::assertSame('payload_too_large',
+            $this->inspect($json.$json,$candidate,$journal)->reason);
     }
 
     public function test_oversized_payload_or_empty_string_is_denied_before_any_envelope(): void
