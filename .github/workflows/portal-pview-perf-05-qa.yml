@@ -1,0 +1,67 @@
+name: Portal PVIEW-PERF-05 - offline performance contract integration
+
+on:
+  push:
+    branches:
+      - feat/portal-pview-perf-contract-2026-11-08
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-perf-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-contract:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: PHP 8.4 and locked Composer toolchain
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked Laravel without migrations or external providers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+      - name: Run versioned snapshot validation and preview tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Presentation/Preview/PerformanceDemoSnapshot.php
+          php -l apps/portal/tests/Feature/PerformanceDemoSnapshotContractTest.php
+          cd apps/portal
+          ./vendor/bin/phpunit tests/Feature/PerformanceDemoSnapshotContractTest.php
+          ./vendor/bin/phpunit tests/Feature/PviewPerformanceDetailTest.php
+          ./vendor/bin/phpunit tests/Feature/PviewNavigationPresentationTest.php
+      - name: Render offline Blade and test browser navigation
+        shell: bash
+        env:
+          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-perf-contract-demo.html
+          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-perf-contract-demo.html
+          PVIEW_HASH_PREFIX: pview-
+          PVIEW_SHOT_PREFIX: pview-perf-contract
+          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview-perf-contract-evidence
+        run: |
+          set -euo pipefail
+          php apps/portal/preview/tests/render_blade_preview.php
+          node --check apps/portal/preview/tests/pview_browser_check.mjs
+          node apps/portal/preview/tests/pview_browser_check.mjs
