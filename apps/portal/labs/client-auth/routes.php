@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 // Loaded only by routes/web.php when APP_ENV=testing, PHP_SAPI=cli and
 // PORTAL_CLIENT_LAB_ENABLED=1. Never exposed by a real browser server.
+require_once __DIR__.'/LabMembershipFence.php';
 require_once __DIR__.'/LabPortalGateway.php';
 require_once __DIR__.'/LabTotp.php';
 require_once __DIR__.'/LabSecureLogin.php';

@@ -131,6 +131,8 @@ final class LabPortalGateway
         $db = $this->database();
 
         return $db->transaction(static function () use ($db, $actor, $org, $serviceId, $title): ?string {
+            LabMembershipFence::lockWriter($db, $actor, $org);
+
             $valid = $db->table('lab_portal_memberships as m')
                 ->join('lab_portal_organizations as o', 'o.id', '=', 'm.org_id')
                 ->where('m.user_id', $actor)
@@ -184,6 +186,8 @@ final class LabPortalGateway
         $payloadDigest = hash('sha256', json_encode([$serviceId, $title], JSON_THROW_ON_ERROR));
 
         return $db->transaction(static function () use ($db, $actor, $org, $serviceId, $title, $keyDigest, $payloadDigest): ?array {
+            LabMembershipFence::lockWriter($db, $actor, $org);
+
             $valid = $db->table('lab_portal_memberships as m')
                 ->join('lab_portal_organizations as o', 'o.id', '=', 'm.org_id')
                 ->where('m.user_id', $actor)
