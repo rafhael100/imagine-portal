@@ -24,10 +24,11 @@ final class SitesReviewHandoffV2ConsumerTest extends TestCase
         ),true,16,JSON_THROW_ON_ERROR);
     }
 
-    private function source(?Snapshot $snapshot, ?bool &$offline=null):Source
+    private function source(?Snapshot $snapshot):Source
     {
-        return new class($snapshot,$offline) implements Source {
-            public function __construct(public ?Snapshot $current,public ?bool &$offline) {}
+        return new class($snapshot) implements Source {
+            public bool $offline=false;
+            public function __construct(public ?Snapshot $current) {}
             public function findCurrent(string $tenantRef,string $siteRef):?Snapshot
             {
                 if($this->offline)throw new \RuntimeException('Portal unavailable');
@@ -210,9 +211,10 @@ final class SitesReviewHandoffV2ConsumerTest extends TestCase
             $this->source($this->snapshot()),$this->fence());
             self::fail('Field order is part of canonical contract.');}
         catch(DomainException){}
-        $offline=true;
+        $source=$this->source($this->snapshot());
+        $source->offline=true;
         try{Consumer::consume($wire,self::KEY,self::NOW,
-            $this->source($this->snapshot(),$offline),$this->fence());
+            $source,$this->fence());
             self::fail('Unreachable Portal source must fail closed.');}
         catch(DomainException){}
     }
