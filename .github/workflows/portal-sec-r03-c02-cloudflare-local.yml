@@ -44,9 +44,37 @@ jobs:
           node --check src/r2-evidence.mjs
           node --check src/worker.mjs
           node --check test/protocol.test.mjs
+          node --check test/miniflare-smoke.mjs
       - name: Node builtin test runner and synthetic security regression
         run: node --test test/protocol.test.mjs
       - name: Security scope evidence (offline only)
         run: |
           echo "OFFLINE ONLY: no Wrangler install, no Cloudflare login, no account binding, no R2 bucket, no deploy."
           echo "NO APPSEC APPROVAL: local tests cannot certify operational Z4, backup anti-rollback or RLS."
+
+
+  local-workerd-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/portal/labs/r07-f1/r03/cloudflare-c02
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install pinned, free Miniflare in ephemeral runner only
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock --no-audit --no-fund --ignore-scripts miniflare@4.20260730.0
+      - name: Run workerd-backed SQLite Durable Object smoke, 100 percent local
+        env:
+          CLOUDFLARE_CF_FETCH_ENABLED: 'false'
+        run: node --test test/miniflare-smoke.mjs
+      - name: Prove no Cloudflare provider action is executed
+        run: |
+          echo "No cloud account, no wrangler deploy, no R2 bucket, no secrets and no remote bindings."
