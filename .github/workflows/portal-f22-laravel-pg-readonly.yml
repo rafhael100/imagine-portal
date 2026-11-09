@@ -12,6 +12,9 @@ on:
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - 'apps/portal/app/Labs/F26/**'
       - 'apps/portal/app/Labs/F28/**'
+      - 'apps/portal/app/Labs/F29/**'
+      - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
+      - 'apps/portal/labs/service-relations-f29/**'
       - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
       - 'apps/portal/labs/service-relations-f28/**'
       - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
@@ -30,6 +33,9 @@ on:
       - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - 'apps/portal/app/Labs/F26/**'
       - 'apps/portal/app/Labs/F28/**'
+      - 'apps/portal/app/Labs/F29/**'
+      - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
+      - 'apps/portal/labs/service-relations-f29/**'
       - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
       - 'apps/portal/labs/service-relations-f28/**'
       - 'apps/portal/tests/Integration/F26AuthorityReadRehearsalTest.php'
@@ -88,6 +94,8 @@ jobs:
           php -l tests/Integration/F26AuthorityReadRehearsalTest.php
           php -l app/Labs/F28/F28RevocationFenceInspector.php
           php -l tests/Integration/F28RevocationFenceIntegrityTest.php
+          php -l app/Labs/F29/F29SyntheticRlsPolicyInspector.php
+          php -l tests/Integration/F29RlsPolicyGrantDriftTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
