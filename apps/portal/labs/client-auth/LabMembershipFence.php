@@ -79,7 +79,7 @@ final class LabMembershipFence
             return $admin->table('lab_portal_memberships')
                 ->where('org_id', $organization)
                 ->where('user_id', $actor)
-                ->update(['status' => 'revoked']);
+                ->update(['status' => 'revoked', 'revision' => DB::raw('revision + 1')]);
         });
     }
 }
