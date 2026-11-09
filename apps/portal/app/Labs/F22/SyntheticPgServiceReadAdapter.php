@@ -6,6 +6,7 @@ namespace App\Labs\F22;
 
 use App\Domain\ClientOverview\DemoServiceRelationPage;
 use App\Domain\Organizations\OrganizationId;
+use App\Labs\F24\F24LabSessionProof;
 use PDO;
 use Throwable;
 
@@ -44,6 +45,7 @@ final readonly class SyntheticPgServiceReadAdapter
         ?OrganizationId $organization,
         int $limit = 10,
         ?string $after = null,
+        ?F24LabSessionProof $labSessionProof = null,
     ): DemoServiceRelationPage {
         if ($organization === null) {
             return DemoServiceRelationPage::blocked('missing_organization');
@@ -114,6 +116,15 @@ final readonly class SyntheticPgServiceReadAdapter
                 || !$this->pgTrue($assurance['restricted_role'] ?? null)) {
                 $this->pdo->rollBack();
                 return DemoServiceRelationPage::blocked('unsafe_db_schema');
+            }
+
+            // F24 synthetic proof is checked INSIDE the same read snapshot.
+            // The F22 unguarded entrypoint remains only for older lab tests;
+            // F24's facade NEVER invokes it without a verified proof.
+            if ($labSessionProof !== null
+                && !$labSessionProof->matchesCurrentSyntheticDatabase($this->pdo, $organization)) {
+                $this->pdo->rollBack();
+                return DemoServiceRelationPage::blocked('revoked_lab_identity');
             }
 
             // The schema/view are FIXED lab identifiers. No user-supplied SQL.

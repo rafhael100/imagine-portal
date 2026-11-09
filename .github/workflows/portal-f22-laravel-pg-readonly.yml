@@ -6,6 +6,9 @@ on:
       - 'apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php'
       - 'apps/portal/tests/Integration/F22PgServiceReadIntegrationTest.php'
       - 'apps/portal/labs/service-relations-f22/**'
+      - 'apps/portal/labs/service-relations-f24/**'
+      - 'apps/portal/app/Labs/F24/**'
+      - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
   push:
     branches:
@@ -15,6 +18,9 @@ on:
       - 'apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php'
       - 'apps/portal/tests/Integration/F22PgServiceReadIntegrationTest.php'
       - 'apps/portal/labs/service-relations-f22/**'
+      - 'apps/portal/labs/service-relations-f24/**'
+      - 'apps/portal/app/Labs/F24/**'
+      - 'apps/portal/tests/Integration/F24SessionRevocationIntegrationTest.php'
       - '.github/workflows/portal-f22-laravel-pg-readonly.yml'
 
 permissions:
@@ -63,6 +69,9 @@ jobs:
           git diff --exit-code -- composer.lock
           php -l app/Labs/F22/SyntheticPgServiceReadAdapter.php
           php -l tests/Integration/F22PgServiceReadIntegrationTest.php
+          php -l app/Labs/F24/F24LabSessionProof.php
+          php -l app/Labs/F24/F24SyntheticAuthorizedReader.php
+          php -l tests/Integration/F24SessionRevocationIntegrationTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -92,6 +101,9 @@ jobs:
             < labs/service-relations-f21/schema.sql >/dev/null
           docker exec -i "$F22_PG_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f24/schema.sql >/dev/null
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             -v "password_a=$role_a_password" -v "password_b=$role_b_password" <<'SQL'
           ALTER ROLE f21_org_a PASSWORD :'password_a';
           ALTER ROLE f21_org_b PASSWORD :'password_b';
@@ -115,8 +127,8 @@ jobs:
           # phpunit.xml does not discover tests/Integration automatically;
           # target this file explicitly, without modifying Laravel routes.
           vendor/bin/phpunit --configuration phpunit.xml \
-            tests/Integration/F22PgServiceReadIntegrationTest.php
+            tests/Integration
 
-          echo "F22 LAB ONLY: PHP PDO verified local DB identities and RLS; no real IAM."
+          echo "F22/F24 LAB ONLY: PHP PDO verified local DB identities/RLS and synthetic revocation; no real IAM."
           echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
           echo "F22 LAB ONLY: P0, D02/D03, SEC-R03, release still BLOCKED."

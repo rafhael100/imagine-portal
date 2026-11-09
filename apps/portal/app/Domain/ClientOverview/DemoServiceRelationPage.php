@@ -69,6 +69,7 @@ final readonly class DemoServiceRelationPage
             'foreign_organization', 'inconsistent_service_reference',
             'invalid_pagination', 'unknown_cursor',
             'source_unavailable', 'untrusted_db_session', 'unsafe_db_schema',
+            'invalid_lab_identity_evidence', 'revoked_lab_identity',
         ], true)) {
             throw new InvalidArgumentException('Unknown relation preview rejection.');
         }
