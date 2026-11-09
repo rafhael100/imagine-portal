@@ -296,6 +296,46 @@ final class F35AcknowledgedReconciliationTest extends TestCase
         self::assertSame(1,$this->ackCount());
     }
 
+    public function test_primary_force_rls_disabled_denies_ack_even_if_writer_applied_revocation(): void
+    {
+        self::assertSame('published',$this->publisher()->publishWitness(
+            $this->event('F33-F35-PRIMARY-RLS'),
+        ));
+        $admin=$this->db('primary','admin');
+        $admin->exec('ALTER TABLE f24.session_fixture NO FORCE ROW LEVEL SECURITY');
+        try {
+            $failed=$this->runner()->runOnce();
+            self::assertFalse($failed->completed);
+            self::assertSame('primary_unconfirmed',$failed->status);
+            self::assertSame(1,$this->unackedCount());
+            self::assertSame(0,$this->ackCount());
+            self::assertSame(['state'=>'revoked','rev'=>2],$this->primary());
+        } finally {
+            $admin->exec('ALTER TABLE f24.session_fixture FORCE ROW LEVEL SECURITY');
+        }
+        self::assertTrue($this->runner()->runOnce()->completed);
+        self::assertSame(1,$this->ackCount());
+    }
+
+    public function test_primary_role_bypassrls_is_not_a_trusted_ack_observer(): void
+    {
+        self::assertSame('published',$this->publisher()->publishWitness(
+            $this->event('F33-F35-BYPASS-ROLE'),
+        ));
+        $admin=$this->db('primary','admin');
+        $admin->exec('ALTER ROLE f21_org_a BYPASSRLS');
+        try {
+            $failed=$this->runner()->runOnce();
+            self::assertFalse($failed->completed);
+            self::assertSame('primary_unconfirmed',$failed->status);
+            self::assertSame(0,$this->ackCount());
+        } finally {
+            $admin->exec('ALTER ROLE f21_org_a NOBYPASSRLS');
+        }
+        self::assertTrue($this->runner()->runOnce()->completed);
+        self::assertSame(1,$this->ackCount());
+    }
+
     public function test_receipt_is_idempotent_and_different_revision_replay_is_rejected(): void
     {
         $ev=$this->event('F33-F35-RECEIPT-ID');
