@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Labs\F35;
 
 use App\Labs\F33\F33SyntheticRevocationEvent;
+use App\Labs\F36\F36AckContractInspector;
 use PDO;
 use Throwable;
 
@@ -32,7 +33,9 @@ final readonly class F35WitnessAckStore
     public function isAcknowledged(F33SyntheticRevocationEvent $event): ?bool
     {
         try {
-            if (!$this->authorized() || $this->pdo->inTransaction()) {
+            if (!$this->authorized()
+                || $this->pdo->inTransaction()
+                || !(new F36AckContractInspector())->intact($this->pdo)) {
                 return null;
             }
             $query = $this->pdo->prepare(
@@ -63,7 +66,9 @@ final readonly class F35WitnessAckStore
     public function record(F33SyntheticRevocationEvent $event): ?string
     {
         try {
-            if (!$this->authorized() || $this->pdo->inTransaction()) {
+            if (!$this->authorized()
+                || $this->pdo->inTransaction()
+                || !(new F36AckContractInspector())->intact($this->pdo)) {
                 return null;
             }
             $stmt = $this->pdo->prepare(
