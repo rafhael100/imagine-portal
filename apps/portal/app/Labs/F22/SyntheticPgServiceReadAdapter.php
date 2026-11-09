@@ -68,7 +68,22 @@ final readonly class SyntheticPgServiceReadAdapter
             return DemoServiceRelationPage::blocked('source_unavailable');
         }
 
+        // F25: acquire tenant's shared SESSION advisory lock BEFORE the
+        // first REPEATABLE READ statement establishes the DB snapshot.
+        // The F25 disposable triggers acquire the matching exclusive XACT
+        // lock on a session/member write. A privileged writer can bypass
+        // triggers; this coordination is NEVER a production authorization.
+        $fenceKey = $labSessionProof?->syntheticFenceKey();
+        $fenceHeld = false;
         try {
+            if ($fenceKey !== null) {
+                $this->pdo->exec("SET lock_timeout = '2000ms'");
+                $statement = $this->pdo->query(
+                    'SELECT pg_catalog.pg_advisory_lock_shared('.$fenceKey.')'
+                );
+                $statement->closeCursor();
+                $fenceHeld = true;
+            }
             $this->pdo->beginTransaction();
             $this->pdo->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
             $this->pdo->exec("SET LOCAL statement_timeout = '2000ms'");
@@ -213,6 +228,28 @@ final readonly class SyntheticPgServiceReadAdapter
                 // fail closed even if the connection is already broken
             }
             return DemoServiceRelationPage::blocked('source_unavailable');
+        } finally {
+            if ($fenceHeld) {
+                try {
+                    // Releases after COMMIT/ROLLBACK, never before SELECT.
+                    // If the socket dies, PostgreSQL frees session locks
+                    // when the connection closes (not a formal SLA).
+                    $unlock = $this->pdo->query(
+                        'SELECT pg_catalog.pg_advisory_unlock_shared('.$fenceKey.')'
+                    );
+                    $unlock->closeCursor();
+                } catch (Throwable) {
+                    // The user-facing result remains deny/preview only;
+                    // never elevate or retry with an admin connection.
+                }
+            }
+            if ($fenceKey !== null) {
+                try {
+                    $this->pdo->exec('RESET lock_timeout');
+                } catch (Throwable) {
+                    // Broken connection is handled by the caller's lab.
+                }
+            }
         }
     }
 
