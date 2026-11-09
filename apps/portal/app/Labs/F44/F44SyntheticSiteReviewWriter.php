@@ -93,6 +93,11 @@ final readonly class F44SyntheticSiteReviewWriter
                 $this->pdo->rollBack();
                 return F44SyntheticReviewWriteResult::denied('unsafe_synthetic_schema');
             }
+            // F45 adds two explicit SELECT-only policies for new reader
+            // roles. Preserve drift denial: only 2 (F44-only fixture)
+            // or exactly 4 (when F45 lab is explicitly provisioned).
+            $expectedPolicies = getenv('F45_ENABLE_LAB')==='READ_ONLY_SITES_CONSISTENCY'
+                ? 4 : 2;
             $seen=[];
             foreach ($meta as $object) {
                 $name=$object['relname'] ?? null;
@@ -100,7 +105,7 @@ final readonly class F44SyntheticSiteReviewWriter
                     || isset($seen[$name])
                     || !$this->pgTrue($object['enabled'] ?? null)
                     || !$this->pgTrue($object['forced'] ?? null)
-                    || (int)($object['policy_count'] ?? -1)!==2) {
+                    || (int)($object['policy_count'] ?? -1)!==$expectedPolicies) {
                     $this->pdo->rollBack();
                     return F44SyntheticReviewWriteResult::denied('unsafe_synthetic_schema');
                 }
