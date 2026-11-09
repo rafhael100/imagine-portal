@@ -127,6 +127,23 @@ final class LabPerformanceMfaIssuer
                     return null;
                 }
 
+                // PERF-F11 extra revocation check is enabled ONLY in the new
+                // isolated CLI lab. Existing F1-F10 regression tests retain
+                // their original schema and behavior when this flag is unset.
+                if (getenv('PORTAL_PERF_F11_LAB_ENABLED') === '1') {
+                    $validGrant = $db->table('lab_portal_perf_authority')
+                        ->where('org_id', $organization)
+                        ->where('service_id', $service)
+                        ->where('organization_ref', $binding['organization'])
+                        ->where('tenant_ref', $binding['tenant'])
+                        ->where('service_ref', $binding['service'])
+                        ->where('min_revision', $binding['grant_revision'])
+                        ->where('active', true)->exists();
+                    if (!$validGrant) {
+                        return null;
+                    }
+                }
+
                 return SyntheticS2SProtocol::mintForLab(
                     $binding['organization'],
                     $binding['tenant'],
