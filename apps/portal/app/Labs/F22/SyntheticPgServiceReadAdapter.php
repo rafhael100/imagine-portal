@@ -27,6 +27,11 @@ final readonly class SyntheticPgServiceReadAdapter
 
     public function __construct(private PDO $pdo)
     {
+        // This opt-in is a NON-SECURITY safety guard against accidental
+        // registration, not a trusted identity source or production flag.
+        if (getenv('F22_ENABLE_LAB') !== 'NON_OPERATIONAL_F22') {
+            throw new \LogicException('F22 adapter is only for an explicitly isolated fixture.');
+        }
         // No SQLite fallback, real customer tables, or MySQL integration.
         if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql') {
             throw new \InvalidArgumentException('F22 requires PostgreSQL lab driver.');
