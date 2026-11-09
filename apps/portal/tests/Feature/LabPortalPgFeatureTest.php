@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Labs\ClientAuth\LabMembershipFence;
 use App\Labs\ClientAuth\LabPortalGateway;
+use App\Labs\ClientAuth\LabOutboxPublisher;
+use App\Labs\ClientAuth\LabOutboxWorker;
 use App\Labs\ClientAuth\LabTotp;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +39,19 @@ final class LabPortalPgFeatureTest extends TestCase
             ],
         )]);
         DB::purge('portal_lab_runtime');
+
+        config(['database.connections.portal_lab_worker' => array_merge(
+            config('database.connections.pgsql'),
+            [
+                'username' => 'portal_lab_worker',
+                'password' => 'portal-lab-worker-only',
+                'database' => 'portal_lab',
+            ],
+        )]);
+        DB::purge('portal_lab_worker');
+
+        require_once base_path('labs/client-auth/LabOutboxPublisher.php');
+        require_once base_path('labs/client-auth/LabOutboxWorker.php');
 
         $migration = require base_path('labs/client-auth/create_lab_schema.php');
         $migration->down();
@@ -647,6 +662,176 @@ final class LabPortalPgFeatureTest extends TestCase
             }
             $writer->statement('RESET lock_timeout');
         }
+    }
+
+
+    private function syntheticF7Request(string $key = 'F7-REQUEST-UNIQUE-2026'): string
+    {
+        $result = app(LabPortalGateway::class)->submitIdempotentRequest(
+            'portal-user-a', 'org-a', 'service-a', 'Lab F7 outbox request', $key,
+        );
+        $this->assertSame('created', $result['outcome']);
+        $this->assertIsString($result['id']);
+
+        return $result['id'];
+    }
+
+    public function test_f7_outbox_delivers_one_local_receipt_and_replay_cannot_duplicate_effect(): void
+    {
+        $requestId = $this->syntheticF7Request();
+        $publisher = app(LabOutboxPublisher::class);
+        $worker = app(LabOutboxWorker::class);
+
+        $id = $publisher->enqueue('portal-user-a', 'org-a', $requestId);
+        $this->assertIsString($id);
+        $this->assertSame($id, $publisher->enqueue('portal-user-a', 'org-a', $requestId));
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_outbox')->count());
+
+        $this->assertSame('portal_lab_worker',
+            DB::connection('portal_lab_worker')->selectOne('select current_user as name')->name);
+        $this->assertSame('delivered', $worker->consumeOne());
+        $this->assertSame('empty', $worker->consumeOne());
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+        $this->assertSame('synthetic.local_receipt_only',
+            DB::connection('pgsql')->table('lab_portal_delivery_receipts')->first()->effect_type);
+        $this->assertSame('delivered',
+            DB::connection('pgsql')->table('lab_portal_outbox')->first()->status);
+
+        // INSERT conflict cannot manufacture another outbox event after
+        // success; a delivered event is not visible to runtime RLS SELECT.
+        $this->assertNull($publisher->enqueue('portal-user-a', 'org-a', $requestId));
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_outbox')->count());
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+    }
+
+    public function test_f7_revoked_membership_blocks_queued_work_and_reactivation_cannot_replay_old_generation(): void
+    {
+        $requestId = $this->syntheticF7Request();
+        $id = app(LabOutboxPublisher::class)->enqueue('portal-user-a', 'org-a', $requestId);
+        $this->assertIsString($id);
+        $this->assertSame(1, LabMembershipFence::revoke('portal-user-a', 'org-a'));
+
+        $this->assertSame('blocked', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame('empty', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+        $record = DB::connection('pgsql')->table('lab_portal_outbox')->first();
+        $this->assertSame('blocked', $record->status);
+        $this->assertSame(1, (int) $record->attempts);
+
+        DB::connection('pgsql')->table('lab_portal_memberships')
+            ->where('org_id', 'org-a')->where('user_id', 'portal-user-a')
+            ->update(['status' => 'active']);
+
+        // Re-activation does not reset revision; the previously blocked
+        // event never becomes deliverable without an explicit new operation.
+        $this->assertSame(2, (int) DB::connection('pgsql')
+            ->table('lab_portal_memberships')->where('org_id', 'org-a')
+            ->where('user_id', 'portal-user-a')->value('revision'));
+        $this->assertSame('empty', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+    }
+
+    public function test_f7_account_revision_and_suspended_organization_block_queued_side_effects(): void
+    {
+        $requestId = $this->syntheticF7Request();
+        $this->assertIsString(app(LabOutboxPublisher::class)->enqueue('portal-user-a', 'org-a', $requestId));
+
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-a')
+            ->update(['session_revision' => 2]);
+
+        $this->assertSame('blocked', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+
+        // Separate case: fresh event with active account but suspended org.
+        DB::connection('pgsql')->table('lab_portal_users')
+            ->where('id', 'portal-user-a')
+            ->update(['session_revision' => 1]);
+        $second = $this->syntheticF7Request('F7-ORG-SUSPEND-2026');
+        $this->assertIsString(app(LabOutboxPublisher::class)->enqueue('portal-user-a', 'org-a', $second));
+        DB::connection('pgsql')->table('lab_portal_organizations')
+            ->where('id', 'org-a')
+            ->update(['status' => 'suspended']);
+
+        $this->assertSame('blocked', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame('empty', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
+    }
+
+    public function test_f7_worker_role_cannot_revoke_membership_and_publisher_cannot_forge_tenant(): void
+    {
+        $requestId = $this->syntheticF7Request();
+        $this->assertNull(app(LabOutboxPublisher::class)->enqueue('portal-user-a', 'org-b', $requestId));
+
+        $publisher = DB::connection('portal_lab_runtime');
+        $this->assertSame(0, $publisher->table('lab_portal_outbox')->count(), 'No GUC must not reveal outbox.');
+
+        // Runtime cannot insert an event with organization B and actor A.
+        try {
+            $publisher->table('lab_portal_outbox')->insert([
+                'org_id' => 'org-b',
+                'id' => 'forged-outbox',
+                'actor_id' => 'portal-user-a',
+                'request_id' => $requestId,
+                'event_type' => 'request.received.synthetic',
+                'membership_revision' => 1,
+                'account_revision' => 1,
+                'status' => 'pending',
+                'attempts' => 0,
+            ]);
+            $this->fail('Runtime created a foreign event without tenant authorization.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+
+        $worker = DB::connection('portal_lab_worker');
+        try {
+            $worker->table('lab_portal_memberships')
+                ->where('org_id', 'org-a')->update(['status' => 'revoked']);
+            $this->fail('Worker gained permission to revoke a membership.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+
+        $this->assertSame(0, DB::connection('pgsql')->table('lab_portal_outbox')->count());
+    }
+
+    public function test_f7_two_independent_worker_connections_skip_locked_event(): void
+    {
+        $requestId = $this->syntheticF7Request();
+        $this->assertIsString(app(LabOutboxPublisher::class)->enqueue('portal-user-a', 'org-a', $requestId));
+
+        config(['database.connections.portal_lab_worker_b' => array_merge(
+            config('database.connections.portal_lab_worker'),
+            ['application_name' => 'portal_lab_worker_b'],
+        )]);
+        DB::purge('portal_lab_worker_b');
+
+        $first = DB::connection('portal_lab_worker');
+        $second = DB::connection('portal_lab_worker_b');
+        $this->assertNotEquals(
+            $first->selectOne('select pg_backend_pid() as pid')->pid,
+            $second->selectOne('select pg_backend_pid() as pid')->pid,
+            'Two different real PostgreSQL backend processes are required.',
+        );
+
+        $first->beginTransaction();
+        try {
+            $locked = $first->table('lab_portal_outbox')
+                ->where('status', 'pending')->lock('FOR UPDATE SKIP LOCKED')->first();
+            $this->assertNotNull($locked);
+            $skipped = $second->transaction(
+                static fn () => $second->table('lab_portal_outbox')
+                    ->where('status', 'pending')->lock('FOR UPDATE SKIP LOCKED')->first(),
+            );
+            $this->assertNull($skipped, 'Concurrent worker must skip a locked event.');
+        } finally {
+            $first->rollBack();
+            DB::disconnect('portal_lab_worker_b');
+        }
+
+        $this->assertSame('delivered', app(LabOutboxWorker::class)->consumeOne());
+        $this->assertSame(1, DB::connection('pgsql')->table('lab_portal_delivery_receipts')->count());
     }
 
 }
