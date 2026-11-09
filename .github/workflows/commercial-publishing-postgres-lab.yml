@@ -1,0 +1,52 @@
+name: Portal Comercial - PostgreSQL editorial ledger LAB
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-publishing/**'
+      - '.github/workflows/commercial-publishing-postgres-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ephemeral-postgres:
+    name: PostgreSQL 18 RLS, aprovacoes e outbox (ficticio)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-editorial-lab-only
+          POSTGRES_DB: commercial_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commercial_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ephemeral-editorial-lab-only
+      PGDATABASE: commercial_lab
+    steps:
+      - name: Checkout sem credenciais de escrita
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Instalar cliente PostgreSQL do runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Criar somente ledger de laboratório, sem Laravel migrations
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema.sql
+      - name: Provar isolamento RLS e rejeicoes de historico em dados ficticios
+        run: psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/test-ledger.sql
+      - name: Confirmar ausencia de ambiente operacional
+        run: echo "Somente banco descartavel no service container de GitHub Actions; sem VPS, API, tenants ou chaves reais."
