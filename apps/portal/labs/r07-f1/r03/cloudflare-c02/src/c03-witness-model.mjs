@@ -6,7 +6,7 @@
  * prevention, human approval or distributed commit. It has NO I/O or RPC.
  * Never plug it into real customer authorization.
  */
-import { verifyState, authorizesCustomerAccess } from "./protocol.mjs";
+import { verifyState, transition, authorizesCustomerAccess } from "./protocol.mjs";
 import { sha256Hex } from "./r2-evidence.mjs";
 
 const DIGEST = /^[a-f0-9]{64}$/;
@@ -88,7 +88,7 @@ export class SyntheticIndependentWitness {
    * Real remote CAS, durable quorum, lock/lease and credential segregation
    * are NOT tested here.
    */
-  async observeNext(previousState, nextState, expectedSequence) {
+  async observeNext(previousState, nextState, expectedSequence, command) {
     if (!this.#available || this.#value === null) deny("witness_offline");
     verifyState(previousState);
     verifyState(nextState);
@@ -96,9 +96,21 @@ export class SyntheticIndependentWitness {
     if (!Number.isSafeInteger(expectedSequence)
       || expectedSequence !== last.sequence
       || previousState.sequence !== last.sequence
-      || previousState.generation !== last.generation
-      || await digestFixtureZ4(previousState) !== last.stateDigest) {
+      || previousState.generation !== last.generation) {
       deny("witness_stale_cas");
+    }
+    const previousDigest = await digestFixtureZ4(previousState);
+    if (this.#value !== last || previousDigest !== last.stateDigest) {
+      deny("witness_stale_cas");
+    }
+    // The witness validates a lab state-machine transition, not an arbitrary
+    // prebuilt OPEN snapshot. The command/fixtures are STILL untrusted for
+    // any actual production decision.
+    let recomputed;
+    try {
+      recomputed = transition(previousState, command);
+    } catch {
+      deny("witness_invalid_transition");
     }
     if (nextState.sequence !== last.sequence + 1
       || nextState.generation < last.generation
@@ -106,11 +118,18 @@ export class SyntheticIndependentWitness {
       || nextState.sessionEpoch < previousState.sessionEpoch) {
       deny("witness_nonmonotonic");
     }
+    const [nextDigest, recomputedDigest] = await Promise.all([
+      digestFixtureZ4(nextState), digestFixtureZ4(recomputed),
+    ]);
+    if (nextDigest !== recomputedDigest) deny("witness_invalid_transition");
+    // The final check and assignment contain NO await. In this single JS
+    // isolate this is a toy CAS; it is NOT durable/distributed atomicity.
+    if (!this.#available || this.#value !== last) deny("witness_stale_cas");
     this.#value = Object.freeze({
       version: 1,
       generation: nextState.generation,
       sequence: nextState.sequence,
-      stateDigest: await digestFixtureZ4(nextState),
+      stateDigest: nextDigest,
     });
     return this.read();
   }
