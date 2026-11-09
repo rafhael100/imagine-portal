@@ -41,12 +41,14 @@ jobs:
         run: |
           set -euo pipefail
           node --check src/protocol.mjs
+          node --check src/c03-witness-model.mjs
           node --check src/r2-evidence.mjs
           node --check src/worker.mjs
           node --check test/protocol.test.mjs
+          node --check test/c03-witness.test.mjs
           node --check test/miniflare-smoke.mjs
       - name: Node builtin test runner and synthetic security regression
-        run: node --test test/protocol.test.mjs
+        run: node --test test/protocol.test.mjs test/c03-witness.test.mjs
       - name: Security scope evidence (offline only)
         run: |
           echo "OFFLINE ONLY: no Wrangler install, no Cloudflare login, no account binding, no R2 bucket, no deploy."
