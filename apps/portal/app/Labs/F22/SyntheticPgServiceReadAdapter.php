@@ -7,6 +7,7 @@ namespace App\Labs\F22;
 use App\Domain\ClientOverview\DemoServiceRelationPage;
 use App\Domain\Organizations\OrganizationId;
 use App\Labs\F24\F24LabSessionProof;
+use App\Labs\F28\F28RevocationFenceInspector;
 use PDO;
 use Throwable;
 
@@ -131,6 +132,17 @@ final readonly class SyntheticPgServiceReadAdapter
                 || !$this->pgTrue($assurance['restricted_role'] ?? null)) {
                 $this->pdo->rollBack();
                 return DemoServiceRelationPage::blocked('unsafe_db_schema');
+            }
+
+            // F28: The F25 lock is meaningful only while every F24
+            // session/membership writer trigger is still in place. Check
+            // metadata and the canonical fixture trigger body BEFORE
+            // consulting session state or the service view. This is only
+            // negative drift detection within the disposable database.
+            if ($labSessionProof !== null
+                && !(new F28RevocationFenceInspector())->intact($this->pdo)) {
+                $this->pdo->rollBack();
+                return DemoServiceRelationPage::blocked('unsafe_revocation_fence');
             }
 
             // F24 synthetic proof is checked INSIDE the same read snapshot.
