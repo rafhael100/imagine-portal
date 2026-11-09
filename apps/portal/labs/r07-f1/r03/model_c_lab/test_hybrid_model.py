@@ -165,10 +165,9 @@ class HybridModelCTest(unittest.TestCase):
             self.lab.restore(wrong)
         self.assertEqual("DENY", self.lab.state()[2])
         self.assertEqual([], self.lab.effects())
+        # No Z4 restore receipt exists: reconciliation is explicitly forbidden.
         with self.assertRaises(Denied):
-            self.lab.reconcile(generation)  # no restore check in this toy model? see docs
-        # The preceding assertion is not required: reconcile's safety is
-        # scoped to its own preconditions, not an operational restore verifier.
+            self.lab.reconcile(generation)
 
     def test_interrupted_reconciliation_stays_closed_until_new_verification(self):
         generation = self.recover(partial=True)
