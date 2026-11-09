@@ -77,19 +77,7 @@ jobs:
           PORTAL_PERF_SIGNED_LAB: '1'
         run: |
           set -euo pipefail
-          php -m | grep -i '^sodium        shell: bash
-        env:
-          PVIEW_RENDER_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
-          PVIEW_HTML_FILE: ${{ runner.temp }}/pview-perf-storage-demo.html
-          PVIEW_HASH_PREFIX: pview-
-          PVIEW_SHOT_PREFIX: pview-perf-storage
-          PVIEW_EVIDENCE_DIR: ${{ runner.temp }}/pview-perf-storage-evidence
-        run: |
-          set -euo pipefail
-          php apps/portal/preview/tests/render_blade_preview.php
-          node --check apps/portal/preview/tests/pview_browser_check.mjs
-          node apps/portal/preview/tests/pview_browser_check.mjs
-
+          php -m | grep -i '^sodium$'
           php -l apps/portal/app/Domain/PerformanceBridge/SyntheticCapabilityIssuer.php
           php -l apps/portal/preview/tests/emit_perf_capability.php
           php -l apps/portal/tests/Feature/SyntheticCapabilityIssuerTest.php
