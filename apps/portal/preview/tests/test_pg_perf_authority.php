@@ -41,10 +41,11 @@ $check=static function(string $name,mixed $actual,mixed $want) use(&$n):void {
     echo "PASS PORTAL F08 $n $name\n";
 };
 $one=static fn(string $sql):mixed=>$admin->query($sql)->fetchColumn();
-$deny=static fn(string $label,?PortalPerfAuthorityFacts $facts):void=>
+$deny=static function(string $label,?PortalPerfAuthorityFacts $facts) use($check):void {
     $check($label,$facts,null);
-$read=static fn(string $bearer=$tokenA,string $service='svc-demo-a',?int $clock=null)=>
-    $resolver->resolve($bearer,$service,$clock??$now);
+};
+$read=static fn(?string $bearer=null,string $service='svc-demo-a',?int $clock=null)=>
+    $resolver->resolve($bearer??$tokenA,$service,$clock??$now);
 
 $insertSession=$admin->prepare(
     "INSERT INTO portal_perf_authority_sessions (
