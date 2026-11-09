@@ -102,6 +102,8 @@ jobs:
           php -l tests/Integration/F28RevocationFenceIntegrityTest.php
           php -l app/Labs/F29/F29SyntheticRlsPolicyInspector.php
           php -l tests/Integration/F29RlsPolicyGrantDriftTest.php
+          php -l app/Labs/F30/F30SyntheticViewSchemaInspector.php
+          php -l tests/Integration/F30ViewSchemaIntegrityTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
