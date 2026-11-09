@@ -13,6 +13,9 @@ on:
       - 'apps/portal/app/Labs/F26/**'
       - 'apps/portal/app/Labs/F28/**'
       - 'apps/portal/app/Labs/F29/**'
+      - 'apps/portal/app/Labs/F30/**'
+      - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
+      - 'apps/portal/labs/service-relations-f30/**'
       - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
       - 'apps/portal/labs/service-relations-f29/**'
       - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
@@ -34,6 +37,9 @@ on:
       - 'apps/portal/app/Labs/F26/**'
       - 'apps/portal/app/Labs/F28/**'
       - 'apps/portal/app/Labs/F29/**'
+      - 'apps/portal/app/Labs/F30/**'
+      - 'apps/portal/tests/Integration/F30ViewSchemaIntegrityTest.php'
+      - 'apps/portal/labs/service-relations-f30/**'
       - 'apps/portal/tests/Integration/F29RlsPolicyGrantDriftTest.php'
       - 'apps/portal/labs/service-relations-f29/**'
       - 'apps/portal/tests/Integration/F28RevocationFenceIntegrityTest.php'
@@ -129,6 +135,10 @@ jobs:
           docker exec -i "$F22_PG_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             < labs/service-relations-f25/schema.sql >/dev/null
+          # F30: synthetic schema view fingerprint only. No secrets or
+          # customer SQL, used to pin expected PG18 deparser output.
+          f30_view="$(docker exec "$F22_PG_CONTAINER" psql -X -qAt             -v ON_ERROR_STOP=1 -U postgres -d postgres             -c "SELECT pg_catalog.pg_get_viewdef('f21.service_summary'::regclass, false)")"
+          printf 'F30_SYNTHETIC_VIEW_SHA256=%s\n'             "$(printf '%s' "$f30_view" | sha256sum | cut -d' ' -f1)"
           docker exec -i "$F22_PG_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             -v "password_a=$role_a_password" -v "password_b=$role_b_password" <<'SQL'
