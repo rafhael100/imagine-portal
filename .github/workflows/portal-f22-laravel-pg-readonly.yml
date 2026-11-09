@@ -18,6 +18,9 @@ on:
       - 'apps/portal/app/Labs/F33/**'
       - 'apps/portal/app/Labs/F34/**'
       - 'apps/portal/app/Labs/F35/**'
+      - 'apps/portal/app/Labs/F36/**'
+      - 'apps/portal/tests/Integration/F36PagedAcknowledgementTest.php'
+      - 'apps/portal/labs/service-relations-f36/**'
       - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
       - 'apps/portal/labs/service-relations-f35/**'
       - 'apps/portal/tests/Integration/F34ReconciliationReplayTest.php'
@@ -56,6 +59,9 @@ on:
       - 'apps/portal/app/Labs/F33/**'
       - 'apps/portal/app/Labs/F34/**'
       - 'apps/portal/app/Labs/F35/**'
+      - 'apps/portal/app/Labs/F36/**'
+      - 'apps/portal/tests/Integration/F36PagedAcknowledgementTest.php'
+      - 'apps/portal/labs/service-relations-f36/**'
       - 'apps/portal/tests/Integration/F35AcknowledgedReconciliationTest.php'
       - 'apps/portal/labs/service-relations-f35/**'
       - 'apps/portal/tests/Integration/F34ReconciliationReplayTest.php'
@@ -149,6 +155,8 @@ jobs:
           php -l app/Labs/F35/F35WitnessAcknowledgementWriter.php
           php -l app/Labs/F35/F35AcknowledgedReconciliationRunner.php
           php -l tests/Integration/F35AcknowledgedReconciliationTest.php
+          php -l app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php
+          php -l tests/Integration/F36PagedAcknowledgementTest.php
 
       - name: Exercise authenticated PDO connections against disposable PG18
         run: |
@@ -281,6 +289,7 @@ jobs:
           export F34_PG_PASSWORD_READER="$f34_reader_password"
           export F35_ENABLE_LAB=ACKNOWLEDGEMENTS_CI_ONLY
           export F35_PG_PASSWORD_ACK="$f35_ack_password"
+          export F36_ENABLE_LAB=PAGED_REPLAY_ONLY
           echo "F31 synthetic external witness is a SECOND disposable container."
           echo "F31 neither survives this runner nor represents an independently operated trust domain."
 
@@ -336,3 +345,4 @@ jobs:
           echo "F33 LAB ONLY: witness-first event commits and constrained SQL procedure do NOT guarantee delivery or independence."
           echo "F34 LAB ONLY: reconciliation is invoked explicitly inside CI, not a durable background worker or ack protocol."
           echo "F35 LAB ONLY: witness ACK is a DB receipt based on observed primary state, not independent attestation."
+          echo "F36 LAB ONLY: repeated limited pages are manually invoked; no deployed worker or time guarantee."
