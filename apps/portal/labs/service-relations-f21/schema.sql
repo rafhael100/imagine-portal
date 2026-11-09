@@ -3,8 +3,11 @@
 -- Runs as a synthetic postgres superuser in an isolated, no-published-port CI container.
 BEGIN;
 
-CREATE ROLE f21_org_a NOLOGIN NOINHERIT;
-CREATE ROLE f21_org_b NOLOGIN NOINHERIT;
+-- Separate *actual* unprivileged local database sessions, not a
+-- SUPERUSER-authenticated session with SET SESSION AUTHORIZATION.
+-- Authentication is via an isolated Docker UNIX socket (no TCP port).
+CREATE ROLE f21_org_a LOGIN NOINHERIT;
+CREATE ROLE f21_org_b LOGIN NOINHERIT;
 
 CREATE SCHEMA f21;
 REVOKE ALL ON SCHEMA f21 FROM PUBLIC;
@@ -67,10 +70,10 @@ ALTER TABLE f21.service FORCE ROW LEVEL SECURITY;
 ALTER TABLE f21.request FORCE ROW LEVEL SECURITY;
 ALTER TABLE f21.contract FORCE ROW LEVEL SECURITY;
 
--- Lab trick: SESSION_USER is set exclusively by superuser in the disposable
--- test script. Unlike caller-controlled GUCs, non-superusers cannot choose
--- another SESSION_USER or SET ROLE if they are not members of that role.
--- This is NOT a real identity issuer or authenticated application session.
+-- Both identities connect as genuine unprivileged PostgreSQL sessions via
+-- the isolated container's local UNIX socket. SESSION_USER is set by the
+-- database connection, not by a caller-controlled GUC. Docker access is an
+-- operator-level trust boundary: this is NOT proof of application IAM.
 CREATE POLICY f21_service_a ON f21.service FOR SELECT TO f21_org_a
     USING (organization_id = 'org-a' AND session_user = 'f21_org_a');
 CREATE POLICY f21_service_b ON f21.service FOR SELECT TO f21_org_b
