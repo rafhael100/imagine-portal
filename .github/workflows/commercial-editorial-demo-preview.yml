@@ -1,0 +1,56 @@
+name: Portal Comercial - Prévia HTML editorial (fictícia)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Presentation/CommercialCatalogReview.php'
+      - 'apps/portal/resources/views/portal/demo/commercial-editorial.blade.php'
+      - 'apps/portal/bin/export-commercial-editorial-demo.php'
+      - '.github/workflows/commercial-editorial-demo-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo_preview:
+    name: Gerar HTML de revisão interna sem HTTP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/portal
+    steps:
+      - name: Checkout somente leitura
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+          extensions: mbstring,dom,xml,pdo_pgsql,fileinfo
+      - name: Instalar dependências fixadas sem scripts externos
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Exportar somente dados fictícios
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/editorial-demo
+          php bin/export-commercial-editorial-demo.php artifacts/editorial-demo/LEIA-ME-preview-interno.html
+          grep -Fq 'Informações exclusivamente fictícias' artifacts/editorial-demo/LEIA-ME-preview-interno.html
+          grep -Fq 'name="robots" content="noindex,nofollow"' artifacts/editorial-demo/LEIA-ME-preview-interno.html
+          if grep -Eq '<form|<input|<button|<script|<iframe' artifacts/editorial-demo/LEIA-ME-preview-interno.html; then
+            echo "Unsafe active controls in read-only preview" >&2
+            exit 1
+          fi
+      - name: Arquivar somente HTML fictício para revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-comercial-EDITORIAL-DEMO-ONLY
+          path: apps/portal/artifacts/editorial-demo/LEIA-ME-preview-interno.html
+          retention-days: 7
+          if-no-files-found: error
