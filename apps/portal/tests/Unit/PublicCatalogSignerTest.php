@@ -62,8 +62,12 @@ final class PublicCatalogSignerTest extends TestCase
         $keypair = sodium_crypto_sign_keypair();
         $private = sodium_crypto_sign_secretkey($keypair);
         foreach ([['status'=>'draft'], ['path'=>'/admin/']] as $change) {
-            $this->expectException(InvalidArgumentException::class);
-            PublicCatalogSigner::sign($this->snapshot($change), 'portal_test_key', $private);
+            try {
+                PublicCatalogSigner::sign($this->snapshot($change), 'portal_test_key', $private);
+                self::fail('Signer accepted a draft or a mismatched path.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertStringContainsString('Unpublished', $exception->getMessage());
+            }
         }
     }
 
