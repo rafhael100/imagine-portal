@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/portal/app/Domain/CommercialPublishing/**'
       - 'apps/portal/tests/Contract/**'
+      - 'apps/portal/labs/commercial-publishing/**'
       - '.github/workflows/commercial-catalog-e2e.yml'
   workflow_dispatch:
 
@@ -15,7 +16,27 @@ jobs:
   build:
     name: PHP 8.3 assina, Astro compila e recusa adulteracao
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-editorial-e2e-only
+          POSTGRES_DB: commercial_e2e_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commercial_e2e_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ephemeral-editorial-e2e-only
+      PGDATABASE: commercial_e2e_lab
     steps:
       - name: Checkout Portal somente leitura
         uses: actions/checkout@v7
@@ -59,6 +80,20 @@ jobs:
             echo "IMAGINE_CATALOG_EXPECTED_RELEASE_ID=release_20261109_parity"
             echo "IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256=$PAYLOAD_SHA"
           } >> "$GITHUB_ENV"
+      - name: Verificar ledger PostgreSQL real de laboratório para o mesmo payload assinado
+        run: |
+          set -euo pipefail
+          if [[ ! "$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Invalid computed hash' >&2
+            exit 1
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-publishing/schema.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -v release_id="$IMAGINE_CATALOG_EXPECTED_RELEASE_ID" \
+            -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
+            -f apps/portal/labs/commercial-publishing/test-php-astro-ledger.sql
       - name: Compilar Astro com conteudo emitido pelo PHP
         working-directory: .qa/imagine-comercial
         run: |
