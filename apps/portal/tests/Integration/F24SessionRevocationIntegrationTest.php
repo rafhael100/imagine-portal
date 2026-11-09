@@ -331,4 +331,107 @@ final class F24SessionRevocationIntegrationTest extends TestCase
             'invalid_lab_identity_evidence',
         );
     }
+
+    public function test_f25_read_holds_no_advisory_session_lock_after_successful_return(): void
+    {
+        $key = random_bytes(32);
+        $pdo = $this->db('a');
+        $reader = new F24SyntheticAuthorizedReader($pdo, $key);
+        self::assertTrue($reader->read($this->org('a'), $this->token($key), self::NOW)->isPreparedPreview());
+        $locks = $pdo->query(
+            "SELECT count(*) FROM pg_catalog.pg_locks
+              WHERE locktype='advisory' AND pid=pg_catalog.pg_backend_pid()"
+        )->fetchColumn();
+        self::assertSame(0, (int) $locks);
+        self::assertFalse($pdo->inTransaction());
+    }
+
+    public function test_f25_writer_cannot_commit_session_revocation_while_matching_shared_fence_is_held(): void
+    {
+        $key = random_bytes(32);
+        $org = $this->org('a');
+        $token = $this->token($key);
+        $reader = $this->reader('a', $key);
+        $holder = $this->db('a');
+        $admin = $this->db('admin');
+
+        self::assertTrue($reader->read($org, $token, self::NOW)->isPreparedPreview());
+        $holder->query('SELECT pg_catalog.pg_advisory_lock_shared(9402400001)')->closeCursor();
+        try {
+            $admin->exec("SET lock_timeout='250ms'");
+            try {
+                $admin->exec("UPDATE f24.session_fixture SET mock_state='revoked'
+                    WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'");
+                self::fail('A revocation writer bypassed the active shared fence.');
+            } catch (PDOException) {
+                self::addToAssertionCount(1);
+            }
+        } finally {
+            $holder->query('SELECT pg_catalog.pg_advisory_unlock_shared(9402400001)')->closeCursor();
+            $admin->exec('RESET lock_timeout');
+        }
+
+        // No pending revocation was committed on timeout.
+        self::assertTrue($reader->read($org, $token, self::NOW)->isPreparedPreview());
+        $admin->exec("UPDATE f24.session_fixture SET mock_state='revoked'
+            WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'");
+        try {
+            $this->deny($reader->read($org, $token, self::NOW), 'revoked_lab_identity');
+        } finally {
+            $admin->exec("UPDATE f24.session_fixture SET mock_state='active'
+                WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'");
+        }
+    }
+
+    public function test_f25_membership_change_is_blocked_while_shared_fence_is_held(): void
+    {
+        $admin = $this->db('admin');
+        $holder = $this->db('a');
+        $holder->query('SELECT pg_catalog.pg_advisory_lock_shared(9402400001)')->closeCursor();
+        try {
+            $admin->exec("SET lock_timeout='250ms'");
+            try {
+                $admin->exec("UPDATE f24.membership_fixture SET membership_revision=2
+                    WHERE organization_id='org-a' AND actor_id='DEMO-USER-A'");
+                self::fail('Membership write bypassed the shared fence.');
+            } catch (PDOException) {
+                self::addToAssertionCount(1);
+            }
+        } finally {
+            $holder->query('SELECT pg_catalog.pg_advisory_unlock_shared(9402400001)')->closeCursor();
+            $admin->exec('RESET lock_timeout');
+        }
+        $state = $admin->query(
+            "SELECT membership_revision FROM f24.membership_fixture
+              WHERE organization_id='org-a' AND actor_id='DEMO-USER-A'"
+        )->fetchColumn();
+        self::assertSame(1, (int) $state);
+    }
+
+    public function test_f25_invalid_proof_and_revoked_proof_leave_no_shared_locks(): void
+    {
+        $key = random_bytes(32);
+        $pdo = $this->db('a');
+        $reader = new F24SyntheticAuthorizedReader($pdo, $key);
+
+        $this->deny($reader->read($this->org('a'), 'broken', self::NOW), 'invalid_lab_identity_evidence');
+        self::assertSame(0, (int) $pdo->query(
+            "SELECT count(*) FROM pg_catalog.pg_locks
+              WHERE locktype='advisory' AND pid=pg_catalog.pg_backend_pid()"
+        )->fetchColumn());
+
+        $admin = $this->db('admin');
+        $admin->exec("UPDATE f24.session_fixture SET mock_state='revoked'
+            WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'");
+        try {
+            $this->deny($reader->read($this->org('a'), $this->token($key), self::NOW), 'revoked_lab_identity');
+            self::assertSame(0, (int) $pdo->query(
+                "SELECT count(*) FROM pg_catalog.pg_locks
+                  WHERE locktype='advisory' AND pid=pg_catalog.pg_backend_pid()"
+            )->fetchColumn());
+        } finally {
+            $admin->exec("UPDATE f24.session_fixture SET mock_state='active'
+                WHERE organization_id='org-a' AND session_id='DEMO-SESSION-A'");
+        }
+    }
 }
