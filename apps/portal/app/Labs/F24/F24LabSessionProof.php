@@ -105,6 +105,12 @@ final readonly class F24LabSessionProof
         return new OrganizationId($this->claims['org']);
     }
 
+    /** Synthetic subject string used only to cross-check F1 preview sources. */
+    public function syntheticSubjectId(): string
+    {
+        return $this->claims['sub'];
+    }
+
     /**
      * These fixed public identifiers are NOT secrets. Session-level shared
      * lock must be acquired BEFORE starting the REPEATABLE READ snapshot.
