@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // No file-serving routes until access controls are approved.
+            // Signed local URLs would create additional Laravel endpoints.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],
