@@ -9,6 +9,7 @@ use App\Domain\Organizations\OrganizationId;
 use App\Labs\F24\F24LabSessionProof;
 use App\Labs\F28\F28RevocationFenceInspector;
 use App\Labs\F29\F29SyntheticRlsPolicyInspector;
+use App\Labs\F30\F30SyntheticViewSchemaInspector;
 use PDO;
 use Throwable;
 
@@ -133,6 +134,15 @@ final readonly class SyntheticPgServiceReadAdapter
                 || !$this->pgTrue($assurance['restricted_role'] ?? null)) {
                 $this->pdo->rollBack();
                 return DemoServiceRelationPage::blocked('unsafe_db_schema');
+            }
+
+            // F30: RLS can remain enabled even if a view's SELECT
+            // is silently rewritten or schema CREATE privileges expand.
+            // Pin only the known synthetic PG18 view/owner/ACL contract.
+            if ($labSessionProof !== null
+                && !(new F30SyntheticViewSchemaInspector())->intact($this->pdo)) {
+                $this->pdo->rollBack();
+                return DemoServiceRelationPage::blocked('unsafe_service_view_schema');
             }
 
             // F29: RLS flags alone cannot prove policy isolation.
