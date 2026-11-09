@@ -1,0 +1,39 @@
+name: Portal F1-48 candidate Sites review consumer - no deploy
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/*ReviewHandoff*.php'
+      - 'apps/portal/app/Domain/SitesIntegration/SyntheticSitesReviewHandoffConsumer.php'
+      - 'apps/portal/tests/Support/f48-review-consumer.php'
+      - '.github/workflows/portal-sites-f1-48-review.yml'
+      - 'docs/imagine-sites/PORTAL-F1-48-REVIEW-CONSUMER.md'
+permissions:
+  contents: read
+jobs:
+  candidate-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: PHP syntax, no dependencies
+        run: |
+          set -euo pipefail
+          for f in apps/portal/app/Domain/SitesIntegration/*ReviewHandoff*.php apps/portal/tests/Support/f48-review-consumer.php; do
+            php -l "$f"
+          done
+      - name: Strict signed review candidate, default deny and negative authority checks
+        run: php apps/portal/tests/Support/f48-review-consumer.php
+      - name: No real Portal service or delivery
+        if: always()
+        run: echo "Only PHP lab. No service identity, commercial proof, customer acceptance, app route, CDN or deploy."
