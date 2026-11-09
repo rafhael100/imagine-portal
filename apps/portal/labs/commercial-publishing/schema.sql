@@ -65,7 +65,9 @@ BEGIN
   SELECT requested_at INTO requested FROM commercial_publishing_lab.releases
     WHERE organization_id = NEW.organization_id AND release_id = NEW.release_id
       AND payload_sha256 = NEW.payload_sha256 AND editor_actor = NEW.editor_actor;
-  IF requested IS NULL OR NEW.approved_at <= requested OR
+  -- Unknown or foreign-tenant release must be rejected by composite FK.
+  IF requested IS NULL THEN RETURN NEW; END IF;
+  IF NEW.approved_at <= requested OR
      NEW.approved_at > requested + interval '24 hours' THEN
     RAISE EXCEPTION 'editorial approval order/window violation';
   END IF;
@@ -84,7 +86,9 @@ BEGIN
   FROM commercial_publishing_lab.approvals
   WHERE organization_id = NEW.organization_id AND release_id = NEW.release_id
     AND payload_sha256 = NEW.payload_sha256;
-  IF approved IS NULL OR NEW.queued_at <= approved OR
+  -- Non-approved release must fail at composite FK before creating outbox.
+  IF approved IS NULL THEN RETURN NEW; END IF;
+  IF NEW.queued_at <= approved OR
      NEW.queued_at > approved + interval '24 hours' OR
      NEW.publisher_actor = approver OR NEW.publisher_actor = editor THEN
     RAISE EXCEPTION 'publisher segregation or queue chronology violation';
