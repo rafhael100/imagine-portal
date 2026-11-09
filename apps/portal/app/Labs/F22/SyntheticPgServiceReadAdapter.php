@@ -8,6 +8,7 @@ use App\Domain\ClientOverview\DemoServiceRelationPage;
 use App\Domain\Organizations\OrganizationId;
 use App\Labs\F24\F24LabSessionProof;
 use App\Labs\F28\F28RevocationFenceInspector;
+use App\Labs\F29\F29SyntheticRlsPolicyInspector;
 use PDO;
 use Throwable;
 
@@ -132,6 +133,15 @@ final readonly class SyntheticPgServiceReadAdapter
                 || !$this->pgTrue($assurance['restricted_role'] ?? null)) {
                 $this->pdo->rollBack();
                 return DemoServiceRelationPage::blocked('unsafe_db_schema');
+            }
+
+            // F29: RLS flags alone cannot prove policy isolation.
+            // Reject changed predicates, unexpected roles or write grants
+            // BEFORE reading signed F24 session/membership data.
+            if ($labSessionProof !== null
+                && !(new F29SyntheticRlsPolicyInspector())->intact($this->pdo)) {
+                $this->pdo->rollBack();
+                return DemoServiceRelationPage::blocked('unsafe_rls_policy_contract');
             }
 
             // F28: The F25 lock is meaningful only while every F24
