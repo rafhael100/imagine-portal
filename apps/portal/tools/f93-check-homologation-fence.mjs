@@ -69,6 +69,15 @@ try{
     .map(m=>m[1]);
   must(count(compose,/^\s*ports:\s*$/gm)===1);
   must(ports.join(',')==='127.0.0.1:18080:8080');
+  // Match the COMPLETE published ports list, not only its first entry.
+  const gateway=servicesSection.slice(servicesSection.indexOf('  gateway:'));
+  const portalService=servicesSection.slice(servicesSection.indexOf('  portal:'),
+    servicesSection.indexOf('  gateway:'));
+  must(!/^    ports:/m.test(portalService));
+  const portItems=gateway.match(/^    ports:\s*\n((?:      .*\n)*)/m)?.[1]
+    ?.trimEnd().split('\n').map(x=>x.trim());
+  must(portItems?.length===1 &&
+    portItems[0]==='- "127.0.0.1:18080:8080"');
   must(count(compose,/^\s*read_only:\s*true\s*$/gm)===2);
   must(count(compose,/^\s*-\s*no-new-privileges:true\s*$/gm)===2);
   must(count(compose,/^\s*-\s*ALL\s*$/gm)===2);
@@ -81,6 +90,7 @@ try{
   const locations=[...nginx.matchAll(/^\s*location\s+(= )?(\/[^\s{]*)\s*\{/gm)]
     .map(m=>(m[1]||'')+m[2]);
   must(locations.join(',')==='= /up,/');
+  must(count(nginx,/^\s*location\b/gm)===2); // No regex or named locations.
   const up=nginx.match(/location\s*=\s*\/up\s*\{([\s\S]*?)^\s{4}\}/m)?.[1];
   const other=nginx.match(/location\s+\/\s*\{([\s\S]*?)\}/)?.[1];
   must(!!up && !!other && /limit_except GET HEAD\s*\{\s*deny all;\s*\}/.test(up));
