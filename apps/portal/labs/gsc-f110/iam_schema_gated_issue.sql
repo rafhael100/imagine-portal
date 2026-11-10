@@ -4,17 +4,9 @@
 -- No trusted identity issuer, HTTP, Google API or token exchange.
 BEGIN;
 
--- The operating identity schema currently blocks SEO grant values. Extend
--- ONLY the disposable database constraint for this proof, not migrations.
-ALTER TABLE public.portal_membership_grants
-  DROP CONSTRAINT portal_grant_permission_ck;
-ALTER TABLE public.portal_membership_grants
-  ADD CONSTRAINT portal_grant_permission_ck CHECK (
-    permission_code IN (
-      'services.view', 'services.manage', 'billing.view', 'members.manage',
-      'seo.gsc.connect'
-    )
-  );
+-- The F113 Laravel migration must have been applied to the disposable
+-- database before this script. Do not mutate the permission vocabulary
+-- ad hoc in SQL fixtures: keep the test tied to the application migration.
 
 CREATE ROLE portal_gsc_f110_owner
   NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
