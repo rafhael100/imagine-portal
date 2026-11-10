@@ -34,9 +34,9 @@ final class PortalF102OfflineGscOAuth
             'property' => $propertyFingerprint, 'redirect' => $redirectUri,
             'verifier' => $verifier, 'issued' => $now, 'expires' => $now + 300,
         ];
-        // Only a synthetic descriptor, never a usable authorization URL.
+        // Only a synthetic descriptor. The confidential PKCE verifier stays server-side;\n        // never include it in browser-visible descriptions or logs.
         return [
-            'state' => $state, 'pkceVerifier' => $verifier,
+            'state' => $state,
             'pkceChallenge' => $challenge, 'pkceMethod' => 'S256',
             'requiredScope' => self::SCOPE, 'expiresAt' => $now + 300,
             'networkPerformed' => false, 'authorization' => 'HOLD',
