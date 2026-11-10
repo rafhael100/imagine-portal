@@ -91,7 +91,7 @@ return new class extends Migration
             "ALTER TABLE portal_identities ADD CONSTRAINT portal_identity_status_ck CHECK (status IN ('invited','active','suspended','revoked'))",
             "ALTER TABLE portal_identities ADD CONSTRAINT portal_identity_revision_ck CHECK (security_revision > 0)",
             "ALTER TABLE portal_identities ADD CONSTRAINT portal_identity_email_ck CHECK (email_normalized = lower(email_normalized) AND position('@' IN email_normalized) > 1)",
-            "ALTER TABLE portal_identities ADD CONSTRAINT portal_identity_password_ck CHECK (password_hash IS NULL OR password_hash LIKE '$argon2id$%')",
+            "ALTER TABLE portal_identities ADD CONSTRAINT portal_identity_password_ck CHECK (password_hash IS NULL OR password_hash LIKE '\$argon2id\$%')",
             "ALTER TABLE portal_organizations ADD CONSTRAINT portal_org_status_ck CHECK (status IN ('active','suspended','closed'))",
             "ALTER TABLE portal_organizations ADD CONSTRAINT portal_org_revision_ck CHECK (security_revision > 0)",
             "ALTER TABLE portal_organizations ADD CONSTRAINT portal_org_reference_ck CHECK (reference ~ '^[a-z0-9][a-z0-9._:-]{0,127}$')",
