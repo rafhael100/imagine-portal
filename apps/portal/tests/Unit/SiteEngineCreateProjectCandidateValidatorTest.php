@@ -92,8 +92,8 @@ final class SiteEngineCreateProjectCandidateValidatorTest extends TestCase
     {
         $canonical = json_encode(self::candidate(), JSON_THROW_ON_ERROR);
         self::assertSame('noncanonical_json', Validator::inspect(' ' . $canonical)['reason']);
-        self::assertSame('noncanonical_json', Validator::inspect($canonical . "\\n")['reason']);
-        self::assertSame('noncanonical_json', Validator::inspect(str_replace('"schemaVersion"', '"schema\\\\u0056ersion"', $canonical))['reason']);
+        self::assertSame('noncanonical_json', Validator::inspect($canonical . chr(10))['reason']);
+        self::assertSame('noncanonical_json', Validator::inspect(str_replace('"schemaVersion"', '"schema\\u0056ersion"', $canonical))['reason']);
         $reordered = self::candidate();
         $version = $reordered['schemaVersion'];
         unset($reordered['schemaVersion']);
