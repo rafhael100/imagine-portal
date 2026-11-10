@@ -19,6 +19,8 @@ final class LabPortalSitesVersionedIssuer
             new SitesCreateProjectEncoder(),
         private readonly PortalSitesSigningMaterialSource $materialSource =
             new DenyingPortalSitesSigningMaterialSource(),
+        private readonly PortalSiteCommercialEpochSource $commercialEpochs =
+            new DenyingPortalSiteCommercialEpochSource(),
     ) {}
 
     /** @return array<string,mixed> */
@@ -33,6 +35,9 @@ final class LabPortalSitesVersionedIssuer
         // Source of the commercial order is separately default-deny.
         // A caller cannot provide its own eligible tenant or signer key.
         $command=$this->encoder->build($orderRef,$operationId,$idempotencyKey);
+        // F1-15: the contract snapshot itself may return A->B->A.
+        // Pin an independent authorization generation BEFORE signing.
+        $commercialEpoch=$this->readCommercialEpoch($orderRef);
         $original=$this->readMaterial();
         $signed=SyntheticSitesVersionedEnvelopeSigner::sign(
             $command,$original->secret,$nonce,$issuedAt,$expiresAt,$original->keyEpoch
@@ -56,7 +61,23 @@ final class LabPortalSitesVersionedIssuer
         if ($latest !== $command) {
             throw new DomainException('candidate_portal_commercial_authority_changed');
         }
+        if ($this->readCommercialEpoch($orderRef) !== $commercialEpoch) {
+            throw new DomainException('candidate_portal_commercial_epoch_changed');
+        }
         return $signed;
+    }
+
+    private function readCommercialEpoch(string $orderRef): int
+    {
+        try {
+            $epoch=$this->commercialEpochs->currentEpochFor($orderRef);
+        } catch (Throwable $e) {
+            throw new DomainException('candidate_portal_commercial_epoch_unavailable',0,$e);
+        }
+        if (!is_int($epoch) || $epoch < 1) {
+            throw new DomainException('candidate_portal_commercial_epoch_unavailable');
+        }
+        return $epoch;
     }
 
     private function readMaterial(): CandidatePortalSitesSigningMaterial
