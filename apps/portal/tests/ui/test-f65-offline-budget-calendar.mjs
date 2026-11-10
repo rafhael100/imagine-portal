@@ -50,7 +50,7 @@ try{
     ['no network CSP',html.includes("connect-src 'none'")],
     ['forbid forms CSP',html.includes("form-action 'none'")],
     ['offline banner',html.includes('DEMONSTRAÇÃO NÃO HOMOLOGADA')],
-    ['never approved',html.includes('não são gastos realizados')],
+    ['never approved',html.includes('NÃO são gastos realizados')],
     ['no connected accounts',html.includes('Nenhum orçamento foi enviado')],
     ['BRL 100.01',html.includes('R$ 100,01')],
     ['Google 55.00',html.includes('R$ 55,00')],
