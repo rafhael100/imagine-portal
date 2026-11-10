@@ -201,7 +201,7 @@ $admin->exec("UPDATE portal_access_invitations SET status='revoked',revoked_at=n
 [$futureUuid,$futureDigest] = $issue('future');
 $ok(!$call($probeA,$futureDigest,$id,$org),
     'not-yet-issued invitation cannot be claimed');
-$admin->exec("UPDATE portal_access_invitations SET status='revoked',revoked_at=now()
+$admin->exec("UPDATE portal_access_invitations SET status='revoked',revoked_at=issued_at
               WHERE id='$futureUuid'");
 
 [$revUuid,$revDigest] = $issue();
