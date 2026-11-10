@@ -118,7 +118,9 @@ $insert = $admin->prepare(
 );
 $make = static function (
     string $id,string $org,string $candidate,string $refHash,
-    string $key='gsc-ci-v1',string $currentScope=$scope,string $status='pending_review'
+    string $key='gsc-ci-v1',
+    string $currentScope='https://www.googleapis.com/auth/webmasters.readonly',
+    string $status='pending_review'
 ) use ($insert): void {
     $insert->execute([
         'id'=>$id,'org'=>$org,'candidate'=>$candidate,'ref'=>$refHash,
