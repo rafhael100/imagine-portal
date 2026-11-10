@@ -41,6 +41,17 @@ return new class extends Migration
             $table->index(['organization_id', 'sequence'], 'portal_security_events_org_seq_idx');
         });
 
+        // If an identity is present, enforce its existing membership in
+        // exactly the audited organization. Organization-wide events may omit
+        // identity_id; this FK must not be treated as proof of event authority.
+        DB::statement(
+            'ALTER TABLE public.portal_security_events '
+            . 'ADD CONSTRAINT portal_security_event_membership_fk '
+            . 'FOREIGN KEY (identity_id, organization_id) '
+            . 'REFERENCES public.portal_memberships (identity_id, organization_id) '
+            . 'ON DELETE RESTRICT'
+        );
+
         DB::statement(
             "ALTER TABLE portal_security_events ADD CONSTRAINT portal_security_event_code_ck "
             . "CHECK (event_code IN ("
