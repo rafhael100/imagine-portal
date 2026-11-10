@@ -88,8 +88,8 @@ jobs:
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f109/gated_issuer.sql
-          test "$(psql -X -A -t -c \"SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')\")" = f
-          test "$(psql -X -A -t -c \"SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint)','EXECUTE')\")" = f
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq f
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint)','EXECUTE')" | grep -xq f
       - name: Verify explicit tenant permission, revocation and direct issue denial
         env:
           PORTAL_F109_PG_LAB: '1'
