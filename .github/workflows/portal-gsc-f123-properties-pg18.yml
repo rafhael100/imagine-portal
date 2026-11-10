@@ -39,6 +39,7 @@ jobs:
       APP_ENV: testing
       APP_DEBUG: 'false'
       PORTAL_F123_PG_LAB: '1'
+      PORTAL_F124_PG_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
