@@ -1,0 +1,120 @@
+name: Portal GSC F113 - additive SEO permission migration (NO-GO)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php'
+      - 'apps/portal/labs/gsc-f113/**'
+      - '.github/workflows/portal-gsc-f113-seo-grant-pg18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  grant-vocabulary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f113-admin-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F113_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f113-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f113-admin-only
+      F113_PG_ADMIN_PASSWORD: ci-f113-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout read-only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install locked Laravel and PHP 8.3/8.4 test runtime
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Install dependencies and lint
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php
+          php -l labs/gsc-f113/test_pg_seo_grant.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Migrate deny-all F66 foundation and additive SEO grant vocabulary
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq f
+          php artisan migrate --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq t
+      - name: Assert no automatic grants, closed RLS and no broad SEO permissions
+        run: |
+          set -euo pipefail
+          php labs/gsc-f113/test_pg_seo_grant.php
+          test "$(psql -X -A -t -c "SELECT count(*) FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect'")" = 1
+          ! grep -R -E 'PORTAL_F113_PG_LAB|gsc-f113|PortalGscF113' routes/ bootstrap/ app/Http/ app/Providers/
+      - name: Rollback must fail safely while SEO grants remain
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction; then
+            echo "ERROR: rollback wrongly accepted an existing SEO grant" >&2
+            exit 1
+          fi
+          test "$(psql -X -A -t -c "SELECT count(*) FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect'")" = 1
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq t
+      - name: Revoke synthetic grant, rollback and leave no schema or roles
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect';
+          DELETE FROM public.portal_memberships WHERE id='123e4567-e89b-42d3-a456-426614174012';
+          DELETE FROM public.portal_identities WHERE id='123e4567-e89b-42d3-a456-426614174010';
+          DELETE FROM public.portal_organizations WHERE id='123e4567-e89b-42d3-a456-426614174011';
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq f
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'portal_gsc_f113_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
