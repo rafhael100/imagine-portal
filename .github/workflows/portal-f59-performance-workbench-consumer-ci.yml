@@ -1,0 +1,31 @@
+name: Portal F59 - offline Performance workbench consumer
+on:
+  push:
+    branches:
+      - dev/portal-f59-performance-workbench-consumer-2026-11-09
+permissions:
+  contents: read
+jobs:
+  offline-workbench-reader:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Validate candidate read-only contract without Laravel runtime
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php
+          php -l apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php
+          php apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php
+          if grep -R -n -E 'OfflinePerformanceWorkbenchPreview|PORTAL_F59_WORKBENCH_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL F59 consumer exposed through operational routes'
+            exit 1
+          fi
