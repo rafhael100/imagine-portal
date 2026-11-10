@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Str;
-
 return [
 
     /*
@@ -127,10 +125,10 @@ return [
     |
     */
 
-    'cookie' => env(
-        'SESSION_COOKIE',
-        Str::slug((string) env('APP_NAME', 'laravel')).'-session'
-    ),
+    // Browser-enforced __Host- isolation: HTTPS, host-only, Path=/.
+    // Never reuse a CRM cookie namespace, and never accept a caller-supplied
+    // SESSION_COOKIE alias from a shared environment.
+    'cookie' => '__Host-imagine-portal-session',
 
     /*
     |--------------------------------------------------------------------------
@@ -143,7 +141,7 @@ return [
     |
     */
 
-    'path' => env('SESSION_PATH', '/'),
+    'path' => '/',
 
     /*
     |--------------------------------------------------------------------------
@@ -156,7 +154,9 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    // Deliberately omit Domain so the browser never shares the cookie
+    // across sibling services or subdomains such as the independent CRM.
+    'domain' => null,
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +169,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // A __Host- cookie is valid only over HTTPS. Local non-HTTPS
+    // development must not be used to test a customer login flow.
+    'secure' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -182,7 +184,7 @@ return [
     |
     */
 
-    'http_only' => env('SESSION_HTTP_ONLY', true),
+    'http_only' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -199,7 +201,7 @@ return [
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    'same_site' => 'lax',
 
     /*
     |--------------------------------------------------------------------------
@@ -212,7 +214,7 @@ return [
     |
     */
 
-    'partitioned' => env('SESSION_PARTITIONED_COOKIE', false),
+    'partitioned' => false,
 
     /*
     |--------------------------------------------------------------------------
