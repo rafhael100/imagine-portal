@@ -12,6 +12,8 @@ if(PHP_SAPI!=='cli'
     fwrite(STDERR,"F60 offline preview disabled\n");
     exit(2);
 }
+require_once dirname(__DIR__).'/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php';
+require_once dirname(__DIR__).'/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php';
 require_once dirname(__DIR__).'/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php';
 
 $path=$argv[1]??'';
@@ -37,16 +39,6 @@ $e=static fn(string $text):string=>htmlspecialchars($text,ENT_QUOTES|ENT_SUBSTIT
 $labels=[
     'google_ads'=>'Google Ads',
     'meta_ads'=>'Meta (Instagram e/ou Facebook)',
-];
-$campaignStates=[
-    'draft_demo'=>'Rascunho DEMO',
-    'paused_demo'=>'Pausada DEMO',
-    'archived_demo'=>'Arquivada DEMO',
-];
-$requestStates=[
-    'pending_human_demo'=>'Aguardando revisão DEMO',
-    'approved_demo_no_execution'=>'Revisão interna DEMO — sem execução',
-    'rejected_demo'=>'Solicitação recusada DEMO',
 ];
 $countCampaign=$snapshot->counts['managed_campaigns'];
 $countPaused=$snapshot->counts['paused_campaigns'];
@@ -106,14 +98,14 @@ echo '</div><section aria-labelledby="campaign-title"><h2 id="campaign-title">Ca
 foreach($snapshot->campaigns as $item) {
     echo '<tr><td>'.$e($item['title']).'<small> · '.$e($item['ref']).'</small></td>'
        .'<td>'.$e($labels[$item['portal_channel']]).'</td>'
-       .'<td>'.$e($campaignStates[$item['performance_state']]).'</td></tr>';
+       .'<td>'.$e(\App\Domain\PerformanceDashboard\PerformanceCampaignObservationState::from($item['performance_state'])->label()).'</td></tr>';
 }
 echo '</tbody></table></div></section>'
    .'<section aria-labelledby="requests-title"><h2 id="requests-title">Solicitações de revisão fictícias</h2>'
    .'<div class="scroll"><table><thead><tr><th>Solicitação</th><th>Operação</th><th>Situação</th></tr></thead><tbody>';
 foreach($snapshot->requests as $item) {
     echo '<tr><td>'.$e($item['ref']).'</td><td>'.$e($item['operation']).'</td>'
-       .'<td>'.$e($requestStates[$item['performance_status']]).'</td></tr>';
+       .'<td>'.$e(\App\Domain\PerformanceDashboard\PerformanceReviewObservationState::from($item['performance_status'])->label()).'</td></tr>';
 }
 echo '</tbody></table></div></section>';
 echo <<<'HTML'
