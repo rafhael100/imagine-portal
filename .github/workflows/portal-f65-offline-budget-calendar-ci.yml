@@ -1,0 +1,39 @@
+name: Portal F65 - static offline BRL budget calendar
+on:
+  push:
+    branches:
+      - dev/portal-f65-offline-budget-calendar-html-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f65-render-budget-calendar.php'
+      - 'apps/portal/tests/ui/test-f65-offline-budget-calendar.mjs'
+      - '.github/workflows/portal-f65-offline-budget-calendar-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-brl-calendar:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: F65 static HTML, integer BRL currency, hostile payloads and NO-GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/tools/f65-render-budget-calendar.php
+          php -l apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php
+          node --check apps/portal/tests/ui/test-f65-offline-budget-calendar.mjs
+          php apps/portal/tests/Unit/CredentialBoundBudgetPreviewStandalone.php
+          node apps/portal/tests/ui/test-f65-offline-budget-calendar.mjs
+          if grep -R -n -E 'f65-render-budget-calendar|PORTAL_F65_BUDGET_HTML_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL F65 offline calendar wired to Portal public routes'
+            exit 1
+          fi
