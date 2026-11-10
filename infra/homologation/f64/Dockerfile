@@ -31,6 +31,8 @@ COPY apps/portal/artisan ./artisan
 # Exclude identity labs AND strictly test-only offline report consumers.
 # In particular, no synthetic PostgreSQL superuser or MFA fixture helper
 # should be present or Composer-autoloadable even in staging.
+# F97 additionally strips demo-only PHP domain/presentation classes and
+# internal Blade previews BEFORE rebuilding the authoritative classmap.
 RUN rm -rf app/Labs \
     && rm -f app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php \
       app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
@@ -41,6 +43,12 @@ RUN rm -rf app/Labs \
     && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
     && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php \
     && test ! -e app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php \
+    && find app/Domain app/Presentation -type f -name '*Demo*.php' -delete \
+    && rm -rf resources/views/portal/demo \
+    && rm -f resources/views/performance/demo-dashboard.blade.php \
+    && test -z "$(find app/Domain app/Presentation -type f -name '*Demo*.php' -print -quit)" \
+    && test ! -d resources/views/portal/demo \
+    && test ! -e resources/views/performance/demo-dashboard.blade.php \
     && COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
       --no-interaction --no-scripts --no-plugins --classmap-authoritative \
     && mkdir -p storage/framework/cache/data storage/framework/sessions \
