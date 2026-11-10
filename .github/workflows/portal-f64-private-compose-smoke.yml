@@ -41,6 +41,7 @@ jobs:
           nginx = Path('infra/homologation/f64/nginx.conf').read_text()
           assert '"127.0.0.1:18080:8080"' in text
           assert 'internal: true' in text
+          assert 'loopback_ingress:' in text
           assert 'read_only: true' in text
           assert 'location = /up {' in nginx
           assert 'location / {' in nginx and 'return 404;' in nginx
@@ -57,10 +58,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml ps
           succeeded=false
           for i in $(seq 1 45); do
             status="$(curl --max-time 2 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/up || true)"
             if [[ "$status" == 200 ]]; then succeeded=true; break; fi
+            if (( i % 10 == 1 )); then echo "Private health retry $i: HTTP $status"; fi
             sleep 2
           done
           test "$succeeded" = true
