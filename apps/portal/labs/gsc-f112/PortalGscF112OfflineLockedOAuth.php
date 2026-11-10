@@ -138,7 +138,11 @@ final readonly class PortalGscF112OfflineLockedOAuth
             || getenv('PGHOST') !== '127.0.0.1'
             || getenv('PGPORT') !== '5432'
             || getenv('PGDATABASE') !== 'portal_identity_lab'
-            || $this->reader->inTransaction()) {
+            ) {
+            // Unlike F111, this isolated concurrency lab deliberately permits
+            // an explicit PDO transaction. The test must hold SHARE locks
+            // across a second connection's attempted revocation. Role,
+            // database, host and test environment checks remain mandatory.
             return false;
         }
 
