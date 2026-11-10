@@ -154,12 +154,13 @@ $pending=static function(string $uuid)use($admin,$isTrue):bool{
     return $isTrue($stmt->fetchColumn());
 };
 
+$baselineAuditCount=$auditCount();
 [$id1,$digest1]=$issue(1,1,1);
 $ok(!$claim($callerA,$digest1,$identity,$foreign),
     'selected foreign tenant does not match membership');
 $ok(!$claim($callerA,$digest1,$foreign,$org),
     'unrelated actor cannot acquire invitation');
-$ok($pending($id1) && $auditCount()===0,
+$ok($pending($id1) && $auditCount()===$baselineAuditCount,
     'invalid claims do not change invitation or audit');
 
 // Writer changes identity revision but leaves transaction uncommitted.
@@ -171,7 +172,7 @@ $writer->exec(
 $callerA->exec("SET lock_timeout='250ms'");
 $ok(!$claim($callerA,$digest1,$identity,$org),
     'claim cannot overtake an uncommitted identity revocation');
-$ok($pending($id1) && $auditCount()===0,
+$ok($pending($id1) && $auditCount()===$baselineAuditCount,
     'timeout fails closed without token or audit change');
 $writer->commit();
 $ok(!$claim($callerA,$digest1,$identity,$org),
@@ -184,7 +185,7 @@ $ok($claim($callerA,$digest1,$identity,$org),
     'lab-only restored revision can be claimed and audited once');
 $ok(!$claim($callerB,$digest1,$identity,$org),
     'same token cannot be reused by a second PDO client');
-$ok($auditCount()===1,'first valid claim creates one audit event');
+$ok($auditCount()===$baselineAuditCount+1,'first valid claim creates one audit event');
 
 // Conversely, a valid claim holding FOR SHARE on the membership blocks
 // a concurrent revision writer until the claim's own commit/rollback.
@@ -203,10 +204,10 @@ try {
         'membership revision writer waits for locked claim');
 }
 $writer->exec('RESET lock_timeout');
-$ok($auditCount()===1,
+$ok($auditCount()===$baselineAuditCount+1,
     'uncommitted claim/audit remains invisible outside the transaction');
 $callerA->commit();
-$ok($auditCount()===2 && !$pending($id2),
+$ok($auditCount()===$baselineAuditCount+2 && !$pending($id2),
     'committing claim saves one token transition plus audit event');
 $writer->exec(
     "UPDATE portal_memberships SET membership_revision=2 WHERE id='$membership'"
@@ -240,7 +241,7 @@ $writer->commit();
 $ok(!$claim($callerB,$digest4,$identity,$org),
     'committed organization suspension remains denied');
 $callerB->exec('RESET lock_timeout');
-$ok($pending($id4) && $auditCount()===2,
+$ok($pending($id4) && $auditCount()===$baselineAuditCount+2,
     'denied claims cannot append security events');
 $writer->exec(
     "UPDATE portal_organizations SET status='active' WHERE id='$org'"
