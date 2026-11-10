@@ -62,6 +62,10 @@ try{
     '127.0.0.1:18080:8080','0.0.0.0:18080:8080',
     'gateway exposed on public interfaces');
   mutate('infra/homologation/f64/compose.yaml',
+    '- "127.0.0.1:18080:8080"',
+    '- "127.0.0.1:18080:8080"\n      - "0.0.0.0:18081:8080"',
+    'second public port added under the same ports key');
+  mutate('infra/homologation/f64/compose.yaml',
     'cap_drop:', 'privileged: true\n    cap_drop:',
     'new privileged compose service');
   mutate('infra/homologation/f64/compose.yaml',
@@ -80,6 +84,9 @@ try{
   mutate('infra/homologation/f64/nginx.conf',
     'location / {','location /api/ { return 200; }\n    location / {',
     'API location added');
+  mutate('infra/homologation/f64/nginx.conf',
+    'location / {','location ~ /private { return 200; }\n    location / {',
+    'regex location unexpectedly exposing content');
   mutate('infra/homologation/f64/nginx.conf',
     'limit_except GET HEAD { deny all; }',
     'limit_except GET HEAD POST { deny all; }',
