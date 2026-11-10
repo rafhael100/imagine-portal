@@ -1,0 +1,147 @@
+name: Portal F104 - FORCE RLS without BYPASSRLS on SQL definer
+on:
+  push:
+    branches:
+      - review/portal-f104-rls-policy-without-bypass-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/identity-f104/**'
+      - 'apps/portal/labs/identity-f103/**'
+      - 'apps/portal/labs/identity-f102/**'
+      - 'apps/portal/labs/identity-f101/**'
+      - 'apps/portal/labs/identity-f100/**'
+      - 'apps/portal/labs/identity-f76/permission_gate.sql'
+      - 'apps/portal/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php'
+      - 'apps/portal/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php'
+      - '.github/workflows/portal-f104-rls-without-bypass-ci.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-php-pg18-tenant-grants:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f66-db-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F100_PG_LAB: '1'
+      PORTAL_F101_PG_LAB: '1'
+      PORTAL_F102_PG_LAB: '1'
+      PORTAL_F103_PG_LAB: '1'
+      PORTAL_F104_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f66-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f66-db-only
+      F66_PG_ADMIN_PASSWORD: ci-f66-db-only
+      F76_PG_READER_PASSWORD: ci-f76-reader-only
+      F101_PG_READER_PASSWORD: ci-f101-reader-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Install locked test dependencies without scripts/plugins
+        run: |
+          set -euo pipefail
+          php -l labs/identity-f100/PortalF100OfflinePermissionProbe.php
+          php -l labs/identity-f100/test_pg_php_permission_probe.php
+          php -l labs/identity-f101/PortalF101OfflineResourceProbe.php
+          php -l labs/identity-f101/test_pg_resource_owner.php
+          php -l labs/identity-f102/test_pg_restricted_owner_and_revocation.php
+          php -l labs/identity-f103/test_pg_column_permissions.php
+          php -l labs/identity-f104/test_pg_rls_without_bypass.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Migrate closed identity foundation to disposable PG18
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "CREATE ROLE portal_f76_reader LOGIN PASSWORD 'ci-f76-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT USAGE ON SCHEMA public TO portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f76/permission_gate.sql
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "CREATE ROLE portal_f101_reader LOGIN PASSWORD 'ci-f101-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f101_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT USAGE ON SCHEMA public TO portal_f101_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f101/resource_owner_gate.sql
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f102/restricted_definer_owner.sql
+          test "$(psql -X -A -t -d "$PGDATABASE" -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
+      - name: Exercise PHP prepared statement and strict non-superuser authority
+        run: |
+          set -euo pipefail
+          php labs/identity-f100/test_pg_php_permission_probe.php
+          php labs/identity-f101/test_pg_resource_owner.php
+          php labs/identity-f102/test_pg_restricted_owner_and_revocation.php
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f103/column_level_permissions.sql
+          php labs/identity-f103/test_pg_column_permissions.php
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f104/rls_without_bypass.sql
+          php labs/identity-f104/test_pg_rls_without_bypass.php
+          test "$(php artisan route:list --json | php -r '$v=json_decode(stream_get_contents(STDIN),true); echo count($v);')" -eq 1
+          test ! -e app/Labs/IdentityF100
+          test ! -e app/Labs/IdentityF101
+          test ! -e app/Labs/IdentityF102
+          test ! -e app/Labs/IdentityF103
+          test ! -e app/Labs/IdentityF104
+          ! grep -R -E 'PortalF100OfflinePermissionProbe|PortalF101OfflineResourceProbe|PORTAL_F100_PG_LAB|PORTAL_F101_PG_LAB|PORTAL_F102_PG_LAB|PORTAL_F103_PG_LAB|PORTAL_F104_PG_LAB|portal_f102_security_owner' routes/ bootstrap/ app/Providers/ public/
+      - name: Revoke lab gate and roll back disposable schema
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_f101_resource_fixtures"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_auth_sessions"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_membership_grants"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f104_definer_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f101_resource_check(text,uuid,uuid,text)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP TABLE public.portal_f101_resource_fixtures"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f76_permission_check(text,uuid,text)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "REVOKE SELECT ON TABLE public.portal_identities,public.portal_organizations,public.portal_memberships,public.portal_membership_grants,public.portal_auth_sessions FROM portal_f102_security_owner"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "REVOKE USAGE ON SCHEMA public FROM portal_f102_security_owner"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP OWNED BY portal_f102_security_owner"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP ROLE portal_f102_security_owner"
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -d "$PGDATABASE" -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
