@@ -1,0 +1,5 @@
+# Portal GSC-F105 — resposta OAuth somente leitura (laboratório)
+
+O laboratório inspecciona respostas de troca de código OAuth fornecidas artificialmente, **sem** executar HTTP, sem consumir tokens reais e sem armazenamento persistente. Somente o conjunto mínimo `access_token`, `expires_in`, `scope`, `token_type` e `refresh_token` opcional é admitido. A validação recusa escopos adicionais ou de escrita, `id_token` inesperado, campos desconhecidos, credenciais malformadas e expiração irregular. As saídas contêm apenas indicadores sem tokens, com autorização obrigatória `HOLD`.
+
+O teste de forma **não comprova autenticidade** de resposta Google nem concede propriedade, permissão, MFA ou tenant. Ainda faltam: callback real com autenticação e autorização do Portal, state durável one-time, PKCE, troca exclusivamente no backend, armazenamento cifrado, verificação de permissões na propriedade exata, revogação e auditoria AppSec/DBA. Nenhuma rota HTTP, deploy, merge main, dados reais ou custos nesta PR.

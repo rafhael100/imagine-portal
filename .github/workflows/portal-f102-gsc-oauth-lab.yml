@@ -1,4 +1,4 @@
-name: Portal F102 — synthetic GSC OAuth PKCE contract
+name: Portal GSC F102/F105 — synthetic OAuth security contracts
 
 on:
   pull_request:
@@ -28,3 +28,5 @@ jobs:
           coverage: none
       - name: Offline PKCE/state and tenant-binding contract
         run: php apps/portal/labs/gsc-f102/test_oauth_pkce.php
+      - name: Offline token response scope and confidentiality contract
+        run: php apps/portal/labs/gsc-f105/test_token_review.php
