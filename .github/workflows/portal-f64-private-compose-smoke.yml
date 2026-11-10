@@ -104,6 +104,13 @@ jobs:
           docker compose --env-file infra/homologation/f64/.env \
             -f infra/homologation/f64/compose.yaml exec -T portal \
             php -r 'require "vendor/autoload.php"; foreach (["App\\Labs\\IdentityF82\\PortalSyntheticPasswordSessionIssuer", "App\\Labs\\IdentityF81\\PortalOrgRevisionMfaCompleter", "App\\Labs\\IdentityF75\\PortalEnrolledMfaSessionCompleter", "App\\Labs\\AuthPerfF61\\PortalPerfSqlAuthorityResolver", "App\\Domain\\PerformanceDashboard\\OfflinePerformanceWorkbenchPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundPerformanceWorkbenchPreview", "App\\Domain\\SeoReview\\OfflineSeoHandoffPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundBudgetPreview", "App\\Domain\\PerformanceDashboard\\DemoDashboardFactory", "App\\Domain\\PerformanceOnboarding\\DemoOnboardingFactory", "App\\Presentation\\DemoClientOverview"] as $class) { if (class_exists($class)) { fwrite(STDERR, "Lab class leaked into runtime image\n"); exit(1); } }'
+      - name: Prove deny-all Portal authorities in the running Laravel image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            php -r 'require "vendor/autoload.php"; $app=require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); $types=[\App\Domain\PortalAccess\Authority\PortalSessionAuthority::class, \App\Domain\PortalAccess\Authority\PortalMembershipAuthority::class, \App\Domain\PortalAccess\Authority\PortalResourceAuthority::class]; $sources=[]; foreach ($types as $type) { $source=$app->make($type); if (!($source instanceof \App\Domain\PortalAccess\Authority\DenyingPortalAuthorities)) { fwrite(STDERR,"unsafe Portal authority binding\n"); exit(1); } $sources[]=$source; } if ($sources[0]!==$sources[1] || $sources[1]!==$sources[2]) { exit(1); } $org=new \App\Domain\Organizations\OrganizationId("org-a"); $boundary=$app->make(\App\Domain\PortalAccess\Authority\PortalAuthorityBoundary::class); $verdict=$boundary->inspect("fake-portal-session",$org,"fake-resource","services.view",1700000000); if ($sources[0]->find("fake-portal-session")!==null || $sources[2]->ownerOf($org,"fake-resource")!==null || $verdict->syntheticChecksPass || $verdict->canAuthorizeHttp()) { fwrite(STDERR,"Portal boundary unexpectedly allowed\n"); exit(1); } echo "PASS Portal F98 deny-by-default live container bindings\n";'
       - name: Diagnostics on failure (no credentials)
         if: failure()
         run: |
