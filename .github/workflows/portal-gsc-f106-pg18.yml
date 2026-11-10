@@ -1,0 +1,91 @@
+name: Portal GSC F106 - atomic OAuth state PG18 laboratory
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/gsc-f106/**'
+      - '.github/workflows/portal-gsc-f106-pg18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-state-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f106-admin-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      PORTAL_F106_PG_LAB: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f106-admin-only
+      F106_PG_CLIENT_PASSWORD: ci-f106-client-only
+      F106_PG_ADMIN_PASSWORD: ci-f106-admin-only
+    steps:
+      - name: Read-only checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: PHP laboratory environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+          extensions: pdo,pdo_pgsql
+      - name: Validate CLI fixtures
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/gsc-f106/PortalGscF106OfflineStateLedger.php
+          php -l apps/portal/labs/gsc-f106/test_pg_state.php
+      - name: Prepare PostgreSQL 18 state table and minimal roles
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f106/one_time_state.sql
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename='portal_gsc_f106_pending'")" = 1
+          test "$(psql -X -A -t -c "SELECT rowsecurity::int + forcerowsecurity::int FROM pg_tables JOIN pg_class ON pg_class.relname=pg_tables.tablename WHERE tablename='portal_gsc_f106_pending' LIMIT 1")" = 2
+          test "$(psql -X -A -t -c "SELECT has_table_privilege('portal_gsc_f106_client','public.portal_gsc_f106_pending','SELECT')")" = f
+          test "$(psql -X -A -t -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='portal_gsc_f106_owner'")" = f
+      - name: Prove durable one-time consumption and cross-tenant denial
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/gsc-f106/test_pg_state.php
+          ! grep -R -E 'PortalGscF106OfflineStateLedger|PORTAL_F106_PG_LAB|portal_gsc_f106_' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Http/ apps/portal/app/Providers/
+      - name: Remove every database fixture and security role
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DROP FUNCTION public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint);
+          DROP FUNCTION public.portal_gsc_f106_consume(text,uuid,uuid,text,bigint);
+          DROP TABLE public.portal_gsc_f106_pending;
+          REVOKE CONNECT ON DATABASE portal_identity_lab FROM portal_gsc_f106_client;
+          REVOKE USAGE ON SCHEMA public FROM portal_gsc_f106_client;
+          REVOKE USAGE ON SCHEMA public FROM portal_gsc_f106_owner;
+          DROP ROLE portal_gsc_f106_client;
+          DROP ROLE portal_gsc_f106_owner;
+          COMMIT;
+          SQL
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename='portal_gsc_f106_pending'")" = 0
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'portal_gsc_f106_%'")" = 0
