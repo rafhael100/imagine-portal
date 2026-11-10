@@ -15,6 +15,23 @@ GRANT UPDATE (status) ON public.portal_organizations
 GRANT UPDATE (status) ON public.portal_memberships
   TO portal_f106_invitation_definer;
 
+-- SELECT FOR SHARE is subject to BOTH SELECT and UPDATE RLS policies.
+-- The UPDATE USING must expose rows for locking. WITH CHECK(false) strictly
+-- denies storing any updated row, including a no-op assignment.
+-- This is a lab-only security design; verify as an actual SQL mutation test.
+CREATE POLICY portal_f108_lock_identity
+  ON public.portal_identities
+  FOR UPDATE TO portal_f106_invitation_definer
+  USING (true) WITH CHECK (false);
+CREATE POLICY portal_f108_lock_organization
+  ON public.portal_organizations
+  FOR UPDATE TO portal_f106_invitation_definer
+  USING (true) WITH CHECK (false);
+CREATE POLICY portal_f108_lock_membership
+  ON public.portal_memberships
+  FOR UPDATE TO portal_f106_invitation_definer
+  USING (true) WITH CHECK (false);
+
 -- Invariant: no public/normal caller may bypass the protected F107 wrapper.
 REVOKE EXECUTE ON FUNCTION public.portal_f107_claim_with_audit(text,uuid,uuid)
   FROM portal_f106_invitation_probe;
