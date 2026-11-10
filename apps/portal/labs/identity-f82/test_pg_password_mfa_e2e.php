@@ -91,10 +91,11 @@ $check=static function(string $bearer,string $tenant,string $permission)use($rea
     return in_array($q->fetchColumn(),[true,1,'1','t'],true);
 };
 $sessionCount=static fn():int=>(int)$db->query('SELECT count(*) FROM portal_auth_sessions')->fetchColumn();
+$baselineSessions=$sessionCount();
 
 $ok($issuer->begin($email,'wrong-F82-synthetic-password',$org,$source,$pepper)===null,
     'incorrect Argon2id credential denied');
-$ok($sessionCount()===0,'wrong password cannot create pending session');
+$ok($sessionCount()===$baselineSessions,'wrong password cannot create pending session');
 $ok($issuer->begin($email,$passphrase,$foreign,$source,$pepper)===null,
     'correct password cannot create cross-tenant session');
 $ok($issuer->begin('unknown@example.invalid',$passphrase,$org,$source,$pepper)===null,
@@ -106,7 +107,7 @@ $ok($issuer->begin($email,$passphrase,$org,$source,'short-pepper')===null,
 
 $bearer=$issuer->begin($email,$passphrase,$org,$source,$pepper);
 $ok(is_string($bearer)&&strlen($bearer)===43,'256-bit random pending bearer emitted');
-$ok($sessionCount()===1,'one pending session created only after valid password');
+$ok($sessionCount()===$baselineSessions+1,'one pending session created only after valid password');
 $q=$db->prepare(
     "SELECT status,session_sha256,identity_revision,membership_revision,
       organization_revision,EXTRACT(EPOCH FROM (expires_at-issued_at)) AS lifetime
@@ -158,11 +159,11 @@ $ok($issuer->begin($email,'wrong-F82-synthetic-password',$org,$source,$pepper)==
     'fifth login attempt denied');
 $ok($issuer->begin($email,$passphrase,$org,$source,$pepper)===null,
     'sixth attempt throttled even with correct password');
-$ok($sessionCount()===1,'throttling creates no additional pending session');
+$ok($sessionCount()===$baselineSessions+1,'throttling creates no additional pending session');
 
 $ok($issuer->begin($email,$passphrase,$org,'192.0.2.51',$pepper)!==null,
     'distinct trusted test-source scope has separate budget');
-$ok($sessionCount()===2,'one additional pending session only in new scope');
+$ok($sessionCount()===$baselineSessions+2,'one additional pending session only in new scope');
 $ok(!$check($bearer,$org,'members.manage'),'no escalation to membership administration');
 
 putenv('APP_ENV=production');
