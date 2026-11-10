@@ -1,0 +1,44 @@
+name: Portal F94 - Laravel ingress source NO-GO imports
+on:
+  push:
+    branches:
+      - review/portal-f94-http-entrypoint-lab-import-guard-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f94-audit-http-ingress-imports.mjs'
+      - 'apps/portal/tests/ui/test-f94-http-ingress-imports.mjs'
+      - 'apps/portal/public/**'
+      - 'apps/portal/bootstrap/**'
+      - 'apps/portal/config/**'
+      - 'apps/portal/routes/**'
+      - '.github/workflows/portal-f94-ingress-imports-ci.yml'
+permissions:
+  contents: read
+jobs:
+  ingress-source-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Refuse offline test imports from served Laravel sources
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F94_INGRESS_GUARD_LAB: '1'
+          PORTAL_F93_RELEASE_FENCE_LAB: '1'
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f94-audit-http-ingress-imports.mjs
+          node --check apps/portal/tests/ui/test-f94-http-ingress-imports.mjs
+          node apps/portal/tools/f93-check-homologation-fence.mjs
+          node apps/portal/tools/f94-audit-http-ingress-imports.mjs
+          node apps/portal/tests/ui/test-f94-http-ingress-imports.mjs
