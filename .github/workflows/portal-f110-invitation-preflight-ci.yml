@@ -1,0 +1,58 @@
+name: Portal F110 - Deny-by-default invitation identity preflight
+on:
+  push:
+    branches:
+      - review/portal-f110-invitation-identity-preflight-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Identity/Invitations/**'
+      - 'apps/portal/app/Providers/AppServiceProvider.php'
+      - 'apps/portal/tests/Unit/PortalInvitationPreflightTest.php'
+      - 'apps/portal/tests/Feature/PortalInvitationPreflightBindingsTest.php'
+      - '.github/workflows/portal-f110-invitation-preflight-ci.yml'
+permissions:
+  contents: read
+jobs:
+  untrusted-identity-denied:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+      - name: Install locked Composer and validate class boundaries
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l app/Providers/AppServiceProvider.php
+          for class in app/Domain/Identity/Invitations/*.php; do php -l "$class"; done
+          php -l tests/Unit/PortalInvitationPreflightTest.php
+          php -l tests/Feature/PortalInvitationPreflightBindingsTest.php
+          git diff --exit-code -- composer.lock
+      - name: Deny CRM spoofing, stale MFA, cross-tenant evidence, open HTTP routes
+        run: |
+          set -euo pipefail
+          php artisan test --no-ansi --filter=PortalInvitationPreflight
+          php artisan test --no-ansi --filter=PortalInvitationSecretTest
+          php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
+          php artisan test --no-ansi --filter=PortalAuthorityBoundaryTest
+          php artisan route:list --json > /tmp/portal-f110-routes.json
+          php -r '$r=json_decode(file_get_contents("/tmp/portal-f110-routes.json"),true,512,JSON_THROW_ON_ERROR); if (count($r)!==1 || $r[0]["uri"]!=="up") { fwrite(STDERR,"F110 unexpected HTTP route\n"); exit(1); }'
+          ! grep -R -E 'PortalInvitationPreflight|PortalInvitationIdentitySource' routes/ bootstrap/ public/
