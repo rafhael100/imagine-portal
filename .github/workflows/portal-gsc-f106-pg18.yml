@@ -64,7 +64,7 @@ jobs:
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f106/one_time_state.sql
           test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename='portal_gsc_f106_pending'")" = 1
-          test "$(psql -X -A -t -c "SELECT rowsecurity::int + forcerowsecurity::int FROM pg_tables JOIN pg_class ON pg_class.relname=pg_tables.tablename WHERE tablename='portal_gsc_f106_pending' LIMIT 1")" = 2
+          test "$(psql -X -A -t -c "SELECT pg_class.relrowsecurity::int + pg_class.relforcerowsecurity::int FROM pg_tables JOIN pg_class ON pg_class.relname=pg_tables.tablename WHERE tablename='portal_gsc_f106_pending' LIMIT 1")" = 2
           test "$(psql -X -A -t -c "SELECT has_table_privilege('portal_gsc_f106_client','public.portal_gsc_f106_pending','SELECT')")" = f
           test "$(psql -X -A -t -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='portal_gsc_f106_owner'")" = f
       - name: Prove durable one-time consumption and cross-tenant denial
