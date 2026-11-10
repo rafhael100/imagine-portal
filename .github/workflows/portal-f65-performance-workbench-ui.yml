@@ -1,0 +1,83 @@
+name: Portal F65 - Offline Performance Workbench UI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/PerformanceDashboard/**'
+      - 'apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php'
+      - 'apps/portal/tests/Fixtures/performance-workbench-offline-v1.json'
+      - 'apps/portal/tests/ui/test-f60-static-workbench.mjs'
+      - 'apps/portal/tools/f60-render-performance-workbench.php'
+      - '.github/workflows/portal-f65-performance-workbench-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f65-workbench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-workbench:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Validate source syntax and offline DTO reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php
+          php -l apps/portal/tools/f60-render-performance-workbench.php
+          node --check apps/portal/tests/ui/test-f60-static-workbench.mjs
+          php apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php
+      - name: Render static workbench and deny malicious or operational DTOs
+        run: node apps/portal/tests/ui/test-f60-static-workbench.mjs
+      - name: Export static HTML for internal review (single matrix leg)
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F59_WORKBENCH_LAB: '1'
+          PORTAL_F60_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p .portal-preview-f65
+          php apps/portal/tools/f60-render-performance-workbench.php \
+            apps/portal/tests/Fixtures/performance-workbench-offline-v1.json \
+            > .portal-preview-f65/performance-workbench-demo.html
+          test -s .portal-preview-f65/performance-workbench-demo.html
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' .portal-preview-f65/performance-workbench-demo.html
+      - name: Preserve only static DEMO HTML
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-f65-performance-workbench-demo
+          path: .portal-preview-f65/performance-workbench-demo.html
+          if-no-files-found: error
+          retention-days: 2
+      - name: Ensure all Portal operational routes remain closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'OfflinePerformanceWorkbenchPreview|f60-render-performance-workbench|PORTAL_F60_HTML_LAB|PORTAL_F59_WORKBENCH_LAB' apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'Unexpected offline Performance UI reachable through server bootstrap' >&2
+            exit 1
+          fi

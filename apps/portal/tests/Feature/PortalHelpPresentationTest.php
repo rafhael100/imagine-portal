@@ -111,7 +111,7 @@ final class PortalHelpPresentationTest extends TestCase
             self::assertSame(['#pi-content'], $links[1]);
         }
         self::assertSame($routesBefore, $snapshot());
-        self::assertSame(['up', 'storage/{path}'], array_values(array_unique(array_column($routesBefore, 1))));
+        self::assertSame(['up'], array_values(array_unique(array_column($routesBefore, 1))));
         self::assertSame($sectionsBefore, ClientSection::cases());
         self::assertNull(ClientSection::tryFrom('help'));
         self::assertNotContains('help', array_column($sectionsBefore, 'value'));

@@ -1,0 +1,49 @@
+name: Portal F60 - SEC-R03 release gate non-operational
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/release-f60/**'
+      - '.github/workflows/portal-f60-sec-r03-release-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f60-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-gate-laboratory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal/labs/release-f60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Offline syntax checks
+        run: |
+          set -euo pipefail
+          node --check src/c04-release-gates.mjs
+          node --check test/c04-release-gates.test.mjs
+      - name: Enforce release BLOCKED and reject fabricated approval
+        run: node --test test/c04-release-gates.test.mjs
+      - name: Print explicit non-operational verdict
+        run: node src/c04-release-gates.mjs --check-lab
+      - name: Scope disclaimer
+        run: |
+          echo 'PASS = test integrity only; NO release authorization.'
+          echo 'No Cloudflare account, credentials, public worker, DB migration, billing or deploy.'

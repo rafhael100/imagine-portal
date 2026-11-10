@@ -1,0 +1,171 @@
+name: Portal F61 F62 - PostgreSQL authority Ed25519 cross motor checks
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Labs/AuthPerfF61/**'
+      - 'apps/portal/labs/auth-perf-f61/**'
+      - 'apps/portal/labs/performance-verifier-f62/**'
+      - 'apps/portal/tests/Feature/PortalAuthPerfF61SyntheticCapabilityIssuerTest.php'
+      - '.github/workflows/portal-f61-auth-perf-db-signed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f61-source-signed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pg-authority-only:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f08-db-only
+          POSTGRES_DB: portal_perf_auth_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_perf_auth_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_PERF_PG_AUTH_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_perf_auth_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f08-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_perf_auth_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f08-db-only
+      LOG_CHANNEL: stderr
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+    steps:
+      - name: Checkout only test authority branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install PHP 8.4 / locked Composer, no scripts/plugins
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Syntax, isolated DB and no operational route wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/auth-perf-f61/migrations/2026_11_09_000001_create_portal_perf_authority_lab.php
+          php -l apps/portal/app/Labs/AuthPerfF61/PortalPerfAuthorityFacts.php
+          php -l apps/portal/app/Labs/AuthPerfF61/PortalPerfSqlAuthorityResolver.php
+          php -l apps/portal/labs/auth-perf-f61/tests/test_pg_perf_authority.php
+          pg_isready -h 127.0.0.1 -p 5432 -U postgres -d portal_perf_auth_lab
+          if grep -R -E 'PortalPerfSqlAuthorityResolver|PORTAL_PERF_PG_AUTH_LAB' apps/portal/routes/ apps/portal/app/Providers/ apps/portal/bootstrap/; then
+            echo 'FAIL: untrusted authority fixture wired into production entrypoint'
+            exit 1
+          fi
+      - name: Install only locked Portal PHP dependencies and migrate disposable PG
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          test "$DB_DATABASE" = portal_perf_auth_lab
+          php artisan migrate --path=labs/auth-perf-f61/migrations --force --no-interaction
+          cd ../..
+          git diff --exit-code -- apps/portal/composer.lock
+      - name: Create only one read-only Portal authority role
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c \
+            "CREATE ROLE portal_f08_reader LOGIN PASSWORD 'ci-f08-read-only' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c \
+            "GRANT CONNECT ON DATABASE portal_perf_auth_lab TO portal_f08_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c \
+            "GRANT USAGE ON SCHEMA public TO portal_f08_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c \
+            "GRANT SELECT ON portal_perf_authority_sessions,portal_perf_authority_memberships,portal_perf_authority_services TO portal_f08_reader"
+      - name: Verify 60 revocation and tenant isolation cases on real PG16
+        shell: bash
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/auth-perf-f61/tests/test_pg_perf_authority.php
+          echo 'PASS Portal authority queries use server-side session hash, not client org claims'
+      - name: Verify 45 SQL-source Ed25519 issue checks and revocation cases
+        shell: bash
+        env:
+          PORTAL_PERF_SIGNED_LAB: '1'
+          PORTAL_PERF_SQL_ISSUER_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Labs/AuthPerfF61/PortalSqlBackedCapabilityIssuer.php
+          php -l apps/portal/labs/auth-perf-f61/tests/test_pg_signed_issuer.php
+          php -l apps/portal/labs/auth-perf-f61/tests/emit_pg_signed_perf_capability.php
+          php apps/portal/labs/auth-perf-f61/tests/test_pg_signed_issuer.php
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          php apps/portal/labs/auth-perf-f61/tests/emit_pg_signed_perf_capability.php "$tempdir/source-public.hex" 1800000000 > "$tempdir/source-claim.json"
+          test "$(wc -c < "$tempdir/source-public.hex")" -eq 64
+          php -r '$p=json_decode(file_get_contents($argv[1]),true,16,JSON_THROW_ON_ERROR);$c=json_decode(base64_decode(strtr($p["payload"],"-_","+/"),true),true,32,JSON_THROW_ON_ERROR);if([$c["membership_revision"],$c["service_revision"],$c["recovery_epoch"]]!==[4,5,7])exit(1);' "$tempdir/source-claim.json"
+          if grep -R -E 'PortalSqlBackedCapabilityIssuer|emit_pg_signed_perf_capability' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+            echo 'FAIL SQL-backed demo issuer was exposed in operational entrypoint'
+            exit 1
+          fi
+          echo 'PASS F09 DB-backed signed issuer, 45 revocation and signer checks'
+      - name: Validate Performance F1-30 verifier with fresh Portal PostgreSQL source
+        shell: bash
+        env:
+          PERF_F29_SIGNED_PORTAL_LAB: '1'
+          PERF_F30_PG_END_TO_END_LAB: '1'
+          PORTAL_PERF_SIGNED_LAB: '1'
+          PORTAL_PERF_SQL_ISSUER_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/performance-verifier-f62/SignedPortalCapabilityGate.php
+          php -l apps/portal/labs/performance-verifier-f62/SyntheticCurrentAuthority.php
+          php -l apps/portal/labs/performance-verifier-f62/tests/test_portal_pg_signed_perf_e2e.php
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          export F30_PORTAL_PUBLIC_HEX_FILE="$tempdir/portal-public.hex"
+          export F30_PORTAL_CLAIM_FILE="$tempdir/portal-pg-signed.json"
+          php apps/portal/labs/auth-perf-f61/tests/emit_pg_signed_perf_capability.php "$F30_PORTAL_PUBLIC_HEX_FILE" 1800000000 > "$F30_PORTAL_CLAIM_FILE"
+          test "$(wc -c < "$F30_PORTAL_PUBLIC_HEX_FILE")" -eq 64
+          php apps/portal/labs/performance-verifier-f62/tests/test_portal_pg_signed_perf_e2e.php
+          if grep -R -E 'SignedPortalCapabilityGate|SyntheticCurrentAuthority|PerformanceVerifierF62' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+            echo 'FAIL: synthetic Performance verifier wired into operational Portal'
+            exit 1
+          fi
+          echo 'PASS 50 Performance checks; NO operational access or Ads permission'
+
+      - name: Preserve non-operational auth routes and Ed25519 signer regression
+        shell: bash
+        env:
+          PORTAL_PERF_SIGNED_LAB: '1'
+        run: |
+          set -euo pipefail
+          cd apps/portal
+          ./vendor/bin/phpunit tests/Feature/PortalAuthenticationRoutesClosedTest.php
+          ./vendor/bin/phpunit tests/Feature/PortalAuthPerfF61SyntheticCapabilityIssuerTest.php
+          cd ../..
+          git diff --exit-code -- apps/portal/bootstrap/ apps/portal/routes/ apps/portal/app/Providers/ apps/portal/composer.lock

@@ -1,0 +1,117 @@
+name: Portal F64 - Private Container Homologation Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'infra/homologation/f64/**'
+      - 'apps/portal/**'
+      - '.github/workflows/portal-f64-private-compose-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f64-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  private-compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Generate disposable key outside source control
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'PORTAL_F64_APP_KEY=base64:%s\n' "$(openssl rand -base64 32)" > infra/homologation/f64/.env
+      - name: Check Compose configuration and closed network policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml config --quiet
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('infra/homologation/f64/compose.yaml').read_text()
+          nginx = Path('infra/homologation/f64/nginx.conf').read_text()
+          assert '"127.0.0.1:18080:8080"' in text
+          assert 'internal: true' in text
+          assert 'loopback_ingress:' in text
+          assert 'read_only: true' in text
+          assert 'location = /up {' in nginx
+          assert 'location / {' in nginx and 'return 404;' in nginx
+          assert 'APP_DEBUG: "false"' in text
+          assert 'APP_ENV: staging' in text
+          PY
+      - name: Build and start private containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml up -d --build
+      - name: Check live health and HTTP denylist
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml ps
+          succeeded=false
+          for i in $(seq 1 45); do
+            status="$(curl --max-time 2 -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/up || true)"
+            if [[ "$status" == 200 ]]; then succeeded=true; break; fi
+            if (( i % 10 == 1 )); then echo "Private health retry $i: HTTP $status"; fi
+            sleep 2
+          done
+          test "$succeeded" = true
+          for uri in / /login /portal /api/portal/services /checkout /admin /index.php /labs; do
+            status="$(curl --max-time 4 -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:18080$uri")"
+            test "$status" = 404 || { echo "Unexpected $uri response $status" >&2; exit 1; }
+          done
+          for method in POST PUT PATCH DELETE; do
+            status="$(curl --max-time 4 -s -X "$method" -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/up)"
+            [[ "$status" == 403 || "$status" == 405 ]] || { echo "Unexpected $method /up: $status" >&2; exit 1; }
+          done
+      - name: Confirm framework exposes only health and no database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            php artisan route:list --json > /tmp/portal-f64-routes.json
+          python3 - <<'PY'
+          import json
+          routes = json.load(open('/tmp/portal-f64-routes.json'))
+          assert len(routes) == 1, routes
+          assert routes[0]['uri'] == 'up', routes
+          PY
+          ! docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml ps --services | grep -E 'postgres|redis|worker|queue'
+      - name: Deny laboratory and fixture code in private runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            sh -ec 'test ! -d app/Labs && test ! -d labs && test ! -d tests && test ! -d database && test ! -d tools && test ! -e .env && test ! -e app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php && test ! -e app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php'
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            php -r 'require "vendor/autoload.php"; foreach (["App\\Labs\\IdentityF82\\PortalSyntheticPasswordSessionIssuer", "App\\Labs\\IdentityF81\\PortalOrgRevisionMfaCompleter", "App\\Labs\\IdentityF75\\PortalEnrolledMfaSessionCompleter", "App\\Labs\\AuthPerfF61\\PortalPerfSqlAuthorityResolver", "App\\Domain\\PerformanceDashboard\\OfflinePerformanceWorkbenchPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundPerformanceWorkbenchPreview", "App\\Domain\\SeoReview\\OfflineSeoHandoffPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundBudgetPreview"] as $class) { if (class_exists($class)) { fwrite(STDERR, "Lab class leaked into runtime image\n"); exit(1); } }'
+      - name: Diagnostics on failure (no credentials)
+        if: failure()
+        run: |
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml ps || true
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml logs --tail 50 || true
+      - name: Destroy disposable containers and key
+        if: always()
+        shell: bash
+        run: |
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml down -v --remove-orphans || true
+          rm -f infra/homologation/f64/.env /tmp/portal-f64-routes.json

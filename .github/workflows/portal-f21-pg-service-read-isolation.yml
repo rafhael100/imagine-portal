@@ -1,0 +1,73 @@
+name: Portal F21 - disposable PG18 service read isolation
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/service-relations-f21/**'
+      - '.github/workflows/portal-f21-pg-service-read-isolation.yml'
+  push:
+    branches:
+      - test/portal-f21-pg-service-read-isolation-2026-11-09
+    paths:
+      - 'apps/portal/labs/service-relations-f21/**'
+      - '.github/workflows/portal-f21-pg-service-read-isolation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f21-pg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  f21-pg-disposable:
+    name: PostgreSQL 18 / RLS / 0-to-N synthetic relationships
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      F21_PG_CONTAINER: f21-pg-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate shell without changing files
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/labs/service-relations-f21/validate.sh
+          git diff --check
+
+      - name: Start disposable PG18 without any published port or network
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          docker run -d --rm --network none \
+            --name "$F21_PG_CONTAINER" \
+            -e POSTGRES_PASSWORD="$(openssl rand -hex 32)" \
+            postgres:18 >/dev/null
+          for attempt in $(seq 1 45); do
+            if docker exec "$F21_PG_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
+              echo "Disposable postgres ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Synthetic postgres container did not become healthy." >&2
+          exit 1
+
+      - name: Exercise actual PG18 RLS policies and fail-closed mock writes
+        shell: bash
+        run: bash apps/portal/labs/service-relations-f21/validate.sh
+
+      - name: State laboratory boundaries
+        run: |
+          echo "LAB ONLY: SESSION AUTHORIZATION is impersonated by a synthetic superuser."
+          echo "NO production IAM, contract sale, customer data, Laravel database connection or deploy."
+          echo "P0/SEC-R03/RLS operational gates remain OPEN."
+
+      - name: Remove PG18 container and all anonymous volumes
+        if: always()
+        shell: bash
+        run: |
+          docker rm -fv "$F21_PG_CONTAINER" >/dev/null 2>&1 || true

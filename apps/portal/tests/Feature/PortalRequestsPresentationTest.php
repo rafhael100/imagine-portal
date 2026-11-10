@@ -100,4 +100,37 @@ final class PortalRequestsPresentationTest extends TestCase
         preg_match_all('/href="([^"]*)"/', $html, $links);
         self::assertSame(['#pi-content'], $links[1]);
     }
+
+    public function test_workflow_preview_is_readable_without_enabling_mutations_or_routes(): void
+    {
+        $html = view('portal.demo.requests')->render();
+        self::assertStringContainsString('Etapas de atendimento — apenas exemplo', $html);
+        self::assertStringContainsString('Estados ilustrativos do atendimento', $html);
+        self::assertStringContainsString('não salva dados, abre chamados ou concede permissões', $html);
+        foreach (\App\Domain\ServiceRequests\ServiceRequestStatus::cases() as $status) {
+            self::assertStringContainsString($status->label(), $html);
+        }
+        foreach (['<form', '<button', '<input', 'action=', 'https://', 'http://'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $html);
+        }
+    }
+
+    public function test_synthetic_request_inbox_is_displayed_without_leaking_live_data_or_enabling_actions(): void
+    {
+        $html = view('portal.demo.requests')->render();
+        self::assertStringContainsString('Fila de solicitações — somente demonstração', $html);
+        self::assertStringContainsString('Fila fictícia de solicitações — sem dados reais', $html);
+        self::assertStringContainsString('nenhum filtro autoriza acesso a dados reais', $html);
+        foreach (['DEMO-REQ-LANDING', 'DEMO-REQ-ONEPAGE', 'DEMO-REQ-PERFORMANCE'] as $id) {
+            self::assertSame(1, substr_count($html, '<td>'.$id.'</td>'));
+        }
+        foreach (['Aguardando informações do cliente', 'Em análise', 'Resolvida'] as $label) {
+            self::assertStringContainsString($label, $html);
+        }
+        foreach (['<form', '<button', '<input', '<script', 'action=', 'http://', 'https://'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden, $html);
+        }
+        preg_match_all('/href="([^"]*)"/', $html, $links);
+        self::assertSame(['#pi-content'], $links[1]);
+    }
 }
