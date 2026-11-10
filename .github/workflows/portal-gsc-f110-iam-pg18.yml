@@ -1,0 +1,133 @@
+name: Portal GSC F110 - isolated IAM schema and SEO grant proof
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/gsc-f110/**'
+      - '.github/workflows/portal-gsc-f110-iam-pg18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-backed-iam-issue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f106-admin-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f106-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f106-admin-only
+      F106_PG_CLIENT_PASSWORD: ci-f106-client-only
+      F106_PG_ADMIN_PASSWORD: ci-f106-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout without retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Locked Laravel dependencies and PHP syntax
+        run: |
+          set -euo pipefail
+          php -l labs/gsc-f110/PortalGscF110OfflineIamIssuer.php
+          php -l labs/gsc-f110/test_pg_iam_schema_issue.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Apply REAL Portal identity migrations to disposable PG18
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename IN ('portal_identities','portal_auth_sessions')")" = 0
+      - name: Install NO-GO OAuth state and schema permission gate
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f106/one_time_state.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f108/sealed_state_extension.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f109/gated_issuer.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f110/iam_schema_gated_issue.sql
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f109_authorized_issue(text,text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq f
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f110_iam_issued_state(text,text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq t
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND policyname LIKE 'gsc_f110_%'")" = 6
+          psql -X -A -t -c "SELECT rolbypassrls FROM pg_roles WHERE rolname='portal_gsc_f110_owner'" | grep -xq f
+      - name: Prove explicit SEO permission on REAL Portal schema
+        run: |
+          set -euo pipefail
+          php labs/gsc-f110/test_pg_iam_schema_issue.php
+          test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true); echo count($r);')" = 1
+          ! grep -R -E 'PortalGscF110OfflineIamIssuer|PORTAL_F110_PG_LAB|portal_gsc_f110_' routes/ bootstrap/ app/Http/ app/Providers/
+      - name: Remove every disposable policy, role and identity schema
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DROP POLICY gsc_f110_identity_read ON public.portal_identities;
+          DROP POLICY gsc_f110_org_read ON public.portal_organizations;
+          DROP POLICY gsc_f110_membership_read ON public.portal_memberships;
+          DROP POLICY gsc_f110_grant_read ON public.portal_membership_grants;
+          DROP POLICY gsc_f110_session_read ON public.portal_auth_sessions;
+          DROP OWNED BY portal_gsc_f110_owner;
+          DROP ROLE portal_gsc_f110_owner;
+          DROP FUNCTION public.portal_gsc_f109_authorized_issue(text,text,uuid,uuid,text,bigint,bigint,text,text);
+          DROP TABLE public.portal_gsc_f109_grants;
+          DROP FUNCTION public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text);
+          DROP FUNCTION public.portal_gsc_f108_consume(text,uuid,uuid,text,bigint);
+          DROP FUNCTION public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint);
+          DROP FUNCTION public.portal_gsc_f106_consume(text,uuid,uuid,text,bigint);
+          DROP TABLE public.portal_gsc_f106_pending;
+          REVOKE CONNECT ON DATABASE portal_identity_lab FROM portal_gsc_f106_client;
+          REVOKE USAGE ON SCHEMA public FROM portal_gsc_f106_client;
+          REVOKE USAGE ON SCHEMA public FROM portal_gsc_f106_owner;
+          DROP ROLE portal_gsc_f106_client;
+          DROP ROLE portal_gsc_f106_owner;
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
