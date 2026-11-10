@@ -173,7 +173,7 @@ $writer->prepare(
 $writer->prepare(
     "INSERT INTO portal_f101_resource_fixtures(id,organization_id,status,display_ref)
      VALUES(?,?,'active','f102-fixture')"
-)->execute([$resource]);
+)->execute([$resource,$organization]);
 
 $allow = static fn (): bool => $probe->check(
     $bearer,$organization,$resource,'services.view'
