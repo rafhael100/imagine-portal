@@ -1,0 +1,47 @@
+name: Portal F111 - Invitation identity NO-GO release fence
+on:
+  push:
+    branches:
+      - review/portal-f111-invitation-release-fence-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Providers/AppServiceProvider.php'
+      - 'apps/portal/app/Domain/Identity/Invitations/**'
+      - 'apps/portal/routes/**'
+      - 'apps/portal/bootstrap/**'
+      - 'apps/portal/app/Http/**'
+      - 'apps/portal/tools/f111-audit-invitation-release-fence.mjs'
+      - 'apps/portal/tests/ui/test-f111-invitation-release-fence.mjs'
+      - '.github/workflows/portal-f111-invitation-release-fence-ci.yml'
+permissions:
+  contents: read
+jobs:
+  no-unreviewed-identity-access:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22','24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Deny accidental invitation acceptance or unsafe identity source
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F111_RELEASE_FENCE_LAB: '1'
+          PORTAL_F93_RELEASE_FENCE_LAB: '1'
+          PORTAL_F94_INGRESS_GUARD_LAB: '1'
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f111-audit-invitation-release-fence.mjs
+          node --check apps/portal/tests/ui/test-f111-invitation-release-fence.mjs
+          node apps/portal/tools/f111-audit-invitation-release-fence.mjs
+          node apps/portal/tests/ui/test-f111-invitation-release-fence.mjs
+          node apps/portal/tools/f93-check-homologation-fence.mjs
+          node apps/portal/tools/f94-audit-http-ingress-imports.mjs
