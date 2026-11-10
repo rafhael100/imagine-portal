@@ -56,6 +56,13 @@ try{
     'OfflineSeoHandoffPreview.php',
     'CredentialBoundBudgetPreview.php',
   ])must(docker.slice(removal,autoload).includes(name));
+  const demoPrune=docker.indexOf("find app/Domain app/Presentation -type f -name '*Demo*.php' -delete");
+  must(demoPrune>removal && demoPrune<autoload);
+  must(docker.slice(removal,autoload).includes('rm -rf resources/views/portal/demo'));
+  must(docker.slice(removal,autoload).includes('rm -f resources/views/performance/demo-dashboard.blade.php'));
+  must(docker.slice(removal,autoload).includes("test -z \"$(find app/Domain app/Presentation"));
+  must(docker.slice(removal,autoload).includes('test ! -d resources/views/portal/demo'));
+  must(docker.slice(removal,autoload).includes('test ! -e resources/views/performance/demo-dashboard.blade.php'));
   must(docker.slice(autoload).includes('--classmap-authoritative'));
   must(docker.includes('USER www-data') && docker.includes('APP_ENV=staging'));
   must(!/\bUSER\s+root\b/.test(docker.slice(autoload)));
