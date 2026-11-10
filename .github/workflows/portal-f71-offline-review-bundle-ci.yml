@@ -1,0 +1,49 @@
+name: Portal F71 - isolated offline review bundle
+on:
+  push:
+    branches:
+      - dev/portal-f71-offline-review-bundle-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f71-create-offline-budget-review.mjs'
+      - 'apps/portal/tests/ui/test-f71-offline-budget-bundle.mjs'
+      - '.github/workflows/portal-f71-offline-review-bundle-ci.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-review-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Verify review bundle and existing offline security regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f71-create-offline-budget-review.mjs
+          node --check apps/portal/tests/ui/test-f71-offline-budget-bundle.mjs
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          node apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          node apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs
+          node apps/portal/tests/ui/test-f69-offline-csv-integrity.mjs
+          node apps/portal/tests/ui/test-f70-budget-html-csv-parity.mjs
+          node apps/portal/tests/ui/test-f71-offline-budget-bundle.mjs
+          if grep -R -n -E 'f71-create-offline-budget-review|PORTAL_F71_REVIEW_BUNDLE_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL: F71 laboratory exposed via runtime'
+            exit 1
+          fi
