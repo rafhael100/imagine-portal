@@ -168,7 +168,7 @@ $expectedEvidence=hash('sha256','portal.f107.invitation.consumed.v1:'
     .$id1.':'.$event['event_id'].':'.$org.':'.$identity);
 $ok($event['organization_id']===$org && $event['identity_id']===$identity
     && $event['event_code']==='invitation.consumed'
-    && $event['security_revision']==1
+    && (int)$event['security_revision']===1
     && $event['evidence_sha256']===$expectedEvidence,
     'audit binds sanitized invite, identity, organization and event id, not bearer');
 $ok($event['evidence_sha256']!==$digest1,
