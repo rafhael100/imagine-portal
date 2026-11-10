@@ -234,6 +234,18 @@ jobs:
           fi
           grep -Eq 'payload digest|release pin' "$RUNNER_TEMP/rejected-build.txt"
           echo 'Unapproved hash correctly rejected without publication.'
+      - name: F39 alvo staging deve recusar build sem modo signed-required
+        working-directory: .qa/imagine-comercial
+        run: |
+          set -euo pipefail
+          # O destino continua staging, mas a flag assinada desaparece.
+          # O F37 precisa rejeitar o build ANTES do fallback editorial.
+          if env -u IMAGINE_CATALOG_REQUIRE_SIGNED npm run build > "$RUNNER_TEMP/f39-staging-unsigned.txt" 2>&1; then
+            echo 'ERROR: Protected staging accepted missing signed-required intent' >&2
+            exit 1
+          fi
+          grep -Fq 'protected release target requires signed catalog mode' "$RUNNER_TEMP/f39-staging-unsigned.txt"
+          echo 'F39 staging intent fail-closed verified; no production release.'
       - name: F25 rejeitar omissão completa do catálogo assinado e dos pins
         working-directory: .qa/imagine-comercial
         run: |
