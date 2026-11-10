@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * F89: append-only audit envelope for Portal security events, not a trusted
+ * F89/F107: append-only audit envelope for Portal security events, not a trusted
  * event source. Default DENY RLS and no application policy.
  *
  * This table alone cannot resist PostgreSQL backup rollback, a DBA who drops
@@ -56,7 +56,7 @@ return new class extends Migration
             "ALTER TABLE portal_security_events ADD CONSTRAINT portal_security_event_code_ck "
             . "CHECK (event_code IN ("
             . "'identity.revoked','membership.revoked','organization.suspended',"
-            . "'session.revoked','mfa.reset','grant.revoked'))"
+            . "'session.revoked','mfa.reset','grant.revoked','invitation.consumed'))"
         );
         DB::statement(
             "ALTER TABLE portal_security_events ADD CONSTRAINT portal_security_evidence_hash_ck "
