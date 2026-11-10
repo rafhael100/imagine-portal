@@ -97,10 +97,10 @@ jobs:
           set -euo pipefail
           docker compose --env-file infra/homologation/f64/.env \
             -f infra/homologation/f64/compose.yaml exec -T portal \
-            sh -ec 'test ! -d app/Labs && test ! -d labs && test ! -d tests && test ! -d database && test ! -d tools && test ! -e .env && test ! -e app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php'
+            sh -ec 'test ! -d app/Labs && test ! -d labs && test ! -d tests && test ! -d database && test ! -d tools && test ! -e .env && test ! -e app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php && test ! -e app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php'
           docker compose --env-file infra/homologation/f64/.env \
             -f infra/homologation/f64/compose.yaml exec -T portal \
-            php -r 'require "vendor/autoload.php"; foreach (["App\\Labs\\IdentityF82\\PortalSyntheticPasswordSessionIssuer", "App\\Labs\\IdentityF81\\PortalOrgRevisionMfaCompleter", "App\\Labs\\IdentityF75\\PortalEnrolledMfaSessionCompleter", "App\\Labs\\AuthPerfF61\\PortalPerfSqlAuthorityResolver", "App\\Domain\\PerformanceDashboard\\OfflinePerformanceWorkbenchPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundPerformanceWorkbenchPreview", "App\\Domain\\SeoReview\\OfflineSeoHandoffPreview"] as $class) { if (class_exists($class)) { fwrite(STDERR, "Lab class leaked into runtime image\n"); exit(1); } }'
+            php -r 'require "vendor/autoload.php"; foreach (["App\\Labs\\IdentityF82\\PortalSyntheticPasswordSessionIssuer", "App\\Labs\\IdentityF81\\PortalOrgRevisionMfaCompleter", "App\\Labs\\IdentityF75\\PortalEnrolledMfaSessionCompleter", "App\\Labs\\AuthPerfF61\\PortalPerfSqlAuthorityResolver", "App\\Domain\\PerformanceDashboard\\OfflinePerformanceWorkbenchPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundPerformanceWorkbenchPreview", "App\\Domain\\SeoReview\\OfflineSeoHandoffPreview", "App\\Domain\\PerformanceDashboard\\CredentialBoundBudgetPreview"] as $class) { if (class_exists($class)) { fwrite(STDERR, "Lab class leaked into runtime image\n"); exit(1); } }'
       - name: Diagnostics on failure (no credentials)
         if: failure()
         run: |
