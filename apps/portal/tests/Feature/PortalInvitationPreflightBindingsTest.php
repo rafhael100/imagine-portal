@@ -42,7 +42,7 @@ final class PortalInvitationPreflightBindingsTest extends TestCase
     {
         $routes = array_map(
             static fn ($route): string => $route->uri(),
-            iterator_to_array($this->app['router']->getRoutes()),
+            $this->app['router']->getRoutes()->getRoutes(),
         );
         self::assertSame(['up'], $routes);
 
