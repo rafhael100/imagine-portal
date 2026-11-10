@@ -1,10 +1,12 @@
-name: Portal GSC F123 - tenant property candidates PG18 NO-GO
+name: Portal GSC F123/F124 - tenant candidates and immutable revocation PG18
 
 on:
   pull_request:
     paths:
       - 'apps/portal/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php'
       - 'apps/portal/labs/gsc-f123/**'
+      - 'apps/portal/database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php'
+      - 'apps/portal/labs/gsc-f124/**'
       - '.github/workflows/portal-gsc-f123-properties-pg18.yml'
   workflow_dispatch:
 
@@ -37,6 +39,7 @@ jobs:
       APP_ENV: testing
       APP_DEBUG: 'false'
       PORTAL_F123_PG_LAB: '1'
+      PORTAL_F124_PG_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -74,6 +77,8 @@ jobs:
           set -euo pipefail
           php -l database/migrations/2026_11_10_000008_create_gsc_property_candidates.php
           php -l labs/gsc-f123/test_pg_property_candidates.php
+          php -l database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php
+          php -l labs/gsc-f124/test_pg_candidate_fence.php
           php -l app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
           composer validate --strict --no-check-publish
           composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
@@ -92,15 +97,22 @@ jobs:
         run: |
           set -euo pipefail
           php labs/gsc-f123/test_pg_property_candidates.php
+          php artisan migrate --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
+          php labs/gsc-f124/test_pg_candidate_fence.php
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_property_candidates" | grep -xq 3
           ! grep -R -E 'portal_gsc_property_candidates|PORTAL_F123_PG_LAB' routes/ bootstrap/ app/Http/ app/Providers/
       - name: Rollback must refuse any tenant's remaining property candidates
         run: |
           set -euo pipefail
-          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction; then
-            echo "SECURITY ERROR: candidate rows were silently deleted by rollback" >&2
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction; then
+            echo "SECURITY ERROR: F124 mutation fence was removed with existing candidates" >&2
             exit 1
           fi
+          # Laravel migrate:rollback --path examines only the latest batch.
+          # With F124 present, asking for earlier F123 would be a no-op (exit 0),
+          # NOT a valid security test. F123 rollback is proven on its own PR.
+          # Assert the current F124 batch actually remains registered.
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000009_fence_gsc_candidate_mutation'" | grep -xq 1
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_property_candidates" | grep -xq 3
       - name: Clean synthetic witnesses and rollback with no grants or production changes
         run: |
@@ -119,6 +131,7 @@ jobs:
             '123e4567-e89b-42d3-a456-426614175002');
           COMMIT;
           SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
           test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
