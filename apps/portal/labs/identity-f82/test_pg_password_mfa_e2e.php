@@ -125,8 +125,9 @@ $ok(!$check($bearer,$foreign,'services.view'),'pending session cannot cross tena
 
 $epoch=time();
 $code=f82Code('12345678901234567890',intdiv($epoch,30));
-$ok(!$completer->complete($bearer,$key,'000000',$epoch) || $code==='000000',
-    'incorrect OTP denied unless it coincides with valid vector code');
+$incorrectCode=$code==='999999'?'888888':'999999';
+$ok(!$completer->complete($bearer,$key,$incorrectCode,$epoch),
+    'incorrect OTP is always denied');
 // A changed organization revision must reject MFA without spending its counter.
 $db->exec("UPDATE portal_organizations SET security_revision=2 WHERE id='$org'");
 $ok(!$completer->complete($bearer,$key,$code,$epoch),
@@ -151,6 +152,8 @@ $db->exec("UPDATE portal_organizations SET security_revision=1 WHERE id='$org'")
 
 $ok($issuer->begin($email,'wrong-F82-synthetic-password',$org,$source,$pepper)===null,
     'further wrong password is denied and counted');
+$ok($issuer->begin($email,'wrong-F82-synthetic-password',$org,$source,$pepper)===null,
+    'fourth login attempt denied');
 $ok($issuer->begin($email,'wrong-F82-synthetic-password',$org,$source,$pepper)===null,
     'fifth login attempt denied');
 $ok($issuer->begin($email,$passphrase,$org,$source,$pepper)===null,
