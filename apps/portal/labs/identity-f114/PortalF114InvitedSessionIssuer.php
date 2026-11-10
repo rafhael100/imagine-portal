@@ -148,8 +148,8 @@ final readonly class PortalF114InvitedSessionIssuer
                  ) VALUES (
                     :id,:digest,:actor,:org,'pending_mfa',
                     'invitation_only',:identity_revision,:membership_revision,
-                    :organization_revision,clock_timestamp(),
-                    clock_timestamp()+interval '5 minutes',now(),now()
+                    :organization_revision,statement_timestamp(),
+                    statement_timestamp()+interval '5 minutes',now(),now()
                  )"
             );
             $insert->execute([
@@ -216,8 +216,8 @@ final readonly class PortalF114InvitedSessionIssuer
                         s.identity_revision AS session_identity_revision,
                         s.membership_revision AS session_membership_revision,
                         s.organization_revision AS session_org_revision,
-                        extract(epoch from s.issued_at)::bigint AS issued_epoch,
-                        extract(epoch from s.expires_at)::bigint AS expires_epoch,
+                        floor(extract(epoch from s.issued_at))::bigint AS issued_epoch,
+                        floor(extract(epoch from s.expires_at))::bigint AS expires_epoch,
                         i.status AS identity_status,i.security_revision,
                         i.email_verified_at,i.mfa_confirmed_at,
                         i.mfa_secret_ciphertext,i.mfa_last_used_counter,
