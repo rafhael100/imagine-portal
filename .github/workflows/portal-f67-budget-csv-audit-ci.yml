@@ -1,0 +1,38 @@
+name: Portal F67 - independent offline CSV reconciliation
+on:
+  push:
+    branches:
+      - dev/portal-f67-csv-roundtrip-audit-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tests/ui/test-f67-budget-csv-audit.mjs'
+      - '.github/workflows/portal-f67-budget-csv-audit-ci.yml'
+permissions:
+  contents: read
+jobs:
+  csv-roundtrip-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Independent budget CSV audit and F66 regressions
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          php -l apps/portal/tools/f66-export-budget-calendar-csv.php
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          node apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          if grep -R -n -E 'test-f67-budget-csv-audit|PORTAL_F66_BUDGET_CSV_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL: F67 test or F66 exporter exposed in runtime'
+            exit 1
+          fi
