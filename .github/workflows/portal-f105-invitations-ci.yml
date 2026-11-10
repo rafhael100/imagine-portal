@@ -1,0 +1,100 @@
+name: Portal F105 - Closed invitation schema PG18
+on:
+  push:
+    branches:
+      - review/portal-f105-invitation-foundation-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Identity/Invitations/**'
+      - 'apps/portal/tests/Unit/PortalInvitationSecretTest.php'
+      - 'apps/portal/database/migrations/2026_11_10_000007_create_portal_access_invitations.php'
+      - 'apps/portal/labs/identity-f105/**'
+      - '.github/workflows/portal-f105-invitations-ci.yml'
+permissions:
+  contents: read
+jobs:
+  invitation-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f105-db-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F105_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f105-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f105-db-only
+      F66_PG_ADMIN_PASSWORD: ci-f105-db-only
+      F101_PG_READER_PASSWORD: ci-f105-reader-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Install reproducible test dependencies
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l app/Domain/Identity/Invitations/PortalInvitationSecret.php
+          php -l database/migrations/2026_11_10_000007_create_portal_access_invitations.php
+          php -l labs/identity-f105/test_pg_invitation_foundation.php
+          php artisan test --no-ansi --filter=PortalInvitationSecretTest
+      - name: Verify closed PostgreSQL invitation schema
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "CREATE ROLE portal_f101_reader LOGIN PASSWORD 'ci-f105-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f101_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT USAGE ON SCHEMA public TO portal_f101_reader"
+          php labs/identity-f105/test_pg_invitation_foundation.php
+          test "$(php artisan route:list --json | php -r '$v=json_decode(stream_get_contents(STDIN),true); echo count($v);')" -eq 1
+          ! grep -R -E 'PortalInvitationSecret|PORTAL_F105_PG_LAB' routes/ bootstrap/ app/Providers/ public/
+      - name: Revert disposable invitation schema
+        run: |
+          set -euo pipefail
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -d "$PGDATABASE" -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
