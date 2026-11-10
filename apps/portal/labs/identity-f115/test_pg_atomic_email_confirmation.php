@@ -112,12 +112,12 @@ $issue=static function(
            id,token_sha256,identity_id,email_sha256,identity_revision,
            status,issued_at,expires_at,created_at,updated_at
          ) VALUES(?,?,?,?,1,'pending',
-           clock_timestamp()+CAST(:issued AS interval),
-           clock_timestamp()+CAST(:expires AS interval),now(),now())"
+           clock_timestamp()+CAST(? AS interval),
+           clock_timestamp()+CAST(? AS interval),now(),now())"
     );
     $stmt->execute([
         $uuid,$secret->digest(),$id,hash('sha256',$email),
-        'issued'=>$issuedOffset,'expires'=>$expiresOffset,
+        $issuedOffset,$expiresOffset,
     ]);
     return [$uuid,$secret->digest(),$bearer];
 };
