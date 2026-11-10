@@ -74,7 +74,8 @@ try{
     'RUN rm -rf app/Labs','RUN echo app/Labs',
     'App/Labs remains in image');
   mutate('infra/homologation/f64/Dockerfile',
-    '--classmap-authoritative','--no-autoloader',
+    '--no-interaction --no-scripts --no-plugins --classmap-authoritative',
+    '--no-interaction --no-scripts --no-plugins --no-autoloader',
     'autoload not authoritative');
   mutate('infra/homologation/f64/nginx.conf',
     'location / {','location /api/ { return 200; }\n    location / {',
