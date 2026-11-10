@@ -32,7 +32,7 @@ final class PortalF102OfflineGscOAuth
         $this->pending[hash('sha256', $state)] = [
             'actor' => $actorId, 'organization' => $organizationId,
             'property' => $propertyFingerprint, 'redirect' => $redirectUri,
-            'verifier' => $verifier, 'expires' => $now + 300,
+            'verifier' => $verifier, 'issued' => $now, 'expires' => $now + 300,
         ];
         // Only a synthetic descriptor, never a usable authorization URL.
         return [
@@ -60,7 +60,7 @@ final class PortalF102OfflineGscOAuth
         // Consume on the first attempt, successful or not: no replay and
         // no cross-tenant brute-force retries against the same state.
         unset($this->pending[$key]);
-        if (!is_array($entry) || $now <= 0 || $now > $entry['expires']
+        if (!is_array($entry) || $now < $entry['issued'] || $now > $entry['expires']
             || !self::uuid($actorId) || !self::uuid($organizationId)
             || !hash_equals($entry['actor'], $actorId)
             || !hash_equals($entry['organization'], $organizationId)
