@@ -30,8 +30,8 @@ function scan(root){
   const source=readFileSync(root,'utf8');
   checked++;
   if(blocked.test(source))throw Error('offline lab found in served runtime');
-  if(root.split(/[\\\\/]/).includes('routes') && /\\bRoute\\s*::/i.test(source))
-    throw Error('HTTP route found before homologation');
+  if(root.replaceAll('\\','/').split('/').includes('routes') &&
+     /Route\s*::/i.test(source))throw Error('HTTP route found before homologation');
 }
 try{
   const rootStat=lstatSync(portal);
