@@ -1,10 +1,11 @@
-name: Portal F61 - isolated PostgreSQL authority and Ed25519 convergence
+name: Portal F61 F62 - PostgreSQL authority Ed25519 cross motor checks
 
 on:
   pull_request:
     paths:
       - 'apps/portal/app/Labs/AuthPerfF61/**'
       - 'apps/portal/labs/auth-perf-f61/**'
+      - 'apps/portal/labs/performance-verifier-f62/**'
       - 'apps/portal/tests/Feature/PortalAuthPerfF61SyntheticCapabilityIssuerTest.php'
       - '.github/workflows/portal-f61-auth-perf-db-signed.yml'
   workflow_dispatch:
@@ -132,6 +133,31 @@ jobs:
             exit 1
           fi
           echo 'PASS F09 DB-backed signed issuer, 45 revocation and signer checks'
+      - name: Validate Performance F1-30 verifier with fresh Portal PostgreSQL source
+        shell: bash
+        env:
+          PERF_F29_SIGNED_PORTAL_LAB: '1'
+          PERF_F30_PG_END_TO_END_LAB: '1'
+          PORTAL_PERF_SIGNED_LAB: '1'
+          PORTAL_PERF_SQL_ISSUER_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/performance-verifier-f62/SignedPortalCapabilityGate.php
+          php -l apps/portal/labs/performance-verifier-f62/SyntheticCurrentAuthority.php
+          php -l apps/portal/labs/performance-verifier-f62/tests/test_portal_pg_signed_perf_e2e.php
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          export F30_PORTAL_PUBLIC_HEX_FILE="$tempdir/portal-public.hex"
+          export F30_PORTAL_CLAIM_FILE="$tempdir/portal-pg-signed.json"
+          php apps/portal/labs/auth-perf-f61/tests/emit_pg_signed_perf_capability.php "$F30_PORTAL_PUBLIC_HEX_FILE" 1800000000 > "$F30_PORTAL_CLAIM_FILE"
+          test "$(wc -c < "$F30_PORTAL_PUBLIC_HEX_FILE")" -eq 64
+          php apps/portal/labs/performance-verifier-f62/tests/test_portal_pg_signed_perf_e2e.php
+          if grep -R -E 'SignedPortalCapabilityGate|SyntheticCurrentAuthority|PerformanceVerifierF62' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+            echo 'FAIL: synthetic Performance verifier wired into operational Portal'
+            exit 1
+          fi
+          echo 'PASS 50 Performance checks; NO operational access or Ads permission'
+
       - name: Preserve non-operational auth routes and Ed25519 signer regression
         shell: bash
         env:
