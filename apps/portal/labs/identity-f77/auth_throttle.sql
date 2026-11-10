@@ -25,20 +25,20 @@ BEGIN
     INSERT INTO public.portal_auth_attempt_buckets AS b
         (scope_hash,action_code,attempts,window_started_at,last_seen_at)
     VALUES
-        (p_scope_hash,p_action,1,clock_timestamp(),clock_timestamp())
+        (p_scope_hash,p_action,1,statement_timestamp(),statement_timestamp())
     ON CONFLICT (scope_hash,action_code)
     DO UPDATE SET
         attempts=CASE
-            WHEN b.window_started_at <= clock_timestamp() - interval '15 minutes'
+            WHEN b.window_started_at <= statement_timestamp() - interval '15 minutes'
                 THEN 1
             ELSE LEAST(b.attempts + 1, 6)
         END,
         window_started_at=CASE
-            WHEN b.window_started_at <= clock_timestamp() - interval '15 minutes'
-                THEN clock_timestamp()
+            WHEN b.window_started_at <= statement_timestamp() - interval '15 minutes'
+                THEN statement_timestamp()
             ELSE b.window_started_at
         END,
-        last_seen_at=clock_timestamp()
+        last_seen_at=statement_timestamp()
     RETURNING attempts <= 5 INTO v_allowed;
 
     RETURN COALESCE(v_allowed,FALSE);
