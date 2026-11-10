@@ -80,12 +80,18 @@ foreach($tables as $table){
         && $isFalse($row['caller_privilege']),
         'only NOLOGIN definer receives minimum lock privilege for '.$table);
     $stmt=$admin->prepare(
-        "SELECT count(*) FROM pg_policies WHERE schemaname='public'
+        "SELECT policyname,roles,cmd,qual,with_check
+           FROM pg_policies WHERE schemaname='public'
            AND tablename=:table AND cmd IN ('UPDATE','ALL')"
     );
     $stmt->execute(['table'=>$table]);
-    $ok((int)$stmt->fetchColumn()===0,
-        'there are no UPDATE RLS allow policies for '.$table);
+    $policies=$stmt->fetchAll();
+    $ok(count($policies)===1
+        && $policies[0]['roles']==='{portal_f106_invitation_definer}'
+        && $policies[0]['cmd']==='UPDATE'
+        && trim((string)$policies[0]['qual'],'() ')==='true'
+        && trim((string)$policies[0]['with_check'],'() ')==='false',
+        'FOR SHARE can see rows but UPDATE WITH CHECK(false) denies writing '.$table);
 }
 
 $identity='b1111111-1111-4111-8111-111111111111';
@@ -250,12 +256,18 @@ $writer->exec(
 // Even though the NOLOGIN owner got UPDATE(status) for FOR SHARE, FORCE RLS
 // with no UPDATE policy must prevent it from changing security states.
 $admin->beginTransaction();
-$admin->exec('SET LOCAL ROLE portal_f106_invitation_definer');
-$affected=$admin->exec(
-    "UPDATE portal_identities SET status='revoked' WHERE id='$identity'"
-);
-$ok($affected===0,'definer cannot update identity without UPDATE RLS policy');
-$admin->rollBack();
+try {
+    $admin->exec('SET LOCAL ROLE portal_f106_invitation_definer');
+    $admin->exec(
+        "UPDATE portal_identities SET status='revoked' WHERE id='$identity'"
+    );
+    $ok(false,'definer must not pass UPDATE WITH CHECK(false)');
+} catch(PDOException $e) {
+    $ok($e->getCode()==='42501',
+        'definer receives RLS policy violation when attempting identity UPDATE');
+} finally {
+    if($admin->inTransaction()) $admin->rollBack();
+}
 $ok((string)$admin->query(
     "SELECT status FROM portal_identities WHERE id='$identity'"
 )->fetchColumn()==='active', 'identity status unchanged after impersonated role');
