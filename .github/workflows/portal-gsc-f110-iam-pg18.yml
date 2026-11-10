@@ -1,9 +1,10 @@
-name: Portal GSC F110 - isolated IAM schema and SEO grant proof
+name: Portal GSC F110/F111 - session-bound OAuth callback and revocation proof
 
 on:
   pull_request:
     paths:
       - 'apps/portal/labs/gsc-f110/**'
+      - 'apps/portal/labs/gsc-f111/**'
       - '.github/workflows/portal-gsc-f110-iam-pg18.yml'
   workflow_dispatch:
 
@@ -73,6 +74,8 @@ jobs:
           set -euo pipefail
           php -l labs/gsc-f110/PortalGscF110OfflineIamIssuer.php
           php -l labs/gsc-f110/test_pg_iam_schema_issue.php
+          php -l labs/gsc-f111/PortalGscF111OfflineSessionBoundOAuth.php
+          php -l labs/gsc-f111/test_pg_session_bound_callback.php
           composer validate --strict --no-check-publish
           composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
           composer dump-autoload --no-interaction --no-scripts --no-plugins
@@ -99,6 +102,10 @@ jobs:
         run: |
           set -euo pipefail
           php labs/gsc-f110/test_pg_iam_schema_issue.php
+          psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f111/session_bound_callback.sql
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f108_consume(text,uuid,uuid,text,bigint)','EXECUTE')" | grep -xq f
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f110_iam_issued_state(text,text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq f
+          php labs/gsc-f111/test_pg_session_bound_callback.php
           test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true); echo count($r);')" = 1
           ! grep -R -E 'PortalGscF110OfflineIamIssuer|PORTAL_F110_PG_LAB|portal_gsc_f110_' routes/ bootstrap/ app/Http/ app/Providers/
       - name: Remove every disposable policy, role and identity schema
@@ -106,11 +113,14 @@ jobs:
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
+          DROP FUNCTION public.portal_gsc_f111_issue(text,text,uuid,uuid,text,bigint,bigint,text,text);
+          DROP FUNCTION public.portal_gsc_f111_consume(text,text,uuid,uuid,text);
           DROP POLICY gsc_f110_identity_read ON public.portal_identities;
           DROP POLICY gsc_f110_org_read ON public.portal_organizations;
           DROP POLICY gsc_f110_membership_read ON public.portal_memberships;
           DROP POLICY gsc_f110_grant_read ON public.portal_membership_grants;
           DROP POLICY gsc_f110_session_read ON public.portal_auth_sessions;
+          DROP POLICY gsc_f110_property_owner_only ON public.portal_gsc_f110_allowed_properties;
           DROP OWNED BY portal_gsc_f110_owner;
           DROP ROLE portal_gsc_f110_owner;
           DROP FUNCTION public.portal_gsc_f109_authorized_issue(text,text,uuid,uuid,text,bigint,bigint,text,text);
