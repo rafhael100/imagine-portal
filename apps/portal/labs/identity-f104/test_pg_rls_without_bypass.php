@@ -128,9 +128,9 @@ $directCheck=$db->prepare(
 );
 foreach($tables as $table){
     $directCheck->execute(['role'=>'portal_f76_reader','table'=>'public.'.$table]);
-    $ok($no($directCheck->fetchColumn()),'F76 reader cannot SELECT '+$table);
+    $ok($no($directCheck->fetchColumn()),'F76 reader cannot SELECT '.$table);
     $directCheck->execute(['role'=>'portal_f101_reader','table'=>'public.'.$table]);
-    $ok($no($directCheck->fetchColumn()),'F101 reader cannot SELECT '+$table);
+    $ok($no($directCheck->fetchColumn()),'F101 reader cannot SELECT '.$table);
 }
 
 $identity='f1111111-1111-4111-8111-111111111111';
