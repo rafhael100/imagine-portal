@@ -154,7 +154,7 @@ $ok(!$service->complete('F75_Not_An_Issued_Bearer_abcdefghijk', $key, '279037', 
 $ok($service->complete($bearerA, $key, '279037', $now),
     'enrolled, decrypted TOTP activates first pending session atomically');
 
-$permissionReader = $connect('portal_f81_reader', getenv('F81_PG_READER_PASSWORD'));
+$permissionReader = $connect('portal_f76_reader', getenv('F76_PG_READER_PASSWORD'));
 $checkPermission = static function (PDO $pdo, string $digest, string $tenantId, string $permission): bool {
     $q = $pdo->prepare(
         'SELECT public.portal_f76_permission_check(:digest,CAST(:tenant AS uuid),:permission)'
