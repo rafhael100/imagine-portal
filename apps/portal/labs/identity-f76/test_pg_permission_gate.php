@@ -94,7 +94,7 @@ $check = static function (PDO $db, string $hash, string $orgUuid, string $permis
         'SELECT public.portal_f76_permission_check(:token, CAST(:org AS uuid), :permission)'
     );
     $stmt->execute(['token'=>$hash, 'org'=>$orgUuid, 'permission'=>$permission]);
-    return (bool) $stmt->fetchColumn();
+    return in_array($stmt->fetchColumn(), [true, 1, '1', 't'], true);
 };
 
 $ok($check($reader,$bearerHash,$org,'services.view'),
