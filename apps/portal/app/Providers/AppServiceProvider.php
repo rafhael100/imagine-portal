@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domain\Identity\Invitations\DenyingPortalInvitationIdentitySource;
+use App\Domain\Identity\Invitations\PortalInvitationIdentitySource;
 use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
@@ -22,6 +24,15 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(DenyingPortalAuthorities::class);
+
+        // F110: the invitation preflight NEVER trusts CRM/HTTP inputs or a
+        // caller-built identity snapshot. A real Portal issuer is not wired.
+        $this->app->singleton(DenyingPortalInvitationIdentitySource::class);
+        $this->app->bind(
+            PortalInvitationIdentitySource::class,
+            static fn ($app): DenyingPortalInvitationIdentitySource =>
+                $app->make(DenyingPortalInvitationIdentitySource::class),
+        );
 
         // Even if an internal application component resolves these interfaces
         // before the actual trust adapters exist, it receives a source that
