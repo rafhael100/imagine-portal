@@ -1,0 +1,44 @@
+name: Portal F99 - host-only HTTPS cookie and separate CRM session
+on:
+  push:
+    branches:
+      - review/portal-f99-hostonly-session-cookie-policy-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/config/session.php'
+      - 'apps/portal/tests/Feature/PortalSessionCookieIsolationTest.php'
+      - 'apps/portal/tools/f99-audit-session-cookie-policy.mjs'
+      - 'apps/portal/tests/ui/test-f99-session-cookie-policy.mjs'
+      - '.github/workflows/portal-f99-hostonly-cookie-ci.yml'
+permissions:
+  contents: read
+jobs:
+  cookie-scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Assert host-only Portal cookie cannot share CRM sessions
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F99_COOKIE_POLICY_LAB: '1'
+          PORTAL_F93_RELEASE_FENCE_LAB: '1'
+          PORTAL_F94_INGRESS_GUARD_LAB: '1'
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f99-audit-session-cookie-policy.mjs
+          node --check apps/portal/tests/ui/test-f99-session-cookie-policy.mjs
+          node apps/portal/tools/f99-audit-session-cookie-policy.mjs
+          node apps/portal/tests/ui/test-f99-session-cookie-policy.mjs
+          node apps/portal/tools/f93-check-homologation-fence.mjs
+          node apps/portal/tools/f94-audit-http-ingress-imports.mjs
