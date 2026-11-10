@@ -28,7 +28,12 @@ COPY apps/portal/resources ./resources
 COPY apps/portal/routes ./routes
 COPY apps/portal/artisan ./artisan
 
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
+# Exclude all identity/authorization laboratory classes from the image.
+# In particular, no synthetic PostgreSQL superuser or MFA fixture helper
+# should be present or Composer-autoloadable even in staging.
+RUN rm -rf app/Labs \
+    && test ! -d app/Labs \
+    && COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
       --no-interaction --no-scripts --no-plugins --classmap-authoritative \
     && mkdir -p storage/framework/cache/data storage/framework/sessions \
        storage/framework/views storage/logs bootstrap/cache \
