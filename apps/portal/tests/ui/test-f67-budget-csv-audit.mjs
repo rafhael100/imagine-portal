@@ -11,9 +11,9 @@ const run=(path)=>spawnSync('php',['apps/portal/tools/f66-export-budget-calendar
   encoding:'utf8',maxBuffer:512*1024,
 });
 const daily=[
-  {date:'2028-02-28',google_ads_centavos:1833,meta_ads_centavos:1501,total_centavos:3334},
-  {date:'2028-02-29',google_ads_centavos:1834,meta_ads_centavos:1500,total_centavos:3334},
-  {date:'2028-03-01',google_ads_centavos:1833,meta_ads_centavos:1500,total_centavos:3333},
+  {date:'2028-02-28',total_centavos:3334,google_ads_centavos:1833,meta_ads_centavos:1501},
+  {date:'2028-02-29',total_centavos:3334,google_ads_centavos:1834,meta_ads_centavos:1500},
+  {date:'2028-03-01',total_centavos:3333,google_ads_centavos:1833,meta_ads_centavos:1500},
 ];
 const scenario={
   schema_version:'perf.planning.offline-budget.synthetic.v1',
