@@ -168,6 +168,13 @@ $ok(!$issuer->complete($bearer,random_bytes(32),$code,$ip,$pepper),
     'wrong encryption key fails closed');
 $ok(!$issuer->complete('CRM-cookie-not-Portal',$encryptionKey,$code,$ip,$pepper),
     'foreign CRM token cannot finish MFA');
+// F77 and Argon2id integration can take variable time on shared CI runners.
+// Recompute the enrolled TOTP from PostgreSQL time immediately before
+// the acceptance check, rather than depending on the earlier 30s slot.
+$nowEpoch=(int)$db->query(
+    'SELECT floor(extract(epoch FROM clock_timestamp()))::bigint'
+)->fetchColumn();
+$code=$totp($rawSecret,intdiv($nowEpoch,30));
 $ok($issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper),
     'correct password followed by enrolled TOTP completes provisional session');
 $ok(!$issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper),
