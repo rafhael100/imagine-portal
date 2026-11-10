@@ -91,6 +91,16 @@ jobs:
           PY
           ! docker compose --env-file infra/homologation/f64/.env \
             -f infra/homologation/f64/compose.yaml ps --services | grep -E 'postgres|redis|worker|queue'
+      - name: Deny laboratory and fixture code in private runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            sh -ec 'test ! -d app/Labs && test ! -d labs && test ! -d tests && test ! -d database && test ! -e .env'
+          docker compose --env-file infra/homologation/f64/.env \
+            -f infra/homologation/f64/compose.yaml exec -T portal \
+            php -r 'require "vendor/autoload.php"; foreach (["App\\Labs\\IdentityF82\\PortalSyntheticPasswordSessionIssuer", "App\\Labs\\IdentityF81\\PortalOrgRevisionMfaCompleter", "App\\Labs\\IdentityF75\\PortalEnrolledMfaSessionCompleter", "App\\Labs\\AuthPerfF61\\PortalPerfSqlAuthorityResolver"] as $class) { if (class_exists($class)) { fwrite(STDERR, "Lab class leaked into runtime image\n"); exit(1); } }'
       - name: Diagnostics on failure (no credentials)
         if: failure()
         run: |
