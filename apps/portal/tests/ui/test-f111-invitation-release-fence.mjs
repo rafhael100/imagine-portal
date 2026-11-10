@@ -98,9 +98,9 @@ try{
   );
   mutation(
     'apps/portal/app/Domain/Identity/Invitations/PortalInvitationPreflight.php',
-    'PortalInvitationPreflightVerdict::blocked()',
-    'PortalInvitationPreflightVerdict::allow()',
-    'preflight approval replaces fail-closed verdict'
+    'PortalInvitationSecret::digestCandidate(',
+    'PortalInvitationSecret::unverifiedDigest(',
+    'preflight no longer verifies canonical invitation token'
   );
   mutation(
     'apps/portal/routes/web.php',
