@@ -73,13 +73,33 @@ final class PortalImportedLabProvenanceTest extends TestCase
                 'importNamespace' => 'namespace App\Labs\PerformanceVerifierF62;',
                 'originNamespace' => 'namespace App\Performance\Security;',
             ],
+            [
+                'path' => 'app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php',
+                'blob' => '510ac1cd92347df477be34279f01bcc9aa0f7bc2',
+            ],
+            [
+                'path' => 'tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php',
+                'blob' => 'dec93b1ab40f77ded3328973df9d03f4a610274d',
+            ],
+            [
+                'path' => 'tests/Fixtures/performance-workbench-offline-v1.json',
+                'blob' => 'be841fcad7ac7b1679818e56d152f6ba0852b7fa',
+            ],
+            [
+                'path' => 'tools/f60-render-performance-workbench.php',
+                'blob' => '01f8b35d40d10cfa7d8d98e592cfb8d8a5203008',
+            ],
+            [
+                'path' => 'tests/ui/test-f60-static-workbench.mjs',
+                'blob' => '8f1b9b17500f5aac3335db85379255b54533b2a7',
+            ],
         ];
     }
 
-    public function test_all_eleven_reviewed_cross_branch_artifacts_have_pinned_git_blob_identity(): void
+    public function test_all_sixteen_reviewed_cross_branch_artifacts_have_pinned_git_blob_identity(): void
     {
         $sources = self::reviewedSources();
-        self::assertCount(11, $sources);
+        self::assertCount(16, $sources);
 
         foreach ($sources as $source) {
             $path = dirname(__DIR__, 2) . '/' . $source['path'];
