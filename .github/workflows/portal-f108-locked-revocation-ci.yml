@@ -112,6 +112,9 @@ jobs:
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f108_locked_claim_with_audit(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f108_lock_identity ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f108_lock_organization ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f108_lock_membership ON public.portal_memberships"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f107_claim_with_audit(text,uuid,uuid)"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f107_invite_event_append ON public.portal_security_events"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f106_claim_invitation(text,uuid,uuid)"
