@@ -1,0 +1,45 @@
+{
+  "contractVersion": "seo-portal-review-handoff-v1",
+  "origin": "offline_unverified_not_for_customer_display",
+  "scope": {
+    "tenantRef": "imagine-demo",
+    "propertyFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sourceRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "releaseStatus": "HOLD_EXTERNAL_AUTHORIZATION",
+  "customerDisplayAuthorized": false,
+  "propertyAuthorizationVerified": false,
+  "backendTenantGrantVerified": false,
+  "publicationAuthorized": false,
+  "technical": {
+    "status": "attention",
+    "pages": 3,
+    "errors": 0,
+    "warnings": 1
+  },
+  "organic": {
+    "days": 7,
+    "previous": {
+      "clicks": 10,
+      "impressions": 100
+    },
+    "current": {
+      "clicks": 5,
+      "impressions": 80
+    },
+    "clicksChangeFraction": -0.5,
+    "impressionsChangeFraction": -0.2
+  },
+  "suggestedReviews": [
+    {
+      "code": "review_page_metadata",
+      "priority": "medium",
+      "count": 1
+    }
+  ],
+  "requirements": [
+    "A trusted Portal backend must independently authenticate the user and verify the tenant grant.",
+    "Google Search Console property access and consent must be proven before customer display.",
+    "This offline envelope is neither a bearer token nor evidence of a verified data source."
+  ]
+}
