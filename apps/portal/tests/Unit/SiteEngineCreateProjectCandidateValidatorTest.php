@@ -88,12 +88,25 @@ final class SiteEngineCreateProjectCandidateValidatorTest extends TestCase
         self::assertSame('invalid_payload_size', Validator::inspect(str_repeat('x', 4097))['reason']);
     }
 
+    public function test_noncanonical_bytes_and_duplicate_keys_are_rejected(): void
+    {
+        $canonical = json_encode(self::candidate(), JSON_THROW_ON_ERROR);
+        self::assertSame('noncanonical_json', Validator::inspect(' ' . $canonical)['reason']);
+        self::assertSame('noncanonical_json', Validator::inspect($canonical . "\\n")['reason']);
+        self::assertSame('noncanonical_json', Validator::inspect(str_replace('"schemaVersion"', '"schema\\\\u0056ersion"', $canonical))['reason']);
+        $reordered = self::candidate();
+        $version = $reordered['schemaVersion'];
+        unset($reordered['schemaVersion']);
+        $reordered['schemaVersion'] = $version;
+        self::assertSame('noncanonical_json', self::inspect($reordered)['reason']);
+    }
+
     public function test_duplicate_json_keys_do_not_grant_operational_authority(): void
     {
         $json = json_encode(self::candidate(), JSON_THROW_ON_ERROR);
         $json = substr_replace($json, '"schemaVersion":"0",', 1, 0);
-        // json_decode follows last-key-wins; shape validation is NOT a wire-security guarantee.
-        self::assertTrue(Validator::inspect($json)['valid']);
+        // F52 rejects duplicate keys via exact canonical JSON serialization.
+        self::assertSame('noncanonical_json', Validator::inspect($json)['reason']);
         self::assertFalse(Validator::mayTransmit());
         self::assertFalse(Validator::isAuthenticated());
         self::assertFalse(Validator::isCustomerApprovalVerified());
