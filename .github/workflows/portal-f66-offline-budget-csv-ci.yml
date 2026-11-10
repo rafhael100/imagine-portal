@@ -1,0 +1,39 @@
+name: Portal F66 - safe offline BRL budget CSV export
+on:
+  push:
+    branches:
+      - dev/portal-f66-offline-budget-csv-export-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f66-export-budget-calendar-csv.php'
+      - 'apps/portal/tests/ui/test-f66-offline-budget-csv.mjs'
+      - '.github/workflows/portal-f66-offline-budget-csv-ci.yml'
+permissions:
+  contents: read
+jobs:
+  budget-csv-offline:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Validate F66 spreadsheet export and reject formula/privilege attacks
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/tools/f66-export-budget-calendar-csv.php
+          node --check apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          php apps/portal/tests/Unit/CredentialBoundBudgetPreviewStandalone.php
+          node apps/portal/tests/ui/test-f65-offline-budget-calendar.mjs
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          if grep -R -n -E 'f66-export-budget-calendar-csv|PORTAL_F66_BUDGET_CSV_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL F66 CSV exporter exposed as a Portal web endpoint'
+            exit 1
+          fi
