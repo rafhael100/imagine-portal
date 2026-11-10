@@ -1,0 +1,78 @@
+name: Portal F79 - SEO Offline Workbench Review
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SeoReview/**'
+      - 'apps/portal/tools/f79-render-seo-review.php'
+      - 'apps/portal/tests/Fixtures/seo-review-offline-v1.json'
+      - 'apps/portal/tests/Unit/OfflineSeoHandoffPreviewTest.php'
+      - 'apps/portal/tests/ui/test-f79-seo-review.mjs'
+      - '.github/workflows/portal-f79-seo-review-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-f79-seo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  seo-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Strict offline SEO schema, HTML and fail-closed checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/OfflineSeoHandoffPreview.php
+          php -l apps/portal/tools/f79-render-seo-review.php
+          node --check apps/portal/tests/ui/test-f79-seo-review.mjs
+          node apps/portal/tests/ui/test-f79-seo-review.mjs
+          if grep -R -n -E 'OfflineSeoHandoffPreview|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+            echo 'F79 SEO review fixture is wired to an operational route' >&2
+            exit 1
+          fi
+      - name: Render only synthetic SEO preview for internal review
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_SEO_HANDOFF_LAB: '1'
+          PORTAL_F79_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p .portal-f79-seo-preview
+          php apps/portal/tools/f79-render-seo-review.php \
+            apps/portal/tests/Fixtures/seo-review-offline-v1.json \
+            > .portal-f79-seo-preview/seo-review-DEMO.html
+          test -s .portal-f79-seo-preview/seo-review-DEMO.html
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' .portal-f79-seo-preview/seo-review-DEMO.html
+      - name: Preserve review-only static HTML (two days)
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-f79-seo-review-demo
+          path: .portal-f79-seo-preview/seo-review-DEMO.html
+          if-no-files-found: error
+          retention-days: 2
