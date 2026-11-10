@@ -1,0 +1,67 @@
+name: Portal F95 - controlled F65-F73 offline review convergence
+on:
+  push:
+    branches:
+      - review/portal-f95-consolidate-offline-performance-labs-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f65-*'
+      - 'apps/portal/tools/f66-*'
+      - 'apps/portal/tools/f69-*'
+      - 'apps/portal/tools/f71-*'
+      - 'apps/portal/tools/f72-*'
+      - 'apps/portal/tools/f73-*'
+      - 'apps/portal/tests/ui/test-f6*'
+      - 'apps/portal/tests/ui/test-f7*'
+      - '.github/workflows/portal-f95-convergence-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-convergence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Reconcile offline budget toolchain without enabling any HTTP routes
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F73_LAB_RUNTIME_GUARD: '1'
+          PORTAL_F93_RELEASE_FENCE_LAB: '1'
+          PORTAL_F94_INGRESS_GUARD_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/tools/f65-render-budget-calendar.php
+          php -l apps/portal/tools/f66-export-budget-calendar-csv.php
+          php -l apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php
+          for f in apps/portal/tools/f{69,71,72,73}-*.mjs; do node --check "$f"; done
+          for f in apps/portal/tests/ui/test-f{65,66,67,68,69,70,71,72,73}-*.mjs; do node --check "$f"; done
+          node apps/portal/tests/ui/test-f65-offline-budget-calendar.mjs
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          node apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          node apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs
+          node apps/portal/tests/ui/test-f69-offline-csv-integrity.mjs
+          node apps/portal/tests/ui/test-f70-budget-html-csv-parity.mjs
+          node apps/portal/tests/ui/test-f71-offline-budget-bundle.mjs
+          node apps/portal/tests/ui/test-f72-offline-review-bundle-privacy.mjs
+          node apps/portal/tests/ui/test-f73-runtime-surface-guard.mjs
+          node apps/portal/tools/f93-check-homologation-fence.mjs
+          node apps/portal/tools/f94-audit-http-ingress-imports.mjs
+          node apps/portal/tests/ui/test-f93-homologation-fence.mjs
+          node apps/portal/tests/ui/test-f94-http-ingress-imports.mjs
+          test "$(find apps/portal/public -maxdepth 1 -type f | wc -l)" -eq 2
