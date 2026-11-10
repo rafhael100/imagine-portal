@@ -42,7 +42,7 @@ try {
   must(count(provider,/^\s*\$this->app->bind\(\s*\n\s*PortalInvitationIdentitySource::class,/gm)===1);
   must(count(provider,/\$app->make\(DenyingPortalInvitationIdentitySource::class\)/g)===1);
   must(count(provider,/\$this->app->(?:bind|singleton)\(\s*\n?\s*PortalInvitationIdentitySource::class/g)===1);
-  must(!/\b(?:Route|Http|Controller|request|cookie)\b/i.test(
+  must(!/(?:\b(?:Route|Http|Cookie|Auth|DB)\s*::|\brequest\s*\()/i.test(
     provider.split('public function register(): void')[1]?.split('public function boot(): void')[0]||''
   ));
 
