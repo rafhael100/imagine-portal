@@ -1,4 +1,4 @@
-name: Portal GSC F106/F108 - encrypted atomic OAuth state PG18 laboratory
+name: Portal GSC F106/F108/F109 - permission-gated encrypted OAuth state PG18
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
       - 'apps/portal/labs/gsc-f106/**'
       - 'apps/portal/labs/gsc-f107/**'
       - 'apps/portal/labs/gsc-f108/**'
+      - 'apps/portal/labs/gsc-f109/**'
       - '.github/workflows/portal-gsc-f106-pg18.yml'
   workflow_dispatch:
 
@@ -66,6 +67,8 @@ jobs:
           php -l apps/portal/labs/gsc-f107/PortalGscF107OfflineVerifierEnvelope.php
           php -l apps/portal/labs/gsc-f108/PortalGscF108OfflineSealedState.php
           php -l apps/portal/labs/gsc-f108/test_pg_sealed_state.php
+          php -l apps/portal/labs/gsc-f109/PortalGscF109OfflineGatedIssuer.php
+          php -l apps/portal/labs/gsc-f109/test_pg_gated_issuer.php
       - name: Prepare PostgreSQL 18 state table and minimal roles
         run: |
           set -euo pipefail
@@ -80,12 +83,26 @@ jobs:
           set -euo pipefail
           php apps/portal/labs/gsc-f106/test_pg_state.php
           php apps/portal/labs/gsc-f108/test_pg_sealed_state.php
-          ! grep -R -E 'PortalGscF106OfflineStateLedger|PortalGscF108OfflineSealedState|PortalGscF107OfflineVerifierEnvelope|PORTAL_F106_PG_LAB|PORTAL_F108_PG_LAB|portal_gsc_f106_|portal_gsc_f108_' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Http/ apps/portal/app/Providers/
+          ! grep -R -E 'PortalGscF106OfflineStateLedger|PortalGscF108OfflineSealedState|PortalGscF107OfflineVerifierEnvelope|PortalGscF109OfflineGatedIssuer|PORTAL_F106_PG_LAB|PORTAL_F108_PG_LAB|PORTAL_F109_PG_LAB|portal_gsc_f106_|portal_gsc_f108_|portal_gsc_f109_' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Http/ apps/portal/app/Providers/
+      - name: Install GSC-only synthetic permission gate and revoke bypass issuers
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f109/gated_issuer.sql
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq f
+          psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint)','EXECUTE')" | grep -xq f
+      - name: Verify explicit tenant permission, revocation and direct issue denial
+        env:
+          PORTAL_F109_PG_LAB: '1'
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/gsc-f109/test_pg_gated_issuer.php
       - name: Remove every database fixture and security role
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
+          DROP FUNCTION public.portal_gsc_f109_authorized_issue(text,text,uuid,uuid,text,bigint,bigint,text,text);
+          DROP TABLE public.portal_gsc_f109_grants;
           DROP FUNCTION public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text);
           DROP FUNCTION public.portal_gsc_f108_consume(text,uuid,uuid,text,bigint);
           DROP FUNCTION public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint);
