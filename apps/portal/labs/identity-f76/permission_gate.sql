@@ -46,6 +46,8 @@ AS $f76$
           AND i.mfa_confirmed_at IS NOT NULL
           AND i.security_revision = s.identity_revision
           AND o.status = 'active'
+          AND s.organization_revision IS NOT NULL
+          AND s.organization_revision = o.security_revision
           AND m.status = 'active'
           AND m.membership_revision = s.membership_revision
           AND g.permission_code = p_permission
