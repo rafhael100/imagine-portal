@@ -1,9 +1,11 @@
-name: Portal GSC F106 - atomic OAuth state PG18 laboratory
+name: Portal GSC F106/F108 - encrypted atomic OAuth state PG18 laboratory
 
 on:
   pull_request:
     paths:
       - 'apps/portal/labs/gsc-f106/**'
+      - 'apps/portal/labs/gsc-f107/**'
+      - 'apps/portal/labs/gsc-f108/**'
       - '.github/workflows/portal-gsc-f106-pg18.yml'
   workflow_dispatch:
 
@@ -35,6 +37,8 @@ jobs:
     env:
       APP_ENV: testing
       PORTAL_F106_PG_LAB: '1'
+      PORTAL_F107_GSC_LAB: '1'
+      PORTAL_F108_PG_LAB: '1'
       PGHOST: 127.0.0.1
       PGPORT: '5432'
       PGDATABASE: portal_identity_lab
@@ -53,16 +57,20 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: none
-          extensions: pdo,pdo_pgsql
+          extensions: pdo,pdo_pgsql,sodium
       - name: Validate CLI fixtures
         run: |
           set -euo pipefail
           php -l apps/portal/labs/gsc-f106/PortalGscF106OfflineStateLedger.php
           php -l apps/portal/labs/gsc-f106/test_pg_state.php
+          php -l apps/portal/labs/gsc-f107/PortalGscF107OfflineVerifierEnvelope.php
+          php -l apps/portal/labs/gsc-f108/PortalGscF108OfflineSealedState.php
+          php -l apps/portal/labs/gsc-f108/test_pg_sealed_state.php
       - name: Prepare PostgreSQL 18 state table and minimal roles
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f106/one_time_state.sql
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f108/sealed_state_extension.sql
           test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename='portal_gsc_f106_pending'")" = 1
           test "$(psql -X -A -t -c "SELECT pg_class.relrowsecurity::int + pg_class.relforcerowsecurity::int FROM pg_tables JOIN pg_class ON pg_class.relname=pg_tables.tablename WHERE tablename='portal_gsc_f106_pending' LIMIT 1")" = 2
           test "$(psql -X -A -t -c "SELECT has_table_privilege('portal_gsc_f106_client','public.portal_gsc_f106_pending','SELECT')")" = f
@@ -71,12 +79,15 @@ jobs:
         run: |
           set -euo pipefail
           php apps/portal/labs/gsc-f106/test_pg_state.php
-          ! grep -R -E 'PortalGscF106OfflineStateLedger|PORTAL_F106_PG_LAB|portal_gsc_f106_' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Http/ apps/portal/app/Providers/
+          php apps/portal/labs/gsc-f108/test_pg_sealed_state.php
+          ! grep -R -E 'PortalGscF106OfflineStateLedger|PortalGscF108OfflineSealedState|PortalGscF107OfflineVerifierEnvelope|PORTAL_F106_PG_LAB|PORTAL_F108_PG_LAB|portal_gsc_f106_|portal_gsc_f108_' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Http/ apps/portal/app/Providers/
       - name: Remove every database fixture and security role
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
+          DROP FUNCTION public.portal_gsc_f108_issue(text,uuid,uuid,text,bigint,bigint,text,text);
+          DROP FUNCTION public.portal_gsc_f108_consume(text,uuid,uuid,text,bigint);
           DROP FUNCTION public.portal_gsc_f106_issue(text,uuid,uuid,text,bigint,bigint);
           DROP FUNCTION public.portal_gsc_f106_consume(text,uuid,uuid,text,bigint);
           DROP TABLE public.portal_gsc_f106_pending;
