@@ -84,6 +84,25 @@ jobs:
       - name: Testes Laravel sem banco ou servicos externos
         run: php artisan test --no-ansi
 
+      - name: Gerar prévia HTML DEMO offline (somente PHP 8.3)
+        if: matrix.php == '8.3'
+        run: |
+          set -euo pipefail
+          test ! -e storage/app/portal-demo-preview
+          php artisan portal:demo-export
+          test -s storage/app/portal-demo-preview/index.html
+          test -s storage/app/portal-demo-preview/requests.html
+          test "$(find storage/app/portal-demo-preview -maxdepth 1 -type f -name '*.html' | wc -l)" -eq 8
+
+      - name: Arquivar apenas HTML fictício para revisão visual
+        if: matrix.php == '8.3'
+        uses: actions/upload-artifact@v5
+        with:
+          name: portal-demo-preview-f58
+          path: apps/portal/storage/app/portal-demo-preview/*.html
+          if-no-files-found: error
+          retention-days: 2
+
       - name: Arquivar copia de evidencia do lock versionado
         if: matrix.php == '8.3' && always()
         uses: actions/upload-artifact@v5
