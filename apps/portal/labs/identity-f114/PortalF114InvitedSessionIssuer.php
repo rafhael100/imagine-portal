@@ -148,8 +148,8 @@ final readonly class PortalF114InvitedSessionIssuer
                  ) VALUES (
                     :id,:digest,:actor,:org,'pending_mfa',
                     'invitation_only',:identity_revision,:membership_revision,
-                    :organization_revision,statement_timestamp(),
-                    statement_timestamp()+interval '5 minutes',now(),now()
+                    :organization_revision,transaction_timestamp(),
+                    transaction_timestamp()+interval '5 minutes',now(),now()
                  )"
             );
             $insert->execute([
