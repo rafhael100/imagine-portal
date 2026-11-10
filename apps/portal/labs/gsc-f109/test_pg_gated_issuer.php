@@ -77,11 +77,6 @@ $grant->execute([
     'issued' => $now - 60,
     'expires' => $now + 3600,
 ]);
-$update = $admin->prepare(
-    'UPDATE public.portal_gsc_f109_grants SET mfa_confirmed=:flag '
-    .'WHERE session_digest=:digest'
-);
-$update->execute(['flag' => false, 'digest' => hash('sha256', $session)]);
 f109Assert(!$attempt($session, $actor, $org, $property, $now),
     'deny even explicit grant without confirmed synthetic MFA');
 $admin->prepare(
