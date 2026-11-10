@@ -58,10 +58,12 @@ f108Check($service->issue($state, $verifier, $actor, $org, $property, $now),
 f108Check(!$service->issue($state, $verifier, $actor, $org, $property, $now),
     'duplicate state rejected');
 
-$pending = $admin->query(
+$pendingStmt = $admin->prepare(
     'SELECT state_digest,envelope_nonce,envelope_ciphertext '
-    .'FROM public.portal_gsc_f106_pending LIMIT 1'
-)->fetch(PDO::FETCH_ASSOC);
+    .'FROM public.portal_gsc_f106_pending WHERE state_digest=:digest'
+);
+$pendingStmt->execute(['digest' => hash('sha256', $state)]);
+$pending = $pendingStmt->fetch(PDO::FETCH_ASSOC);
 f108Check(is_array($pending) && $pending['state_digest'] === hash('sha256', $state),
     'only digest persisted');
 f108Check(!str_contains(json_encode($pending), $verifier)
