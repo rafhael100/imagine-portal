@@ -50,6 +50,29 @@ jobs:
           php apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php
       - name: Render static workbench and deny malicious or operational DTOs
         run: node apps/portal/tests/ui/test-f60-static-workbench.mjs
+      - name: Export static HTML for internal review (single matrix leg)
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F59_WORKBENCH_LAB: '1'
+          PORTAL_F60_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p .portal-preview-f65
+          php apps/portal/tools/f60-render-performance-workbench.php \
+            apps/portal/tests/Fixtures/performance-workbench-offline-v1.json \
+            > .portal-preview-f65/performance-workbench-demo.html
+          test -s .portal-preview-f65/performance-workbench-demo.html
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' .portal-preview-f65/performance-workbench-demo.html
+      - name: Preserve only static DEMO HTML
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-f65-performance-workbench-demo
+          path: .portal-preview-f65/performance-workbench-demo.html
+          if-no-files-found: error
+          retention-days: 2
       - name: Ensure all Portal operational routes remain closed
         shell: bash
         run: |
