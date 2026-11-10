@@ -1,0 +1,258 @@
+{
+  "schema": "imagine.portal.sec-r03-c04.operational-gates.v1",
+  "environment": "NON_OPERATIONAL_LAB",
+  "assertedOn": "2026-11-09",
+  "productionAuthorization": false,
+  "publishAuthorized": false,
+  "credentialAuthorization": false,
+  "serverResourcesCreated": false,
+  "cloudflareAccountReviewed": false,
+  "cloudflareSpendCapVerified": false,
+  "z4DurableOutsideRollbackDomain": false,
+  "recoveryOpenHumanApproval": false,
+  "notes": "GitHub CI lab successes MUST NOT promote SEC-R03-X01..24, P0, AppSec/DBA, Cloudflare account or release gates. No real provider access or cost verification.",
+  "gateRecords": [
+    {
+      "id": "SEC-R03-X01",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X02",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X03",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X04",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X05",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X06",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X07",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X08",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X09",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X10",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X11",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X12",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X13",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X14",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X15",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X16",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X17",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X18",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X19",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X20",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X21",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X22",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X23",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "SEC-R03-X24",
+      "status": "NOT_RUN",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "P0-R01-01",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "P0-R01-02",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "P0-R01-03",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "P0-R01-09",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "P0-R01-10",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "G-ID",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "G-BB",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "D02-SEC",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "D03-RLS",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "T3",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "APPSEC-DBA",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "EXTERNAL-Z4",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "BILLING-ZERO-GATE",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    },
+    {
+      "id": "RELEASE-OPEN",
+      "status": "BLOCKED",
+      "evidence": [],
+      "reviewer": null
+    }
+  ],
+  "syntheticEvidence": [
+    {
+      "ref": "https://github.com/rafhael100/imagine-portal/pull/116",
+      "kind": "synthetic_model_not_security_approval"
+    },
+    {
+      "ref": "https://github.com/rafhael100/imagine-portal/pull/120",
+      "kind": "local_workerd_simulator_not_deploy"
+    },
+    {
+      "ref": "https://github.com/rafhael100/imagine-portal/pull/124",
+      "kind": "stale_z4_and_joint_rollback_known_gaps"
+    }
+  ]
+}
