@@ -175,7 +175,67 @@ $nowEpoch=(int)$db->query(
     'SELECT floor(extract(epoch FROM clock_timestamp()))::bigint'
 )->fetchColumn();
 $code=$totp($rawSecret,intdiv($nowEpoch,30));
-$ok($issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper),
+$completed=$issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper);
+if(!$completed) {
+    // Test-only, non-secret status diagnostics for shared CI runners.
+    // Never print email, bearer, digest, password, OTP or secret material.
+    $debug=$db->prepare(
+        "SELECT s.status AS session_status,s.session_purpose,
+          floor(extract(epoch from s.issued_at))::bigint AS issued_epoch,
+          floor(extract(epoch from s.expires_at))::bigint AS expires_epoch,
+          floor(extract(epoch from clock_timestamp()))::bigint AS db_epoch,
+          s.mfa_verified_at IS NOT NULL AS mfa_recorded,
+          s.identity_revision,i.security_revision,
+          s.membership_revision,m.membership_revision AS current_membership_revision,
+          s.organization_revision,o.security_revision AS current_org_revision,
+          i.mfa_last_used_counter,m.status AS membership_status,o.status AS org_status
+         FROM portal_auth_sessions s
+         JOIN portal_identities i ON i.id=s.identity_id
+         JOIN portal_memberships m ON m.identity_id=s.identity_id
+          AND m.organization_id=s.organization_id
+         JOIN portal_organizations o ON o.id=s.organization_id
+         WHERE s.session_sha256=:digest"
+    );
+    $debug->execute(['digest'=>hash('sha256',$bearer)]);
+    $state=$debug->fetch();
+    $pepperScope=hash_hmac('sha256',
+        'portal-f114|invitation-only|totp|'.hash('sha256',$bearer).'|'.$ip,
+        $pepper
+    );
+    $bucket=$db->prepare(
+        "SELECT attempts FROM portal_auth_attempt_buckets
+         WHERE scope_hash=:scope AND action_code='totp'"
+    );
+    $bucket->execute(['scope'=>$pepperScope]);
+    $storedCounter=is_array($state)?(int)$state['mfa_last_used_counter']:-2;
+    $dbNow=is_array($state)?(int)$state['db_epoch']:0;
+    $matched=PortalTotpVerifier::matchCounter(
+        $base32Secret,$code,$dbNow,$storedCounter
+    );
+    $safe=[
+        'row_found'=>is_array($state),
+        'session_status'=>$state['session_status']??null,
+        'purpose'=>$state['session_purpose']??null,
+        'lifetime_seconds'=>is_array($state)
+            ? (int)$state['expires_epoch']-(int)$state['issued_epoch']:null,
+        'age_seconds'=>is_array($state)
+            ? (int)$state['db_epoch']-(int)$state['issued_epoch']:null,
+        'mfa_recorded'=>$state['mfa_recorded']??null,
+        'revisions_match'=>is_array($state)
+            && $state['identity_revision']===$state['security_revision']
+            && $state['membership_revision']===$state['current_membership_revision']
+            && $state['organization_revision']===$state['current_org_revision'],
+        'membership_status'=>$state['membership_status']??null,
+        'org_status'=>$state['org_status']??null,
+        'otp_matches_db_counter'=>$matched!==null,
+        'last_used_counter_nonnegative'=>$storedCounter>=0,
+        'throttle_attempts'=>(int)$bucket->fetchColumn(),
+        'db_transaction_open'=>$db->inTransaction(),
+    ];
+    fwrite(STDERR,'PORTAL-F114 TEST DIAGNOSTIC '
+        .json_encode($safe,JSON_THROW_ON_ERROR)."\n");
+}
+$ok($completed,
     'correct password followed by enrolled TOTP completes provisional session');
 $ok(!$issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper),
     'same provisional session cannot accept TOTP twice');
