@@ -7,6 +7,7 @@ require_once dirname(__DIR__).'/identity-f112/PortalF112OfflinePgSessionIdentity
 
 use App\Domain\Identity\Security\PortalPasswordCredential;
 use App\Domain\Identity\Security\PortalTotpSecretCipher;
+use App\Domain\Identity\Security\PortalTotpVerifier;
 use App\Domain\Identity\Invitations\PortalInvitationPreflight;
 use App\Domain\Identity\Invitations\PortalInvitationSecret;
 use App\Domain\Organizations\OrganizationId;
