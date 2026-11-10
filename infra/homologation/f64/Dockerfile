@@ -28,11 +28,17 @@ COPY apps/portal/resources ./resources
 COPY apps/portal/routes ./routes
 COPY apps/portal/artisan ./artisan
 
-# Exclude all identity/authorization laboratory classes from the image.
+# Exclude identity labs AND strictly test-only offline report consumers.
 # In particular, no synthetic PostgreSQL superuser or MFA fixture helper
 # should be present or Composer-autoloadable even in staging.
 RUN rm -rf app/Labs \
+    && rm -f app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php \
+      app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
+      app/Domain/SeoReview/OfflineSeoHandoffPreview.php \
     && test ! -d app/Labs \
+    && test ! -e app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php \
+    && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
+    && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php \
     && COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
       --no-interaction --no-scripts --no-plugins --classmap-authoritative \
     && mkdir -p storage/framework/cache/data storage/framework/sessions \
