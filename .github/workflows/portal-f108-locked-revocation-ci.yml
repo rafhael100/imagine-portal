@@ -1,0 +1,131 @@
+name: Portal F108 - Lock invitation claim against identity and tenant revocation PG18
+on:
+  push:
+    branches:
+      - review/portal-f108-invitation-locked-revocation-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/identity-f108/**'
+      - 'apps/portal/labs/identity-f107/**'
+      - 'apps/portal/database/migrations/2026_11_10_000006_create_portal_security_event_log.php'
+      - 'apps/portal/labs/identity-f106/**'
+      - 'apps/portal/labs/identity-f105/**'
+      - 'apps/portal/database/migrations/2026_11_10_000007_create_portal_access_invitations.php'
+      - 'apps/portal/app/Domain/Identity/Invitations/**'
+      - '.github/workflows/portal-f108-locked-revocation-ci.yml'
+permissions:
+  contents: read
+jobs:
+  atomic-invitation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f106-db-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F105_PG_LAB: '1'
+      PORTAL_F106_PG_LAB: '1'
+      PORTAL_F107_PG_LAB: '1'
+      PORTAL_F108_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f106-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f106-db-only
+      F66_PG_ADMIN_PASSWORD: ci-f106-db-only
+      F101_PG_READER_PASSWORD: ci-f105-reader-only
+      F106_PG_PROBE_PASSWORD: ci-f106-probe-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Install locked PHP and lint standalone claim test
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l labs/identity-f106/test_pg_atomic_invitation_claim.php
+          php -l labs/identity-f107/test_pg_atomic_invitation_audit.php
+          php -l labs/identity-f108/test_pg_locked_claim_revocation.php
+          php -l database/migrations/2026_11_10_000006_create_portal_security_event_log.php
+          php -l labs/identity-f105/test_pg_invitation_foundation.php
+          php artisan test --no-ansi --filter=PortalInvitationSecretTest
+      - name: Isolated PG18 invitation schema and claim concurrency
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000006_create_portal_security_event_log.php --force --no-interaction
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "CREATE ROLE portal_f101_reader LOGIN PASSWORD 'ci-f105-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f101_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "GRANT USAGE ON SCHEMA public TO portal_f101_reader"
+          php labs/identity-f105/test_pg_invitation_foundation.php
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f106/atomic_invitation_claim.sql
+          php labs/identity-f106/test_pg_atomic_invitation_claim.php
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f107/atomic_invitation_audit.sql
+          php labs/identity-f107/test_pg_atomic_invitation_audit.php
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -f labs/identity-f108/locked_invitation_claim.sql
+          php labs/identity-f108/test_pg_locked_claim_revocation.php
+          test "$(php artisan route:list --json | php -r '$v=json_decode(stream_get_contents(STDIN),true); echo count($v);')" -eq 1
+          ! grep -R -E 'portal_f106_claim_invitation|portal_f107_claim_with_audit|portal_f108_locked_claim_with_audit|PORTAL_F106_PG_LAB|PORTAL_F107_PG_LAB|PORTAL_F108_PG_LAB' routes/ bootstrap/ app/Providers/ public/
+      - name: Remove SQL function, policies and fake roles before schema rollback
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f108_locked_claim_with_audit(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f107_claim_with_audit(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f107_invite_event_append ON public.portal_security_events"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f106_claim_invitation(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f106_invitation_probe_update ON public.portal_access_invitations"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f106_invitation_probe_read ON public.portal_access_invitations"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f106_membership_probe_read ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f106_org_probe_read ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP POLICY portal_f106_identity_probe_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP OWNED BY portal_f106_invitation_definer"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP ROLE portal_f106_invitation_definer"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP OWNED BY portal_f106_invitation_probe"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP ROLE portal_f106_invitation_probe"
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000006_create_portal_security_event_log.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -d "$PGDATABASE" -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
