@@ -1,0 +1,35 @@
+name: Portal F61 - typed read-only Performance observation states
+on:
+  push:
+    branches:
+      - dev/portal-f61-performance-observation-states-2026-11-09
+permissions:
+  contents: read
+jobs:
+  static-workbench:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Offline preview with strict schema, CSP and no actions
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php
+          php -l apps/portal/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php
+          php -l apps/portal/tools/f60-render-performance-workbench.php
+          node --check apps/portal/tests/ui/test-f60-static-workbench.mjs
+          php apps/portal/tests/Unit/PerformanceObservationStateContractStandalone.php
+          php apps/portal/tests/Unit/OfflinePerformanceWorkbenchPreviewStandalone.php
+          node apps/portal/tests/ui/test-f60-static-workbench.mjs
+          if grep -R -n -E 'f60-render-performance-workbench|PORTAL_F60_HTML_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL F60 CLI renderer wired to operational routes'
+            exit 1
+          fi
