@@ -1,0 +1,45 @@
+name: Portal F68 - multiscenario offline budget CSV boundaries
+on:
+  push:
+    branches:
+      - dev/portal-f68-multi-scenario-budget-boundaries-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs'
+      - '.github/workflows/portal-f68-budget-csv-boundaries-ci.yml'
+permissions:
+  contents: read
+jobs:
+  budget-boundaries:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Validate synthetic CSV security boundary, F66-F68 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs
+          php -l apps/portal/tools/f66-export-budget-calendar-csv.php
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          node apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          node apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs
+          if grep -R -n -E 'test-f68-multi-scenario-budget-csv|PORTAL_F66_BUDGET_CSV_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL: F68 laboratory exposed in Portal runtime'
+            exit 1
+          fi
