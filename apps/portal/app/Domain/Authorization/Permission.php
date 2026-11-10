@@ -12,4 +12,5 @@ enum Permission: string
     case ManageServices = 'services.manage';
     case ViewBilling = 'billing.view';
     case ManageMembers = 'members.manage';
+    case ConnectGoogleSearchConsole = 'seo.gsc.connect';
 }
