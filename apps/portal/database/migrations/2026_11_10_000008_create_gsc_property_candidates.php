@@ -66,7 +66,7 @@ return new class extends Migration
                 ."ADD CONSTRAINT portal_gsc_candidate_url_chars_ck "
                 ."CHECK (site_url !~ '[[:cntrl:][:space:]]' "
                 ."AND site_url NOT LIKE '%?%' AND site_url NOT LIKE '%#%' "
-                ."AND site_url NOT LIKE '%\\\\%' AND site_url NOT LIKE '%\\%%')",
+                ."AND position(chr(92) in site_url)=0 AND position(chr(37) in site_url)=0)",
             "ALTER TABLE public.portal_gsc_property_candidates "
                 ."ADD CONSTRAINT portal_gsc_candidate_type_ck "
                 ."CHECK (site_type IN ('domain','url_prefix'))",
