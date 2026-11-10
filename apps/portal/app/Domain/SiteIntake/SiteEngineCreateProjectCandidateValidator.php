@@ -69,7 +69,7 @@ final class SiteEngineCreateProjectCandidateValidator
         // and noncanonical serialization fail closed. This is NOT a MAC/signature.
         try {
             $canonical = json_encode($value, JSON_THROW_ON_ERROR);
-        } catch (\\JsonException) {
+        } catch (\JsonException) {
             return self::result(false, 'noncanonical_json');
         }
         if (!hash_equals($canonical, $json)) {
