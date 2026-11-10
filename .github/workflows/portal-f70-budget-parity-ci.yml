@@ -1,0 +1,46 @@
+name: Portal F70 - offline HTML CSV budget parity
+on:
+  push:
+    branches:
+      - dev/portal-f70-html-csv-consistency-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tests/ui/test-f70-budget-html-csv-parity.mjs'
+      - '.github/workflows/portal-f70-budget-parity-ci.yml'
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Validate offline budget HTML CSV parity and F66-F69 regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tests/ui/test-f70-budget-html-csv-parity.mjs
+          node apps/portal/tests/ui/test-f66-offline-budget-csv.mjs
+          node apps/portal/tests/ui/test-f67-budget-csv-audit.mjs
+          node apps/portal/tests/ui/test-f68-multi-scenario-budget-csv.mjs
+          node apps/portal/tests/ui/test-f69-offline-csv-integrity.mjs
+          node apps/portal/tests/ui/test-f70-budget-html-csv-parity.mjs
+          if grep -R -n -E 'test-f70-budget-html-csv-parity|PORTAL_F69_CSV_INTEGRITY_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL: laboratory exposed via routes or bootstrap'
+            exit 1
+          fi
