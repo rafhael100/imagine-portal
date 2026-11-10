@@ -172,6 +172,8 @@ jobs:
           done
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "REVOKE SELECT ON public.portal_identities, public.portal_organizations, public.portal_memberships, public.portal_membership_grants, public.portal_auth_sessions FROM portal_f83_authority_owner"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP ROLE portal_f83_authority_owner"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "REVOKE USAGE ON SCHEMA public FROM portal_f83_reader"
+          psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "REVOKE CONNECT ON DATABASE portal_identity_lab FROM portal_f83_reader"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP ROLE portal_f83_reader"
           psql -X -v ON_ERROR_STOP=1 -d "$PGDATABASE" -c "DROP FUNCTION public.portal_f77_claim_auth_attempt(text,text)"
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php --force --no-interaction
