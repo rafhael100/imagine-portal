@@ -124,7 +124,17 @@ $ok((int)$pending['identity_revision']===1
 $ok(!$check($bearer,$org,'services.view'),'pending session cannot authorize a grant');
 $ok(!$check($bearer,$foreign,'services.view'),'pending session cannot cross tenant');
 
-$epoch=time();
+// Avoid the runner clock's sub-second rounding boundary: anchor a
+// disposable session five seconds in the past and use PostgreSQL time.
+$db->prepare(
+    "UPDATE portal_auth_sessions
+       SET issued_at=clock_timestamp()-interval '5 seconds',
+           expires_at=clock_timestamp()+interval '4 minutes 55 seconds'
+     WHERE session_sha256=?"
+)->execute([hash('sha256',$bearer)]);
+$epoch=(int)$db->query(
+    "SELECT floor(EXTRACT(EPOCH FROM clock_timestamp()))::bigint"
+)->fetchColumn();
 $code=f82Code('12345678901234567890',intdiv($epoch,30));
 $incorrectCode=$code==='999999'?'888888':'999999';
 $ok(!$completer->complete($bearer,$key,$incorrectCode,$epoch),
