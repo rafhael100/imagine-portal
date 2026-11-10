@@ -80,6 +80,10 @@ END;
 $$;
 SQL);
         DB::statement(
+            'REVOKE ALL ON FUNCTION public.portal_f89_deny_security_event_mutation() FROM PUBLIC'
+        );
+
+        DB::statement(
             'CREATE TRIGGER portal_security_events_no_change '
             . 'BEFORE UPDATE OR DELETE ON public.portal_security_events '
             . 'FOR EACH ROW EXECUTE FUNCTION public.portal_f89_deny_security_event_mutation()'
