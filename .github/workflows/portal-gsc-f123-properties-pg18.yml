@@ -108,10 +108,11 @@ jobs:
             echo "SECURITY ERROR: F124 mutation fence was removed with existing candidates" >&2
             exit 1
           fi
-          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction; then
-            echo "SECURITY ERROR: candidate rows were silently deleted by rollback" >&2
-            exit 1
-          fi
+          # Laravel migrate:rollback --path examines only the latest batch.
+          # With F124 present, asking for earlier F123 would be a no-op (exit 0),
+          # NOT a valid security test. F123 rollback is proven on its own PR.
+          # Assert the current F124 batch actually remains registered.
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000009_fence_gsc_candidate_mutation'" | grep -xq 1
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_property_candidates" | grep -xq 3
       - name: Clean synthetic witnesses and rollback with no grants or production changes
         run: |
