@@ -1,0 +1,47 @@
+name: Portal F117 - Commercial metadata contract (synthetic PHP)
+on:
+  push:
+    branches:
+      - review/portal-f117-commercial-intake-boundary-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - '.github/workflows/portal-f117-commercial-intake-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-commercial-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Ensure F117 remains isolated from Laravel routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'PortalCommercialMetadataInspector|commercial-intake-f117' \
+            apps/portal/routes apps/portal/bootstrap apps/portal/app 2>/dev/null; then
+            echo "F117: laboratory import detected in runtime" >&2
+            exit 1
+          fi
+      - name: Syntax and behavioral contract (no CRM, DB, or network)
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f117/PortalCommercialMetadataInspector.php
+          php -l apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
