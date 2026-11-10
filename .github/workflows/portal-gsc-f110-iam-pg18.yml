@@ -1,4 +1,4 @@
-name: Portal GSC F110/F111/F112 - concurrent revocation and session-bound OAuth
+name: Portal GSC F110-F114 - live migration vocabulary with locked synthetic OAuth
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
       - 'apps/portal/labs/gsc-f110/**'
       - 'apps/portal/labs/gsc-f111/**'
       - 'apps/portal/labs/gsc-f112/**'
+      - 'apps/portal/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php'
       - '.github/workflows/portal-gsc-f110-iam-pg18.yml'
   workflow_dispatch:
 
@@ -89,6 +90,8 @@ jobs:
           set -euo pipefail
           php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq t
           test "$(psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename IN ('portal_identities','portal_auth_sessions')")" = 0
       - name: Install NO-GO OAuth state and schema permission gate
         run: |
@@ -96,6 +99,7 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f106/one_time_state.sql
           psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f108/sealed_state_extension.sql
           psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f109/gated_issuer.sql
+          ! grep -q 'DROP CONSTRAINT portal_grant_permission_ck' labs/gsc-f110/iam_schema_gated_issue.sql
           psql -X -v ON_ERROR_STOP=1 -f labs/gsc-f110/iam_schema_gated_issue.sql
           psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f109_authorized_issue(text,text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq f
           psql -X -A -t -c "SELECT has_function_privilege('portal_gsc_f106_client','public.portal_gsc_f110_iam_issued_state(text,text,uuid,uuid,text,bigint,bigint,text,text)','EXECUTE')" | grep -xq t
@@ -150,6 +154,9 @@ jobs:
           DROP ROLE portal_gsc_f106_owner;
           COMMIT;
           SQL
+          psql -X -v ON_ERROR_STOP=1 -c "DELETE FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect'"
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq f
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
           test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
