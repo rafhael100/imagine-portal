@@ -10,7 +10,7 @@ if(process.env.APP_ENV!=='testing' ||
    process.env.PORTAL_F93_RELEASE_FENCE_LAB!=='1' ||
    process.argv.length>3)deny();
 
-const root=resolve(process.argv[2] || join(fileURLToPath(new URL('.',import.meta.url)),'../../../..'));
+const root=resolve(process.argv[2] || join(fileURLToPath(new URL('.',import.meta.url)),'../../..'));
 const path=(name)=>join(root,name);
 function read(rel,max=65536){
   const p=path(rel), stat=lstatSync(p);
