@@ -132,17 +132,15 @@ final readonly class PortalGscF112OfflineLockedOAuth
 
     private function ready(): bool
     {
+        // F112 intentionally permits an explicit PDO transaction so row
+        // locks can outlive one method call in the disposable concurrency
+        // test; all CLI, role, database and environment checks remain.
         if (PHP_SAPI !== 'cli'
             || getenv('APP_ENV') !== 'testing'
             || getenv('PORTAL_F112_PG_LAB') !== '1'
             || getenv('PGHOST') !== '127.0.0.1'
             || getenv('PGPORT') !== '5432'
-            || getenv('PGDATABASE') !== 'portal_identity_lab'
-            ) {
-            // Unlike F111, this isolated concurrency lab deliberately permits
-            // an explicit PDO transaction. The test must hold SHARE locks
-            // across a second connection's attempted revocation. Role,
-            // database, host and test environment checks remain mandatory.
+            || getenv('PGDATABASE') !== 'portal_identity_lab') {
             return false;
         }
 
