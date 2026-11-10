@@ -60,6 +60,22 @@ final class SiteEngineCreateProjectCandidateValidator
             return self::result(false, 'invalid_product_code');
         }
 
+        if (array_keys(get_object_vars($value)) !== SiteEngineContractVocabulary::createProjectV1Keys()) {
+            return self::result(false, 'noncanonical_json');
+        }
+
+        // F52: local strict encoding policy. Enforces exact PHP json_encode bytes,
+        // including key order. Duplicate keys, aliases, whitespace, escaped keys
+        // and noncanonical serialization fail closed. This is NOT a MAC/signature.
+        try {
+            $canonical = json_encode($value, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return self::result(false, 'noncanonical_json');
+        }
+        if (!hash_equals($canonical, $json)) {
+            return self::result(false, 'noncanonical_json');
+        }
+
         return self::result(true, 'candidate_shape_valid_only');
     }
 
