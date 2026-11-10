@@ -92,7 +92,17 @@ $check($getCounter() === -1,'wrong code did not claim counter');
 $check($getState($session1)['status'] === 'pending_mfa','wrong code did not promote pending session');
 $check(!$completer->complete('wrong-bearer-value-not-present-in-db',$secret,'279037',$now),'unknown bearer refused');
 $check(!$completer->complete($bearer1,'WRONGBASE32SECRETNOTMATCHING000000','279037',$now),'wrong test secret refused');
-$check($completer->complete($bearer1,$secret,'279037',$now),'valid TOTP atomically promotes pending session');
+$encryptionKey = random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
+$encryptedTotp = \App\Domain\Identity\Security\PortalTotpSecretCipher::seal($secret, $encryptionKey);
+$check(is_string($encryptedTotp), 'TOTP secret encrypted with ephemeral key');
+$db->prepare('UPDATE portal_identities SET mfa_secret_ciphertext=? WHERE id=?')
+    ->execute([$encryptedTotp, $identityId]);
+$check(!$completer->complete($bearer1, $secret, '279037', $now, 'mfa-sb1:stale'),
+    'stale secret envelope denied before OTP claim');
+$check($getCounter() === -1, 'stale secret does not advance counter');
+$check($completer->complete($bearer1,$secret,'279037',$now,$encryptedTotp),
+    'valid TOTP and matching sealed secret atomically promote pending session');
+sodium_memzero($encryptionKey);
 $check($getState($session1)['status'] === 'active','session marked active after CAS');
 $check($getState($session1)['mfa_verified_at'] !== null,'MFA timestamp written in same transaction');
 $check($getCounter() === 66666666,'persisted RFC 6238 counter');
