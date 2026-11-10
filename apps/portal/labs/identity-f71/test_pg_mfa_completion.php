@@ -47,7 +47,7 @@ $db->prepare(
 $db->prepare(
     "INSERT INTO portal_organizations
         (id,reference,display_name,status,security_revision,created_at,updated_at)
-     VALUES(?,?,'f71-org','F71 synthetic tenant','active',1,now(),now())"
+     VALUES(?,'f71-org','F71 synthetic tenant','active',1,now(),now())"
 )->execute([$orgId]);
 $db->prepare(
     "INSERT INTO portal_memberships
