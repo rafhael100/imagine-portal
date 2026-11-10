@@ -81,6 +81,18 @@ try{
     '--no-interaction --no-scripts --no-plugins --classmap-authoritative',
     '--no-interaction --no-scripts --no-plugins --no-autoloader',
     'autoload not authoritative');
+  mutate('infra/homologation/f64/Dockerfile',
+    "find app/Domain app/Presentation -type f -name '*Demo*.php' -delete",
+    "find app/Domain app/Presentation -type f -name '*Demo*.php' -print",
+    'Demo PHP classes must be removed before classmap');
+  mutate('infra/homologation/f64/Dockerfile',
+    'rm -rf resources/views/portal/demo',
+    'echo resources/views/portal/demo',
+    'Demo Blade directory must be removed');
+  mutate('infra/homologation/f64/Dockerfile',
+    'rm -f resources/views/performance/demo-dashboard.blade.php',
+    'echo resources/views/performance/demo-dashboard.blade.php',
+    'Performance DEMO view must be removed');
   mutate('infra/homologation/f64/nginx.conf',
     'location / {','location /api/ { return 200; }\n    location / {',
     'API location added');
