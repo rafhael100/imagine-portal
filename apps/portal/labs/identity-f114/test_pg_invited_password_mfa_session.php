@@ -257,7 +257,16 @@ $ok($completed,
     'correct password followed by enrolled TOTP completes provisional session');
 $ok(!$issuer->complete($bearer,$encryptionKey,$code,$ip,$pepper),
     'same provisional session cannot accept TOTP twice');
-$ok($source->findFor($bearer,$origin)!==null,
+// PostgreSQL clock_timestamp may briefly lag the just-persisted MFA
+// timestamp on shared GitHub runners. Never weaken DB authorization checks:
+// wait at most three seconds for the SQL clock to pass the valid event time.
+$provenSession=null;
+for($proofAttempt=0;$proofAttempt<30;$proofAttempt++){
+    $provenSession=$source->findFor($bearer,$origin);
+    if($provenSession!==null)break;
+    usleep(100000);
+}
+$ok($provenSession!==null,
     'F112 evidence now comes from authenticated synthetic session record');
 $verdict=$gate->inspect($bearer,$inviteToken,$origin,time());
 $ok($verdict->syntheticInputsPlausible
