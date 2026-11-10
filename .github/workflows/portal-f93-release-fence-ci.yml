@@ -1,0 +1,41 @@
+name: Portal F93 - Pre-homologation Docker and HTTP release fence
+on:
+  push:
+    branches:
+      - review/portal-f93-release-fence-negative-ci-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f93-check-homologation-fence.mjs'
+      - 'apps/portal/tests/ui/test-f93-homologation-fence.mjs'
+      - 'infra/homologation/f64/**'
+      - 'apps/portal/routes/**'
+      - 'apps/portal/bootstrap/**'
+      - '.github/workflows/portal-f93-release-fence-ci.yml'
+permissions:
+  contents: read
+jobs:
+  release-fence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Assert private release fence and mutation resistance
+        env:
+          APP_ENV: testing
+          PORTAL_F93_RELEASE_FENCE_LAB: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f93-check-homologation-fence.mjs
+          node --check apps/portal/tests/ui/test-f93-homologation-fence.mjs
+          node apps/portal/tools/f93-check-homologation-fence.mjs
+          node apps/portal/tests/ui/test-f93-homologation-fence.mjs
