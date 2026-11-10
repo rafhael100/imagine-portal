@@ -1,0 +1,53 @@
+name: Portal F98 - deny-by-default Laravel authority composition
+on:
+  push:
+    branches:
+      - review/portal-f98-default-deny-authority-bindings-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Providers/AppServiceProvider.php'
+      - 'apps/portal/app/Domain/PortalAccess/Authority/**'
+      - 'apps/portal/tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php'
+      - '.github/workflows/portal-f98-default-deny-authorities-ci.yml'
+permissions:
+  contents: read
+jobs:
+  deny-by-default:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    defaults:
+      run:
+        working-directory: apps/portal
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip
+      - name: Install locked test dependencies in CI only
+        run: |
+          set -euo pipefail
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Confirm all authority contracts are fail-closed
+        run: |
+          set -euo pipefail
+          php -l app/Providers/AppServiceProvider.php
+          php -l tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php
+          php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
+          php artisan test --no-ansi --filter=PortalLabIsolationBootGateTest
+          php artisan test --no-ansi --filter=PortalAuthorityBoundaryTest
+          php artisan route:list --json > /tmp/portal-f98-routes.json
+          php -r '$routes=json_decode(file_get_contents("/tmp/portal-f98-routes.json"),true,512,JSON_THROW_ON_ERROR); if(count($routes)!==1 || $routes[0]["uri"]!=="up"){fwrite(STDERR,"F98: business routes exposed\n");exit(1);}'
