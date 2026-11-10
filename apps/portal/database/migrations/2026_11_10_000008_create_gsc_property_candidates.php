@@ -59,6 +59,15 @@ return new class extends Migration
                 ."ADD CONSTRAINT portal_gsc_candidate_digest_ck "
                 ."CHECK (site_fingerprint_sha256 ~ '^[a-f0-9]{64}$')",
             "ALTER TABLE public.portal_gsc_property_candidates "
+                ."ADD CONSTRAINT portal_gsc_candidate_exact_digest_ck "
+                ."CHECK (site_fingerprint_sha256 = "
+                ."encode(sha256(convert_to(site_url, 'UTF8')), 'hex'))",
+            "ALTER TABLE public.portal_gsc_property_candidates "
+                ."ADD CONSTRAINT portal_gsc_candidate_url_chars_ck "
+                ."CHECK (site_url !~ '[[:cntrl:][:space:]]' "
+                ."AND site_url NOT LIKE '%?%' AND site_url NOT LIKE '%#%' "
+                ."AND site_url NOT LIKE '%\\\\%' AND site_url NOT LIKE '%\\%%')",
+            "ALTER TABLE public.portal_gsc_property_candidates "
                 ."ADD CONSTRAINT portal_gsc_candidate_type_ck "
                 ."CHECK (site_type IN ('domain','url_prefix'))",
             "ALTER TABLE public.portal_gsc_property_candidates "
