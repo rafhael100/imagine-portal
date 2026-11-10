@@ -39,17 +39,17 @@ jobs:
       PGDATABASE: commercial_e2e_lab
     steps:
       - name: Checkout Portal somente leitura
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Configurar PHP 8.3 com sodium
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.3'
           coverage: none
           extensions: sodium, mbstring
       - name: Configurar Node 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
           package-manager-cache: false
@@ -62,7 +62,7 @@ jobs:
           php -l apps/portal/app/Domain/CommercialPublishing/CommercialPublicationPermissionGate.php
           php apps/portal/tests/Contract/emit-signed-commercial-fixture.php "$RUNNER_TEMP"
       - name: Checkout Imagine Comercial no commit validado
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: rafhael100/imagine-comercial
           ref: b9044101cd8095189f6a922ffed90d7e9635c367
@@ -75,7 +75,7 @@ jobs:
         working-directory: .qa/imagine-comercial
         run: npm test
       - name: Checkout auditor SEO no commit revisado do motor
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: rafhael100/imagine-seo-engine
           ref: 238acb0772dc7597f23ce3fd1761d68be1d35179
