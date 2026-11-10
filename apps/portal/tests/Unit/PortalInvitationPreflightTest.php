@@ -181,7 +181,10 @@ final class PortalInvitationPreflightTest extends TestCase
     public function test_recent_mfa_on_boundary_is_accepted_as_non_operational_candidate(): void
     {
         $gate = new PortalInvitationPreflight(self::source(
-            self::evidence(['mfaVerifiedAt' => self::NOW - 300]),
+            self::evidence([
+                'sessionIssuedAt' => self::NOW - 600,
+                'mfaVerifiedAt' => self::NOW - 300,
+            ]),
         ));
         $result = $gate->inspect(
             'portal-session',
