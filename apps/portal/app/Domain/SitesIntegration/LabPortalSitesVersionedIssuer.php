@@ -47,6 +47,15 @@ final class LabPortalSitesVersionedIssuer
             )) {
             throw new DomainException('candidate_portal_signing_material_changed');
         }
+
+        // F1-14: the order/contract can be cancelled or revised AFTER the
+        // initial eligible read and HMAC computation. Rebuild it against
+        // the independent commercial source before returning a signed
+        // command. A revoked or changed scope MUST not escape.
+        $latest=$this->encoder->build($orderRef,$operationId,$idempotencyKey);
+        if ($latest !== $command) {
+            throw new DomainException('candidate_portal_commercial_authority_changed');
+        }
         return $signed;
     }
 

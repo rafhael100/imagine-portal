@@ -22,12 +22,18 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
     private function candidate(?CandidatePortalSitesSigningMaterial $initial=null): array
     {
         $orders=new class implements PortalSiteContractSource {
+            public int $calls=0;
+            public bool $eligible=true;
+            public int $contractRevision=2;
+            public string $tenantRef='tenant-f113-portal';
+
             public function findAuthorizedSiteOrder(string $orderRef): ?SiteContractSnapshot
             {
-                if ($orderRef!=='order-f113-portal')return null;
+                ++$this->calls;
+                if (!$this->eligible || $orderRef!=='order-f113-portal')return null;
                 return new SiteContractSnapshot(
-                    'tenant-f113-portal','order-f113-portal',
-                    'contract-f113-portal',2,'onepage'
+                    $this->tenantRef,'order-f113-portal',
+                    'contract-f113-portal',$this->contractRevision,'onepage'
                 );
             }
         };
@@ -50,7 +56,7 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
         };
         return [new LabPortalSitesVersionedIssuer(
             new SitesCreateProjectEncoder($orders),$material
-        ),$material];
+        ),$material,$orders];
     }
 
     public function test_default_signer_and_commercial_authority_both_deny():void
@@ -154,6 +160,64 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
         $this->expectException(DomainException::class);
         $issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
             'nonce-f113-0006',1790000000,1790000060);
+    }
+
+    public function test_commercial_revocation_during_signing_denies_final_envelope():void
+    {
+        [$issuer,$keySource,$orderSource]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial(
+                'imagine-portal','imagine-sites',self::KEY,7
+            )
+        );
+        $keySource->onRead=static function() use($keySource,$orderSource):void {
+            if ($keySource->calls===2) $orderSource->eligible=false;
+        };
+        try {
+            $issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
+                'nonce-f114-revoked-before-return',1790000000,1790000060);
+            self::fail('Revoked contract must not yield an envelope.');
+        } catch (DomainException) {
+            self::assertSame(2,$keySource->calls);
+            self::assertSame(2,$orderSource->calls);
+        }
+        // A later independently eligible snapshot may issue a fresh
+        // message; the previously denied call never returned a token.
+        $keySource->onRead=null;
+        $orderSource->eligible=true;
+        $valid=$issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
+            'nonce-f114-fresh-after-restore',1790000000,1790000060);
+        self::assertSame('2',$valid['schemaVersion']);
+        self::assertSame(7,$valid['keyEpoch']);
+    }
+
+    public function test_commercial_revision_change_during_signing_denies_stale_payload():void
+    {
+        [$issuer,$keySource,$orderSource]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial(
+                'imagine-portal','imagine-sites',self::KEY,7
+            )
+        );
+        $keySource->onRead=static function() use($keySource,$orderSource):void {
+            if ($keySource->calls===2) ++$orderSource->contractRevision;
+        };
+        $this->expectException(DomainException::class);
+        $issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
+            'nonce-f114-stale-revision',1790000000,1790000060);
+    }
+
+    public function test_commercial_tenant_change_during_signing_denies_cross_tenant_payload():void
+    {
+        [$issuer,$keySource,$orderSource]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial(
+                'imagine-portal','imagine-sites',self::KEY,7
+            )
+        );
+        $keySource->onRead=static function() use($keySource,$orderSource):void {
+            if ($keySource->calls===2) $orderSource->tenantRef='tenant-f114-other';
+        };
+        $this->expectException(DomainException::class);
+        $issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
+            'nonce-f114-tenant-changed',1790000000,1790000060);
     }
 
     public function test_unknown_order_is_denied_before_reading_any_key():void
