@@ -158,9 +158,26 @@ $checkBusiness=static function(string $sessionRef)use($business,$org,$yes):bool{
 };
 $ok(!$checkBusiness($bearer),'provisional session does not imply service grant');
 
-$nowEpoch=(int)$db->query(
+// When the runner adjusts its UTC clock, clock_timestamp() can briefly
+// appear earlier than a just-issued session. Production must DENY then;
+// this CI test instead waits for the database to consider issuance valid.
+$clockQuery=$db->prepare(
     'SELECT floor(extract(epoch FROM clock_timestamp()))::bigint'
-)->fetchColumn();
+);
+$clockQuery->execute();
+$nowEpoch=(int)$clockQuery->fetchColumn();
+$issuedTime=$db->prepare(
+    'SELECT floor(extract(epoch FROM issued_at))::bigint
+     FROM portal_auth_sessions WHERE session_sha256=:digest'
+);
+$issuedTime->execute(['digest'=>hash('sha256',$bearer)]);
+$issuedEpoch=(int)$issuedTime->fetchColumn();
+for($i=0;$nowEpoch<$issuedEpoch && $i<30;$i++) {
+    usleep(100000);
+    $clockQuery->execute();
+    $nowEpoch=(int)$clockQuery->fetchColumn();
+}
+$ok($nowEpoch>=$issuedEpoch,'CI database clock reached provisional issue epoch');
 $code=$totp($rawSecret,intdiv($nowEpoch,30));
 $wrong=$code==='999999'?'888888':'999999';
 $ok(!$issuer->complete($bearer,$encryptionKey,$wrong,$ip,$pepper),
