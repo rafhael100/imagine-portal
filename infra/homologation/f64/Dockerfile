@@ -35,10 +35,12 @@ RUN rm -rf app/Labs \
     && rm -f app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php \
       app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
       app/Domain/SeoReview/OfflineSeoHandoffPreview.php \
+      app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php \
     && test ! -d app/Labs \
     && test ! -e app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php \
     && test ! -e app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php \
     && test ! -e app/Domain/SeoReview/OfflineSeoHandoffPreview.php \
+    && test ! -e app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php \
     && COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload \
       --no-interaction --no-scripts --no-plugins --classmap-authoritative \
     && mkdir -p storage/framework/cache/data storage/framework/sessions \
