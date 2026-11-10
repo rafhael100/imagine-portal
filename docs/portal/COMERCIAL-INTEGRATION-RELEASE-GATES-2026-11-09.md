@@ -56,3 +56,16 @@ Esta seção é mais recente que a tabela inicial e substitui **somente** as ref
 - F25 não atesta identidade, MFA, grants duráveis, aprovação editorial em sistema autenticado, replay após restauração de backup, writer com credenciais mínimas, idempotência de entrega e recibo do destino. O controle só proíbe fallback silencioso no build quando a intenção obrigatória é externamente definida.
 - Antes de mexer em `main`: montar branch **exclusiva de integração**, revisar ancestrais e contratos atuais entre as frentes Comercial, Portal e SEO; executar CI cross-repo completo em ambiente protegido. Não mesclar cadeias de PRs automaticamente ou ignorar os trabalhos paralelos da família PORTAL-F22..F30.
 - As despesas de infraestrutura, DNS, Cloudflare público, credenciais e dados reais seguem bloqueadas até autorização específica.
+
+
+## Atualização F39 — pacote protegido verificável entre Portal e Comercial (09/11/2026)
+
+Esta é a evidência mais recente do recorte de integração PHP → Astro e substitui os números antigos das tabelas históricas **apenas para esta integração**.
+
+- **Imagine Comercial P0:** [PR consolidado #38, F0–F38](https://github.com/rafhael100/imagine-comercial/pull/38), commit imutável `b9044101cd8095189f6a922ffed90d7e9635c367`. Três pipelines locais verdes: [build/navegador #42719348782](https://github.com/rafhael100/imagine-comercial/actions/runs/42719348782) (170 testes Comercial + 35 SEO); [Workerd #42719348988](https://github.com/rafhael100/imagine-comercial/actions/runs/42719348988); [Lighthouse local #42719348871](https://github.com/rafhael100/imagine-comercial/actions/runs/42719348871).
+- **Portal PHP/PostgreSQL → Comercial F39:** [PR draft #183](https://github.com/rafhael100/imagine-portal/pull/183), filho do [F25 PR #153](https://github.com/rafhael100/imagine-portal/pull/153). [Primeiro CI F39 #42731305139](https://github.com/rafhael100/imagine-portal/actions/runs/42731305139) passou: PHP 8.3/sodium gera envelope assinado fictício, PostgreSQL 18 local verifica ledger/fence/revogação, Astro executa `build:protected` e `verify:protected` contra SHA-256 obtido em outro passo do runner, que também rejeita pacote/manifesto adulterado, target `review` e hash inválido; SEO Engine fixado em SHA já conhecido. **O CI após os pins de Actions e teste adicional de target staging deverá ser consultado separadamente.**
+- **Segurança do workflow:** `actions/checkout`, `actions/setup-node` e `shivammathur/setup-php` fixados por SHA completo de código aprovado; `contents: read`, sem credenciais persistentes. O teste F39 adicional recusa `staging` com `IMAGINE_CATALOG_REQUIRE_SIGNED` ausente, mesmo com os demais inputs presentes.
+
+**Fronteiras ainda não testadas de forma real:** não existe atestação independente externa ao runner para o SHA-256, delivery receipt real e irrevogável, MFA/grants/autorização editorial operacionais, integração CRM com consentimento/versionamento, GSC/crawl de hosts/URLs reais, VPS Leaseweb em staging acessível para este fluxo, aprovações legais/preços/contratos/portfólio e autorização exclusiva de merge/DNS/Cloudflare. O teste PostgreSQL é efêmero e sintético; `GITHUB_ENV` não é canal externo de confiança. Não declarar a integração pronta para produção apenas por CI verde.
+
+**Estado de release: BLOQUEADO**, sem merge na `main`, DNS, dados reais, serviços pagos ou deploy.
