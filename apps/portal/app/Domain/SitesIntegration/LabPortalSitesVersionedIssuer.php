@@ -32,6 +32,37 @@ final class LabPortalSitesVersionedIssuer
         int $issuedAt,
         int $expiresAt,
     ): array {
+        return $this->issueInternal(
+            $orderRef,$operationId,$idempotencyKey,$nonce,
+            $issuedAt,$expiresAt,false
+        );
+    }
+
+    /** v3: includes the independent commercial authorization generation. */
+    public function issueCommercialEpochSigned(
+        string $orderRef,
+        string $operationId,
+        string $idempotencyKey,
+        string $nonce,
+        int $issuedAt,
+        int $expiresAt,
+    ): array {
+        return $this->issueInternal(
+            $orderRef,$operationId,$idempotencyKey,$nonce,
+            $issuedAt,$expiresAt,true
+        );
+    }
+
+    /** @return array<string,mixed> */
+    private function issueInternal(
+        string $orderRef,
+        string $operationId,
+        string $idempotencyKey,
+        string $nonce,
+        int $issuedAt,
+        int $expiresAt,
+        bool $includeCommercialEpoch,
+    ): array {
         // Source of the commercial order is separately default-deny.
         // A caller cannot provide its own eligible tenant or signer key.
         $command=$this->encoder->build($orderRef,$operationId,$idempotencyKey);
@@ -39,9 +70,14 @@ final class LabPortalSitesVersionedIssuer
         // Pin an independent authorization generation BEFORE signing.
         $commercialEpoch=$this->readCommercialEpoch($orderRef);
         $original=$this->readMaterial();
-        $signed=SyntheticSitesVersionedEnvelopeSigner::sign(
-            $command,$original->secret,$nonce,$issuedAt,$expiresAt,$original->keyEpoch
-        );
+        $signed=$includeCommercialEpoch
+            ? SyntheticSitesCommercialEpochSignedEnvelopeSigner::sign(
+                $command,$original->secret,$nonce,$issuedAt,$expiresAt,
+                $original->keyEpoch,$commercialEpoch
+            )
+            : SyntheticSitesVersionedEnvelopeSigner::sign(
+                $command,$original->secret,$nonce,$issuedAt,$expiresAt,$original->keyEpoch
+            );
         // A changed key or epoch mid-emission must not produce an outgoing
         // envelope. This is a cooperative lab check, not atomic issuance.
         $current=$this->readMaterial();
