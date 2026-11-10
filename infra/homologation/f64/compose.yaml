@@ -25,7 +25,10 @@ services:
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,noexec,size=16m
-      - /var/www/html/storage:rw,nosuid,noexec,size=32m,mode=0700,uid=82,gid=82
+      - /var/www/html/storage/framework/cache/data:rw,nosuid,noexec,size=8m,mode=0700,uid=82,gid=82
+      - /var/www/html/storage/framework/sessions:rw,nosuid,noexec,size=4m,mode=0700,uid=82,gid=82
+      - /var/www/html/storage/framework/views:rw,nosuid,noexec,size=8m,mode=0700,uid=82,gid=82
+      - /var/www/html/storage/logs:rw,nosuid,noexec,size=8m,mode=0700,uid=82,gid=82
       - /var/www/html/bootstrap/cache:rw,nosuid,noexec,size=8m,mode=0700,uid=82,gid=82
     cap_drop:
       - ALL
