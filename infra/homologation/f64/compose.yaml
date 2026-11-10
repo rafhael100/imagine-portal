@@ -55,6 +55,9 @@ services:
       - portal
     networks:
       - private
+      - loopback_ingress
 networks:
   private:
     internal: true
+  loopback_ingress:
+    driver: bridge
