@@ -75,4 +75,49 @@ final class PortalInvitationSecretTest extends TestCase
         $this->expectException(LogicException::class);
         serialize($token);
     }
+
+    public function test_object_inspection_and_export_do_not_emit_any_token_or_digest(): void
+    {
+        $token=PortalInvitationSecret::mint();
+        $digest=$token->digest();
+        $beforeExport=var_export($token,true);
+        $beforeDebug=print_r($token,true);
+
+        $bearer=$token->takeDeliverySecretOnce();
+        self::assertIsString($bearer);
+        self::assertSame($digest,hash('sha256',$bearer));
+        self::assertNull($token->takeDeliverySecretOnce());
+
+        foreach ([
+            $beforeExport, $beforeDebug,
+            var_export($token,true), print_r($token,true),
+            json_encode($token,JSON_THROW_ON_ERROR),
+        ] as $diagnostic) {
+            self::assertStringNotContainsString($bearer,$diagnostic);
+            self::assertStringNotContainsString($digest,$diagnostic);
+        }
+
+        self::assertSame('{}',json_encode($token,JSON_THROW_ON_ERROR));
+        $instanceProperties=array_filter(
+            (new \ReflectionObject($token))->getProperties(),
+            static fn(\ReflectionProperty $property):bool=>!$property->isStatic()
+        );
+        self::assertCount(0,$instanceProperties);
+        self::assertSame($digest,$token->digest());
+    }
+
+    public function test_export_rehydration_and_implicit_string_conversion_are_blocked(): void
+    {
+        $token=PortalInvitationSecret::mint();
+        try {
+            PortalInvitationSecret::__set_state([]);
+            self::fail('var_export state restoration must be denied');
+        } catch (LogicException) {
+            self::assertTrue(true);
+        }
+
+        $this->expectException(LogicException::class);
+        (string)$token;
+    }
+
 }
