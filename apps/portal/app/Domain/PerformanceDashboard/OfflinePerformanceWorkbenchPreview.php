@@ -58,9 +58,7 @@ final readonly class OfflinePerformanceWorkbenchPreview
               || !is_string($item['title'])
               || preg_match('/^[a-zA-Z0-9 ()-]{1,120}$/D',$item['title'])!==1
               || !in_array($item['portal_channel'],['google_ads','meta_ads'],true)
-              || !in_array($item['performance_state'],[
-                  'draft_demo','paused_demo','archived_demo'
-              ],true)
+              || PerformanceCampaignObservationState::tryFrom($item['performance_state'])===null
               || $item['portal_stage']!==null || isset($refs[$item['ref']])) return null;
             $refs[$item['ref']]=true;
             if($item['performance_state']==='paused_demo')++$paused;
@@ -80,7 +78,7 @@ final readonly class OfflinePerformanceWorkbenchPreview
                   'campaign.replace','campaign.release'
               ],true)
               || !is_string($item['performance_status'])
-              || !array_key_exists($item['performance_status'],$statusCount)
+              || PerformanceReviewObservationState::tryFrom($item['performance_status'])===null
               || $item['portal_stage']!==null || isset($requestIds[$item['ref']])) return null;
             $requestIds[$item['ref']]=true;
             ++$statusCount[$item['performance_status']];
