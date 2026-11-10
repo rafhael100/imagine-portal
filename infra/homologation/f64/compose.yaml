@@ -1,0 +1,60 @@
+# PORTAL-F64: isolated loopback-only homologation. No deploy automation.
+name: imagine-portal-f64-private
+services:
+  portal:
+    build:
+      context: ../../..
+      dockerfile: infra/homologation/f64/Dockerfile
+    image: imagine-portal-f64:local
+    environment:
+      APP_NAME: "Imagine Portal"
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_KEY: ${PORTAL_F64_APP_KEY:?Set a unique random Laravel key in a private env file}
+      APP_URL: http://127.0.0.1:18080
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: warning
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+      FILESYSTEM_DISK: local
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: portal_f64_no_database
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=16m
+      - /var/www/html/storage:rw,nosuid,noexec,size=32m,mode=0700,uid=82,gid=82
+      - /var/www/html/bootstrap/cache:rw,nosuid,noexec,size=8m,mode=0700,uid=82,gid=82
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    networks:
+      - private
+  gateway:
+    image: nginx:1.29-alpine
+    user: "101:101"
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,nosuid,noexec,size=16m,mode=0700,uid=101,gid=101
+      - /var/run:rw,nosuid,noexec,size=4m,mode=0700,uid=101,gid=101
+      - /tmp:rw,nosuid,noexec,size=8m,mode=0700,uid=101,gid=101
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    depends_on:
+      - portal
+    networks:
+      - private
+networks:
+  private:
+    internal: true
