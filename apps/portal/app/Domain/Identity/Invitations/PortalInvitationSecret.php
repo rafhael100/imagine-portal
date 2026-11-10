@@ -5,23 +5,30 @@ declare(strict_types=1);
 namespace App\Domain\Identity\Invitations;
 
 use LogicException;
+use WeakMap;
 
 /**
- * F105: Portal-only invitation token material (no persistence or HTTP).
+ * Portal-only invitation token material; no persistence, login or HTTP.
  *
- * This proves a crypto/token *format*, not an invitation issuer or a verified
- * Portal account. A single token is a delivery secret, not an authenticated
- * customer session, MFA verification, entitlement, or role grant.
+ * F109 prevents accidental disclosure by common object inspection/export:
+ * no bearer or bearer-equivalent digest is stored as an INSTANCE PROPERTY.
+ *
+ * This is defense-in-depth for diagnostics, NOT a memory erasure guarantee:
+ * a privileged process can read its own memory or use reflection to inspect
+ * private static state. Never log token/digest or share with CRM providers.
  */
 final class PortalInvitationSecret
 {
-    private ?string $deliverySecret;
-    private readonly string $sha256;
+    /** @var ?WeakMap<self, array{deliverySecret:?string,sha256:string}> */
+    private static ?WeakMap $secretStorage = null;
 
     private function __construct(string $opaque)
     {
-        $this->deliverySecret = $opaque;
-        $this->sha256 = hash('sha256', $opaque);
+        self::$secretStorage ??= new WeakMap();
+        self::$secretStorage[$this] = [
+            'deliverySecret' => $opaque,
+            'sha256' => hash('sha256', $opaque),
+        ];
     }
 
     public static function mint(): self
@@ -32,26 +39,37 @@ final class PortalInvitationSecret
     }
 
     /**
-     * An invitation repository stores only this digest (never the opaque).
-     * The digest is bearer-equivalent while an invitation is pending:
-     * do not put it in client-visible API output, logs, metrics or URLs.
+     * Return the digest for persistence in Portal-only infrastructure.
+     * The digest remains bearer-equivalent while the invitation is pending.
      */
     public function digest(): string
     {
-        return $this->sha256;
+        return self::stateOf($this)['sha256'];
     }
 
     /**
-     * Reveal at most once for an approved, separately implemented delivery.
-     * Reading is not permission to send email, and PHP cannot guarantee that
-     * a copied string is erased from memory after it leaves this object.
+     * Reveal only once to an already-approved trusted delivery boundary.
+     * This is not permission to email customers or to authenticate a session.
      */
     public function takeDeliverySecretOnce(): ?string
     {
-        $opaque = $this->deliverySecret;
-        $this->deliverySecret = null;
+        $state = self::stateOf($this);
+        $opaque = $state['deliverySecret'];
+        $state['deliverySecret'] = null;
+        self::$secretStorage[$this] = $state;
 
         return $opaque;
+    }
+
+    /** @return array{deliverySecret:?string,sha256:string} */
+    private static function stateOf(self $key): array
+    {
+        if (self::$secretStorage === null
+            || !isset(self::$secretStorage[$key])) {
+            throw new LogicException('Invitation material is not available.');
+        }
+
+        return self::$secretStorage[$key];
     }
 
     public static function digestCandidate(string $candidate): ?string
@@ -87,22 +105,33 @@ final class PortalInvitationSecret
         return false;
     }
 
-    /** @return array<string, string> */
+    /** @return array<string,string> */
     public function __debugInfo(): array
     {
-        return ['deliverySecret' => '[redacted]', 'sha256' => '[redacted]'];
+        return ['deliverySecret'=>'[redacted]', 'sha256'=>'[redacted]'];
+    }
+
+    public function __toString(): string
+    {
+        throw new LogicException('Invitation objects cannot be stringified.');
     }
 
     /** @return never */
     public function __serialize(): array
     {
-        throw new LogicException('Portal invitation delivery secrets cannot be serialized.');
+        throw new LogicException('Portal invitation secrets cannot be serialized.');
     }
 
     /** @param array<mixed> $data */
     public function __unserialize(array $data): void
     {
-        throw new LogicException('Portal invitation secrets cannot be restored from serialized input.');
+        throw new LogicException('Portal invitation secrets cannot be restored.');
+    }
+
+    /** @param array<mixed> $data */
+    public static function __set_state(array $data): self
+    {
+        throw new LogicException('Portal invitation secrets cannot be restored from exports.');
     }
 
     private function __clone()
