@@ -8,16 +8,22 @@ use PHPUnit\Framework\TestCase;
 
 final class OfflineSeoHandoffPreviewTest extends TestCase
 {
+    private string|false $previousAppEnv;
+    private string|false $previousLab;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->previousAppEnv=getenv('APP_ENV');
+        $this->previousLab=getenv('PORTAL_SEO_HANDOFF_LAB');
         putenv('APP_ENV=testing');
         putenv('PORTAL_SEO_HANDOFF_LAB=1');
     }
 
     protected function tearDown(): void
     {
-        putenv('PORTAL_SEO_HANDOFF_LAB=0');
+        putenv($this->previousAppEnv===false?'APP_ENV':'APP_ENV='.$this->previousAppEnv);
+        putenv($this->previousLab===false?'PORTAL_SEO_HANDOFF_LAB':'PORTAL_SEO_HANDOFF_LAB='.$this->previousLab);
         parent::tearDown();
     }
 
