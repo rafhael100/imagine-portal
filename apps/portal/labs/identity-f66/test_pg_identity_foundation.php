@@ -53,7 +53,9 @@ $tables = [
 foreach ($tables as $table) {
     $stmt = $admin->query("SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = '" . $table . "'::regclass");
     $flags = $stmt->fetch();
-    $ok($flags['relrowsecurity'] && $flags['relforcerowsecurity'], $table . ' has FORCE RLS');
+    $ok(in_array($flags['relrowsecurity'], [true, 't', '1'], true)
+        && in_array($flags['relforcerowsecurity'], [true, 't', '1'], true),
+        $table . ' has FORCE RLS');
     $stmt = $admin->prepare('SELECT count(*) FROM pg_policies WHERE schemaname=? AND tablename=?');
     $stmt->execute(['public', $table]);
     $ok((int)$stmt->fetchColumn() === 0, $table . ' has NO implicit allow policy');
@@ -104,7 +106,7 @@ foreach ($tables as $table) {
     $ok((int)$reader->query("SELECT count(*) FROM $table")->fetchColumn() === 0,
         "ordinary role denied all rows in $table");
 }
-$deny(static fn() => $reader->exec("UPDATE portal_memberships SET status='active'"),
+$ok($reader->exec("UPDATE portal_memberships SET status='active'") === 0,
     'ordinary role cannot update tenant membership even with grant');
 $deny(static fn() => $reader->exec(
     "INSERT INTO portal_organizations(id,reference,display_name,status,created_at,updated_at)
