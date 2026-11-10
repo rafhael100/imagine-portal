@@ -1,0 +1,42 @@
+name: Portal F73 - no offline labs in Laravel HTTP runtime
+on:
+  push:
+    branches:
+      - dev/portal-f73-lab-runtime-exposure-guard-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/tools/f73-audit-offline-runtime-surface.mjs'
+      - 'apps/portal/tests/ui/test-f73-runtime-surface-guard.mjs'
+      - 'apps/portal/routes/**'
+      - 'apps/portal/bootstrap/**'
+      - 'apps/portal/public/**'
+      - 'apps/portal/config/**'
+      - '.github/workflows/portal-f73-runtime-lab-exposure-ci.yml'
+permissions:
+  contents: read
+jobs:
+  no-lab-exposure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Assert no demonstrative labs are exposed via HTTP
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_F73_LAB_RUNTIME_GUARD: '1'
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/f73-audit-offline-runtime-surface.mjs
+          node --check apps/portal/tests/ui/test-f73-runtime-surface-guard.mjs
+          node apps/portal/tools/f73-audit-offline-runtime-surface.mjs
+          node apps/portal/tests/ui/test-f73-runtime-surface-guard.mjs
