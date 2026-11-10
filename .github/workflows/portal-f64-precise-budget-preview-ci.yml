@@ -1,0 +1,39 @@
+name: Portal F64 - exact BRL budget preview from authenticated PostgreSQL
+on:
+  push:
+    branches:
+      - dev/portal-f64-precise-budget-preview-contract-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php'
+      - 'apps/portal/tests/Unit/CredentialBoundBudgetPreviewStandalone.php'
+      - '.github/workflows/portal-f64-precise-budget-preview-ci.yml'
+permissions:
+  contents: read
+jobs:
+  strict-offline-budget:
+    if: ${{ github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Independently verify centavo budget schedule and NO-GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php
+          php -l apps/portal/tests/Unit/CredentialBoundBudgetPreviewStandalone.php
+          php apps/portal/tests/Unit/CredentialBoundBudgetPreviewStandalone.php
+          php apps/portal/tests/Unit/CredentialBoundPerformanceWorkbenchPreviewStandalone.php
+          node apps/portal/tests/ui/test-f63-static-credential-workbench.mjs
+          if grep -R -n -E 'CredentialBoundBudgetPreview|PORTAL_F64_BUDGET_PREVIEW_LAB' apps/portal/routes/ apps/portal/bootstrap/; then
+            echo 'FAIL F64 budget preview exposed via live Portal endpoints'
+            exit 1
+          fi
