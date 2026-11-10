@@ -27,3 +27,9 @@ Ampliar o fluxo já validado na F25, de emissão PHP com Ed25519, reserva e revo
 A prova é útil para encontrar diferenças entre PHP, PostgreSQL, Astro e as rotinas F37/F38, mas **não dá autoridade de publicar**. O futuro fluxo real deverá usar sessão autenticada, grants e MFA, aprovação editorial com identidade verificável, chave guardada e revogação, testemunha remota/receipt de destino idempotente, hash esperado entregue por **canal externo autenticado e separado do pacote/runner**, logs e proteção contra restauração de banco, staging na VPS Leaseweb e autorização exclusiva antes de qualquer deploy/alteração de DNS.
 
 Proibido confundir `GITHUB_ENV` com mecanismo de assinatura ou prova anti-rollback. Sem segredos de clientes, novo custo, merge em `main`, Cloudflare remoto, DNS ou publicação nesta PR.
+
+## Evidências e pinagem das ações de CI
+
+- [PHP 8.3 → PostgreSQL 18 → Comercial F38 + SEO #42731305139](https://github.com/rafhael100/imagine-portal/actions/runs/42731305139): sucesso no fluxo E2E (170/170 testes Comercial + 35/35 SEO), incluindo build protegido, verificador offline e recusas de hash, alvo, HTML e manifesto adulterados.
+- As ações oficiais são pinadas por commit SHA completo no workflow: `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7), `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1` (v7) e `shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962` (commit da tag anotada v2 consultada via API GitHub). Isso reduz alterações inesperadas; **não certifica a segurança das dependências nem confere autoridade de publicação**.
+- Uma nova execução do E2E **após a pinagem** é necessária para confirmar a compatibilidade. A versão anterior passou usando tags, antes da alteração dos commits de actions.
