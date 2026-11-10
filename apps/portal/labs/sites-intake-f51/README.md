@@ -17,12 +17,7 @@ Identificador do blob observado: `042f4ba31776b486ced757e9624bc42757c46e74`.
 - `productCode` exclusivamente `onepage` ou `landing_page`;
 - JSON objeto parseável, até 4096 bytes (limite local adicional).
 
-A checagem **não** é um validador JSON Schema completo; tamanho máximo é restrição
-adicional do Portal e não do Sites. `json_decode` usa a última ocorrência
-de uma chave duplicada; portanto o verificador não pode ser usado como segurança
-de transporte ou autenticação e a futura implementação deve adotar parsing
-rigoroso anti-duplicatas e assinaturas verificáveis. Não transportar objetos
-apenas porque `valid=true`.
+A checagem **não** é um validador JSON Schema completo; tamanho máximo é restrição adicional do Portal e não do Sites. No F52, após validar os campos, o Portal exige igualdade exata entre a entrada e `json_encode` do objeto decodificado. Isso bloqueia bytes não canônicos, propriedades duplicadas, ordem diferente, whitespace e aliases de escape. É uma **restrição local adicional**, não exigida pelo schema Sites, e pode recusar JSON perfeitamente válido segundo JSON Schema. O algoritmo `json_encode` não é um formato criptográfico interoperável. Para transporte real, a equipe deve definir canonicalização compartilhada e autenticação independente antes de aceitar mensagens. Não transportar objetos apenas porque `valid=true`.
 
 O retorno `valid=true, reason=candidate_shape_valid_only` demonstra somente
 conformidade sintática parcial. Os métodos `mayTransmit`,
