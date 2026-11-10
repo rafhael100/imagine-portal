@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: rafhael100/imagine-comercial
-          ref: 03c22fe7c3bcca45badb6a61117f61276a6bad07
+          ref: b9044101cd8095189f6a922ffed90d7e9635c367
           path: .qa/imagine-comercial
           persist-credentials: false
       - name: Instalar dependencias fixadas do Astro
@@ -95,6 +95,7 @@ jobs:
             echo "IMAGINE_CATALOG_EXPECTED_RELEASE_ID=release_20261109_parity"
             echo "IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256=$PAYLOAD_SHA"
             echo "IMAGINE_CATALOG_REQUIRE_SIGNED=1"
+            echo "IMAGINE_RELEASE_TARGET=staging"
           } >> "$GITHUB_ENV"
       - name: Verificar ledger PostgreSQL real de laboratório para o mesmo payload assinado
         run: |
@@ -115,12 +116,14 @@ jobs:
             -v release_id="$IMAGINE_CATALOG_EXPECTED_RELEASE_ID" \
             -v payload_sha256="$IMAGINE_CATALOG_EXPECTED_PAYLOAD_SHA256" \
             -f apps/portal/labs/commercial-publishing/test-f8-e2e-fence.sql
-      - name: Compilar Astro com conteudo emitido pelo PHP
+      - name: F39 Compilar pacote protegido Astro assinado pelo PHP
         working-directory: .qa/imagine-comercial
         run: |
           set -euo pipefail
-          npm run build
+          npm run build:protected
           node scripts/verify-dist.mjs
+          test -f artifacts/protected-build-review/PROTECTED-BUILD-REVIEW-ONLY.json
+          grep -Fq 'OFFLINE_SIGNED_BUILD_REVIEW_NOT_AUTHORIZED_FOR_DEPLOY' artifacts/protected-build-review/PROTECTED-BUILD-REVIEW-ONLY.json
           grep -Fq 'Landing Pages empresariais publicadas em teste' dist/servicos/landing-pages/index.html
           grep -Fq 'Metadados públicos de teste para verificar paridade' dist/servicos/landing-pages/index.html
           echo 'PHP -> Astro build parity passed; signed editorial content rendered.'
@@ -130,7 +133,7 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
-          import {readFileSync,readdirSync} from 'node:fs';
+          import {readFileSync,readdirSync,appendFileSync} from 'node:fs';
           import {join} from 'node:path';
           import {createSignedBuildReview} from './src/lib/signed-build-review.mjs';
           function scan(dir='dist',relative=''){
@@ -164,7 +167,57 @@ jobs:
             : file);
           assert.throws(()=>createSignedBuildReview(altered,envelope,trust,pins),
             /HTML title differs|description differs|intro differs/);
-          console.log('Portal PHP -> Astro F24 signed build verified; tree SHA-256:',report.treeSha256);
+          // CI only: this is a synthetic trusted-handoff stand-in for an
+          // independent Portal/release witness. The calculated digest must not
+          // be read from the transported REVIEW-ONLY artifact for verification.
+          const transported=JSON.parse(readFileSync(
+            'artifacts/protected-build-review/PROTECTED-BUILD-REVIEW-ONLY.json','utf8'));
+          assert.equal(transported.target,'staging');
+          assert.equal(transported.deploymentPerformed,false);
+          assert.equal(transported.compiledTreeSha256,report.treeSha256);
+          appendFileSync(process.env.GITHUB_ENV,
+            'IMAGINE_EXPECTED_BUILD_TREE_SHA256='+report.treeSha256+'\n');
+          console.log('Portal PHP -> Astro F39 signed build verified; CI LAB tree SHA-256:',report.treeSha256);
+          NODE
+      - name: F39 verificar pacote protegido contra SHA de etapa confiavel do CI (LAB)
+        working-directory: .qa/imagine-comercial
+        run: |
+          set -euo pipefail
+          npm run verify:protected
+          echo 'F39 offline package verified against CI step-bound tree pin (not remote attestation).'
+      - name: F39 provar falha fechada contra pacote e recibo adulterados
+        working-directory: .qa/imagine-comercial
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const run=(env=process.env)=>execFileSync(process.execPath,
+            ['scripts/verify-protected-package.mjs'],{
+              env,stdio:'pipe',timeout:60000
+            });
+          assert.throws(()=>run({
+            ...process.env,IMAGINE_EXPECTED_BUILD_TREE_SHA256:'f'.repeat(64)
+          }),/Command failed|status/);
+          assert.throws(()=>run({
+            ...process.env,IMAGINE_RELEASE_TARGET:'review'
+          }),/Command failed|status/);
+          const html='dist/index.html';
+          const saved=readFileSync(html);
+          try{
+            writeFileSync(html,Buffer.concat([saved,Buffer.from('\n<!-- F39-tampered -->')]));
+            assert.throws(()=>run(),/Command failed|status/);
+          }finally{writeFileSync(html,saved);}
+          const file='artifacts/protected-build-review/PROTECTED-BUILD-REVIEW-ONLY.json';
+          const original=readFileSync(file);
+          try{
+            const bogus={...JSON.parse(original),compiledTreeSha256:'0'.repeat(64)};
+            writeFileSync(file,JSON.stringify(bogus));
+            assert.throws(()=>run(),/Command failed|status/);
+          }finally{writeFileSync(file,original);}
+          assert.match(run().toString('utf8'),/OFFLINE_VERIFY_ONLY_NOT_AUTHORIZED_FOR_DEPLOY/);
+          console.log('F39 PHP -> Astro protected artifact: bad pin, review target, altered HTML and altered review correctly rejected; original verified.');
           NODE
       - name: Auditar HTML final com SEO Engine revisado
         run: node .qa/seo-engine/scripts/audit-dist.mjs .qa/imagine-comercial/dist https://imaginecomunicacao.com.br/ --fail-on-warnings
