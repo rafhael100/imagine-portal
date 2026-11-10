@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Domain\SitesIntegration\CandidatePortalSitesSigningMaterial;
 use App\Domain\SitesIntegration\LabPortalSitesVersionedIssuer;
 use App\Domain\SitesIntegration\PortalSiteContractSource;
+use App\Domain\SitesIntegration\PortalSiteCommercialEpochSource;
 use App\Domain\SitesIntegration\PortalSitesSigningMaterialSource;
 use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
@@ -54,9 +55,20 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
                     ? $this->value : null;
             }
         };
+        $epochs=new class implements PortalSiteCommercialEpochSource {
+            public ?int $epoch=5;
+            public bool $offline=false;
+            public int $reads=0;
+            public function currentEpochFor(string $orderRef):?int
+            {
+                ++$this->reads;
+                if ($this->offline)throw new RuntimeException('Synthetic commercial epoch source offline');
+                return $orderRef==='order-f113-portal' ? $this->epoch : null;
+            }
+        };
         return [new LabPortalSitesVersionedIssuer(
-            new SitesCreateProjectEncoder($orders),$material
-        ),$material,$orders];
+            new SitesCreateProjectEncoder($orders),$material,$epochs
+        ),$material,$orders,$epochs];
     }
 
     public function test_default_signer_and_commercial_authority_both_deny():void
@@ -218,6 +230,53 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
         $this->expectException(DomainException::class);
         $issuer->issue('order-f113-portal','operation-f113','idempotency-f113',
             'nonce-f114-tenant-changed',1790000000,1790000060);
+    }
+
+    public function test_commercial_aba_revocation_and_restoration_with_identical_payload_is_denied():void
+    {
+        [$issuer,$keys,$orders,$epochs]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial('imagine-portal','imagine-sites',self::KEY,7)
+        );
+        $keys->onRead=static function() use($keys,$orders,$epochs):void {
+            if ($keys->calls===2) {
+                $orders->eligible=false;
+                $orders->eligible=true;
+                ++$epochs->epoch;
+            }
+        };
+        try {
+            $issuer->issue('order-f113-portal','operation-f115','idempotency-f115',
+                'nonce-f115-commercial-aba-0001',1790000000,1790000060);
+            self::fail('Same contract bytes with changed grant generation must be denied.');
+        } catch (DomainException) {
+            self::assertSame(2,$orders->calls);
+            self::assertSame(2,$epochs->reads);
+            self::assertSame(2,$keys->calls);
+            self::assertTrue($orders->eligible);
+        }
+        $keys->onRead=null;
+        $result=$issuer->issue('order-f113-portal','operation-f115','idempotency-f115',
+            'nonce-f115-commercial-aba-retry-0002',1790000000,1790000060);
+        self::assertSame('2',$result['schemaVersion']);
+    }
+
+    public function test_missing_and_unavailable_commercial_epoch_denies_before_key_lookup():void
+    {
+        [$issuer,$keys,$orders,$epochs]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial('imagine-portal','imagine-sites',self::KEY,7)
+        );
+        $epochs->epoch=null;
+        try {
+            $issuer->issue('order-f113-portal','operation-f115','idempotency-f115',
+                'nonce-f115-no-epoch-0003',1790000000,1790000060);
+            self::fail('Missing independent commercial epoch must deny.');
+        } catch (DomainException) {
+            self::assertSame(0,$keys->calls);
+        }
+        $epochs->offline=true;
+        $this->expectException(DomainException::class);
+        $issuer->issue('order-f113-portal','operation-f115','idempotency-f115',
+            'nonce-f115-offline-epoch-0004',1790000000,1790000060);
     }
 
     public function test_unknown_order_is_denied_before_reading_any_key():void
