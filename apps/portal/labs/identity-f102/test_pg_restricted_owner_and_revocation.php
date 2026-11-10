@@ -38,18 +38,21 @@ $ok = static function (bool $valid, string $label) use (&$n): void {
     ++$n;
 };
 
+$isTrue = static fn (mixed $value): bool => in_array($value, [true, 1, '1', 't'], true);
+$isFalse = static fn (mixed $value): bool => in_array($value, [false, 0, '0', 'f'], true);
+
 $role = $writer->query(
     "SELECT rolsuper, rolcanlogin, rolbypassrls, rolcreaterole,
             rolcreatedb, rolinherit
        FROM pg_roles WHERE rolname='portal_f102_security_owner'"
 )->fetch();
 $ok(is_array($role)
-    && $role['rolsuper'] === false
-    && $role['rolcanlogin'] === false
-    && $role['rolbypassrls'] === true
-    && $role['rolcreaterole'] === false
-    && $role['rolcreatedb'] === false
-    && $role['rolinherit'] === false,
+    && $isFalse($role['rolsuper'])
+    && $isFalse($role['rolcanlogin'])
+    && $isTrue($role['rolbypassrls'])
+    && $isFalse($role['rolcreaterole'])
+    && $isFalse($role['rolcreatedb'])
+    && $isFalse($role['rolinherit']),
     'definer must be non-superuser NOLOGIN with explicit BYPASSRLS');
 
 $owners = $writer->query(
@@ -64,14 +67,14 @@ $owners = $writer->query(
 $ok(count($owners) === 2, 'both SQL gates present');
 foreach ($owners as $fn) {
     $ok($fn['owner'] === 'portal_f102_security_owner'
-        && $fn['prosecdef'] === true
+        && $isTrue($fn['prosecdef'])
         && str_contains((string)$fn['proconfig'], 'search_path=pg_catalog, pg_temp'),
         'restricted function owner and fixed search_path');
 }
 $schemaCreate = $writer->query(
     "SELECT has_schema_privilege('portal_f102_security_owner','public','CREATE')"
 )->fetchColumn();
-$ok($schemaCreate === false, 'no permanent CREATE in public for definer');
+$ok($isFalse($schemaCreate), 'no permanent CREATE in public for definer');
 foreach ([
     'portal_identities', 'portal_organizations', 'portal_memberships',
     'portal_membership_grants', 'portal_auth_sessions',
@@ -84,7 +87,12 @@ foreach ([
     );
     $sql->execute(['tbl' => 'public.'.$table]);
     $privileges = $sql->fetch(PDO::FETCH_NUM);
-    $ok($privileges === [true, false, false], 'owner SELECT only; reader no row access: '.$table);
+    $ok(is_array($privileges)
+        && count($privileges) === 3
+        && $isTrue($privileges[0])
+        && $isFalse($privileges[1])
+        && $isFalse($privileges[2]),
+        'owner SELECT only; reader no row access: '.$table);
 }
 
 $acl = $writer->query(
@@ -102,11 +110,11 @@ $acl = $writer->query(
         'public.portal_f76_permission_check(text,uuid,text)'::regprocedure, 'EXECUTE'
       ) AS f76_execute"
 )->fetch();
-$ok($acl === [
-    'resource_execute' => true,
-    'lowlevel_execute' => false,
-    'f76_execute' => true,
-], 'readers keep exactly the required function access');
+$ok(is_array($acl)
+    && $isTrue($acl['resource_execute'])
+    && $isFalse($acl['lowlevel_execute'])
+    && $isTrue($acl['f76_execute']),
+    'readers keep exactly the required function access');
 
 $rls = $writer->query(
     "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
@@ -213,11 +221,15 @@ $ok(!$allow(), 'committed session revocation immediately denied');
 
 // A negative privilege test: if the restricted definer loses a required
 // table grant, it must NOT silently fall back to a more privileged identity.
+$writer->exec("UPDATE portal_auth_sessions
+               SET status='active',revoked_at=NULL WHERE id='$session'");
+$ok($allow(), 'restored synthetic fixture tests the restricted owner positively');
 $writer->exec("REVOKE SELECT ON public.portal_f101_resource_fixtures
                FROM portal_f102_security_owner");
 $ok(!$allow(), 'lack of owner SELECT fails closed rather than impersonating postgres');
 $writer->exec("GRANT SELECT ON public.portal_f101_resource_fixtures
                TO portal_f102_security_owner");
+$ok($allow(), 'restoring only the required SELECT repairs the synthetic gate');
 
 putenv('PORTAL_F101_PG_LAB=0');
 $ok(!$allow(), 'offline PHP client disabled by missing F101 flag');
