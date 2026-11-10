@@ -2,7 +2,7 @@
 declare(strict_types=1);
 putenv('APP_ENV=testing');
 putenv('PORTAL_F59_WORKBENCH_LAB=1');
-require_once dirname(__DIR__,3).'/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php';
+require_once dirname(__DIR__,2).'/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php';
 use App\Domain\PerformanceDashboard\OfflinePerformanceWorkbenchPreview as Preview;
 
 $sample=[
