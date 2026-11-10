@@ -2,7 +2,8 @@
 // PORTAL F71: ephemeral offline bundle (HTML + CSV + integrity receipt).
 // Synthetic previews ONLY. No API, publishing, execution, billing, or approval.
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync,writeFileSync,lstatSync,readFileSync,rmSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {mkdtempSync,writeFileSync,lstatSync,readFileSync,unlinkSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -44,11 +45,16 @@ try{
   const integrity=JSON.parse(run('node',[join(base,'f69-verify-budget-csv.mjs'),dto,csvPath]));
   if(integrity.simulation_only!==true || integrity.operational_authority!==false ||
     !Number.isInteger(integrity.data_rows))throw Error('integrity report invalid');
+  // The validated DTO is no longer needed: do not retain even synthetic
+  // source snapshots in review bundles after successful generation.
+  unlinkSync(dto);
   const manifest={
     schema_version:'portal.f71.offline-review-bundle.synthetic.v1',
     simulation_only:true,approved_for_production:false,
     authorized_to_spend:false,authenticated_customer_session:false,
-    html_file:'preview.html',csv_file:'budget.csv',integrity,
+    html_file:'preview.html',csv_file:'budget.csv',
+    html_sha256:createHash('sha256').update(html).digest('hex'),
+    source_snapshot_removed:true,integrity,
   };
   writeFileSync(join(workspace,'manifest.json'),
     JSON.stringify(manifest,null,2)+'\n',{mode:0o600,flag:'wx'});
