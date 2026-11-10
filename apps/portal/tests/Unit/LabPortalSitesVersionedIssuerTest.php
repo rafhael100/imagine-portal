@@ -12,6 +12,7 @@ use App\Domain\SitesIntegration\PortalSitesSigningMaterialSource;
 use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\SyntheticSitesVersionedEnvelopeSigner;
+use App\Domain\SitesIntegration\SyntheticSitesCommercialEpochSignedEnvelopeSigner;
 use DomainException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -277,6 +278,58 @@ final class LabPortalSitesVersionedIssuerTest extends TestCase
         $this->expectException(DomainException::class);
         $issuer->issue('order-f113-portal','operation-f115','idempotency-f115',
             'nonce-f115-offline-epoch-0004',1790000000,1790000060);
+    }
+
+    public function test_commercial_epoch_v3_is_bound_by_hmac_and_not_supplied_by_caller():void
+    {
+        [$issuer,$keys,$orders,$epochs]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial('imagine-portal','imagine-sites',self::KEY,7)
+        );
+        $v3=$issuer->issueCommercialEpochSigned(
+            'order-f113-portal','operation-f116','idempotency-f116',
+            'nonce-f116-commercial-epoch-0001',1790000000,1790000060
+        );
+        self::assertSame('3',$v3['schemaVersion']);
+        self::assertSame(7,$v3['keyEpoch']);
+        self::assertSame(5,$v3['commercialEpoch']);
+        self::assertSame([
+            'schemaVersion','issuer','audience','issuedAt','expiresAt',
+            'nonce','payload','keyEpoch','commercialEpoch','mac',
+        ],array_keys($v3));
+        $unsigned=$v3;
+        unset($unsigned['mac']);
+        self::assertSame(hash_hmac(
+            'sha256',
+            json_encode($unsigned,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
+            self::KEY
+        ),$v3['mac']);
+        self::assertSame(2,$epochs->reads);
+        $changed=$v3;
+        $changed['commercialEpoch']++;
+        self::assertNotSame(hash_hmac(
+            'sha256',
+            json_encode(array_slice($changed,0,-1,true),JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),
+            self::KEY
+        ),$changed['mac']);
+    }
+
+    public function test_commercial_aba_during_v3_signing_is_denied_even_when_snapshot_matches():void
+    {
+        [$issuer,$keys,$orders,$epochs]=$this->candidate(
+            new CandidatePortalSitesSigningMaterial('imagine-portal','imagine-sites',self::KEY,7)
+        );
+        $keys->onRead=static function() use($keys,$orders,$epochs):void {
+            if ($keys->calls===2) {
+                $orders->eligible=false;
+                $orders->eligible=true;
+                ++$epochs->epoch;
+            }
+        };
+        $this->expectException(DomainException::class);
+        $issuer->issueCommercialEpochSigned(
+            'order-f113-portal','operation-f116','idempotency-f116',
+            'nonce-f116-commercial-aba-0002',1790000000,1790000060
+        );
     }
 
     public function test_unknown_order_is_denied_before_reading_any_key():void
