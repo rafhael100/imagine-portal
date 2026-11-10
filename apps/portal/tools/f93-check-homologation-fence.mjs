@@ -44,7 +44,7 @@ try{
   must(copies.length>=7);
   for(const copy of copies){
     must(copy.startsWith('--from=composer:2 ') ||
-      /^apps\/portal\/(?:composer\.json apps\/portal\/composer\.lock|app \.\/app|bootstrap \.\/bootstrap|config \.\/config|public \.\/public|resources \.\/resources|routes \.\/routes|artisan \.\/artisan)$/.test(copy));
+      /^apps\/portal\/(?:composer\.json apps\/portal\/composer\.lock \.\/|app \.\/app|bootstrap \.\/bootstrap|config \.\/config|public \.\/public|resources \.\/resources|routes \.\/routes|artisan \.\/artisan)$/.test(copy));
     must(!/(\btools\b|\btests\b|\blabs\b|\bdatabase\b|\.env\b)/i.test(copy));
   }
   const removal=docker.indexOf('RUN rm -rf app/Labs');
