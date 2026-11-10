@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync,readFileSync,writeFileSync,lstatSync,symlinkSync,rmSync} from 'node:fs';
+import {mkdtempSync,readFileSync,writeFileSync,lstatSync,existsSync,symlinkSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -56,8 +56,12 @@ try {
     !manifest.authorized_to_spend && !manifest.authenticated_customer_session,'NO-GO flags');
   const hash=b=>createHash('sha256').update(b).digest('hex');
   check(manifest.integrity.csv_sha256===hash(csv),'manifest CSV digest');
+  check(manifest.html_sha256===hash(Buffer.from(html)),'manifest HTML digest');
+  check(manifest.source_snapshot_removed===true,'source removed claim');
+  check(!lstatSync(workspace).isSymbolicLink(),'bundle directory not symlink');
   check(manifest.integrity.dto_sha256===hash(readFileSync(input)),'manifest snapshot digest');
-  for(const f of ['input.json','preview.html','budget.csv','manifest.json']){
+  check(!existsSync(join(workspace,'input.json')),'source DTO not retained');
+  for(const f of ['preview.html','budget.csv','manifest.json']){
     check(lstatSync(join(workspace,f)).isFile(),f+' physical file');
   }
   rmSync(workspace,{recursive:true,force:true});workspace=undefined;
