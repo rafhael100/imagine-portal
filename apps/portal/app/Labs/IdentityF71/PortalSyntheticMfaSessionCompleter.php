@@ -26,7 +26,13 @@ final class PortalSyntheticMfaSessionCompleter
     {
     }
 
-    public function complete(string $opaqueBearer, string $syntheticSecret, string $otpCode, int $nowEpoch): bool
+    public function complete(
+        string $opaqueBearer,
+        string $syntheticSecret,
+        string $otpCode,
+        int $nowEpoch,
+        ?string $expectedSealedSecret = null,
+    ): bool
     {
         if (PHP_SAPI !== 'cli'
             || getenv('APP_ENV') !== 'testing'
@@ -60,6 +66,7 @@ final class PortalSyntheticMfaSessionCompleter
                         EXTRACT(EPOCH FROM s.issued_at)::bigint AS issued_epoch,
                         EXTRACT(EPOCH FROM s.expires_at)::bigint AS expires_epoch,
                         i.status AS identity_status, i.security_revision, i.mfa_confirmed_at,
+                        i.mfa_secret_ciphertext AS sealed_secret,
                         i.mfa_last_used_counter, m.status AS member_status,
                         m.membership_revision AS current_member_revision,
                         o.status AS organization_status
@@ -80,6 +87,9 @@ final class PortalSyntheticMfaSessionCompleter
                 || $current['member_status'] !== 'active'
                 || $current['organization_status'] !== 'active'
                 || $current['mfa_confirmed_at'] === null
+                || ($expectedSealedSecret !== null
+                    && (!is_string($current['sealed_secret'])
+                        || !hash_equals($expectedSealedSecret, $current['sealed_secret'])))
                 || (int)$current['identity_revision'] !== (int)$current['security_revision']
                 || (int)$current['session_member_revision'] !== (int)$current['current_member_revision']
                 || $nowEpoch < (int)$current['issued_epoch']
