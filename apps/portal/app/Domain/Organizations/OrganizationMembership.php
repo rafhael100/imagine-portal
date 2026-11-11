@@ -24,7 +24,13 @@ final readonly class OrganizationMembership
         public OrganizationRole $role,
         public MembershipStatus $status,
         public array $permissions = [],
+        // Current authoritative revision from portal_memberships, not a
+        // revision claimed by a browser, CRM or downstream service.
+        public int $membershipRevision = 1,
     ) {
+        if ($membershipRevision <= 0) {
+            throw new InvalidArgumentException('Membership revision must be positive.');
+        }
         foreach ($permissions as $permission) {
             if (! $permission instanceof Permission) {
                 throw new InvalidArgumentException('Membership permissions must be Permission values.');
