@@ -1,0 +1,138 @@
+name: Portal F131 - Current Portal PHP against pinned real CRM PHP lab
+on:
+  push:
+    branches:
+      - review/portal-f131-cross-repo-crm-compat-ci-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - 'apps/portal/labs/commercial-intake-f122/**'
+      - 'apps/portal/labs/commercial-intake-f123/**'
+      - 'apps/portal/labs/commercial-intake-f124/**'
+      - '.github/workflows/portal-f131-cross-repo-crm-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crm-pg16-and-portal-pg18:
+    name: PHP ${{ matrix.php }} - pinned CRM code with current Portal branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      crm_pg16:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f131-disposable-contract-ci-only
+          POSTGRES_DB: imagine_crm_handoff_ci
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d imagine_crm_handoff_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      portal_pg18:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f131-disposable-contract-ci-only
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5433:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CRM_F340_LAB: '1'
+      CRM_F341_HTTP_LAB: '1'
+      CRM_F342_CROSS_REPO_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f131-disposable-contract-ci-only
+    steps:
+      - name: Checkout current Portal candidate under test
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Checkout immutable CRM implementation (F3-42)
+        uses: actions/checkout@v5
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 401dbaf59e58965480a5b41dab43aebb3b023aa2
+          path: crm-source
+          persist-credentials: false
+      - name: Verify both repository identities and prevent runtime imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C crm-source rev-parse HEAD)" = 401dbaf59e58965480a5b41dab43aebb3b023aa2
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -f apps/portal/labs/commercial-intake-f119/PortalF119SyntheticServiceReservation.php
+          test -f apps/portal/labs/commercial-intake-f122/unknown_hold_pg18.sql
+          test -f crm-source/tests/Labs/F3_42/test_real_portal_crm_cross_repo.php
+          if grep -R -E 'crm-source|CRM_F342_CROSS_REPO_LAB|F3_42' \
+            apps/portal/app apps/portal/routes apps/portal/bootstrap 2>/dev/null; then
+            echo 'F131 external test references in operational Portal' >&2
+            exit 1
+          fi
+          ln -s "$GITHUB_WORKSPACE" crm-source/portal-source
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql,pgsql
+          tools: none
+          coverage: none
+      - name: Install each PostgreSQL schema in its own disposable service
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          test "$(psql -h 127.0.0.1 -p 5432 -U postgres -d imagine_crm_handoff_ci -tAc 'SHOW server_version_num')" -ge 160000
+          test "$(psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab -tAc 'SHOW server_version_num')" -ge 180000
+          psql -h 127.0.0.1 -p 5432 -U postgres -d imagine_crm_handoff_ci \
+            -v ON_ERROR_STOP=1 -f crm-source/tests/Labs/F3_40/crm_handoff_pg16.sql
+          psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f118/fixture_pg18.sql
+          psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f119/nonce_pg18.sql
+          psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f122/unknown_hold_pg18.sql
+      - name: Exercise real PHP classes in both repositories and signed lost-ACK readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l crm-source/tests/Labs/F3_42/test_real_portal_crm_cross_repo.php
+          php -l crm-source/tests/Labs/F3_41/router_crm_loopback.php
+          php -l apps/portal/labs/commercial-intake-f119/PortalF119SyntheticServiceReservation.php
+          export CRM_F341_REQUEST_KEY_HEX="$(openssl rand -hex 48)"
+          export CRM_F341_RECEIPT_KEY_HEX="$(openssl rand -hex 48)"
+          test "$CRM_F341_REQUEST_KEY_HEX" != "$CRM_F341_RECEIPT_KEY_HEX"
+          (
+            cd crm-source
+            DB_DATABASE=imagine_crm_handoff_ci php -S 127.0.0.1:19141 \
+              tests/Labs/F3_41/router_crm_loopback.php
+          ) >/dev/null 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if php -r '$s=@fsockopen("127.0.0.1",19141,$e,$m,0.2);if($s){fclose($s);exit(0);}exit(1);'; then
+              ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$ready" -eq 1
+          (cd crm-source && php tests/Labs/F3_42/test_real_portal_crm_cross_repo.php)
