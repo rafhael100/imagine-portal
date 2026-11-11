@@ -122,6 +122,18 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/sessions/summary'&&method==='GET'){
+  // Only aggregated counts for the authenticated current account. No
+  // bearer tokens, raw session hashes, device IDs, IP addresses or other
+  // users' session metadata can ever reach this response.
+  const row=q('SELECT count(*) AS active FROM sessions WHERE user_id=? AND expires_at>?',user.id,Date.now());
+  const active=Number(row?.active||0);
+  return send(res,200,{
+   active_sessions:active,
+   other_sessions:Math.max(0,active-1),
+   max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT,
+  });
+ }
  if(path==='/api/sessions/revoke-others'&&method==='POST'){
   limit('sessions-revoke:'+user.id,5,3600000);
   const data=await jsonBody(req);
