@@ -157,3 +157,7 @@ Antes de enviar o cabeçalho HTTP de sucesso, ambos os downloads verificam que o
 ### Falhas de rede durante transferências (F234)
 
 Uma conexão interrompida cancela o cursor da exportação em vez de continuar lendo os dados da conta ou tentar concluir um arquivo incompleto. Se ocorrer erro depois do início da resposta HTTP, o transporte é encerrado abruptamente para evitar comunicar sucesso com conteúdo truncado. O protocolo de exportação mantém os mesmos campos e regras de autenticação.
+
+### Índice utilizado nos downloads incrementais (F235)
+
+Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação por titular utiliza o índice existente `idx_orders_user_created` e faz `JOIN` com o briefing pelo identificador do pedido. Não é criada cópia integral da tabela nem um índice desnecessário no banco de clientes.

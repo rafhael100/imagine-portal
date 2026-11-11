@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {openStore} from '../server/store.mjs';
+import {migrateBriefing} from '../server/briefing.mjs';
 
 test('F184: consultas multicliente e coleta de quotas usam índices restritos e idempotentes',()=>{
  const db=openStore(':memory:');
+ migrateBriefing(db);
  const plans=[
   {
    sql:'SELECT count(*) FROM sessions WHERE user_id=? AND expires_at>?',
@@ -22,6 +24,11 @@ test('F184: consultas multicliente e coleta de quotas usam índices restritos e 
   },
   {
    sql:'SELECT o.id,o.title,o.created_at FROM orders o WHERE o.user_id=? ORDER BY o.created_at DESC',
+   args:['owner-test'],
+   index:'idx_orders_user_created',
+  },
+  {
+   sql:'SELECT o.id,o.title,b.data FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE o.user_id=? ORDER BY o.created_at DESC,o.id DESC',
    args:['owner-test'],
    index:'idx_orders_user_created',
   },
