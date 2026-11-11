@@ -1,15 +1,20 @@
-name: Portal GSC Slice A - isolated offline integration
+name: Portal GSC Slices A-B - isolated offline integration
 
 on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
+      - review/portal-gsc-integration-slice-a-2026-11-11
     paths:
       - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php'
       - 'apps/portal/labs/gsc-f155/**'
       - 'apps/portal/labs/gsc-f156/**'
       - 'apps/portal/labs/gsc-f160/**'
+      - 'apps/portal/labs/gsc-f157/**'
+      - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
+      - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
       - '.github/workflows/portal-gsc-slice-a-ci.yml'
 
 permissions:
@@ -69,9 +74,11 @@ jobs:
             const exact=new Set([
               ".github/workflows/portal-gsc-slice-a-ci.yml",
               "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php",
-              "apps/portal/tools/f159-render-gsc-query-page-review-offline.php"
+              "apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php",
+              "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
+              "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f155","gsc-f156","gsc-f160","gsc-slice-a"]);
+            const labs=new Set(["gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -116,3 +123,37 @@ jobs:
             fi
           done
           node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+      - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TRENDS_LAB: '1'
+          PORTAL_GSC_TREND_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php
+          php -l apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php
+          php -l apps/portal/tools/f153-render-gsc-overlap-trend-offline.php
+          fixture="$(mktemp)"
+          rendered="$(mktemp)"
+          trap 'rm -f "$fixture" "$rendered"' EXIT
+          for scenario in complete redacted partial; do
+            node apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php "$fixture" "$scenario"
+            php apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$fixture" > "$rendered"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$rendered"
+            grep -q 'noindex,nofollow' "$rendered"
+            grep -q "connect-src 'none'" "$rendered"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
+              echo 'GSC Slice B: unsafe trend HTML' >&2;exit 1
+            fi
+            if [[ "$scenario" == complete ]]; then
+              grep -q 'Investigar possível aumento da sobreposição editorial' "$rendered"
+            else
+              grep -q 'Amostra incompleta: tendências suprimidas' "$rendered"
+              grep -q 'Indisponível' "$rendered"
+            fi
+          done
+
