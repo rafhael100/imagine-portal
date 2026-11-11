@@ -215,6 +215,21 @@ $db->prepare(
       id,membership_id,permission_code,created_at,updated_at
     ) VALUES(?,?,'services.view',now(),now())"
 )->execute(['e7777777-7777-4777-8777-777777777777',$membership]);
+// The integration runner may make clock_timestamp() appear briefly earlier
+// than the MFA value it just persisted. Do not weaken the F76/F113 guards:
+// wait for the actual database clock to reach the signed-in session proof.
+$clockReady=$db->prepare(
+    "SELECT mfa_verified_at<=clock_timestamp() AS ready
+       FROM portal_auth_sessions WHERE session_sha256=?"
+);
+$clockReady->execute([$digest]);
+$mfaTimestampReady=$yes($clockReady->fetchColumn());
+for($attempt=0;!$mfaTimestampReady&&$attempt<40;$attempt++){
+    usleep(100000);
+    $clockReady->execute([$digest]);
+    $mfaTimestampReady=$yes($clockReady->fetchColumn());
+}
+$ok($mfaTimestampReady,'CI database clock has reached fresh MFA proof timestamp');
 $explicitGrantAllowed=$checkPermission($digest,'services.view');
 if(!$explicitGrantAllowed){
     // Only emit safe boolean diagnostics; no cookie, digest, email, code,
