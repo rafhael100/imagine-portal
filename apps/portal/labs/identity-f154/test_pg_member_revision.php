@@ -152,4 +152,41 @@ $pdo->exec(
 f154Ensure(f154Count($pdo, $memberRev) === 5,
     'grant deletion must increment revision');
 
+// A non-superuser must not turn SQL privileges into tenant access while
+// there is no trusted issuer or RLS ALLOW policy, even with explicit GRANTs.
+$pdo->exec(<<<'SQL'
+CREATE ROLE portal_f154_worker NOLOGIN NOBYPASSRLS;
+GRANT USAGE ON SCHEMA public TO portal_f154_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.portal_memberships, public.portal_membership_grants
+  TO portal_f154_worker;
+SQL);
+try {
+    $pdo->exec('SET ROLE portal_f154_worker');
+    try {
+        f154Ensure(f154Count($pdo,
+            "SELECT count(*) FROM public.portal_memberships") === 0,
+            'non-superuser may not inspect membership despite explicit SELECT grant');
+        f154Ensure(f154Count($pdo,
+            "SELECT count(*) FROM public.portal_membership_grants") === 0,
+            'non-superuser may not inspect grants despite explicit SELECT grant');
+
+        f154Denied($pdo, <<<'SQL'
+INSERT INTO public.portal_membership_grants
+    (id,membership_id,permission_code,created_at,updated_at)
+VALUES ('66666666-6666-4666-8666-666666666666',
+        '33333333-3333-4333-8333-333333333333',
+        'services.view',now(),now())
+SQL);
+    } finally {
+        $pdo->exec('RESET ROLE');
+    }
+} finally {
+    $pdo->exec('DROP OWNED BY portal_f154_worker');
+    $pdo->exec('DROP ROLE portal_f154_worker');
+}
+f154Ensure(f154Count($pdo,
+    "SELECT count(*) FROM public.portal_membership_grants") === 0,
+    'rejected RLS grant insert must leave no row');
+
 echo "F154 PASS: grant insertion, mutation denial, status/role/revocation and FORCE RLS.\n";
