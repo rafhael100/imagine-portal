@@ -59,13 +59,19 @@ export function *iterateOwnerExportProjects(db,user){
 // Respect Writable backpressure and disconnects, without accumulating
 // unbounded response buffers for accounts with thousands of projects.
 export async function writeExportChunks(res,chunks){
- let disconnected=false;
+ let disconnected=false,responseError=null;
  const onDisconnect=()=>{disconnected=true;};
+ // F242: streams may emit error synchronously inside write()/end().
+ // Keep a listener for the entire export so an EventEmitter error cannot
+ // crash the worker before the route releases its per-user lease.
+ const onResponseError=error=>{responseError=error;};
  res.on('close',onDisconnect);
+ res.on('error',onResponseError);
  try{
   for(const chunk of chunks){
    if(disconnected||res.destroyed||res.writableEnded)return;
    const writable=res.write(chunk);
+   if(responseError)throw responseError;
    // F240: a Writable can close during write() even when write() returns true.
    // Stop before pulling the next DB cursor row, not on the next iteration.
    if(disconnected||res.destroyed||res.writableEnded)return;
@@ -84,7 +90,10 @@ export async function writeExportChunks(res,chunks){
     if(signal==='close'||disconnected||res.destroyed||res.writableEnded)return;
    }
   }
-  if(!disconnected&&!res.destroyed&&!res.writableEnded)res.end();
+  if(!disconnected&&!res.destroyed&&!res.writableEnded){
+   res.end();
+   if(responseError)throw responseError;
+  }
  }catch(error){
   // Never complete an HTTP 200 with a syntactically valid, truncated CSV if
   // the database cursor or the output stream fails partway through.
@@ -92,6 +101,7 @@ export async function writeExportChunks(res,chunks){
   throw error;
  }finally{
   res.off('close',onDisconnect);
+  res.off('error',onResponseError);
  }
 }
 
