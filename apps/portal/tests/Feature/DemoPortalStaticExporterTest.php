@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Presentation\DemoPortalStaticExporter;
+use App\Presentation\DemoPortalArtifactManifest;
 use Illuminate\Database\DatabaseManager;
 use LogicException;
 use Tests\TestCase;
@@ -27,6 +28,9 @@ final class DemoPortalStaticExporterTest extends TestCase
         if (is_dir($this->temporaryDirectory)) {
             foreach (glob($this->temporaryDirectory . '/*.html') ?: [] as $page) {
                 unlink($page);
+            }
+            if (is_file($this->temporaryDirectory.'/manifest.json')) {
+                unlink($this->temporaryDirectory.'/manifest.json');
             }
             rmdir($this->temporaryDirectory);
         }
@@ -71,6 +75,61 @@ final class DemoPortalStaticExporterTest extends TestCase
             self::assertStringNotContainsString('<script', $html);
             self::assertStringNotContainsString('http://', $html);
             self::assertStringNotContainsString('https://', $html);
+        }
+    }
+
+    public function test_exact_nine_page_bundle_contains_verifiable_local_manifest(): void
+    {
+        $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        self::assertSame(DemoPortalArtifactManifest::pageNames(), $pages);
+        self::assertFileExists($this->temporaryDirectory.'/manifest.json');
+        self::assertTrue((new DemoPortalArtifactManifest())->verify($this->temporaryDirectory));
+        $json = json_decode(
+            (string) file_get_contents($this->temporaryDirectory.'/manifest.json'),
+            true,
+            12,
+            JSON_THROW_ON_ERROR,
+        );
+        self::assertSame('imagine.portal.synthetic-preview.manifest.v1', $json['schema']);
+        self::assertSame(true, $json['synthetic_only']);
+        self::assertSame(false, $json['authorizes_customer_access']);
+        self::assertSame(false, $json['authorizes_deployment']);
+        self::assertCount(9, $json['pages']);
+        self::assertSame(0600,
+            fileperms($this->temporaryDirectory.'/manifest.json') & 0777);
+    }
+
+    public function test_manipulated_html_is_rejected_even_if_the_manifest_exists(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        file_put_contents($this->temporaryDirectory.'/index.html', '\nInjected fake status', FILE_APPEND);
+        $this->expectException(LogicException::class);
+        (new DemoPortalArtifactManifest())->verify($this->temporaryDirectory);
+    }
+
+    public function test_extra_unapproved_file_is_rejected(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        file_put_contents($this->temporaryDirectory.'/rogue.txt', 'not allowed');
+        try {
+            $this->expectException(LogicException::class);
+            (new DemoPortalArtifactManifest())->verify($this->temporaryDirectory);
+        } finally {
+            unlink($this->temporaryDirectory.'/rogue.txt');
+        }
+    }
+
+    public function test_missing_or_symlinked_html_fails_closed(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        unlink($this->temporaryDirectory.'/delivery-review.html');
+        symlink($this->temporaryDirectory.'/index.html',
+            $this->temporaryDirectory.'/delivery-review.html');
+        try {
+            $this->expectException(LogicException::class);
+            (new DemoPortalArtifactManifest())->verify($this->temporaryDirectory);
+        } finally {
+            unlink($this->temporaryDirectory.'/delivery-review.html');
         }
     }
 
