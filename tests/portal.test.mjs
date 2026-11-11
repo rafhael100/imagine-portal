@@ -528,7 +528,7 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
   insert.run(id,owner.user.id,'Site '+String(i).padStart(2,'0'),paidNames.has(i)?'RECEIVED':'PENDING',when,when);
   if(i===21||i===19){
    f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)')
-    .run(id,JSON.stringify({company_name:'Empresa SECRETA'+i,domain:'dominio-'+i+'.test',internal_token:'NEVER_BRIEF_TOKEN'}),when);
+    .run(id,JSON.stringify({company_name:'Empresa SECRETA'+i+(i===21?' Café São João':''),domain:'dominio-'+i+'.test',internal_token:'NEVER_BRIEF_TOKEN'}),when);
   }
  }
  const otherId=randomUUID();
@@ -537,7 +537,7 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.equal(first.status,200);assert.equal(first.body.total,21);assert.equal(first.body.pages,3);
  assert.equal(first.body.page_size,8);assert.equal(first.body.projects.length,8);
  assert.equal(first.body.projects[0].title,'Site 21');assert.equal(first.body.has_more,true);
- assert.equal(first.body.projects[0].data.company_name,'Empresa SECRETA21');
+ assert.equal(first.body.projects[0].data.company_name,'Empresa SECRETA21 Café São João');
  assert.equal(first.body.projects[0].data.internal_token,undefined);
  assert.equal(first.body.projects[2].title,'Site 19');
  assert.deepEqual(first.body.projects[2].data,{});
@@ -551,6 +551,9 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.ok(pending.body.projects.every(p=>p.payment_status==='PENDING'));
  const name=await owner.call('/api/account/projects?search=site%2021');
  assert.equal(name.body.total,1);assert.equal(name.body.projects[0].id,ids[20]);
+ const accents=await owner.call('/api/account/projects?search=CAFE%20SAO');
+ assert.equal(accents.body.total,1);
+ assert.equal(accents.body.projects[0].id,ids[20]);
  const domain=await owner.call('/api/account/projects?search=dominio-21.test');
  assert.equal(domain.body.total,1);
  const hidden=await owner.call('/api/account/projects?search=SECRETA19');

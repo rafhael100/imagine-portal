@@ -18,10 +18,10 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search=''}={
   // INSTR treats user input as literal text, not LIKE wildcards.
   // Briefing lookup is limited to paid/confirmed orders.
   const safeField=field=>`CASE WHEN json_valid(b.data) THEN json_extract(b.data,'$.${field}') ELSE '' END`;
-  where.push(`(instr(lower(o.title),lower(?))>0 OR instr(lower(o.id),lower(?))>0 OR
+  where.push(`(instr(imagine_fold(o.title),imagine_fold(?))>0 OR instr(imagine_fold(o.id),imagine_fold(?))>0 OR
    (o.payment_status IN ${paid} AND
-    (instr(lower(${safeField('company_name')}),lower(?))>0 OR
-     instr(lower(${safeField('domain')}),lower(?))>0)))`);
+    (instr(imagine_fold(${safeField('company_name')}),imagine_fold(?))>0 OR
+     instr(imagine_fold(${safeField('domain')}),imagine_fold(?))>0)))`);
   params.push(term,term,term,term);
  }
  const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE '+where.join(' AND ');
