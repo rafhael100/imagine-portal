@@ -16,6 +16,8 @@ on:
       - 'apps/portal/labs/gsc-f146/**'
       - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/labs/gsc-f152/**'
+      - 'apps/portal/labs/gsc-f155/**'
+      - 'apps/portal/labs/gsc-f156/**'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
@@ -61,6 +63,32 @@ jobs:
           ref: bbcc198b5eb88585534c0a0374ed8c787f40e7ca
           path: .qa/seo-engine
           persist-credentials: false
+      - name: Checkout immutable SEO RC32 for F156 synthetic parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: f46b65aaef9b10e32d02e415907cd916a43b548e
+          path: .qa/seo-rc32
+          persist-credentials: false
+      - name: Verify SEO RC32 F74 to Portal F155 strict DTO parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_QUERY_PAGE_REVIEW_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs
+          php -l apps/portal/labs/gsc-f156/verify_php_query_page_review.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete redacted partial empty; do
+            node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+          done
       - name: Check Node SEO F50 to Portal PHP F135 DTO parity
         if: matrix.php == '8.4' && matrix.node == '22'
         shell: bash
