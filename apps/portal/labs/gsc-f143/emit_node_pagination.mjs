@@ -19,7 +19,7 @@ const result=reviewOfflineGscQueryPagePagination([
   ]},
   {startRow:2,rows:[
     row('sites profissionais','c',3),
-    row('someone@example.com','secret',2)
+    row('consulta empresarial','secret?token=PERSON-SECRET-F149',2)
   ]}
 ],scope);
 if(result.summary.queriesOnMultiplePages!==1 ||
@@ -31,6 +31,6 @@ if(result.summary.queriesOnMultiplePages!==1 ||
   result.releaseStatus!=='HOLD_EXTERNAL_BACKEND_VERIFICATION')
   throw Error('GSC-F143: synthetic two-page report mismatch');
 const json=JSON.stringify(result);
-if(/sites profissionais|someone@example.com|https:\/\/www\.example\.com/.test(json))
+if(/sites profissionais|PERSON-SECRET-F149|consulta empresarial|https:\/\/www\.example\.com/.test(json))
   throw Error('GSC-F143: private input leaked in output');
 process.stdout.write(json+'\n');
