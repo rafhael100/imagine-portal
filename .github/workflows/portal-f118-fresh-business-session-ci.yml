@@ -1,0 +1,216 @@
+name: Portal F118 - Separate business session after audited acceptance PG18
+on:
+  push:
+    branches:
+      - review/portal-f118-new-business-session-mfa-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php'
+      - 'apps/portal/labs/identity-f118/**'
+      - 'apps/portal/labs/identity-f117/**'
+      - 'apps/portal/database/migrations/2026_11_10_000006_create_portal_security_event_log.php'
+      - 'apps/portal/labs/identity-f108/**'
+      - 'apps/portal/labs/identity-f107/**'
+      - 'apps/portal/labs/identity-f106/**'
+      - 'apps/portal/database/migrations/2026_11_10_000007_create_portal_access_invitations.php'
+      - 'apps/portal/labs/identity-f116/**'
+      - 'apps/portal/labs/identity-f115/**'
+      - 'apps/portal/database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php'
+      - 'apps/portal/labs/identity-f114/**'
+      - 'apps/portal/labs/identity-f113/**'
+      - '.github/workflows/portal-f118-fresh-business-session-ci.yml'
+permissions:
+  contents: read
+jobs:
+  scoped-credentials:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f118-db-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F112_PG_LAB: '1'
+      PORTAL_F113_PG_LAB: '1'
+      PORTAL_F114_PG_LAB: '1'
+      PORTAL_F115_PG_LAB: '1'
+      PORTAL_F116_PG_LAB: '1'
+      PORTAL_F117_PG_LAB: '1'
+      PORTAL_F118_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f118-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f118-db-only
+      F66_PG_ADMIN_PASSWORD: ci-f118-db-only
+      F112_PG_READER_PASSWORD: ci-f112-reader-only
+      F76_PG_READER_PASSWORD: ci-f76-reader-only
+      F77_PG_THROTTLE_PASSWORD: ci-f77-throttle-only
+      F115_PG_PROBE_PASSWORD: ci-f115-email-only
+      F106_PG_PROBE_PASSWORD: ci-f106-probe-only
+      F117_PG_PROBE_PASSWORD: ci-f117-probe-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Install locked dependencies and syntax check
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php
+          php -l labs/identity-f113/test_pg_session_purpose_isolation.php
+          php -l labs/identity-f114/PortalF114InvitedSessionIssuer.php
+          php -l labs/identity-f114/test_pg_invited_password_mfa_session.php
+          php -l labs/identity-f116/PortalF116EmailPasswordTotpEnrollment.php
+          php -l labs/identity-f116/test_pg_email_password_totp_onboarding.php
+          php -l labs/identity-f117/test_pg_atomic_membership_activation.php
+          php -l labs/identity-f118/PortalF118BusinessSessionIssuer.php
+          php -l labs/identity-f118/test_pg_new_business_session.php
+          php -l database/migrations/2026_11_10_000006_create_portal_security_event_log.php
+          php -l database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php
+          php artisan test --no-ansi --filter=PortalEmailVerificationSecretTest
+          php artisan test --no-ansi --filter=PortalInvitationPreflight
+      - name: Prove invitation and business sessions never interchange scope
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000006_create_portal_security_event_log.php --force --no-interaction
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE portal_f76_reader LOGIN PASSWORD 'ci-f76-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f76/permission_gate.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f112/verified_portal_session_evidence.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f113/purpose_isolation_gate.sql
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE portal_f77_throttler LOGIN PASSWORD 'ci-f77-throttle-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f77_throttler"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO portal_f77_throttler"
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f77/auth_throttle.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f115/atomic_email_confirmation.sql
+          php labs/identity-f115/test_pg_atomic_email_confirmation.php
+          php labs/identity-f113/test_pg_session_purpose_isolation.php
+          php labs/identity-f114/test_pg_invited_password_mfa_session.php
+          php labs/identity-f116/test_pg_email_password_totp_onboarding.php
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f106/atomic_invitation_claim.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f107/atomic_invitation_audit.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f108/locked_invitation_claim.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f117/atomic_membership_activation.sql
+          php labs/identity-f117/test_pg_atomic_membership_activation.php
+          php labs/identity-f118/test_pg_new_business_session.php
+          test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true); echo count($r);')" -eq 1
+          ! grep -R -E 'PortalF118BusinessSessionIssuer|PORTAL_F118_PG_LAB|portal_f117_accept_with_audit|PORTAL_F117_PG_LAB|PortalF116EmailPasswordTotpEnrollment|PORTAL_F116_PG_LAB|portal_f115_confirm_email' routes/ bootstrap/ app/Providers/ public/ config/
+      - name: Verify disposable PostgreSQL teardown
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f117_accept_with_audit(text,text,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_membership_audit_append ON public.portal_security_events"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_session_revoke ON public.portal_auth_sessions"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_session_read ON public.portal_auth_sessions"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_membership_activation ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_membership_read ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_organization_lock ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_organization_read ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_identity_lock ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f117_identity_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f117_accept_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f117_accept_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f117_accept_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f117_accept_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f108_locked_claim_with_audit(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f108_lock_identity ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f108_lock_organization ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f108_lock_membership ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f107_claim_with_audit(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f107_invite_event_append ON public.portal_security_events"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f106_claim_invitation(text,uuid,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f106_invitation_probe_update ON public.portal_access_invitations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f106_invitation_probe_read ON public.portal_access_invitations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f106_membership_probe_read ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f106_org_probe_read ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f106_identity_probe_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f106_invitation_definer"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f106_invitation_definer"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f106_invitation_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f106_invitation_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f115_confirm_email(text,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f115_challenge_update ON public.portal_email_verification_challenges"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f115_challenge_read ON public.portal_email_verification_challenges"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f115_identity_update ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f115_identity_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f115_email_definer"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f115_email_definer"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f115_email_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f115_email_probe"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f77_claim_auth_attempt(text,text)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f77_throttler"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f77_throttler"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f113_business_permission_check(text,uuid,text)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f113_business_only_read ON public.portal_auth_sessions"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f113_business_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f113_business_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f76_permission_check(text,uuid,text)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP FUNCTION public.portal_f112_verified_session_evidence(text,uuid)"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f112_session_read ON public.portal_auth_sessions"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f112_membership_read ON public.portal_memberships"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f112_organization_read ON public.portal_organizations"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP POLICY portal_f112_identity_read ON public.portal_identities"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f112_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f112_owner"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_f112_reader"
+          psql -X -v ON_ERROR_STOP=1 -c "DROP ROLE portal_f112_reader"
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000006_create_portal_security_event_log.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_create_portal_access_invitations.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
