@@ -1,0 +1,114 @@
+name: Portal F148 - Disposable merged Portal + SEO regression (NO DEPLOY)
+on:
+  push:
+    branches:
+      - review/portal-f148-ephemeral-portal-seo-integration-ci-2026-11-11
+  pull_request:
+    paths:
+      - '.github/workflows/portal-f148-ephemeral-merged-regression.yml'
+      - 'apps/portal/app/Domain/Authorization/Permission.php'
+      - 'apps/portal/tests/Unit/PortalSeoPermissionConvergenceTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  merged-php-node-regression:
+    name: Disposable integration - PHP 8.4 + Node 24
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    env:
+      SEO_PIN: 500c7cbd2379a1869a52a8ad3133af5c62de830a
+      PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact Portal review HEAD with no persistent GitHub credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Construct a temporary merged Git commit in this runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
+          git fetch --no-tags origin \
+            refs/heads/review/portal-gsc-f142-overlap-static-panel-2026-11-11:refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+          git cat-file -e "$SEO_PIN^{commit}"
+          git merge-base --is-ancestor "$SEO_PIN" \
+            refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+          set +e
+          output="$(git merge-tree --write-tree --name-only --messages "$PORTAL_EXPECTED_HEAD" "$SEO_PIN" 2>&1)"
+          status=$?
+          set -e
+          if [[ "$status" -ne 0 ]]; then
+            echo "Combined review still has Git conflicts. No integration is permitted." >&2
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
+          merged_tree="$(printf '%s\n' "$output" | head -n 1)"
+          [[ "$merged_tree" =~ ^[0-9a-f]{40}$ ]]
+          # This is only a local, unreferenced commit object, not a push or PR merge.
+          ephemeral_commit="$(printf 'CI ONLY - Portal + pinned SEO preview\n' | \
+            git -c user.name='CI Reviewer' \
+                -c user.email='ci-reviewer@example.invalid' \
+                commit-tree "$merged_tree" -p "$PORTAL_EXPECTED_HEAD" -p "$SEO_PIN")"
+          [[ "$ephemeral_commit" =~ ^[0-9a-f]{40}$ ]]
+          git worktree add --detach "$RUNNER_TEMP/portal-merged-f148" "$ephemeral_commit"
+          test "$(git -C "$RUNNER_TEMP/portal-merged-f148" rev-parse HEAD)" = "$ephemeral_commit"
+          test -f "$RUNNER_TEMP/portal-merged-f148/apps/portal/composer.lock"
+          test -f "$RUNNER_TEMP/portal-merged-f148/pnpm-lock.yaml"
+          grep -Fq "case ConnectGoogleSearchConsole = 'seo.gsc.connect';" \
+            "$RUNNER_TEMP/portal-merged-f148/apps/portal/app/Domain/Authorization/Permission.php"
+          grep -Fq "case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';" \
+            "$RUNNER_TEMP/portal-merged-f148/apps/portal/app/Domain/Authorization/Permission.php"
+          grep -Fq "DenyingPortalAuthorities::class" \
+            "$RUNNER_TEMP/portal-merged-f148/apps/portal/app/Providers/AppServiceProvider.php"
+          printf 'PORTAL_REHEARSAL_COMMIT=%s\n' "$ephemeral_commit" >> "$GITHUB_ENV"
+          {
+            echo '## Portal + SEO integration rehearsal'
+            echo ''
+            echo "Portal HEAD: \`$PORTAL_EXPECTED_HEAD\`"
+            echo "SEO pinned SHA: \`$SEO_PIN\`"
+            echo "Ephemeral local merge object: \`$ephemeral_commit\`"
+            echo ''
+            echo 'No branch was merged or pushed. The following tests run on the combined tree.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Node 24 from lockfile
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run the combined Node application tests
+        shell: bash
+        working-directory: ${{ runner.temp }}/portal-merged-f148
+        run: |
+          set -euo pipefail
+          npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+          npm test
+      - name: PHP 8.4 and extensions for combined Laravel tests
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring,dom,xml,pdo,pdo_pgsql,curl,fileinfo,intl,bcmath,zip
+      - name: Install locked Laravel packages without scripts or plugins
+        shell: bash
+        working-directory: ${{ runner.temp }}/portal-merged-f148/apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+      - name: Test the fully combined Laravel code (no database or external services)
+        shell: bash
+        working-directory: ${{ runner.temp }}/portal-merged-f148/apps/portal
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan test --no-ansi
+          php artisan route:list --no-ansi
+          echo 'Combined Portal + pinned SEO/GSC Node and Laravel tests passed.' >> "$GITHUB_STEP_SUMMARY"
