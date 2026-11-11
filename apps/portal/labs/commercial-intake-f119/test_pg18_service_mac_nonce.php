@@ -69,8 +69,10 @@ function countRows(PDO $pdo, string $table, string $org): int
 {
     check(in_array($table, ['metadata_ledger','pending_outbox','service_request_nonce'], true),
         'fixed table');
-    $stmt = $pdo->prepare("SELECT count(*) FROM portal_commercial_ci.{$table} WHERE organization_reference=CAST(:org AS uuid)");
-    $stmt->execute(['org'=>$org]);
+    // F118 ran first in this same disposable DB and has its own synthetic
+    // submission. Count ONLY the F119 logical submission/attempts.
+    $stmt = $pdo->prepare("SELECT count(*) FROM portal_commercial_ci.{$table} WHERE organization_reference=CAST(:org AS uuid) AND submission_reference=CAST(:submission AS uuid)");
+    $stmt->execute(['org'=>$org,'submission'=>'f7f7f7f7-f7f7-4f7f-8f7f-f7f7f7f7f7f7']);
     return (int)$stmt->fetchColumn();
 }
 function deniedSql(PDO $pdo, string $command): void
