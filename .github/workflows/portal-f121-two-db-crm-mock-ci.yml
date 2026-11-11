@@ -1,0 +1,107 @@
+name: Portal F121 - Separate PG18 mock CRM and signed durable lab receipt
+on:
+  push:
+    branches:
+      - review/portal-f121-two-db-crm-mock-signed-receipt-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - 'apps/portal/labs/commercial-intake-f120/**'
+      - 'apps/portal/labs/commercial-intake-f121/**'
+      - '.github/workflows/portal-f121-two-db-crm-mock-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-disposable-databases:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f121-fixture-only-not-a-real-secret
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_F118_PG_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      PORTAL_F121_CRM_MOCK_LAB: '1'
+      DB_HOST: '127.0.0.1'
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f121-fixture-only-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Ensure mock receiver is not imported or registered in Laravel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'commercial-intake-f121|router_crm_mock.php|portal_crm_receiver_lab' \
+            apps/portal/routes apps/portal/bootstrap apps/portal/app 2>/dev/null; then
+            echo 'F121 independent mock receiver imported in runtime' >&2
+            exit 1
+          fi
+      - name: Initialize source and mock receiver PostgreSQL databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f121/router_crm_mock.php
+          php -l apps/portal/labs/commercial-intake-f121/test_two_store_receipt.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f118/test_pg18_metadata_atomicity.php
+          php apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
+          export PGPASSWORD="$DB_PASSWORD"
+          count=$(psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_crm_receiver_lab'")
+          test "$count" = "0"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE portal_crm_receiver_lab"
+          psql -h 127.0.0.1 -U postgres -d portal_crm_receiver_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f121/mock_crm_receiver_pg18.sql
+          test "$(psql -h 127.0.0.1 -U postgres -d portal_crm_receiver_lab \
+            -tAc "SELECT current_database()")" = "portal_crm_receiver_lab"
+      - name: Exercise signed HTTP delivery and independent read-back after lost ACK
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PORTAL_F121_REQ_KEY_HEX="$(openssl rand -hex 48)"
+          export PORTAL_F121_RECEIPT_KEY_HEX="$(openssl rand -hex 48)"
+          test "$PORTAL_F121_REQ_KEY_HEX" != "$PORTAL_F121_RECEIPT_KEY_HEX"
+          php -S 127.0.0.1:19121 \
+            apps/portal/labs/commercial-intake-f121/router_crm_mock.php \
+            >/dev/null 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if php -r '$s=@fsockopen("127.0.0.1",19121,$e,$m,0.2);if($s){fclose($s);exit(0);}exit(1);'; then
+              ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$ready" -eq 1
+          php apps/portal/labs/commercial-intake-f121/test_two_store_receipt.php
