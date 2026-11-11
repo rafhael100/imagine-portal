@@ -4,6 +4,9 @@ on:
     branches:
       - review/portal-int-f150-latest-seo-pagination-2026-11-11
   pull_request:
+    # Protect the original F150 PR only; F151 has a separate test contract.
+    branches:
+      - review/portal-int-f149-portal-seo-merged-candidate-2026-11-11
     paths:
       - '.github/workflows/portal-int-f150-latest-seo-ci.yml'
       - 'apps/portal/**'
