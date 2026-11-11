@@ -1,0 +1,74 @@
+name: Portal F119 - Synthetic service MAC and PG18 nonce replay
+on:
+  push:
+    branches:
+      - review/portal-f119-commercial-service-mac-pg-nonce-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - '.github/workflows/portal-f119-commercial-service-mac-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  private-service-mac-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f119-fixture-only-not-a-real-secret
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_F118_PG_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f119-fixture-only-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Prevent test-only auth/nonce code from entering the Laravel runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'PortalF119SyntheticServiceReservation|commercial-intake-f119' \
+            apps/portal/routes apps/portal/bootstrap apps/portal/app 2>/dev/null; then
+            echo 'F119 CI lab imported into Laravel runtime' >&2
+            exit 1
+          fi
+      - name: Syntax and real disposable PG18 integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f117/PortalCommercialMetadataInspector.php
+          php -l apps/portal/labs/commercial-intake-f118/PortalF118SyntheticMetadataReservation.php
+          php -l apps/portal/labs/commercial-intake-f119/PortalF119SyntheticServiceReservation.php
+          php -l apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f118/test_pg18_metadata_atomicity.php
+          php apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
