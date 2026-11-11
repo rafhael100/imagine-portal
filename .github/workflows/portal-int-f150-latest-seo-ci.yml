@@ -1,0 +1,114 @@
+name: Portal INT-F150 - Verify latest GSC pagination stack in integrated candidate
+on:
+  push:
+    branches:
+      - review/portal-int-f150-latest-seo-pagination-2026-11-11
+  pull_request:
+    paths:
+      - '.github/workflows/portal-int-f150-latest-seo-ci.yml'
+      - 'apps/portal/**'
+      - 'server/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-merged-review-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    env:
+      INTEGRATION_MERGE_SHA: e655c3f8d61debce89920bd22c1ed28878e1d501
+      EXPECTED_MERGE_TREE: 94c5bf76c1161927ec213bec38abfb0a98892799
+      PORTAL_PARENT: 1427a486434f653e6873ea6f3b37294d781aa316
+      SEO_PARENT: 4c081658b3f740415072c780d8770a676d41c455
+    steps:
+      - name: Checkout the draft integration branch at its exact SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify both Git parents and the exact tested merged tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$INTEGRATION_MERGE_SHA^{tree}")" = "$EXPECTED_MERGE_TREE"
+          test "$(git show -s --format=%P "$INTEGRATION_MERGE_SHA")" = "$PORTAL_PARENT $SEO_PARENT"
+          git merge-base --is-ancestor "$INTEGRATION_MERGE_SHA" HEAD
+          set +e
+          tree_output="$(git merge-tree --write-tree --name-only --messages "$PORTAL_PARENT" "$SEO_PARENT" 2>&1)"
+          merge_status=$?
+          set -e
+          test "$merge_status" -eq 0
+          computed_tree="$(printf '%s\n' "$tree_output" | head -n 1)"
+          test "$computed_tree" = "$EXPECTED_MERGE_TREE"
+          # This PR may add ONLY this provenance workflow and explanatory docs
+          # on top of the already fixed two-parent reviewed merge commit.
+          changed="$(git diff --name-only "$INTEGRATION_MERGE_SHA" HEAD)"
+          if [ -n "$changed" ]; then
+            while IFS= read -r path; do
+              case "$path" in
+                .github/workflows/portal-int-f150-latest-seo-ci.yml|apps/portal/docs/PORTAL-INT-F150-SEO-PAGINATION-REVIEW.md) ;;
+                *) echo "Unreviewed post-merge source change: $path" >&2; exit 1 ;;
+              esac
+            done <<< "$changed"
+          fi
+          grep -Fq "case ConnectGoogleSearchConsole = 'seo.gsc.connect';" \
+            apps/portal/app/Domain/Authorization/Permission.php
+          grep -Fq "case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';" \
+            apps/portal/app/Domain/Authorization/Permission.php
+          grep -Fq 'DenyingPortalAuthorities::class' apps/portal/app/Providers/AppServiceProvider.php
+          {
+            echo '## Integration review candidate - exact Git tree'
+            echo ''
+            echo "Portal parent: \`$PORTAL_PARENT\`"
+            echo "SEO/GSC parent: \`$SEO_PARENT\`"
+            echo "Two-parent integration commit: \`$INTEGRATION_MERGE_SHA\`"
+            echo "Verified merged Git tree: \`$EXPECTED_MERGE_TREE\`"
+            echo ''
+            echo '**NO-GO:** review only. No push, merge to dev/main, production authority or deploy.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned Node dependencies and run the combined suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+          npm test
+      - name: Verify latest GSC pagination lab contract exists in merged candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php
+          test -s apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php
+          test -s apps/portal/tests/Unit/GoogleSearchConsoleQueryPagePaginationPlanTest.php
+          test -s apps/portal/labs/gsc-f146/verify_php_request_response_pair.php
+      - name: Setup PHP 8.4 and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring,dom,xml,pdo,pdo_pgsql,curl,fileinfo,intl,bcmath,zip
+      - name: Verify locked Laravel packages and run full unit/feature suite
+        shell: bash
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan test --no-ansi
+          php artisan route:list --no-ansi
+          test "$(php artisan route:list --json | php -r '$a=json_decode(stream_get_contents(STDIN),true); echo count($a);')" -eq 1
+          echo 'Combined Node and Laravel regression passed on the draft integration branch.' >> "$GITHUB_STEP_SUMMARY"
