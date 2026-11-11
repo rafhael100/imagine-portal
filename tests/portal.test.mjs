@@ -479,3 +479,40 @@ test('Jornada bloqueia ações sem pagamento, após estorno e fora dos limites d
  f.db.prepare("UPDATE orders SET payment_status='REFUNDED' WHERE id=?").run(po.id);
  assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:true})).status,409);
 });
+
+
+test('F200: account and fiscal APIs whitelist persisted profile, fiscal and paid briefing fields',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outro cliente'),id=owner.user.id;
+ f.db.prepare('INSERT INTO account_profiles(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({company:'Minha empresa',whatsapp:'11999999999',phone:{token:'PROFILE_NESTED_SECRET'},website:'https://site.example',internal_oauth_token:'PROFILE_PRIVATE_SECRET',version:777}),6,now());
+ f.db.prepare('INSERT INTO fiscal_customers(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({legal_name:'Minha empresa Ltda',document:'52998224725',email:'financeiro@example.test',whatsapp:{token:'FISCAL_NESTED_SECRET'},internal_bank_token:'FISCAL_PRIVATE_SECRET',version:999}),4,now());
+ const project=await order(owner);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id=?").run(project.id);
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(order_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at')
+  .run(project.id,JSON.stringify({company_name:'Empresa autorizada',domain:'empresa.test',notes:'Notas permitidas',internal_secret:'BRIEF_PRIVATE_SECRET',api_key:{secret:'BRIEF_NESTED_SECRET'},services:['ARRAY_NOT_FOR_CLIENT']}),now());
+ const own=await owner.call('/api/account');
+ assert.equal(own.status,200);
+ assert.equal(own.body.profile.version,6);
+ assert.equal(own.body.profile.company,'Minha empresa');
+ assert.equal(own.body.profile.phone,'');
+ assert.equal(own.body.profile.internal_oauth_token,undefined);
+ assert.equal(own.body.fiscal.version,4);
+ assert.equal(own.body.fiscal.legal_name,'Minha empresa Ltda');
+ assert.equal(own.body.fiscal.whatsapp,'');
+ assert.equal(own.body.fiscal.internal_bank_token,undefined);
+ assert.equal(own.body.projects[0].data.company_name,'Empresa autorizada');
+ assert.equal(own.body.projects[0].data.notes,'Notas permitidas');
+ assert.equal(own.body.projects[0].data.internal_secret,undefined);
+ assert.equal(own.body.projects[0].data.api_key,undefined);
+ assert.equal(own.body.projects[0].data.services,undefined);
+ const fiscal=await owner.call('/api/fiscal/customers/'+id);
+ assert.equal(fiscal.status,200);
+ assert.equal(fiscal.body.customer.version,4);
+ assert.equal(fiscal.body.customer.internal_bank_token,undefined);
+ assert.equal((await other.call('/api/fiscal/customers/'+id)).status,403);
+ assert.equal((await other.call('/api/account')).body.projects.length,0);
+ const blob=JSON.stringify(own)+JSON.stringify(fiscal.body);
+ for(const secret of ['PROFILE_PRIVATE_SECRET','PROFILE_NESTED_SECRET','FISCAL_PRIVATE_SECRET','FISCAL_NESTED_SECRET','BRIEF_PRIVATE_SECRET','BRIEF_NESTED_SECRET','ARRAY_NOT_FOR_CLIENT'])
+  assert.equal(blob.includes(secret),false,secret);
+});
