@@ -154,7 +154,9 @@ final class GoogleSearchConsoleMetricsReviewTest extends TestCase
         self::assertNull($this->reviewer()->summarize($valid, ['date'], 0));
         self::assertNull($this->reviewer()->summarize($valid, ['date'], 1001));
         self::assertNull($this->reviewer()->summarize($valid, ['date', 'date']));
-        self::assertNull($this->reviewer()->summarize($valid, ['query']));
+        // Query text may legitimately look like a date; semantic date
+        // validation applies only to the explicit date dimension.
+        self::assertIsArray($this->reviewer()->summarize($valid, ['query']));
         self::assertNull($this->reviewer()->summarize($valid, ['hour']));
         self::assertNull($this->reviewer()->summarize($valid, 'date'));
     }
