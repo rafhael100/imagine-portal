@@ -34,3 +34,16 @@ Nunca fazer upload de bancos de clientes para GitHub.
 Uma cópia SQLite **não** é backup de arquivos enviados, credenciais,
 provedores, Laravel/PostgreSQL ou serviços externos. Planejar essas
 camadas e a política de retenção separadamente.
+
+## Verificação de recuperação sem restauração (F209)
+
+```bash
+node server/backup-cli.mjs --verify /caminho/seguro/backups/portal-2026-11-11.sqlite
+```
+
+Esta execução abre o arquivo **somente para leitura**, rejeita links
+simbólicos, executa `PRAGMA integrity_check` e `foreign_key_check`,
+valida as tabelas canônicas `users`, `sessions`, `orders`,
+`schema_version` e retorna exclusivamente contagens agregadas.
+Não altera, restaura ou publica os dados. A verificação não garante
+sozinha recuperabilidade de anexos, serviços externos e banco PostgreSQL.

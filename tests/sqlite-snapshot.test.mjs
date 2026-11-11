@@ -5,7 +5,8 @@ import {mkdtemp,rm,readFile,stat,readdir,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {createVerifiedSqliteSnapshot} from '../server/snapshot.mjs';
+import {createVerifiedSqliteSnapshot,verifyPortalSqliteSnapshot} from '../server/snapshot.mjs';
+import {openStore} from '../server/store.mjs';
 import {runSnapshotCli} from '../server/backup-cli.mjs';
 
 test('F208: verified SQLite snapshot is private, consistent and refuses overwriting a previous recovery point',async t=>{
@@ -59,4 +60,30 @@ test('F208: CLI requires explicit source/destination, respects read-only source 
  const restored=new DatabaseSync(join(dir,'third.sqlite'),{readOnly:true});
  try{assert.equal(restored.prepare('SELECT message FROM data').get().message,'cópia de segurança');}
  finally{restored.close();}
+});
+
+test('F209: release verification rejects foreign formats and counts Portal tables read-only',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'imagine-snapshot-verify-'));
+ t.after(()=>rm(dir,{recursive:true,force:true}));
+ const db=openStore(':memory:');
+ const target=join(dir,'portal-snapshot.sqlite');
+ try{
+  db.prepare("INSERT INTO users VALUES('user-verification','Responsável','verify@example.test','hash','client','2026-11-11')").run();
+  await createVerifiedSqliteSnapshot(db,target);
+  const verified=await verifyPortalSqliteSnapshot(target);
+  assert.equal(verified.verified,true);
+  assert.equal(verified.foreign_key_violations,0);
+  assert.equal(verified.table_counts.users,1);
+  assert.equal(verified.table_counts.orders,0);
+  const cli=await runSnapshotCli(['--verify',target]);
+  assert.deepEqual(cli,verified);
+  const status=spawnSync(process.execPath,['server/backup-cli.mjs','--verify',target],{cwd:process.cwd(),encoding:'utf8'});
+  assert.equal(status.status,0,status.stderr);
+  assert.equal(JSON.parse(status.stdout).table_counts.users,1);
+  assert.equal((await stat(target)).size>0,true);
+ }finally{db.close();}
+ const notPortal=join(dir,'other.sqlite'),foreign=new DatabaseSync(notPortal);
+ foreign.exec('CREATE TABLE unrelated(value INTEGER)');
+ foreign.close();
+ await assert.rejects(verifyPortalSqliteSnapshot(notPortal),/não é um backup do Portal/);
 });

@@ -1,7 +1,7 @@
 // Explicit operator-only backup utility: no automatic production actions.
 import {backup,DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
-import {open,mkdir,link,stat,unlink} from 'node:fs/promises';
+import {open,mkdir,link,stat,unlink,lstat} from 'node:fs/promises';
 import {dirname,basename,join,resolve} from 'node:path';
 
 export async function createVerifiedSqliteSnapshot(sourceDb,destination){
@@ -27,4 +27,28 @@ export async function createVerifiedSqliteSnapshot(sourceDb,destination){
  }finally{
   try{await unlink(temporary);}catch(error){if(error.code!=='ENOENT')throw error;}
  }
+}
+
+/** F209: read-only release-gate verification; never restores or changes
+ * the destination database. Counts are aggregated, not customer records. */
+export async function verifyPortalSqliteSnapshot(path){
+ if(typeof path!=='string'||!path.trim())throw new TypeError('Informe o caminho do backup.');
+ const source=resolve(path);
+ const attrs=await lstat(source);
+ if(!attrs.isFile()||attrs.isSymbolicLink())throw Error('Backup deve ser arquivo regular, sem link simbólico.');
+ const db=new DatabaseSync(source,{readOnly:true});
+ try{
+  if(db.prepare('PRAGMA integrity_check').get()?.integrity_check!=='ok')
+   throw Error('A integridade do backup falhou.');
+  const violations=db.prepare('PRAGMA foreign_key_check').all();
+  if(violations.length)throw Error('O backup apresenta referências inválidas.');
+  const required=['users','sessions','orders','schema_version'];
+  const actual=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('users','sessions','orders','schema_version')").all().map(r=>r.name);
+  if(required.some(name=>!actual.includes(name)))
+   throw Error('Arquivo não é um backup do Portal SQLite esperado.');
+  const counts=Object.fromEntries(['users','orders'].map(table=>[
+   table,db.prepare('SELECT count(*) AS total FROM '+table).get().total,
+  ]));
+  return {filename:basename(source),verified:true,foreign_key_violations:0,table_counts:counts};
+ }finally{db.close();}
 }
