@@ -10,7 +10,7 @@ use App\Domain\Organizations\OrganizationMembership;
  * Fail-closed placeholder until official Portal sources are implemented.
  * Does not query a database, session, CRM, request or service.
  */
-final class DenyingPortalAuthorities implements PortalSessionAuthority, PortalMembershipAuthority, PortalResourceAuthority
+final class DenyingPortalAuthorities implements PortalSessionAuthority, PortalMembershipAuthority, PortalResourceAuthority, PortalOrganizationAuthority
 {
     public function find(string $opaqueReference): ?PortalSessionSnapshot
     {
@@ -18,6 +18,11 @@ final class DenyingPortalAuthorities implements PortalSessionAuthority, PortalMe
     }
 
     public function findFor(PortalUserId $actor, OrganizationId $organization): ?OrganizationMembership
+    {
+        return null;
+    }
+
+    public function lookup(OrganizationId $organization): ?PortalOrganizationSnapshot
     {
         return null;
     }
