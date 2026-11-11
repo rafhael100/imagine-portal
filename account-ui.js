@@ -44,6 +44,45 @@ function filteredAccountProjects(projects,query='',payment='all',requestedPage=1
 function accountProjectCards(items){
  return items.map(o=>{const data=o.data||{};return `<article><div class="panel-head"><h3>${escapeHtml(o.title)}</h3><span class="fine">#${escapeHtml(o.id.slice(0,8))}</span></div><dl class="account-data">${[['Empresa',data.company_name],['Domínio',data.domain],['E-mail de contato',data.email],['WhatsApp',data.whatsapp],['Telefone',data.phone],['Endereço da empresa',data.address],['Site atual',data.current_site]].map(([label,value])=>`<div><dt>${label}</dt><dd>${escapeHtml(value||'Não informado')}</dd></div>`).join('')}</dl><details><summary>Apresentação, serviços e observações</summary><h4>Apresentação da empresa</h4><p>${escapeHtml(data.company_intro||'Não informada')}</p><h4>Serviços</h4><p>${escapeHtml(data.services||'Não informados')}</p>${data.notes?`<h4>Observações</h4><p>${escapeHtml(data.notes)}</p>`:''}</details><button class="btn secondary" type="button" data-account-project="${escapeHtml(o.id)}">Abrir materiais e projeto ↗</button></article>`}).join('');
 }
+// F190: one client/staff renderer for a bounded, owner-only audit timeline.
+// The backend filters the action allowlist and never returns audit identifiers.
+function bindAccountSecurityHistory(selector){
+ const target=document.querySelector(selector);
+ let page=0,events=[],more=false;
+ const labels={'account.created':'Conta criada','password.changed':'Senha atualizada','sessions.revoked_others':'Outras sessões encerradas','account.email.changed':'E-mail de acesso alterado','account.data_exported':'Cadastro exportado','account.projects_csv_exported':'Planilha de projetos exportada'};
+ const render=()=>{
+  if(!target?.isConnected||state.tab!=='account')return;
+  target.innerHTML=events.length?'<ul>'+events.map(e=>{
+   const timestamp=new Date(e.created_at);
+   const when=Number.isNaN(timestamp.valueOf())?'Data não disponível':new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'}).format(timestamp);
+   return '<li>'+escapeHtml(labels[e.action]||'Evento de segurança')+' · '+escapeHtml(when)+'</li>';
+  }).join('')+'</ul>':'Nenhuma alteração de segurança registrada.';
+  if(more&&page<30)target.innerHTML+='<button class="btn secondary" type="button" data-account-history-more>Mostrar atividades anteriores</button>';
+ };
+ const loadMore=async()=>{
+  if(!target?.isConnected||state.tab!=='account'||page>=30)return;
+  try{
+   const result=await api('/api/account/security-events?page='+(page+1));
+   if(!target.isConnected||state.tab!=='account')return;
+   events.push(...result.events);
+   page=result.page;
+   more=result.has_more;
+   render();
+  }catch{
+   if(target.isConnected&&!events.length)target.textContent='Histórico indisponível no momento.';
+   else if(target.isConnected)notify('Não foi possível consultar as atividades anteriores.',true);
+  }
+ };
+ if(target)target.onclick=e=>{
+  const button=e.target.closest('[data-account-history-more]');
+  if(button&&target.contains(button))void task(button,loadMore);
+ };
+ return async function refreshHistory(){
+  page=0;events=[];more=false;
+  if(target?.isConnected)target.textContent='Carregando histórico…';
+  await loadMore();
+ };
+}
 function clientAccountMarkup(){return (state.config.environment==='sandbox'?'<p class="cj-test-badge">Ambiente de demonstração · confira seus dados antes de salvar.</p>':'')+head('Minha conta, por completo.','Seus dados de acesso, contatos, informações fiscais e projetos, organizados em um só lugar.','<button class="btn secondary" id="account-refresh">Atualizar ↻</button> <button class="btn secondary" type="button" data-account-export="json">Baixar cadastro e projetos ↓</button> <button class="btn secondary" type="button" data-account-export="csv">Planilha dos projetos ↓</button>')+'<div id="account-content" aria-live="polite">Carregando seu cadastro…</div>';}
 async function loadClientAccount(){const box=document.querySelector('#account-content');if(!box)return;
  document.querySelectorAll('[data-account-export]').forEach(button=>{
@@ -90,16 +129,7 @@ async function loadClientAccount(){const box=document.querySelector('#account-co
   }
  };
  void refreshSessionSummary();
- const refreshSecurityHistory=async()=>{
-  const target=document.querySelector('#account-security-history');
-  if(!target||!target.isConnected||state.tab!=='account')return;
-  try{
-   const {events}=await api('/api/account/security-events');
-   if(!target.isConnected||state.tab!=='account')return;
-   const labels={'account.created':'Conta criada','password.changed':'Senha atualizada','sessions.revoked_others':'Outras sessões encerradas','account.email.changed':'E-mail de acesso alterado','account.data_exported':'Cadastro exportado','account.projects_csv_exported':'Planilha de projetos exportada'};
-   target.innerHTML=events.length?'<ul>'+events.map(e=>'<li>'+escapeHtml(labels[e.action]||'Evento de segurança')+' · '+escapeHtml(new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'}).format(new Date(e.created_at)))+'</li>').join('')+'</ul>':'Nenhuma alteração de segurança registrada.';
-  }catch{if(target.isConnected)target.textContent='Histórico indisponível no momento.';}
- };
+ const refreshSecurityHistory=bindAccountSecurityHistory('#account-security-history');
  void refreshSecurityHistory();
  const form=document.querySelector('#account-profile-form');for(const key of ['whatsapp','phone']){form.elements[key].value=CheckoutValidation.phoneMask(form.elements[key].value);form.elements[key].oninput=()=>form.elements[key].value=CheckoutValidation.phoneMask(form.elements[key].value);}form.onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const data=Object.fromEntries(new FormData(form));data.version=p.version;const r=await post('/api/account',data);form.elements.currentPassword.value='';state.user={...state.user,...r.user};render();notify('Seu cadastro foi atualizado.');});};document.querySelector('#account-edit-fiscal').onclick=()=>fiscalCustomerDialog(state.user.id);document.querySelector('#account-open-finance').onclick=()=>{state.tab='finance';render();};document.querySelector('#account-password-form').onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const r=await post('/api/password',Object.fromEntries(new FormData(e.target)));state.csrf=r.csrf;e.target.reset();await refreshSessionSummary();await refreshSecurityHistory();notify('Senha atualizada. As outras sessões foram encerradas.');});};document.querySelector('#account-revoke-sessions-form').onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const result=await post('/api/sessions/revoke-others',Object.fromEntries(new FormData(e.target)));e.target.reset();await refreshSessionSummary();await refreshSecurityHistory();notify(result.revoked_sessions?`${result.revoked_sessions} sessão(ões) em outros aparelhos encerrada(s).`:'Nenhuma outra sessão ativa para encerrar.');});};document.querySelector('#account-refresh').onclick=()=>loadClientAccount();
  }catch(e){if(box.isConnected)box.innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;}}
