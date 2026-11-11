@@ -88,7 +88,15 @@ function fnAs(PDO $db,string $role,string $fn,string $sub,int $version): ?string
         $stmt->execute(['submission'=>$sub,'version'=>$version]);
         $result=$stmt->fetchColumn();
         $db->commit();
-        return $result===null?null:(string)$result;
+        // PDO pgsql converts boolean SQL results into PHP bool. Normalise
+        // only for the test's stable SQL assertion format (t/f).
+        if ($result===null) {
+            return null;
+        }
+        if (is_bool($result)) {
+            return $result?'t':'f';
+        }
+        return (string)$result;
     } catch (Throwable $e) {
         $db->rollBack();
         throw $e;
