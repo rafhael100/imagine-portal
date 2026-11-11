@@ -121,3 +121,7 @@ Nos projetos do tipo **site** com pagamento confirmado, a API paginada apresenta
 ## Projetos aguardando a revisão do cliente (F220)
 
 A interface oferece o filtro `attention=review`, que retorna somente sites **pagos** do próprio titular cuja produção esteja efetivamente em `stage=review`, prontos para uma ação de aprovação ou ajuste. O resumo compacto acrescenta `requires_review`, contado no servidor com a mesma restrição de usuário/pagamento; o cartão exibe o acesso direto ao fluxo do pedido para revisar a prévia. Nenhuma aprovação ou publicação ocorre automaticamente.
+
+## Acessibilidade de consulta e restauração de filtros (F221)
+
+O controle **Limpar filtros** restaura texto, pagamento, etapa, ordenação e revisões pendentes para seus padrões, reiniciando na primeira página. Durante requisições assíncronas, a lista informa `aria-busy`, removido ao receber resposta ou erro. A navegação pelo teclado mantém indicação visível de foco.

@@ -52,3 +52,5 @@
 @media(max-width:700px){.account-project-controls{grid-template-columns:1fr}.account-project-pagination{flex-wrap:wrap}.account-project-pagination button{flex:1;min-width:130px}}
 
 .account-production{display:flex;flex-direction:column;gap:5px;margin:14px 0 18px;font-size:12px;color:#56644e}.account-production progress{width:100%;height:10px;accent-color:#4b785d}.account-project-summary{margin:16px 0 8px;line-height:1.9}.account-project-summary strong{font-variant-numeric:tabular-nums}
+
+.account-project-clear{align-self:end;justify-self:start;min-height:42px}.account-projects [data-account-project]:focus-visible,.account-project-clear:focus-visible{outline:3px solid #dd7c17;outline-offset:3px}
