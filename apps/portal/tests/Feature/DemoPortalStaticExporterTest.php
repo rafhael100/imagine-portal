@@ -259,6 +259,20 @@ final class DemoPortalStaticExporterTest extends TestCase
         (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
     }
 
+    public function test_stale_or_competing_export_claim_prevents_new_output(): void
+    {
+        $claim = $this->temporaryDirectory . '.exporting';
+        self::assertSame(0, file_put_contents($claim, ''));
+        try {
+            $this->expectException(LogicException::class);
+            (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        } finally {
+            self::assertDirectoryDoesNotExist($this->temporaryDirectory);
+            self::assertFileExists($claim);
+            unlink($claim);
+        }
+    }
+
     public function test_existing_output_is_never_overwritten(): void
     {
         $exporter = new DemoPortalStaticExporter();
@@ -289,6 +303,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         }
         self::assertDirectoryDoesNotExist($this->temporaryDirectory);
         self::assertSame([], glob($this->temporaryDirectory . '.staging-*') ?: []);
+        self::assertFileDoesNotExist($this->temporaryDirectory . '.exporting');
     }
 
     public function test_completed_demo_export_has_private_directory_and_file_permissions(): void
@@ -301,6 +316,7 @@ final class DemoPortalStaticExporterTest extends TestCase
                 fileperms($this->temporaryDirectory . '/' . $name) & 0777);
         }
         self::assertSame([], glob($this->temporaryDirectory . '.staging-*') ?: []);
+        self::assertFileDoesNotExist($this->temporaryDirectory . '.exporting');
     }
 
     public function test_export_does_not_register_routes_or_grant_real_access(): void
