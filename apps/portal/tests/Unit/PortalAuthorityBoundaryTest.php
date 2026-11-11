@@ -348,6 +348,24 @@ final class PortalAuthorityBoundaryTest extends TestCase
         self::assertNull(PortalSessionPurpose::tryFrom('oauth'));
         self::assertNull(PortalSessionPurpose::tryFrom('business '));
         self::assertNull(PortalSessionPurpose::tryFrom(''));
+
+        // F113's PostgreSQL CHECK and lifetime fence are the canonical
+        // persisted contract. Source parity is a canary, not live DB proof.
+        $migration = file_get_contents(__DIR__.'/../../database/migrations/'
+            .'2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php');
+        self::assertIsString($migration);
+        self::assertStringContainsString(
+            "session_purpose IN ('business','invitation_only')", $migration,
+        );
+        self::assertStringContainsString(
+            "session_purpose IS DISTINCT FROM 'business'", $migration,
+        );
+        self::assertStringContainsString(
+            "expires_at <= issued_at + interval '1 day'", $migration,
+        );
+        self::assertStringContainsString(
+            'portal_f113_reject_session_purpose_change', $migration,
+        );
     }
 
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void
