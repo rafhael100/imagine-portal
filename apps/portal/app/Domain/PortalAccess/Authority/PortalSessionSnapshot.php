@@ -26,11 +26,14 @@ final readonly class PortalSessionSnapshot
         // INT-F152: the authenticated Portal session's intended tenant.
         // A selected tenant supplied to the boundary is NOT session evidence.
         public OrganizationId $sessionOrganizationId,
+        // Revision captured when the Portal-only session was issued.
+        public int $sessionMembershipRevision,
     ) {
         if ($issuedAt <= 0
             || $expiresAt <= $issuedAt
             || $accountRevision <= 0
-            || $sessionAccountRevision <= 0) {
+            || $sessionAccountRevision <= 0
+            || $sessionMembershipRevision <= 0) {
             throw new InvalidArgumentException('Invalid synthetic session snapshot.');
         }
     }
