@@ -7,3 +7,7 @@ O script `emit_node_query_page_review.mjs` utiliza os módulos verdadeiros do SE
 **Limites:** o SHA pinado comprova apenas qual **código** gerou o DTO sintético no CI; não comprova origem de consultas reais, consentimento, acesso à propriedade nem identidade do usuário. Não é liberação de exibição ao cliente, de Google HTTP, OAuth, migrações ou deploy. Os testes continuam `APP_ENV=testing`, sob flags laboratoriais, sem rota HTTP, banco real ou tokens.
 
 CI exigido: Portal F79 em PHP 8.3/8.4 e Node 22/24 (a paridade F156 roda na combinação 8.4/22). Revisão independente AppSec/DBA/LGPD, IAM e homologação em staging continuam gates obrigatórios para qualquer integração operacional.
+
+## F158 — Cenários de duas páginas
+
+O mesmo pipeline F156 agora inclui `multi` (três linhas em duas páginas, sobreposição detectada entre offsets 0 e 2) e `multi_redacted` (a segunda página contém URL parametrizada com token sintético e a revisão é suprimida). A validação cruzada em PHP exige duas páginas, `pageSize=2`, último lote com uma linha, sem continuação nem publicação. O token fictício nunca deve sair no JSON agregado. Dados de testes somente; sem autorização real ou rede.
