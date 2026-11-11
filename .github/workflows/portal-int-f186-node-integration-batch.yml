@@ -22,7 +22,6 @@ jobs:
     env:
       PORTAL_REVIEW_BASE: node-f163
       PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-      PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-f186-node-review
     steps:
       - name: Checkout exact candidate without persistent credentials
         uses: actions/checkout@v5
@@ -45,8 +44,12 @@ jobs:
       - name: Verify inventory helpers and review defaults
         run: node --test apps/portal/tools/integration/*.test.mjs
       - name: Generate complete file inventory and reviewer packets
+        env:
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-f186-node-review
         run: node apps/portal/tools/integration/inventory.mjs
       - name: Generate full per-commit independent review queue
+        env:
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-f186-node-review
         run: node apps/portal/tools/integration/commit-review.mjs
       - name: Archive limited-lifetime evidence without source or secrets
         uses: actions/upload-artifact@v5
