@@ -20,7 +20,7 @@ function fakeAsaas(){const customers=[],payments=[],subscriptions=[],checkouts=[
  findPayments:async ref=>payments.filter(p=>p.externalReference===ref),createPayment:async d=>{const p={...d,id:'pay_'+randomUUID(),status:'PENDING',invoiceUrl:'https://sandbox.asaas.com/i/test'};payments.push(p);return p},getPayment:async id=>{const p=payments.find(p=>p.id===id);if(!p)throw Error('Not found');return p},
  createCheckout:async data=>{const c={...data,id:randomUUID(),status:'ACTIVE'};checkouts.push(c);return c},checkoutUrl:id=>'https://sandbox.asaas.com/checkoutSession/show?id='+id,
  cancelCheckout:async id=>{const c=checkouts.find(c=>c.id===id);if(c)c.status='CANCELED';return {}},listSubscriptions:async customer=>subscriptions.filter(s=>s.customer===customer),getSubscription:async id=>subscriptions.find(s=>s.id===id),subscriptionPayments:async id=>payments.filter(p=>p.subscription===id&&!p.deleted),cancelSubscription:async id=>{const s=subscriptions.find(s=>s.id===id);s.deleted=true;for(const p of payments)if(p.subscription===id&&['PENDING','OVERDUE'].includes(p.status))p.deleted=true;return {deleted:true}}}}
-async function fixture(t){const uploadDir=await mkdtemp(join(tmpdir(),'imagine-upload-test-'));const db=openStore(':memory:'),gateway=fakeAsaas(),origin='http://127.0.0.1:4173',secret='a'.repeat(40);const app=createApp({newSiteBilling:'legacy',db,asaas:gateway,publicDir,origin,webhookToken:secret,clock:()=>fixed,uploadDir});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;const clients=[];async function client(name='Cliente',role='client'){const email=randomUUID()+'@example.test',password='uma-senha-de-teste-longa';if(role==='admin')db.prepare("INSERT INTO users VALUES(?,?,?,?,'admin',?)").run(randomUUID(),name,email,await hashPassword(password),now());const c={cookie:'',csrf:'',user:null};c.call=async(path,data,method)=>{const r=await fetch(url+path,{method:method||(data===undefined?'GET':'POST'),headers:{Origin:origin,'Content-Type':'application/json',Cookie:c.cookie,'X-CSRF-Token':c.csrf},body:data===undefined?undefined:JSON.stringify(data)});let body;const content=await r.text();try{body=JSON.parse(content)}catch{body=content}const cookie=r.headers.get('set-cookie');if(cookie)c.cookie=cookie.split(';')[0];if(body.csrf)c.csrf=body.csrf;if(body.user)c.user=body.user;return {status:r.status,body,headers:r.headers}};const result=await c.call(role==='admin'?'/api/login':'/api/register',{name,email,password});assert.ok([200,201].includes(result.status));clients.push(c);return c}t.after(async()=>{await new Promise(r=>app.server.close(r));db.close();assert.ok(basename(uploadDir).startsWith('imagine-upload-test-'));await rm(uploadDir,{recursive:true,force:true})});return {...app,db,gateway,client,url,origin,secret,uploadDir}}
+async function fixture(t,{trustProxy=false}={}){const uploadDir=await mkdtemp(join(tmpdir(),'imagine-upload-test-'));const db=openStore(':memory:'),gateway=fakeAsaas(),origin='http://127.0.0.1:4173',secret='a'.repeat(40);const app=createApp({newSiteBilling:'legacy',db,asaas:gateway,publicDir,origin,webhookToken:secret,clock:()=>fixed,uploadDir,trustProxy});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;const clients=[];async function client(name='Cliente',role='client'){const email=randomUUID()+'@example.test',password='uma-senha-de-teste-longa';if(role==='admin')db.prepare("INSERT INTO users VALUES(?,?,?,?,'admin',?)").run(randomUUID(),name,email,await hashPassword(password),now());const c={cookie:'',csrf:'',user:null};c.call=async(path,data,method)=>{const r=await fetch(url+path,{method:method||(data===undefined?'GET':'POST'),headers:{Origin:origin,'Content-Type':'application/json',Cookie:c.cookie,'X-CSRF-Token':c.csrf},body:data===undefined?undefined:JSON.stringify(data)});let body;const content=await r.text();try{body=JSON.parse(content)}catch{body=content}const cookie=r.headers.get('set-cookie');if(cookie)c.cookie=cookie.split(';')[0];if(body.csrf)c.csrf=body.csrf;if(body.user)c.user=body.user;return {status:r.status,body,headers:r.headers}};const result=await c.call(role==='admin'?'/api/login':'/api/register',{name,email,password});assert.ok([200,201].includes(result.status));clients.push(c);return c}t.after(async()=>{await new Promise(r=>app.server.close(r));db.close();assert.ok(basename(uploadDir).startsWith('imagine-upload-test-'));await rm(uploadDir,{recursive:true,force:true})});return {...app,db,gateway,client,url,origin,secret,uploadDir}}
 function enableSite(db){db.prepare("UPDATE products SET enabled=1,scope=?,delivery=? WHERE id='site'").run('Site Onepage responsivo, com seções combinadas, contato e uma rodada de revisão.','Prazo de 15 dias úteis após recebimento do conteúdo.');}
 async function order(c,product='site'){const result=await c.call('/api/orders',{product,brief:'Precisamos de um site para a nossa empresa.',requestId:randomUUID()});assert.equal(result.status,201);return result.body.order}
 async function pay(c,o,extra={}){return c.call('/api/orders/'+o.id+'/checkout',{cpfCnpj:'52998224725',accepted:true,termsVersion:o.terms_version,...extra})}
@@ -60,6 +60,40 @@ test('Troca de senha segue revogando todas as sessões antigas após a limitaç�
  assert.equal((await user.call('/api/session')).body.user.id,user.user.id);
  assert.equal((await user.call('/api/login',{email:user.user.email,password:old})).status,401);
  assert.equal((await user.call('/api/login',{email:user.user.email,password:next})).status,200);
+});
+
+test('Rate limit distingue IPs atrás de proxy explicitamente confiável sem punir clientes diferentes',async t=>{
+ const f=await fixture(t,{trustProxy:true});
+ const request=ip=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':ip},
+  body:JSON.stringify({}),
+ });
+ // Invalid signup is rejected before hashing a password but still counts
+ // toward the IP's real 8-per-hour rate limit.
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.11')).status,400);
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.12')).status,400);
+ assert.equal((await request('198.51.100.11')).status,429);
+ assert.equal((await request('198.51.100.12')).status,429);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%' ORDER BY key").all();
+ assert.deepEqual(buckets.map(row=>row.count),[8,8]);
+ assert.deepEqual(buckets.map(row=>row.key),
+  ['register:198.51.100.11','register:198.51.100.12']);
+});
+
+test('Sem confiança de proxy, X-Forwarded-For manipulado nunca reseta o limite de cadastro',async t=>{
+ const f=await fixture(t,{trustProxy:false});
+ const request=ip=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':ip},
+  body:JSON.stringify({}),
+ });
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.'+(i+10))).status,400);
+ assert.equal((await request('203.0.113.201')).status,429);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%'").all();
+ assert.equal(buckets.length,1);
+ assert.equal(buckets[0].count,8);
+ assert.ok(['register:127.0.0.1','register:::1'].includes(buckets[0].key));
 });
 
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
