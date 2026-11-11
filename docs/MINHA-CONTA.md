@@ -169,3 +169,7 @@ CSV e JSON compartilham um lease transacional SQLite por titular. Uma segunda ex
 ### Limpeza de leases abandonados (F237)
 
 O mesmo ciclo de coleta de quotas (a cada cinco minutos por processo) remove leases de exportação vencidos pelo índice `idx_account_export_leases_expires`, sem remover transferências ainda válidas. Testes sintéticos cobrem expiração por falha de worker e isolamento da exportação ativa de outro titular.
+
+### Evitar CI duplicada para push e PR da mesma branch (F239)
+
+As verificações Node.js, OAuth/GSC e inventários F144/F186 agora identificam a concorrência por `github.head_ref || github.ref_name`, fazendo com que `push` e `pull_request` do mesmo ramo compartilhem o grupo. Execuções antigas dessa branch são canceladas, em vez de permanecerem duplicadas na fila. Uma execução cancelada não é sinal verde; a verificação do SHA final continua obrigatória. Verificações de branches distintas continuam independentes.
