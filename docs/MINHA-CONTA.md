@@ -93,3 +93,11 @@ por busca/filtro. Caso o total filtrado ultrapasse esse teto, a API indica
 `limited: true`, encerra `has_more` no último resultado permitido e a tela
 informa que a exportação completa continua disponível. Não há tentativa de
 consultar páginas inválidas nem truncagem silenciosa do CSV/JSON.
+
+## Limite antiabuso das consultas paginadas (F211)
+
+Para reduzir pesquisas repetitivas custosas e preservar outros usuários,
+`GET /api/account/projects` limita cada conta a 120 consultas por janela
+de 60 segundos. A quota é independente por titular e separada das
+exportações (20/hora). A interface informa quando é preciso aguardar e
+não recomenda tentativas automáticas contínuas.

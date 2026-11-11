@@ -176,6 +176,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   return send(res,200,data);
  }
  if(path==='/api/account/projects'&&method==='GET'){
+  limit('account-projects:'+user.id,120,60000);
   return send(res,200,accountProjectsPage(db,user,{
    page:url.searchParams.get('page')??'1',
    payment:url.searchParams.get('payment')??'all',

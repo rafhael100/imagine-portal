@@ -639,3 +639,19 @@ test('F206: saving own account in compact mode does not return the full archive'
  assert.equal(next.body.profile.company,'Minha empresa');
  assert.equal((await foreign.call('/api/account')).body.projects.length,0);
 });
+
+test('F211: bounded project search quota prevents expensive repeated reads without cross-tenant denial',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),other=await f.client('Outro');
+ const route='/api/account/projects?search=test';
+ for(let i=0;i<120;i++){
+  const response=await owner.call(route);
+  assert.equal(response.status,200,'request '+i);
+ }
+ const blocked=await owner.call(route);
+ assert.equal(blocked.status,429);
+ assert.match(blocked.body.error,/Muitas tentativas/);
+ assert.equal((await other.call(route)).status,200);
+ const key='account-projects:'+owner.user.id;
+ f.db.prepare('UPDATE rate_limits SET reset_at=? WHERE key=?').run(Date.now()-5000,key);
+ assert.equal((await owner.call(route)).status,200);
+});

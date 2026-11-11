@@ -90,3 +90,11 @@ test('F210: remote browser stops at capped last page and offers full export guid
  assert.ok(h.result.innerHTML.includes('Página 1000 de 1000'));
  assert.ok(h.result.innerHTML.includes('data-account-page="next" disabled'));
 });
+
+test('F211: rate-limited project search displays a clear retry-later message',async()=>{
+ const h=harness();
+ h.calls[0].reject(new Error('Muitas tentativas. Aguarde alguns minutos.'));
+ await tick();
+ assert.ok(h.result.innerHTML.includes('Muitas consultas em pouco tempo'));
+ assert.ok(h.result.innerHTML.includes('Tentar novamente'));
+});

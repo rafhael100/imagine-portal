@@ -111,9 +111,14 @@ function bindAccountProjectArchive(projects,{remote=false,allCount=projects.leng
   return api(url).then(result=>{
    if(request!==generation||!projectResults.isConnected)return;
    show({items:result.projects,count:result.total,page:result.page,pages:result.pages,limited:result.limited});
-  }).catch(()=>{
-   if(request===generation&&projectResults.isConnected)
-    projectResults.innerHTML='<div class="empty">Não foi possível consultar os projetos. <button class="btn secondary" type="button" data-account-page="retry">Tentar novamente</button></div>';
+  }).catch(error=>{
+   if(request===generation&&projectResults.isConnected){
+    const throttled=typeof error?.message==='string'&&/Muitas tentativas/i.test(error.message);
+    projectResults.innerHTML='<div class="empty">'+(throttled?
+     'Muitas consultas em pouco tempo. Aguarde alguns minutos para pesquisar novamente.':
+     'Não foi possível consultar os projetos.')+
+     ' <button class="btn secondary" type="button" data-account-page="retry">Tentar novamente</button></div>';
+   }
   });
  };
  projectSearch.oninput=()=>{
