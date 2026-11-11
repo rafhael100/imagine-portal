@@ -20,6 +20,7 @@ on:
       - 'apps/portal/labs/gsc-f156/**'
       - 'apps/portal/labs/gsc-f157/**'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
+      - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
@@ -78,17 +79,33 @@ jobs:
         env:
           APP_ENV: testing
           PORTAL_GSC_QUERY_PAGE_REVIEW_LAB: '1'
+          PORTAL_GSC_REVIEW_HTML_LAB: '1'
         run: |
           set -euo pipefail
           umask 077
           node --check apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs
           php -l apps/portal/labs/gsc-f156/verify_php_query_page_review.php
           php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
+          php -l apps/portal/tools/f159-render-gsc-query-page-review-offline.php
           fixture="$(mktemp)"
-          trap 'rm -f "$fixture"' EXIT
+          html="$(mktemp)"
+          trap 'rm -f "$fixture" "$html"' EXIT
           for scenario in complete redacted partial empty multi multi_redacted; do
             node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
             php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+            php apps/portal/tools/f159-render-gsc-query-page-review-offline.php "$fixture" > "$html"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$html"
+            grep -q 'name="robots" content="noindex,nofollow"' "$html"
+            grep -q "connect-src 'none'" "$html"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$html"; then
+              echo 'F159: interactive/unsafe HTML refused' >&2
+              exit 1
+            fi
+            if [[ "$scenario" == redacted || "$scenario" == multi_redacted ]]; then
+              grep -q 'Linhas privadas ocultadas: sugestões desativadas' "$html"
+            elif [[ "$scenario" == partial ]]; then
+              grep -q 'Amostra possivelmente incompleta: sugestões desativadas' "$html"
+            fi
           done
       - name: Verify SEO RC32 F67 privacy trends through Portal PHP and static HTML
         if: matrix.php == '8.4' && matrix.node == '22'
@@ -262,7 +279,7 @@ jobs:
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|PORTAL_GSC_TREND_HTML_LAB|f153-render-gsc-overlap-trend-offline|OfflineGscOverlapTrendPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|PORTAL_GSC_TREND_HTML_LAB|f153-render-gsc-overlap-trend-offline|OfflineGscOverlapTrendPreview|f159-render-gsc-query-page-review-offline|OfflineGscQueryPageReviewPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
