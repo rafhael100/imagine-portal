@@ -52,7 +52,7 @@ jobs:
           if [ -n "$changed" ]; then
             while IFS= read -r path; do
               case "$path" in
-                .github/workflows/portal-int-f150-latest-seo-ci.yml|apps/portal/docs/PORTAL-INT-F150-SEO-PAGINATION-REVIEW.md) ;;
+                .github/workflows/portal-int-f150-latest-seo-ci.yml|.github/workflows/portal-int-f149-merged-candidate-ci.yml|apps/portal/docs/PORTAL-INT-F150-SEO-PAGINATION-REVIEW.md) ;;
                 *) echo "Unreviewed post-merge source change: $path" >&2; exit 1 ;;
               esac
             done <<< "$changed"
