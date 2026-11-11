@@ -6,6 +6,7 @@ namespace App\Presentation;
 
 use LogicException;
 use RuntimeException;
+use Throwable;
 
 /**
  * F58: offline, read-only artifact generator for seven existing DEMO Blade
@@ -25,12 +26,16 @@ final class DemoPortalStaticExporter
         if (is_dir($directory) || file_exists($directory) || is_link($directory)) {
             throw new LogicException('Demo export target must not exist.');
         }
-        if (!mkdir($directory, 0700, true)) {
-            throw new RuntimeException('Cannot create dedicated demo export directory.');
+        // F134: stage all nine files in a private sibling, then publish the
+        // complete directory in one filesystem rename. No partial export.
+        $staging = $directory . '.staging-' . bin2hex(random_bytes(10));
+        if (is_dir($staging) || file_exists($staging) || is_link($staging)
+            || !mkdir($staging, 0700, true)) {
+            throw new RuntimeException('Cannot create private demo staging directory.');
         }
-        chmod($directory, 0700);
-
-        $files = [];
+        chmod($staging, 0700);
+        try {
+            $files = [];
         $links = '<a href="index.html">Índice</a>';
         foreach (ClientSection::cases() as $section) {
             $links .= ' <a href="' . $section->value . '.html">' .
@@ -49,10 +54,10 @@ final class DemoPortalStaticExporter
             }
             $html = str_replace('<body>', '<body>' . $nav, $html);
             $name = $section->value . '.html';
-            if (file_put_contents($directory . DIRECTORY_SEPARATOR . $name, $html, LOCK_EX) === false) {
+            if (file_put_contents($staging . DIRECTORY_SEPARATOR . $name, $html, LOCK_EX) === false) {
                 throw new RuntimeException('Cannot write a demo page.');
             }
-            chmod($directory . DIRECTORY_SEPARATOR . $name, 0600);
+            chmod($staging . DIRECTORY_SEPARATOR . $name, 0600);
             $files[] = $name;
         }
 
@@ -66,10 +71,10 @@ final class DemoPortalStaticExporter
         }
         $reviewHtml = str_replace('<body>', '<body>' . $nav, $reviewHtml);
         $reviewName = 'delivery-review.html';
-        if (file_put_contents($directory . DIRECTORY_SEPARATOR . $reviewName, $reviewHtml, LOCK_EX) === false) {
+        if (file_put_contents($staging . DIRECTORY_SEPARATOR . $reviewName, $reviewHtml, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the review preview.');
         }
-        chmod($directory . DIRECTORY_SEPARATOR . $reviewName, 0600);
+        chmod($staging . DIRECTORY_SEPARATOR . $reviewName, 0600);
         $files[] = $reviewName;
 
         $list = '';
@@ -88,13 +93,28 @@ final class DemoPortalStaticExporter
             '<p class="warning">Somente dados fictícios. Sem login, contrato, pagamento, cliente ou publicação.</p>' .
             '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav></body></html>';
 
-        if (file_put_contents($directory . DIRECTORY_SEPARATOR . 'index.html', $index, LOCK_EX) === false) {
+        if (file_put_contents($staging . DIRECTORY_SEPARATOR . 'index.html', $index, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the demo index.');
         }
-        chmod($directory . DIRECTORY_SEPARATOR . 'index.html', 0600);
+        chmod($staging . DIRECTORY_SEPARATOR . 'index.html', 0600);
         $files[] = 'index.html';
 
-        return $files;
+            if (is_dir($directory) || file_exists($directory) || is_link($directory)
+                || !rename($staging, $directory)) {
+                throw new RuntimeException('Demo export target changed before commit.');
+            }
+            return $files;
+        } catch (Throwable $error) {
+            foreach (glob($staging . DIRECTORY_SEPARATOR . '*.html') ?: [] as $part) {
+                if (is_file($part) && !is_link($part)) {
+                    @unlink($part);
+                }
+            }
+            if (is_dir($staging) && !is_link($staging)) {
+                @rmdir($staging);
+            }
+            throw $error;
+        }
     }
 
     public static function authorizesCustomerAccess(): bool { return false; }
