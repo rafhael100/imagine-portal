@@ -86,6 +86,8 @@ final class DemoPortalStaticExporter
         $index = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' .
             '<meta name="viewport" content="width=device-width,initial-scale=1">' .
             '<meta name="robots" content="noindex,nofollow">' .
+            '<meta name="referrer" content="no-referrer">' .
+            '<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">' .
             '<title>Imagine Portal — prévia interna offline</title>' .
             '<style>body{font:16px/1.6 system-ui;margin:30px auto;max-width:760px;padding:0 20px;color:#142239}' .
             'a{color:#225fc2}li{padding:7px 0}.warning{border:1px solid #c78b39;padding:15px}</style>' .
