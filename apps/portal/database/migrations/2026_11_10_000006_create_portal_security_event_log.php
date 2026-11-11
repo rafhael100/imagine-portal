@@ -56,7 +56,7 @@ return new class extends Migration
             "ALTER TABLE portal_security_events ADD CONSTRAINT portal_security_event_code_ck "
             . "CHECK (event_code IN ("
             . "'identity.revoked','membership.revoked','organization.suspended',"
-            . "'session.revoked','mfa.reset','grant.revoked','invitation.consumed'))"
+            . "'session.revoked','mfa.reset','grant.revoked','invitation.consumed','membership.activated'))"
         );
         DB::statement(
             "ALTER TABLE portal_security_events ADD CONSTRAINT portal_security_evidence_hash_ck "
