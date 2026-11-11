@@ -215,7 +215,60 @@ $db->prepare(
       id,membership_id,permission_code,created_at,updated_at
     ) VALUES(?,?,'services.view',now(),now())"
 )->execute(['e7777777-7777-4777-8777-777777777777',$membership]);
-$ok($checkPermission($digest,'services.view'),
+$explicitGrantAllowed=$checkPermission($digest,'services.view');
+if(!$explicitGrantAllowed){
+    // Only emit safe boolean diagnostics; no cookie, digest, email, code,
+    // password, TOTP secret or personal identifiers leave the CI runner.
+    $check=$db->prepare(
+        "SELECT
+          s.status='active' AS session_active,
+          s.session_purpose='business' AS business_purpose,
+          s.revoked_at IS NULL AS session_unrevoked,
+          s.issued_at<=clock_timestamp() AS issued_before_clock,
+          s.expires_at>clock_timestamp() AS session_unexpired,
+          s.expires_at<=s.issued_at+interval '1 day' AS ttl_bounded,
+          s.mfa_verified_at IS NOT NULL AS mfa_exists,
+          s.mfa_verified_at<=clock_timestamp() AS mfa_not_future,
+          i.status='active' AS identity_active,
+          i.email_verified_at IS NOT NULL AS email_confirmed,
+          i.mfa_confirmed_at IS NOT NULL AS totp_enrolled,
+          i.security_revision=s.identity_revision AS identity_rev_match,
+          o.status='active' AS org_active,
+          o.security_revision=s.organization_revision AS org_rev_match,
+          m.status='active' AS membership_active,
+          m.membership_revision=s.membership_revision AS membership_rev_match,
+          EXISTS(SELECT 1 FROM portal_membership_grants g
+            WHERE g.membership_id=m.id AND g.permission_code='services.view')
+            AS explicit_grant_exists
+         FROM portal_auth_sessions s
+         JOIN portal_identities i ON i.id=s.identity_id
+         JOIN portal_organizations o ON o.id=s.organization_id
+         JOIN portal_memberships m ON m.identity_id=s.identity_id
+          AND m.organization_id=s.organization_id
+         WHERE s.session_sha256=:digest"
+    );
+    $check->execute(['digest'=>$digest]);
+    $conditions=$check->fetch()?:[];
+    $raw=$db->prepare(
+        'SELECT public.portal_f76_permission_check('
+        .':digest,CAST(:org AS uuid),:perm)'
+    );
+    $raw->execute(['digest'=>$digest,'org'=>$org,'perm'=>'services.view']);
+    $fromOwner=$db->prepare(
+        "SELECT has_column_privilege(
+          'portal_f113_business_owner','public.portal_auth_sessions',
+          'session_purpose','SELECT')"
+    );
+    $fromOwner->execute();
+    $diagnostics=[
+        'f76_raw'=>$yes($raw->fetchColumn()),
+        'f113_owner_can_read_purpose'=>$yes($fromOwner->fetchColumn()),
+        'checked_conditions'=>$conditions,
+    ];
+    fwrite(STDERR,'PORTAL-F118 SAFE PREDICATES '
+        .json_encode($diagnostics,JSON_THROW_ON_ERROR)."\n");
+}
+$ok($explicitGrantAllowed,
     'explicit tenant grant allows only matching fresh business session');
 $ok(!$checkPermission($digest,'billing.view'),
     'business session does not imply unrelated billing grant');
