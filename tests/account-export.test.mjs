@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {projectsCsv,safeCsvCell,accountDataExport} from '../server/account-export.mjs';
+import {projectsCsv,projectsCsvChunks,safeCsvCell,accountDataExport} from '../server/account-export.mjs';
 
 test('F177: valores de planilhas potencialmente executáveis viram texto, inclusive com espaços',()=>{
  for(const value of ['=1+1','+SUM(1,2)','-1+2','@SUM(1)','  =HYPERLINK("https://example.test")','\t=2+2','\u200B=1+1','\u2060@SUM(1)','\u202E=HYPERLINK(1)','\u0000+1']){
@@ -63,4 +63,19 @@ test('F181: JSON export has an explicit allowlist even with unexpected sensitive
   assert.equal(text.includes(secret),false,secret);
  }
  assert.throws(()=>accountDataExport({projects:null}),TypeError);
+});
+
+test('F229: chunked CSV matches legacy output exactly and iterates without materializing rows',()=>{
+ const rows=Array.from({length:117},(_,i)=>({id:'p'+i,title:i%2?'=SUM(1,2)':'Projeto '+i,created_at:'2026-11-11',payment_status:'RECEIVED',phase:'revisao',data:{company_name:'Empresa '+i,domain:'empresa.test'}}));
+ for(const withStage of [false,true]){
+  let visited=0;
+  function *source(){for(const row of rows){visited++;yield row;}}
+  const parts=[...projectsCsvChunks(source(),{withStage})];
+  assert.equal(visited,117);
+  assert.equal(parts.length,118);
+  assert.equal(parts.join(''),projectsCsv(rows,{withStage}));
+  assert.ok(parts[0].startsWith('\\uFEFF'));
+  assert.ok(parts[2].includes("'=SUM(1,2)"));
+ }
+ assert.throws(()=>[...projectsCsvChunks(null)],TypeError);
 });

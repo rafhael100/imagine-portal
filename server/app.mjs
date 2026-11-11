@@ -1,5 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
-import {projectsCsv,accountDataExport} from './account-export.mjs';
+import {projectsCsv,projectsCsvChunks,accountDataExport} from './account-export.mjs';
+import {iterateOwnerExportProjects,writeExportChunks} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -158,12 +159,13 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   limit('account-export:'+user.id,20,3600000);
   const columns=url.searchParams.get('columns')??'';
   assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
-  const csv=projectsCsv(accountProfile.view(user).projects,{withStage:columns==='stage'});
+  // F229: preserve the CSV contract while avoiding the full in-memory project array.
+  const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
   res.setHeader('Content-Type','text/csv; charset=utf-8');
   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
   audit(db,user.id,'account.projects_csv_exported',user.id);
   res.writeHead(200);
-  return res.end(csv);
+  return writeExportChunks(res,chunks);
  }
  if(path==='/api/account/export'&&method==='GET'){
   // Explicitly scoped read-only self-service: profile, fiscal registration,

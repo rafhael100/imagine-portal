@@ -10,15 +10,18 @@ export function safeCsvCell(value){
  const safe=/^[\s\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
-export function projectsCsv(projects,{withStage=false}={}){
- if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
+export function *projectsCsvChunks(projects,{withStage=false}={}){
+ if(!projects||typeof projects[Symbol.iterator]!=='function')throw new TypeError('Projetos inválidos.');
  const headers=withStage?[...HEADERS,'Etapa do projeto']:HEADERS;
- const rows=[headers,...projects.map(p=>[
-  p.id,p.title,p.created_at,p.payment_status,
-  p.data?.company_name||'',p.data?.domain||'',
-  ...(withStage?[p.phase||'']:[]),
- ])];
- return '\uFEFF'+rows.map(row=>row.map(safeCsvCell).join(';')).join('\r\n')+'\r\n';
+ yield '\uFEFF'+headers.map(safeCsvCell).join(';')+'\r\n';
+ for(const p of projects){
+  const fields=[p.id,p.title,p.created_at,p.payment_status,p.data?.company_name||'',p.data?.domain||'',...(withStage?[p.phase||'']:[])];
+  yield fields.map(safeCsvCell).join(';')+'\r\n';
+ }
+}
+export function projectsCsv(projects,options={}){
+ if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
+ return [...projectsCsvChunks(projects,options)].join('');
 }
 
 const PROFILE_FIELDS=['company','whatsapp','phone','website','version','updated_at'];
