@@ -206,6 +206,20 @@ $ok(!$claim($acceptor),'old session cannot be replayed after activation');
 
 // New business credential must be a fresh pending-MFA session, after the
 // membership updated_at. It still requires explicit service grants to work.
+// Shared runners can move the PostgreSQL clock backwards momentarily after
+// F118 stored the membership activation timestamp. Real issuers MUST deny
+// future-dated sessions; the CI fixture waits until time has progressed.
+$ready=false;
+$clock=$db->prepare(
+    "SELECT updated_at <= clock_timestamp() - interval '2 seconds'
+       FROM portal_memberships WHERE id=?"
+);
+for($i=0;$i<70;$i++){
+    $clock->execute([$membership]);
+    if($isTrue($clock->fetchColumn())){$ready=true;break;}
+    usleep(100000);
+}
+$ok($ready,'database clock is safely after committed activation timestamp');
 $businessDigest=hash('sha256','f119-new-business-after-activation');
 $issueBusiness=$db->prepare(
     "INSERT INTO portal_auth_sessions(
