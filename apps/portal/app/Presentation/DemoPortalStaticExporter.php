@@ -135,6 +135,27 @@ final class DemoPortalStaticExporter
             $list .= '<li><a href="' . $slug . '.html">' .
                 htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a></li>';
         }
+        // F141: a useful offline-only walkthrough, not a customer
+        // workflow. Every link must already belong to the closed manifest.
+        $allowed = array_fill_keys(DemoPortalArtifactManifest::pageNames(), true);
+        $walkthroughSeen = [];
+        $walkthrough = '<section aria-labelledby="pi-review-route"><h2 id="pi-review-route">Roteiro de avaliação interna</h2>' .
+            '<p>Estas etapas são apenas uma sequência sugerida para avaliar dez telas fictícias. Não registram tarefas nem ações de clientes.</p><ol>';
+        foreach (DemoPortalReviewWalkthrough::steps() as $step) {
+            $href = $step['href'];
+            if (!isset($allowed[$href]) || $href === 'index.html' || isset($walkthroughSeen[$href])) {
+                throw new LogicException('Offline walkthrough references an unapproved or repeated page.');
+            }
+            $walkthroughSeen[$href] = true;
+            $title = htmlspecialchars($step['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $description = htmlspecialchars($step['description'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $walkthrough .= '<li><a href="' . $href . '">' . $title . '</a><p>' . $description . '</p></li>';
+        }
+        if (count($walkthroughSeen) !== count(DemoPortalArtifactManifest::pageNames()) - 1) {
+            throw new LogicException('Offline walkthrough does not include every synthetic screen.');
+        }
+        $walkthrough .= '</ol></section>';
+
         $index = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' .
             '<meta name="viewport" content="width=device-width,initial-scale=1">' .
             '<meta name="robots" content="noindex,nofollow">' .
@@ -147,7 +168,8 @@ final class DemoPortalStaticExporter
             '</head><body><a href="#pi-content">Pular para o conteúdo</a>' .
             '<main id="pi-content"><h1>Imagine Portal — prévia interna offline</h1>' .
             '<p class="warning">Somente dados fictícios. Sem login, contrato, pagamento, cliente ou publicação.</p>' .
-            '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav></main></body></html>';
+            '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav>' .
+            $walkthrough . '</main></body></html>';
 
         if (file_put_contents($staging . DIRECTORY_SEPARATOR . 'index.html', $index, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the demo index.');
