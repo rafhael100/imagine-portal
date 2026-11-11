@@ -122,6 +122,20 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/sessions/revoke-others'&&method==='POST'){
+  limit('sessions-revoke:'+user.id,5,3600000);
+  const data=await jsonBody(req);
+  assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');
+  // Keep the authenticated cookie and its CSRF token. Delete only this
+  // account's other sessions, atomically and without touching other tenants.
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   run('DELETE FROM sessions WHERE user_id=? AND hash<>?',user.id,user.hash);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  audit(db,user.id,'sessions.revoked_others',user.id);
+  return send(res,200,{ok:true});
+ }
  if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');const hashed=await hashPassword(data.newPassword);db.exec('BEGIN IMMEDIATE');try{run('UPDATE users SET password_hash=? WHERE id=?',hashed,user.id);run('DELETE FROM sessions WHERE user_id=?',user.id);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
  if(path==='/api/orders'&&method==='GET')return send(res,200,{orders:(user.role==='admin'?list('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500'):list('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 500',user.id)).filter(o=>team.canOrder(user,o.id)).map(o=>viewOrder(o,user))});
  if(path==='/api/orders'&&method==='POST'){limit('orders:'+user.id,15,3600000);const data=await jsonBody(req),product=q('SELECT * FROM products WHERE id=?',cleanText(data.product,30));assert(product,400,'Solução inválida.');const brief=cleanText(data.brief,5000);assert(brief.length>=10,400,'Descreva seu projeto com pelo menos 10 caracteres.');const id=cleanText(data.requestId,50);assert(/^[a-f\d-]{36}$/i.test(id),400,'Identificador de pedido inválido.');const existing=q('SELECT * FROM orders WHERE id=?',id);if(existing){assert(existing.user_id===user.id,409,'Pedido já registrado.');return send(res,200,{order:viewOrder(existing,user)})}run('INSERT INTO orders(id,user_id,product_id,title,brief,price_cents,scope,delivery,terms_version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,user.id,product.id,product.title,brief,product.enabled||product.id==='site'?product.price_cents:null,product.enabled?product.scope:'',product.enabled?product.delivery:'',product.version,now(),now());if(product.id==='site'&&newSiteBilling===RECURRING_MODEL)run("UPDATE orders SET billing_model=?,scope=CASE WHEN scope='' THEN ? ELSE scope END,delivery=CASE WHEN delivery='' THEN ? ELSE delivery END WHERE id=?",RECURRING_MODEL,'Onepage responsivo com identidade visual, apresentação, serviços e contatos. Implantação: 3 pagamentos de R$ 330 na contratação, após 30 e 60 dias. Assinatura mensal obrigatória de R$ 79,90 a partir de 90 dias, independentemente da publicação. Inclui licença, hospedagem, SSL, backup e suporte técnico; alterações à parte. Domínio do cliente.','7 dias úteis após validar os materiais.',id);audit(db,user.id,'order.created',id);return send(res,201,{order:viewOrder(q('SELECT * FROM orders WHERE id=?',id),user)})}
