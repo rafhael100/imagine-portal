@@ -141,12 +141,16 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // Keep the authenticated cookie and its CSRF token. Delete only this
   // account's other sessions, atomically and without touching other tenants.
   db.exec('BEGIN IMMEDIATE');
+  let revokedSessions=0;
   try{
+   // Report only active sessions of the authenticated account, excluding
+   // the current credential. Still remove stale rows atomically.
+   revokedSessions=Number(q('SELECT count(*) AS n FROM sessions WHERE user_id=? AND hash<>? AND expires_at>?',user.id,user.hash,Date.now()).n);
    run('DELETE FROM sessions WHERE user_id=? AND hash<>?',user.id,user.hash);
    db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error}
   audit(db,user.id,'sessions.revoked_others',user.id);
-  return send(res,200,{ok:true});
+  return send(res,200,{ok:true,revoked_sessions:revokedSessions,active_sessions:1,other_sessions:0,max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT});
  }
  if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');const hashed=await hashPassword(data.newPassword);db.exec('BEGIN IMMEDIATE');try{run('UPDATE users SET password_hash=? WHERE id=?',hashed,user.id);run('DELETE FROM sessions WHERE user_id=?',user.id);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
  if(path==='/api/orders'&&method==='GET')return send(res,200,{orders:(user.role==='admin'?list('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500'):list('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 500',user.id)).filter(o=>team.canOrder(user,o.id)).map(o=>viewOrder(o,user))});
