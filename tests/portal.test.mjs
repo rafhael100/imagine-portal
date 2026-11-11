@@ -259,6 +259,40 @@ test('F172: histórico de segurança é próprio, limitado e não expõe dados d
  assert.equal((await staff.call('/api/admin/finance.csv')).status,403);
 });
 
+test('F189: historico de seguranca paginado preserva isolamento e o formato antigo',async t=>{
+ const f=await fixture(t),ana=await f.client('Ana'),bia=await f.client('Bia');
+ const stmt=f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)');
+ const anaId=ana.user.id,biaId=bia.user.id;
+ for(let i=0;i<24;i++)stmt.run(anaId,'password.changed','internal-'+i,'2026-11-11T10:00:00Z');
+ for(let i=0;i<8;i++)stmt.run(biaId,'password.changed','other-user-'+i,'2026-11-11T11:00:00Z');
+ stmt.run(anaId,'payment.creditcard.secret','unapproved-action','2026-11-11T12:00:00Z');
+ const legacy=await ana.call('/api/account/security-events');
+ assert.equal(legacy.status,200);
+ assert.equal(legacy.body.events.length,10);
+ assert.deepEqual(Object.keys(legacy.body),['events']);
+ const pages=[];
+ for(let page=1;page<=3;page++){
+  const result=await ana.call('/api/account/security-events?page='+page);
+  assert.equal(result.status,200);
+  assert.equal(result.body.page,page);
+  assert.equal(result.body.events.length,page===3?5:10);
+  assert.equal(result.body.has_more,page!==3);
+  assert.ok(result.body.events.every(e=>Object.keys(e).sort().join(',')==='action,created_at'));
+  pages.push(result.body.events);
+ }
+ const second=await bia.call('/api/account/security-events?page=1');
+ assert.equal(second.status,200);assert.equal(second.body.events.length,9);
+ assert.equal(second.body.has_more,false);
+ for(const invalid of ['0','-1','1.1','01','31','NaN','999999']){
+  assert.equal((await ana.call('/api/account/security-events?page='+invalid)).status,400);
+ }
+ const full=JSON.stringify(pages);
+ for(const secret of ['internal-0','other-user','unapproved-action',anaId,biaId]){
+  assert.equal(full.includes(secret),false,secret);
+ }
+ assert.equal((await fetch(f.url+'/api/account/security-events?page=1')).status,401);
+});
+
 test('F173: reutilizar senha atual é rejeitado sem invalidar sessões; troca válida permanece auditada',async t=>{
  const f=await fixture(t),a=await f.client('Ana');
  const old='uma-senha-de-teste-longa',next='outra-senha-forte-12345';
