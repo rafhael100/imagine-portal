@@ -44,7 +44,9 @@ if (PHP_SAPI !== 'cli-server'
     || getenv('PORTAL_F120_HTTP_LAB') !== '1'
     || getenv('DB_HOST') !== '127.0.0.1'
     || getenv('DB_DATABASE') !== 'portal_commercial_lab'
-    || ($_SERVER['SERVER_ADDR'] ?? '') !== '127.0.0.1'
+    // PHP's CLI built-in router does not always populate SERVER_ADDR.
+    // When present it must be IPv4 loopback; all client sockets must be local.
+    || (isset($_SERVER['SERVER_ADDR']) && $_SERVER['SERVER_ADDR'] !== '127.0.0.1')
     || ($_SERVER['REMOTE_ADDR'] ?? '') !== '127.0.0.1') {
     respond(503, 'LOOPBACK_CI_REQUIRED');
     return;
