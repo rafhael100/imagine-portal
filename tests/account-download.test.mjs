@@ -6,8 +6,11 @@ import {runInNewContext} from 'node:vm';
 
 const source=await readFile(fileURLToPath(new URL('../account-ui.js',import.meta.url)),'utf8');
 function harness(reply){
- const state={requests:[],links:[],clicks:0,removed:0,revoked:[]};
+ const state={requests:[],links:[],clicks:0,removed:0,revoked:[],renderedLogin:false};
+ const viewState={user:{id:'synthetic-owner'}};
  const context={
+  state:viewState,
+  renderAuth:()=>{state.renderedLogin=true;},
   fetch:async(path,options)=>{state.requests.push({path,options});return reply;},
   document:{
    body:{appendChild(link){state.links.push(link);}},
@@ -19,7 +22,7 @@ function harness(reply){
   setTimeout:callback=>callback(),
  };
  runInNewContext(source,context);
- return {state,download:kind=>runInNewContext('downloadAccountFile('+JSON.stringify(kind)+')',context)};
+ return {state,viewState,download:kind=>runInNewContext('downloadAccountFile('+JSON.stringify(kind)+')',context)};
 }
 
 test('F182: successful CSV uses same-origin credentials, expected MIME type and revokes blob URL',async()=>{
@@ -51,6 +54,8 @@ test('F182: expired sessions, unsupported formats and invalid content type fail 
  const expired=harness({ok:false,status:401,json:async()=>({error:'Entre na sua conta'})});
  await assert.rejects(expired.download('json'),/Sua sessão expirou/);
  assert.equal(expired.state.clicks,0);
+ assert.equal(expired.viewState.user,null);
+ assert.equal(expired.state.renderedLogin,true);
  await assert.rejects(expired.download('other'),/Formato de exportação inválido/);
  assert.equal(expired.state.requests.length,1);
  const invalid=harness({ok:true,headers:{get:()=> 'text/html'},blob:async()=>new Blob(['html'])});
