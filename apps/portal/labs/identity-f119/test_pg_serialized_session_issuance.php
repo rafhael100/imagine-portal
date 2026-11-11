@@ -114,7 +114,7 @@ $insert=$db->prepare(
        identity_revision,membership_revision,organization_revision,
        mfa_verified_at,issued_at,expires_at,created_at,updated_at)
      VALUES(?,?,?,?,?, ?,1,1,1,?,
-       clock_timestamp(),clock_timestamp()+interval '20 minutes',now(),now())"
+       clock_timestamp()-interval '2 seconds',clock_timestamp()+interval '20 minutes',now(),now())"
 );
 $issue=static function(
     string $sid,string $digest,string $status,string $purpose,
@@ -179,7 +179,7 @@ $attempt=$writer->prepare(
       identity_revision,membership_revision,organization_revision,
       issued_at,expires_at,created_at,updated_at)
      VALUES(?,?,?,?, 'pending_mfa','invitation_only',1,1,1,
-       clock_timestamp(),clock_timestamp()+interval '20 minutes',now(),now())"
+       clock_timestamp()-interval '2 seconds',clock_timestamp()+interval '20 minutes',now(),now())"
 );
 $deny(static fn()=> $attempt->execute([
     '58888888-8888-4888-8888-888888888888',
@@ -211,7 +211,7 @@ $ok(!$claim($acceptor),'old session cannot be replayed after activation');
 // future-dated sessions; the CI fixture waits until time has progressed.
 $ready=false;
 $clock=$db->prepare(
-    "SELECT updated_at <= clock_timestamp() - interval '2 seconds'
+    "SELECT updated_at <= clock_timestamp() - interval '4 seconds'
        FROM portal_memberships WHERE id=?"
 );
 for($i=0;$i<70;$i++){
