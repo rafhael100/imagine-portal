@@ -93,14 +93,19 @@ jobs:
           test -s storage/app/portal-demo-preview/index.html
           test -s storage/app/portal-demo-preview/requests.html
           test -s storage/app/portal-demo-preview/delivery-review.html
-          test "$(find storage/app/portal-demo-preview -maxdepth 1 -type f -name '*.html' | wc -l)" -eq 9
+          test -s storage/app/portal-demo-preview/help.html
+          test -s storage/app/portal-demo-preview/notices.html
+          test "$(find storage/app/portal-demo-preview -maxdepth 1 -type f -name '*.html' | wc -l)" -eq 11
+          php artisan portal:demo-verify
 
-      - name: Arquivar apenas HTML fictício para revisão visual
+      - name: Arquivar apenas HTML fictício e manifesto de integridade para revisão visual
         if: matrix.php == '8.3'
         uses: actions/upload-artifact@v5
         with:
           name: portal-demo-preview-f58
-          path: apps/portal/storage/app/portal-demo-preview/*.html
+          path: |
+            apps/portal/storage/app/portal-demo-preview/*.html
+            apps/portal/storage/app/portal-demo-preview/manifest.json
           if-no-files-found: error
           retention-days: 2
 
