@@ -60,9 +60,25 @@ final class PortalGscPermissionContractTest extends TestCase
     public function test_seo_permission_is_exact_and_matches_the_migration(): void
     {
         self::assertSame('seo.gsc.connect', Permission::ConnectGoogleSearchConsole->value);
-        self::assertSame(
-            ['services.view', 'services.manage', 'billing.view', 'members.manage', 'seo.gsc.connect'],
-            array_map(static fn (Permission $p): string => $p->value, Permission::cases()),
+        // F143: Portal's independent commercial-review permission can
+        // coexist with SEO. This is an allowlisted vocabulary extension,
+        // never an implicit grant to Portal or CRM actors.
+        $actual = array_map(static fn (Permission $p): string => $p->value, Permission::cases());
+        $required = [
+            'services.view', 'services.manage', 'billing.view',
+            'members.manage', 'seo.gsc.connect',
+        ];
+        $optionalCrossStack = 'commercial.delivery-review.view';
+        foreach ($required as $code) {
+            self::assertContains($code, $actual);
+        }
+        self::assertSame(count($actual), count(array_unique($actual)));
+        self::assertSame([], array_values(array_diff(
+            $actual, [...$required, $optionalCrossStack],
+        )));
+        self::assertCount(
+            count($required) + (in_array($optionalCrossStack, $actual, true) ? 1 : 0),
+            $actual,
         );
 
         $migration = file_get_contents(__DIR__
