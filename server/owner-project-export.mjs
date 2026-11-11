@@ -94,3 +94,18 @@ export async function writeExportChunks(res,chunks){
   res.off('close',onDisconnect);
  }
 }
+
+// F241: the SQLite lease has a fixed expiration. A stalled client must not
+// retain an unfinished export beyond that lease and allow a second download.
+// Abort one minute early so the route's finally can release the owner token.
+export const OWNER_EXPORT_MAX_STREAM_MS=OWNER_EXPORT_LEASE_MS-60*1000;
+export async function writeOwnerExportWithinLease(res,chunks,maxMs=OWNER_EXPORT_MAX_STREAM_MS){
+ if(!Number.isSafeInteger(maxMs)||maxMs<1||maxMs>=OWNER_EXPORT_LEASE_MS)
+  throw new RangeError('Prazo máximo da exportação inválido.');
+ const timer=setTimeout(()=>{
+  // ServerResponse.destroy() triggers close, releasing the streaming cursor.
+  if(!res.destroyed&&!res.writableEnded&&typeof res.destroy==='function')res.destroy();
+ },maxMs);
+ try{return await writeExportChunks(res,chunks);}
+ finally{clearTimeout(timer);}
+}
