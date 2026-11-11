@@ -6,8 +6,10 @@ import {pathToFileURL} from 'node:url';
 import {createVerifiedSqliteSnapshot,verifyPortalSqliteSnapshot} from './snapshot.mjs';
 
 export async function runSnapshotCli(args){
- if(args.length!==2)throw Error('Uso: node server/backup-cli.mjs CAMINHO_BANCO CAMINHO_BACKUP | --verify CAMINHO_BACKUP');
- if(args[0]==='--verify')return verifyPortalSqliteSnapshot(args[1]);
+ if(args[0]==='--verify'&&[2,3].includes(args.length))
+  return verifyPortalSqliteSnapshot(args[1],{expectedSha256:args[2]??null});
+ if(args.length!==2||args[0]==='--verify')
+  throw Error('Uso: node server/backup-cli.mjs CAMINHO_BANCO CAMINHO_BACKUP | --verify CAMINHO_BACKUP [SHA256]');
  const source=resolve(args[0]),destination=resolve(args[1]);
  if(source===destination)throw Error('O backup deve ter destino diferente da origem.');
  const sourceStat=await lstat(source);

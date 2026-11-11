@@ -47,3 +47,17 @@ valida as tabelas canônicas `users`, `sessions`, `orders`,
 `schema_version` e retorna exclusivamente contagens agregadas.
 Não altera, restaura ou publica os dados. A verificação não garante
 sozinha recuperabilidade de anexos, serviços externos e banco PostgreSQL.
+
+## Verificação de checksum SHA-256 (F212)
+
+O backup e a verificação imprimem a impressão digital SHA-256 sem expor
+dados de clientes. Para conferir uma cópia após transferência segura,
+use o checksum devolvido ao criar o arquivo:
+
+```bash
+node server/backup-cli.mjs --verify /caminho/seguro/backups/portal.sqlite HASH_SHA256_64_CARACTERES
+```
+
+Se o SHA-256 for diferente, o comando rejeita a cópia. Não armazenar
+o arquivo SQLite ou seu checksum em repositório público: mesmo um resumo
+de banco pode servir como identificador de conteúdo sensível.

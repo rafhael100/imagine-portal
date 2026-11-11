@@ -20,6 +20,7 @@ test('F208: verified SQLite snapshot is private, consistent and refuses overwrit
   assert.equal(result.verified,true);
   assert.equal(result.filename,'snapshot.sqlite');
   assert.ok(result.bytes>0&&result.pages>0);
+  assert.match(result.sha256,/^[a-f0-9]{64}$/);
   const attrs=await stat(dest);
   assert.equal(attrs.mode&0o077,0,'Snapshot must not be readable by group/others');
   original.exec("INSERT INTO examples(text) VALUES('segundo')");
@@ -71,11 +72,17 @@ test('F209: release verification rejects foreign formats and counts Portal table
   db.prepare("INSERT INTO users VALUES('user-verification','Responsável','verify@example.test','hash','client','2026-11-11')").run();
   await createVerifiedSqliteSnapshot(db,target);
   const verified=await verifyPortalSqliteSnapshot(target);
+  assert.match(verified.sha256,/^[a-f0-9]{64}$/);
+  assert.deepEqual(await verifyPortalSqliteSnapshot(target,{expectedSha256:verified.sha256}),verified);
+  await assert.rejects(verifyPortalSqliteSnapshot(target,{expectedSha256:'f'.repeat(64)}),/SHA-256/);
+  await assert.rejects(verifyPortalSqliteSnapshot(target,{expectedSha256:'invalid'}),/Checksum/);
   assert.equal(verified.verified,true);
   assert.equal(verified.foreign_key_violations,0);
   assert.equal(verified.table_counts.users,1);
   assert.equal(verified.table_counts.orders,0);
   const cli=await runSnapshotCli(['--verify',target]);
+  const cliWithHash=await runSnapshotCli(['--verify',target,verified.sha256]);
+  assert.deepEqual(cliWithHash,verified);
   assert.deepEqual(cli,verified);
   const status=spawnSync(process.execPath,['server/backup-cli.mjs','--verify',target],{cwd:process.cwd(),encoding:'utf8'});
   assert.equal(status.status,0,status.stderr);

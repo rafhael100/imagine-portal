@@ -1,9 +1,15 @@
 // Explicit operator-only backup utility: no automatic production actions.
 import {backup,DatabaseSync} from 'node:sqlite';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {createReadStream} from 'node:fs';
 import {open,mkdir,link,stat,unlink,lstat} from 'node:fs/promises';
 import {dirname,basename,join,resolve} from 'node:path';
 
+async function sha256Of(path){
+ const hash=createHash('sha256');
+ for await(const chunk of createReadStream(path))hash.update(chunk);
+ return hash.digest('hex');
+}
 export async function createVerifiedSqliteSnapshot(sourceDb,destination){
  if(typeof destination!=='string'||!destination.trim())throw new TypeError('Informe um destino válido.');
  const target=resolve(destination);
@@ -23,7 +29,7 @@ export async function createVerifiedSqliteSnapshot(sourceDb,destination){
   // Hard link is atomic and fails if the destination exists. No silent
   // overwrites, partial published files or cross-directory rename races.
   await link(temporary,target);
-  return {filename:basename(target),bytes:size,pages,verified:true};
+  return {filename:basename(target),bytes:size,pages,verified:true,sha256:await sha256Of(target)};
  }finally{
   try{await unlink(temporary);}catch(error){if(error.code!=='ENOENT')throw error;}
  }
@@ -31,8 +37,10 @@ export async function createVerifiedSqliteSnapshot(sourceDb,destination){
 
 /** F209: read-only release-gate verification; never restores or changes
  * the destination database. Counts are aggregated, not customer records. */
-export async function verifyPortalSqliteSnapshot(path){
+export async function verifyPortalSqliteSnapshot(path,{expectedSha256=null}={}){
  if(typeof path!=='string'||!path.trim())throw new TypeError('Informe o caminho do backup.');
+ if(expectedSha256!==null&&(typeof expectedSha256!=='string'||!/^[a-f0-9]{64}$/.test(expectedSha256)))
+  throw new TypeError('Checksum SHA-256 inválido.');
  const source=resolve(path);
  const attrs=await lstat(source);
  if(!attrs.isFile()||attrs.isSymbolicLink())throw Error('Backup deve ser arquivo regular, sem link simbólico.');
@@ -49,6 +57,8 @@ export async function verifyPortalSqliteSnapshot(path){
   const counts=Object.fromEntries(['users','orders'].map(table=>[
    table,db.prepare('SELECT count(*) AS total FROM '+table).get().total,
   ]));
-  return {filename:basename(source),verified:true,foreign_key_violations:0,table_counts:counts};
+  const sha256=await sha256Of(source);
+  if(expectedSha256!==null&&sha256!==expectedSha256)throw Error('SHA-256 do backup diferente do checksum esperado.');
+  return {filename:basename(source),verified:true,foreign_key_violations:0,table_counts:counts,sha256};
  }finally{db.close();}
 }
