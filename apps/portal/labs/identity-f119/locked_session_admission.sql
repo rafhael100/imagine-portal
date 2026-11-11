@@ -74,7 +74,8 @@ BEGIN
       OR NEW.membership_revision IS DISTINCT FROM OLD.membership_revision
       OR NEW.organization_revision IS DISTINCT FROM OLD.organization_revision
       OR NEW.issued_at IS DISTINCT FROM OLD.issued_at
-      OR NEW.expires_at IS DISTINCT FROM OLD.expires_at THEN
+      OR NEW.expires_at IS DISTINCT FROM OLD.expires_at
+      OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
       RAISE EXCEPTION 'F119: session provenance is immutable'
         USING ERRCODE='23514';
     END IF;
@@ -129,6 +130,7 @@ BEGIN
      OR NEW.identity_revision IS DISTINCT FROM v_identity_revision
      OR NEW.membership_revision IS DISTINCT FROM v_member_revision
      OR NEW.organization_revision IS DISTINCT FROM v_org_revision
+     OR NEW.session_purpose IS NULL
      OR NEW.session_purpose NOT IN ('invitation_only','business')
      OR NEW.revoked_at IS NOT NULL
      OR NEW.issued_at>v_now
@@ -153,6 +155,10 @@ BEGIN
   END IF;
 
   IF TG_OP='INSERT' THEN
+    IF NEW.issued_at<v_now-interval '5 minutes' THEN
+      RAISE EXCEPTION 'F119: new credential issuance is stale'
+        USING ERRCODE='23514';
+    END IF;
     IF NEW.status<>'pending_mfa' OR NEW.mfa_verified_at IS NOT NULL THEN
       RAISE EXCEPTION 'F119: new sessions must pass through MFA'
         USING ERRCODE='23514';
