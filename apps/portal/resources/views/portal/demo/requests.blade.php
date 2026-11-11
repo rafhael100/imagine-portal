@@ -8,6 +8,10 @@
                 <li>{{ $workflowState->label() }}</li>
             @endforeach
         </ul>
+        <p>Mapa de transições possíveis no fluxo demonstrativo. Os perfis são apenas rótulos de simulação, não usuários autenticados nem concessões de acesso.</p>
+        <x-portal.table caption="Mapa fictício de sete transições — sem execução"
+            :columns="['Estado atual', 'Perfil simulado', 'Ação ilustrativa', 'Próximo estado']"
+            :rows="\App\Presentation\DemoRequestWorkflowMap::rows()" />
     </x-portal.panel>
     <x-portal.panel title="Fila de solicitações — somente demonstração">
         <p>Lista fictícia da Empresa Aurora; nenhum filtro autoriza acesso a dados reais, nenhum SLA ou prazo é demonstrado.</p>
