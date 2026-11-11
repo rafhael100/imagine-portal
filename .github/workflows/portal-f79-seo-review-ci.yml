@@ -73,6 +73,24 @@ jobs:
           ref: f46b65aaef9b10e32d02e415907cd916a43b548e
           path: .qa/seo-rc32
           persist-credentials: false
+      - name: F160 verify immutable SEO RC32 checkout provenance
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='f46b65aaef9b10e32d02e415907cd916a43b548e'
+          actual="$(git -C .qa/seo-rc32 rev-parse HEAD)"
+          test "$actual" = "$expected" || {
+            echo 'F160: unexpected SEO source revision' >&2
+            exit 1
+          }
+          test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)" || {
+            echo 'F160: SEO source checkout is dirty' >&2
+            exit 1
+          }
+          test -f .qa/seo-rc32/src/gsc-query-page-planner.mjs
+          test -f .qa/seo-rc32/src/portal-query-page-review.mjs
+          test -f .qa/seo-rc32/src/gsc-query-page-overlap-trend.mjs
       - name: Verify SEO RC32 F74 to Portal F155 strict DTO parity
         if: matrix.php == '8.4' && matrix.node == '22'
         shell: bash
