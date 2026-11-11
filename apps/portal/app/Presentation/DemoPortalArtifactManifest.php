@@ -9,7 +9,7 @@ use LogicException;
 use RuntimeException;
 
 /**
- * F135: local-only integrity of the fixed synthetic HTML review bundle.
+ * F135: local-only integrity of the fixed synthetic HTML review bundle (including help/notices).
  *
  * SHA-256 here detects accidental corruption, NOT authenticity: an attacker
  * who may replace both a page and manifest can forge a matching digest.
@@ -30,6 +30,7 @@ final class DemoPortalArtifactManifest
             $pages[] = $section->value.'.html';
         }
         $pages[] = 'delivery-review.html';
+        array_push($pages, ...DemoPortalOfflineExtras::fileNames());
         $pages[] = 'index.html';
 
         return $pages;
