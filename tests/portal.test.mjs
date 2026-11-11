@@ -81,6 +81,26 @@ test('Rate limit distingue IPs atrás de proxy explicitamente confiável sem pun
   ['register:198.51.100.11','register:198.51.100.12']);
 });
 
+test('Proxy local que acrescenta XFF bloqueia spoofing do IP mais à esquerda',async t=>{
+ const f=await fixture(t,{trustProxy:true});
+ const request=forwarded=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':forwarded},
+  body:JSON.stringify({}),
+ });
+ // Deliberate threat model: an untrusted client forges the first part of
+ // the chain. The local proxy appends its verified peer as the LAST part.
+ // The server must use the last value for the rate-limit identity.
+ for(let i=0;i<8;i++){
+  assert.equal((await request('198.51.100.'+(i+10)+', 203.0.113.40')).status,400);
+ }
+ assert.equal((await request('198.51.100.250, 203.0.113.40')).status,429);
+ assert.equal((await request('198.51.100.250, 203.0.113.41')).status,400);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%' ORDER BY key").all();
+ assert.deepEqual(buckets.map(row=>row.key),['register:203.0.113.40','register:203.0.113.41']);
+ assert.deepEqual(buckets.map(row=>row.count),[8,1]);
+});
+
 test('Sem confiança de proxy, X-Forwarded-For manipulado nunca reseta o limite de cadastro',async t=>{
  const f=await fixture(t,{trustProxy:false});
  const request=ip=>fetch(f.url+'/api/register',{
