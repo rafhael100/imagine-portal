@@ -9,7 +9,8 @@ import {
 const BASE = 'refs/remotes/origin/dev/fast-track-portal-2026-11-05';
 const CRITICAL = new Set([
   'identity_security', 'database_migration', 'application_runtime',
-  'ci_workflow', 'other',
+  'node_identity_security', 'node_sensitive_export', 'node_application_runtime',
+  'integration_review_tooling', 'ci_workflow', 'other',
 ]);
 
 function git(args, nul = false) {
