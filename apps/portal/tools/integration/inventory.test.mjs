@@ -119,8 +119,8 @@ test('F185: Node.js/SQLite operational files are precisely partitioned for indep
  for(const [path, expected] of Object.entries(samples)) {
   assert.equal(classify(path),expected,path);
  }
- const records=parseNameStatusZ(Object.keys(samples).flatMap(path=>['M',path]).join('\\0')+'\\0');
- const report=buildReport({base:'dev',head:'candidate',mergeBase:'shared',leftRight:'0\\t20',records});
+ const records=parseNameStatusZ(Object.keys(samples).flatMap(path=>['M',path]).join('\0')+'\0');
+ const report=buildReport({base:'dev',head:'candidate',mergeBase:'shared',leftRight:'0\t20',records});
  const packets=reviewPackets(report);
  assert.equal(Object.values(packets).reduce((n,v)=>n+(v.match(/^\- M /gm)||[]).length,0),records.length);
  for(const category of Object.values(samples))assert.ok(packets[category]);
