@@ -616,3 +616,26 @@ test('F205: compact fallback skips blank latest paid briefings and uses the late
  assert.equal(all.body.projects.length,3);
  assert.equal(all.body.projects[0].id,pendingId);
 });
+
+test('F206: saving own account in compact mode does not return the full archive',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),foreign=await f.client('Outro');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','','PENDING',?,?)");
+ for(let i=0;i<15;i++){
+  const stamp='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  insert.run(randomUUID(),owner.user.id,'Projeto '+i,stamp,stamp);
+ }
+ const initial=(await owner.call('/api/account?compact=1')).body;
+ assert.equal(initial.projects_total,15);
+ const payload={version:0,name:'Cliente atualizado',email:owner.user.email,
+  company:'Minha empresa',whatsapp:'',phone:'',website:''};
+ const updated=await owner.call('/api/account?compact=1',payload);
+ assert.equal(updated.status,200);
+ assert.equal(updated.body.profile.version,1);
+ assert.equal(updated.body.user.name,'Cliente atualizado');
+ assert.equal(updated.body.projects_total,15);
+ assert.equal(updated.body.projects.length,0);
+ const next=await owner.call('/api/account');
+ assert.equal(next.body.projects.length,15);
+ assert.equal(next.body.profile.company,'Minha empresa');
+ assert.equal((await foreign.call('/api/account')).body.projects.length,0);
+});
