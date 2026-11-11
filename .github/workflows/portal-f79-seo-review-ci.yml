@@ -9,6 +9,7 @@ on:
       - 'apps/portal/tests/Unit/OfflineSeoHandoffPreviewTest.php'
       - 'apps/portal/labs/gsc-f135/**'
       - 'apps/portal/labs/gsc-f136/**'
+      - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tests/ui/test-f79-seo-review.mjs'
       - '.github/workflows/portal-f79-seo-review-ci.yml'
   workflow_dispatch:
@@ -65,6 +66,16 @@ jobs:
           trap 'rm -f "$fixture"' EXIT
           node apps/portal/labs/gsc-f136/emit_node_seo_f50.mjs > "$fixture"
           php apps/portal/labs/gsc-f136/verify_php_seo_f50.php "$fixture"
+          php -l apps/portal/tools/f137-render-gsc-offline.php
+          preview="$(mktemp)"
+          trap 'rm -f "$fixture" "$preview"' EXIT
+          PORTAL_GSC_HTML_LAB=1 php apps/portal/tools/f137-render-gsc-offline.php "$fixture" > "$preview"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$preview"
+          grep -q 'name="robots" content="noindex,nofollow"' "$preview"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$preview"; then
+            echo "F137: interactive/public surface rejected" >&2
+            exit 1
+          fi
       - name: Strict offline SEO schema, HTML and fail-closed checks
         shell: bash
         run: |
@@ -76,7 +87,7 @@ jobs:
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
