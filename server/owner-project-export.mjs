@@ -66,6 +66,9 @@ export async function writeExportChunks(res,chunks){
   for(const chunk of chunks){
    if(disconnected||res.destroyed||res.writableEnded)return;
    if(!res.write(chunk)){
+    // A Writable may close synchronously inside write(). In that case its
+    // close event already fired, so waiting for a future drain would hang.
+    if(disconnected||res.destroyed||res.writableEnded)return;
     const signal=await new Promise((resolve,reject)=>{
      const cleanup=()=>{res.off('drain',onDrain);res.off('close',onClose);res.off('error',onError);};
      const onDrain=()=>{cleanup();resolve('drain');};
