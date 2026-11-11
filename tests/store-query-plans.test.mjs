@@ -20,6 +20,11 @@ test('F184: consultas multicliente e coleta de quotas usam índices restritos e 
    args:[Date.now()],
    index:'idx_rate_limits_reset_at',
   },
+  {
+   sql:'SELECT o.id,o.title,o.created_at FROM orders o WHERE o.user_id=? ORDER BY o.created_at DESC',
+   args:['owner-test'],
+   index:'idx_orders_user_created',
+  },
  ];
  for(const item of plans){
   const index=db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name=?").get(item.index);
