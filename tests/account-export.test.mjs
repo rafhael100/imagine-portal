@@ -74,7 +74,7 @@ test('F229: chunked CSV matches legacy output exactly and iterates without mater
   assert.equal(visited,117);
   assert.equal(parts.length,118);
   assert.equal(parts.join(''),projectsCsv(rows,{withStage}));
-  assert.ok(parts[0].startsWith('\\uFEFF'));
+  assert.ok(parts[0].startsWith('\uFEFF'));
   assert.ok(parts[2].includes("'=SUM(1,2)"));
  }
  assert.throws(()=>[...projectsCsvChunks(null)],TypeError);
