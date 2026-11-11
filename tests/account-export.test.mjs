@@ -29,9 +29,9 @@ test('F216: extended project CSV preserves original columns and appends optional
   data:{company_name:'Empresa',domain:'empresa.test'}}];
  const legacy=projectsCsv(rows),enriched=projectsCsv(rows,{withStage:true});
  assert.equal(legacy.includes('Etapa do projeto'),false);
- assert.ok(enriched.startsWith(legacy.split('\\r\\n')[0]+';"Etapa do projeto"\\r\\n'));
+ assert.ok(enriched.startsWith(legacy.split('\r\n')[0]+';"Etapa do projeto"\r\n'));
  assert.ok(enriched.includes('"Empresa";"empresa.test";"desenvolvimento"'));
- assert.equal((enriched.match(/\\r\\n/g)||[]).length,2);
+ assert.equal((enriched.match(/\r\n/g)||[]).length,2);
 });
 test('F181: JSON export has an explicit allowlist even with unexpected sensitive columns',()=>{
  const source={
