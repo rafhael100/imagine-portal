@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {projectsCsv,safeCsvCell,accountDataExport} from '../server/account-export.mjs';
+import {projectsCsv,projectsCsvChunks,safeCsvCell,accountDataExport,accountDataExportChunks} from '../server/account-export.mjs';
 
 test('F177: valores de planilhas potencialmente executáveis viram texto, inclusive com espaços',()=>{
  for(const value of ['=1+1','+SUM(1,2)','-1+2','@SUM(1)','  =HYPERLINK("https://example.test")','\t=2+2','\u200B=1+1','\u2060@SUM(1)','\u202E=HYPERLINK(1)','\u0000+1']){
@@ -63,4 +63,40 @@ test('F181: JSON export has an explicit allowlist even with unexpected sensitive
   assert.equal(text.includes(secret),false,secret);
  }
  assert.throws(()=>accountDataExport({projects:null}),TypeError);
+});
+
+test('F229: chunked CSV matches legacy output exactly and iterates without materializing rows',()=>{
+ const rows=Array.from({length:117},(_,i)=>({id:'p'+i,title:i%2?'=SUM(1,2)':'Projeto '+i,created_at:'2026-11-11',payment_status:'RECEIVED',phase:'revisao',data:{company_name:'Empresa '+i,domain:'empresa.test'}}));
+ for(const withStage of [false,true]){
+  let visited=0;
+  function *source(){for(const row of rows){visited++;yield row;}}
+  const parts=[...projectsCsvChunks(source(),{withStage})];
+  assert.equal(visited,117);
+  assert.equal(parts.length,118);
+  assert.equal(parts.join(''),projectsCsv(rows,{withStage}));
+  assert.ok(parts[0].startsWith('\uFEFF'));
+  assert.ok(parts[2].includes("'=SUM(1,2)"));
+ }
+ assert.throws(()=>[...projectsCsvChunks(null)],TypeError);
+});
+
+test('F230: streamed JSON preserves the versioned contract without a preloaded project array',()=>{
+ const account={user:{name:'Cliente',email:'cliente@example.test',password_hash:'forbidden'},
+  created_at:'2026-11-11',profile:{company:'Minha Empresa',version:2,secret:'forbidden'},
+  fiscal:{legal_name:'Minha Empresa',version:1,hidden:'forbidden'}};
+ const rows=Array.from({length:63},(_,i)=>({id:'p-'+i,title:'Meu site '+i,phase:'entregue',
+  payment_status:'RECEIVED',status:'approved',created_at:'2026-11-11',
+  data:{company_name:'Empresa',notes:'Observações',password_hash:'forbidden'}}));
+ let iterated=0;
+ function *cursor(){for(const row of rows){iterated++;yield row;}}
+ const chunks=[...accountDataExportChunks(account,cursor(),'2026-11-11T12:00:00Z')];
+ assert.equal(iterated,63);
+ assert.equal(chunks.length,65);
+ const document=JSON.parse(chunks.join(''));
+ assert.deepEqual(document,accountDataExport({...account,projects:rows},'2026-11-11T12:00:00Z'));
+ assert.equal(JSON.stringify(document).includes('forbidden'),false);
+ assert.equal(document.schema_version,1);
+ assert.equal(document.projects.length,63);
+ assert.deepEqual(JSON.parse([...accountDataExportChunks(account,[],'2026-11-11')].join('')).projects,[]);
+ assert.throws(()=>[...accountDataExportChunks(account,null)],TypeError);
 });

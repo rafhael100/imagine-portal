@@ -141,3 +141,23 @@ Os testes Node, os contratos sintéticos OAuth/GSC e os inventários F144/F186 u
 ## Acesso ao site publicado (F226)
 
 Quando um site estiver comprovadamente em etapa de **publicação** e ainda estiver pago, a API da conta pode apresentar o link público `production.live_url` após validação de URL HTTPS, sem credenciais nem destinos internos. A interface inclui **Abrir site publicado**, com `rel=noopener noreferrer`. Prévia privada, ambientes internos e outros clientes não aparecem nesta relação; o recurso não substitui a publicação controlada nem cria domínios.
+
+### Exportação CSV sem carregar o arquivo inteiro (F229)
+
+A exportação CSV do titular agora usa um cursor SQLite e gera uma linha por vez, mantendo o mesmo contrato de campos, BOM UTF-8, separadores e proteção contra fórmulas. O envio HTTP respeita backpressure, desconexões e o limite compartilhado de exportações. A consulta obriga `WHERE o.user_id=?` e só inclui dados permitidos em pedidos pagos. O endpoint JSON permanece integral até a conclusão de sua migração específica.
+
+### JSON incremental da própria conta (F230)
+
+A mesma consulta restrita por titular e o mesmo controle de dados autorizados da exportação CSV alimentam agora o download JSON. O documento preserva `schema_version: 1`, `scope: cadastro_e_projetos`, perfil, fiscal e lista integral de projetos, mas é escrito em fragmentos sem manter a lista de todos os projetos na memória. A operação continua autenticada, limitada por quota e auditada.
+
+### Consistência antes de iniciar download (F232)
+
+Antes de enviar o cabeçalho HTTP de sucesso, ambos os downloads verificam que os dados JSON de briefings **pagos do próprio titular** podem ser interpretados. Em caso de corrupção, retornam erro 503 sem transmitir arquivo parcial como se fosse válido; um problema na conta de outra pessoa não bloqueia a consulta. A verificação não altera dados e não revela material de clientes em logs.
+
+### Falhas de rede durante transferências (F234)
+
+Uma conexão interrompida cancela o cursor da exportação em vez de continuar lendo os dados da conta ou tentar concluir um arquivo incompleto. Se ocorrer erro depois do início da resposta HTTP, o transporte é encerrado abruptamente para evitar comunicar sucesso com conteúdo truncado. O protocolo de exportação mantém os mesmos campos e regras de autenticação.
+
+### Índice utilizado nos downloads incrementais (F235)
+
+Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação por titular utiliza o índice existente `idx_orders_user_created` e faz `JOIN` com o briefing pelo identificador do pedido. Não é criada cópia integral da tabela nem um índice desnecessário no banco de clientes.

@@ -10,15 +10,18 @@ export function safeCsvCell(value){
  const safe=/^[\s\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
-export function projectsCsv(projects,{withStage=false}={}){
- if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
+export function *projectsCsvChunks(projects,{withStage=false}={}){
+ if(!projects||typeof projects[Symbol.iterator]!=='function')throw new TypeError('Projetos inválidos.');
  const headers=withStage?[...HEADERS,'Etapa do projeto']:HEADERS;
- const rows=[headers,...projects.map(p=>[
-  p.id,p.title,p.created_at,p.payment_status,
-  p.data?.company_name||'',p.data?.domain||'',
-  ...(withStage?[p.phase||'']:[]),
- ])];
- return '\uFEFF'+rows.map(row=>row.map(safeCsvCell).join(';')).join('\r\n')+'\r\n';
+ yield '\uFEFF'+headers.map(safeCsvCell).join(';')+'\r\n';
+ for(const p of projects){
+  const fields=[p.id,p.title,p.created_at,p.payment_status,p.data?.company_name||'',p.data?.domain||'',...(withStage?[p.phase||'']:[])];
+  yield fields.map(safeCsvCell).join(';')+'\r\n';
+ }
+}
+export function projectsCsv(projects,options={}){
+ if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
+ return [...projectsCsvChunks(projects,options)].join('');
 }
 
 const PROFILE_FIELDS=['company','whatsapp','phone','website','version','updated_at'];
@@ -40,6 +43,9 @@ export function publicProjectData(data){
 // Fixed privacy contract: never spread whole DB rows or arbitrary material
 // keys into an export. Unknown fields (including future internal additions)
 // are excluded by default, regardless of what the account UI can render.
+export function publicExportProject(p){
+ return {...pickFields(p,['id','title','created_at','phase','payment_status','status']),data:pickFields(p.data,PROJECT_FIELDS)};
+}
 export function accountDataExport(account,exportedAt=new Date().toISOString()){
  if(!account||!Array.isArray(account.projects))throw new TypeError('Cadastro inválido.');
  return {
@@ -50,9 +56,21 @@ export function accountDataExport(account,exportedAt=new Date().toISOString()){
   created_at:account.created_at,
   profile:pickFields(account.profile,PROFILE_FIELDS),
   fiscal:pickFields(account.fiscal,FISCAL_FIELDS),
-  projects:account.projects.map(p=>({
-   ...pickFields(p,['id','title','created_at','phase','payment_status','status']),
-   data:pickFields(p.data,PROJECT_FIELDS),
-  })),
+  projects:account.projects.map(publicExportProject),
  };
+}
+
+// Same versioned JSON contract, but render a bounded fragment per database
+// cursor row instead of allocating the complete projects array in memory.
+export function *accountDataExportChunks(account,projectRows,exportedAt=new Date().toISOString()){
+ if(!projectRows||typeof projectRows[Symbol.iterator]!=='function')throw new TypeError('Projetos inválidos.');
+ const base=accountDataExport({...account,projects:[]},exportedAt);
+ const {projects:_unused,...metadata}=base;
+ yield JSON.stringify(metadata).slice(0,-1)+',"projects":[';
+ let first=true;
+ for(const row of projectRows){
+  yield (first?'':',')+JSON.stringify(publicExportProject(row));
+  first=false;
+ }
+ yield ']}';
 }
