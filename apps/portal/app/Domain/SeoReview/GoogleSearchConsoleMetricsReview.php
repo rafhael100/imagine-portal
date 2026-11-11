@@ -65,6 +65,10 @@ final class GoogleSearchConsoleMetricsReview
             return null;
         }
 
+        if (array_key_exists('rows', $response) && !is_array($response['rows'])) {
+            return null;
+        }
+
         $rows = $response['rows'] ?? [];
         if (!is_array($rows)
             || !array_is_list($rows)
@@ -124,7 +128,10 @@ final class GoogleSearchConsoleMetricsReview
 
             if ($row['ctr'] < 0 || $row['ctr'] > 1
                 || $row['position'] < 0 || $row['position'] > 10000
-                || $row['clicks'] < 0 || $row['impressions'] < 0) {
+                || $row['clicks'] < 0 || $row['impressions'] < 0
+                || ($row['impressions'] == 0 && $row['clicks'] > 0)
+                || ($row['impressions'] > 0
+                    && abs($row['ctr'] - ($row['clicks'] / $row['impressions'])) > 0.01)) {
                 return null;
             }
 
