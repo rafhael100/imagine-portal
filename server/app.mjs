@@ -20,6 +20,8 @@ import {join,resolve,extname} from 'node:path';
 import {token,digest,equal,hashPassword,verifyPassword,cleanText,validEmail,validDocument,safeAsaasUrl,publicUser} from './security.mjs';
 import {now,audit} from './store.mjs';
 export const MAINTENANCE_CENTS=3990;
+export const MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8;
+export const RATE_LIMIT_PRUNE_INTERVAL_MS=5*60*1000;
 export function addDays(date,days){const value=new Date(date);value.setUTCDate(value.getUTCDate()+days);return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value)}
 const settled=new Set(['RECEIVED','CONFIRMED','RECEIVED_IN_CASH']);
 const phases=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
@@ -27,16 +29,52 @@ function problem(status,message){return Object.assign(new Error(message),{status
 function assert(condition,status,message){if(!condition)throw problem(status,message)}
 const cents=value=>Math.round(Number(value)*100);
 export function createApp({db,asaas,publicDir,origin,production=false,sellerName='',sellerDocument='',webhookToken='',clock=()=>new Date(),uploadDir=null,focus=createFocus(),mailer=createMailer(),focusWebhookToken='',billingTokenKey='',newSiteBilling=RECURRING_MODEL,trustProxy=false}){
- const root=resolve(publicDir),locks=new Set();let processing=false;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
+ const root=resolve(publicDir),locks=new Set();let processing=false,lastRateLimitPruneAt=0;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
  const accountProfile=createAccount(db,fiscal);
  const q=(sql,...args)=>db.prepare(sql).get(...args),list=(sql,...args)=>db.prepare(sql).all(...args),run=(sql,...args)=>db.prepare(sql).run(...args);
  db.exec("UPDATE orders SET billing_state='uncertain' WHERE billing_state='creating'; UPDATE maintenance SET status='uncertain' WHERE status='creating';");
  const ready=()=>asaas.configured&&(!production||Boolean(sellerName&&sellerDocument&&webhookToken.length>=32));
  const recurring=createRecurringBilling({db,asaas,fiscal,clock,origin,ready,tokenKey:billingTokenKey,exclusive});
- function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
- function limit(key,max=20,window=900000){const row=q('SELECT * FROM rate_limits WHERE key=?',key),time=Date.now();if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);else{assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');run('UPDATE rate_limits SET count=count+1 WHERE key=?',key)}}
+ // The local reverse proxy must append the verified TCP peer as the LAST
+ // X-Forwarded-For entry (or overwrite the header). Never trust the first
+ // entry: clients can prepend arbitrary IPs before a correctly appending
+ // proxy. With APP_TRUST_PROXY=false, ignore forwarded headers completely.
+ function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',').at(-1).trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
+ function limit(key,max=20,window=900000){
+  const time=Date.now();
+  // Distinct login emails and IPs create distinct bucket keys. Without
+  // cleanup, expired rows accumulate forever in the SQLite legacy Portal.
+  // Bound collection work to once per five minutes per process, then preserve
+  // live counters. Fail closed on storage failure.
+  if(time-lastRateLimitPruneAt>=RATE_LIMIT_PRUNE_INTERVAL_MS){
+   run('DELETE FROM rate_limits WHERE reset_at<=?',time);
+   lastRateLimitPruneAt=time;
+  }
+  const row=q('SELECT * FROM rate_limits WHERE key=?',key);
+  if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);
+  else{
+   assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');
+   run('UPDATE rate_limits SET count=count+1 WHERE key=?',key);
+  }
+ }
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
- function session(res,user){const raw=token(),csrf=token();run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,Date.now()+12*3600000);res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);return {user:publicUser(team.decorate(user)),csrf}}
+ function session(res,user){
+  const raw=token(),csrf=token(),time=Date.now(),expiresAt=time+12*3600000;
+  // Keep the SQLite legacy Portal bounded until the independent Portal
+  // PostgreSQL session issuer is reviewed. Every mutation is atomic, so a
+  // failed insert cannot revoke valid logins or expose an unusable cookie.
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   run('DELETE FROM sessions WHERE expires_at<=?',time);
+   // Reserve one slot for the freshly issued credential. Existing sessions
+   // are ranked per user, never globally; another customer's token is safe.
+   run('DELETE FROM sessions WHERE user_id=? AND hash IN (SELECT hash FROM sessions WHERE user_id=? ORDER BY expires_at DESC,hash DESC LIMIT -1 OFFSET ?)',user.id,user.id,MAX_ACTIVE_SESSIONS_PER_ACCOUNT-1);
+   run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,expiresAt);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);
+  return {user:publicUser(team.decorate(user)),csrf};
+ }
  function own(id,user){const order=q('SELECT * FROM orders WHERE id=?',id);assert(order&&team.canOrder(user,id)&&(user.role==='admin'||order.user_id===user.id),404,'Pedido não encontrado.');return order}
  function viewOrder(order,user){const result=orderView(order,user);result.complaints=orderOps.complaints(order.id);if(user.staff_profile&&user.staff_profile!=='financeiro'){result.payments=[];result.price_cents=null;result.invoice_url=null;result.maintenance=null;result.subscription_action=null;result.billing_terms=null;result.billing_schedule=[];result.billing_card=null;result.scope='Consulte a administração para condições comerciais.';}return result;}
  function orderView(order,user){return {...order,billing_terms:recurring.terms(order),billing_schedule:order.billing_model===RECURRING_MODEL?recurring.publicState(order.id).schedule:[],billing_card:recurring.cardSummary(order.id),subscription_action:subscriptionGuidance(order,q('SELECT * FROM maintenance WHERE order_id=?',order.id),list('SELECT * FROM payments WHERE order_id=?',order.id),{billingReady:recurring.enabled(),now:clock(),alerts:recurring.publicState(order.id).alerts,processing:!!q("SELECT id FROM billing_operations WHERE order_id=? AND state IN ('processing','uncertain')",order.id)}),production:order.product_id==='site'?productionFlow.view(order.id):null,customer_id:undefined,briefing_summary:order.product_id==='site'?briefings.summary(order.id,user.staff_profile!=='financeiro'&&(user.role==='admin'||settled.has(order.payment_status))):null,maintenance:q('SELECT order_id,checkout_url,subscription_id,status,first_due,next_due,cancel_requested_at,canceled_at FROM maintenance WHERE order_id=?',order.id)||null,messages:list('SELECT m.id,m.body,m.created_at,u.name,u.role FROM messages m JOIN users u ON u.id=m.user_id WHERE m.order_id=? ORDER BY m.id',order.id),payments:list('SELECT * FROM payments WHERE order_id=? ORDER BY due_date DESC',order.id),client:user.role==='admin'?q('SELECT name,email FROM users WHERE id=?',order.user_id):undefined}}
@@ -63,7 +101,11 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/webhooks/focus'&&method==='POST'){assert(focusWebhookToken.length>=32&&equal(req.headers['x-focus-token'],focusWebhookToken),401,'Webhook fiscal não autorizado.');const body=await jsonBody(req);assert(typeof body.ref==='string'&&/^[A-Za-z0-9]{1,100}$/.test(body.ref),400,'Referência inválida.');await fiscal.hook(body);return send(res,200,{received:true});}
  if(path==='/health'&&method==='GET')return send(res,200,{ok:true});
  if(path==='/api/webhooks/asaas'&&method==='POST'){assert(webhookToken.length>=32&&equal(req.headers['asaas-access-token'],webhookToken),401,'Webhook não autorizado.');const body=await jsonBody(req);assert(typeof body.id==='string'&&body.id.length<=200&&typeof body.event==='string'&&body.event.length<=100,400,'Evento inválido.');const entity=body.payment||body.subscription||body.checkout;assert(entity&&typeof entity.id==='string'&&entity.id.length<=200,400,'Recurso inválido.');const context=body.checkout?{reference:cleanText(entity.externalReference,200),customer:cleanText(entity.customer,100),value_cents:Array.isArray(entity.items)?entity.items.reduce((sum,item)=>sum+cents(item.value)*Number(item.quantity),0):null,cycle:entity.subscription?.cycle,first_due:entity.subscription?.nextDueDate}:{};run('INSERT OR IGNORE INTO events(id,type,resource_id,context,created_at) VALUES(?,?,?,?,?)',body.id,body.event,entity.id,JSON.stringify(context),now());send(res,200,{received:true});return}
- if(path.startsWith('/api/')){const user=findSession(req);if(!['GET','HEAD'].includes(method)){assert(req.headers.origin===origin,403,'Origem não autorizada.');if(user)assert(equal(req.headers['x-csrf-token'],user.csrf),403,'Sessão inválida. Atualize a página.')}const ip=req.socket.remoteAddress||'local';
+ if(path.startsWith('/api/')){const user=findSession(req);if(!['GET','HEAD'].includes(method)){assert(req.headers.origin===origin,403,'Origem não autorizada.');if(user)assert(equal(req.headers['x-csrf-token'],user.csrf),403,'Sessão inválida. Atualize a página.')}// Auth and signup rate limits must use the same explicitly trusted
+ // reverse-proxy identity as checkout; otherwise every customer behind a
+ // local proxy consumes one shared lockout bucket. APP_TRUST_PROXY=false
+ // ignores client-controlled forwarding headers entirely.
+ const ip=remoteIp(req);
  if(path==='/api/config'&&method==='GET')return send(res,200,{environment:asaas.environment,billingReady:newSiteBilling===RECURRING_MODEL?recurring.enabled():ready(),recurringReady:recurring.enabled(),products:list('SELECT * FROM products'),seller:{name:sellerName,document:sellerDocument},maintenance:{price_cents:7990,first_charge_after_days:90,cycle:'MONTHLY',optional:false,includes_changes:false}});
  if(path==='/api/session'&&method==='GET')return send(res,200,user?{user:publicUser(user),csrf:user.csrf}:{user:null});
  if(path==='/api/register'&&method==='POST'){limit('register:'+ip,8,3600000);const data=await jsonBody(req),email=cleanText(data.email,254).toLowerCase(),name=cleanText(data.name,120);assert(validEmail(email)&&name.length>=2,400,'Informe nome e e-mail válidos.');assert(!q('SELECT id FROM users WHERE email=?',email),409,'Não foi possível criar a conta com este e-mail.');const hashed=await hashPassword(data.password),id=randomUUID();try{run("INSERT INTO users VALUES(?,?,?,?,'client',?)",id,name,email,hashed,now())}catch{throw problem(409,'Não foi possível criar a conta com este e-mail.')}audit(db,id,'account.created',id);return send(res,201,session(res,q('SELECT * FROM users WHERE id=?',id)))}
@@ -80,6 +122,32 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/sessions/summary'&&method==='GET'){
+  // Only aggregated counts for the authenticated current account. No
+  // bearer tokens, raw session hashes, device IDs, IP addresses or other
+  // users' session metadata can ever reach this response.
+  const row=q('SELECT count(*) AS active FROM sessions WHERE user_id=? AND expires_at>?',user.id,Date.now());
+  const active=Number(row?.active||0);
+  return send(res,200,{
+   active_sessions:active,
+   other_sessions:Math.max(0,active-1),
+   max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT,
+  });
+ }
+ if(path==='/api/sessions/revoke-others'&&method==='POST'){
+  limit('sessions-revoke:'+user.id,5,3600000);
+  const data=await jsonBody(req);
+  assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');
+  // Keep the authenticated cookie and its CSRF token. Delete only this
+  // account's other sessions, atomically and without touching other tenants.
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   run('DELETE FROM sessions WHERE user_id=? AND hash<>?',user.id,user.hash);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  audit(db,user.id,'sessions.revoked_others',user.id);
+  return send(res,200,{ok:true});
+ }
  if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');const hashed=await hashPassword(data.newPassword);db.exec('BEGIN IMMEDIATE');try{run('UPDATE users SET password_hash=? WHERE id=?',hashed,user.id);run('DELETE FROM sessions WHERE user_id=?',user.id);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
  if(path==='/api/orders'&&method==='GET')return send(res,200,{orders:(user.role==='admin'?list('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500'):list('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 500',user.id)).filter(o=>team.canOrder(user,o.id)).map(o=>viewOrder(o,user))});
  if(path==='/api/orders'&&method==='POST'){limit('orders:'+user.id,15,3600000);const data=await jsonBody(req),product=q('SELECT * FROM products WHERE id=?',cleanText(data.product,30));assert(product,400,'Solução inválida.');const brief=cleanText(data.brief,5000);assert(brief.length>=10,400,'Descreva seu projeto com pelo menos 10 caracteres.');const id=cleanText(data.requestId,50);assert(/^[a-f\d-]{36}$/i.test(id),400,'Identificador de pedido inválido.');const existing=q('SELECT * FROM orders WHERE id=?',id);if(existing){assert(existing.user_id===user.id,409,'Pedido já registrado.');return send(res,200,{order:viewOrder(existing,user)})}run('INSERT INTO orders(id,user_id,product_id,title,brief,price_cents,scope,delivery,terms_version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,user.id,product.id,product.title,brief,product.enabled||product.id==='site'?product.price_cents:null,product.enabled?product.scope:'',product.enabled?product.delivery:'',product.version,now(),now());if(product.id==='site'&&newSiteBilling===RECURRING_MODEL)run("UPDATE orders SET billing_model=?,scope=CASE WHEN scope='' THEN ? ELSE scope END,delivery=CASE WHEN delivery='' THEN ? ELSE delivery END WHERE id=?",RECURRING_MODEL,'Onepage responsivo com identidade visual, apresentação, serviços e contatos. Implantação: 3 pagamentos de R$ 330 na contratação, após 30 e 60 dias. Assinatura mensal obrigatória de R$ 79,90 a partir de 90 dias, independentemente da publicação. Inclui licença, hospedagem, SSL, backup e suporte técnico; alterações à parte. Domínio do cliente.','7 dias úteis após validar os materiais.',id);audit(db,user.id,'order.created',id);return send(res,201,{order:viewOrder(q('SELECT * FROM orders WHERE id=?',id),user)})}

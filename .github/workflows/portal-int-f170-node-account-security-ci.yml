@@ -1,0 +1,122 @@
+name: Portal INT-F170 - Exact Node account-security delivery candidate (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-int-f170-node-account-security-candidate-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f163-session-identity-immutability-pg18-2026-11-11
+    paths:
+      - 'server/**'
+      - 'tests/**'
+      - 'portal.js'
+      - 'account-ui.js'
+      - 'apps/portal/**'
+      - '.github/workflows/portal-int-f170-node-account-security-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-reviewed-branch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      BASELINE: f3f33141d237ad0519c97774dd1f2ddbb2079519
+      REVIEWED_SOURCE: 1c1a07491f8c8860515a19cf48c333de36da66c3
+      REVIEWED_TREE: 6dfa34defedd8a3622126a05bb0f561aea24964a
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Pin Node F164-F169 code and block unexpected edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$REVIEWED_SOURCE^{tree}")" = "$REVIEWED_TREE"
+          git merge-base --is-ancestor "$BASELINE" "$REVIEWED_SOURCE"
+          git merge-base --is-ancestor "$REVIEWED_SOURCE" HEAD
+          test "$(git diff --name-only "$BASELINE" "$REVIEWED_SOURCE" | wc -l | tr -d ' ')" = 13
+          while IFS= read -r path; do
+            case "$path" in
+              .github/workflows/portal-int-f170-node-account-security-ci.yml|apps/portal/docs/PORTAL-INT-F170-NODE-ACCOUNT-SECURITY-CANDIDATE.md) ;;
+              *) echo "Unexpected post-review file changed: $path" >&2; exit 1 ;;
+            esac
+          done < <(git diff --name-only "$REVIEWED_SOURCE" HEAD)
+          grep -Fq 'MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8' server/app.mjs
+          grep -Fq "const ip=remoteIp(req)" server/app.mjs
+          grep -Fq "split(',').at(-1).trim()" server/app.mjs
+          grep -Fq 'lastRateLimitPruneAt' server/app.mjs
+          grep -Fq "'/api/sessions/revoke-others'" server/app.mjs
+          grep -Fq "'/api/sessions/summary'" server/app.mjs
+          grep -Fq 'DenyingPortalAuthorities::class' apps/portal/app/Providers/AppServiceProvider.php
+          {
+            echo '## Node account security candidate'
+            echo "Reviewed source: `$REVIEWED_SOURCE`"
+            echo "Exact Git tree: `$REVIEWED_TREE`"
+            echo 'Gate: NO-GO, cannot deploy or change main/dev; independent review pending.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  node-account-security:
+    needs: exact-reviewed-branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22','24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify UI and operational server parse
+        run: |
+          set -euo pipefail
+          node --check server/app.mjs
+          node --check server/team.mjs
+          node --check portal.js
+          node --check account-ui.js
+      - name: Locked dependencies and full Node regression
+        run: |
+          set -euo pipefail
+          npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+          git diff --exit-code -- pnpm-lock.yaml
+          npm test
+
+  laravel-independent-deny-all:
+    needs: exact-reviewed-branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    defaults:
+      run:
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Prove updated Node routes have not activated Laravel IAM
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan test --no-ansi
+          test "$(php artisan route:list --json | php -r '$a=json_decode(stream_get_contents(STDIN),true); echo count($a);')" -eq 1
+          grep -Fq 'DenyingPortalAuthorities::class' app/Providers/AppServiceProvider.php
+          git diff --exit-code -- composer.lock
