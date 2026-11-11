@@ -105,3 +105,7 @@ não recomenda tentativas automáticas contínuas.
 ## Situação operacional e ordem dos projetos (F213)
 
 O arquivo paginado aceita `phase=all|solicitado|planejamento|desenvolvimento|revisao|entregue` e `sort=newest|oldest`. Os valores são explicitamente permitidos; tentativas com valores desconhecidos recebem erro 400. Os filtros de etapa, pagamento, busca e ordenação são aplicados no SQL **antes** da paginação de oito registros. A tela apresenta as etapas em português e mantém o comportamento anterior quando os parâmetros são omitidos.
+
+## Resumo das etapas (F215)
+
+A consulta compacta retorna `project_summary`, com contagem de projetos nas etapas solicitado, planejamento, desenvolvimento, revisão e entregue, agregada somente pelo identificador da sessão autenticada. A interface exibe o resumo sem abrir ou revelar projetos de outra empresa; a API legada permanece sem novas informações obrigatórias.

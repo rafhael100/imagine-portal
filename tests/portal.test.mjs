@@ -672,3 +672,21 @@ test('F211: bounded project search quota prevents expensive repeated reads witho
  f.db.prepare('UPDATE rate_limits SET reset_at=? WHERE key=?').run(Date.now()-5000,key);
  assert.equal((await owner.call(route)).status,200);
 });
+
+test('F215: compact account summary reflects only the authenticated owner phase totals',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outra pessoa');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,phase,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,'PENDING','2026-11-11','2026-11-11')");
+ for(const [i,phase]of ['solicitado','desenvolvimento','desenvolvimento','entregue'].entries())
+  stmt.run(randomUUID(),owner.user.id,'Projeto '+i,phase);
+ stmt.run(randomUUID(),other.user.id,'Outro projeto','revisao');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);
+ assert.equal(compact.body.projects_total,4);
+ assert.deepEqual(compact.body.project_summary,{
+  solicitado:1,planejamento:0,desenvolvimento:2,revisao:0,entregue:1,
+ });
+ assert.equal((await other.call('/api/account?compact=1')).body.project_summary.revisao,1);
+ const original=await owner.call('/api/account');
+ assert.equal(original.body.projects_total,undefined);
+ assert.equal(original.body.project_summary,undefined);
+});

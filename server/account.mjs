@@ -37,7 +37,14 @@ export function createAccount(db,fiscal){
    user:publicUser(u),created_at:u.created_at,
    profile:safeAccountProfile(row),fiscal:fiscal.customer(user,user.id),projects,
   };
-  if(compact)response.projects_total=db.prepare('SELECT count(*) AS n FROM orders WHERE user_id=?').get(user.id).n;
+  if(compact){
+   // F215: aggregate only the authenticated owner's operational milestones.
+   const phases={solicitado:0,planejamento:0,desenvolvimento:0,revisao:0,entregue:0};
+   const groups=db.prepare('SELECT phase,count(*) AS n FROM orders WHERE user_id=? GROUP BY phase').all(user.id);
+   for(const row of groups)if(Object.hasOwn(phases,row.phase))phases[row.phase]=Number(row.n);
+   response.projects_total=groups.reduce((sum,row)=>sum+Number(row.n),0);
+   response.project_summary=phases;
+  }
   return response;
  }
  async function save(user,data,{compact=false}={}){const current=view(user,{compact:true});if(data.version!==current.profile.version)fail(409,'Seu cadastro mudou em outra tela. Atualize antes de salvar.');const fields={company:150,whatsapp:30,phone:30,website:250},profile={};for(const[k,max]of Object.entries(fields)){if(typeof(data[k]??'')!=='string'||String(data[k]||'').length>max)fail(400,'Revise o campo '+k);profile[k]=cleanText(data[k],max);}profile.whatsapp=validation.phoneDigits(profile.whatsapp);profile.phone=validation.phoneDigits(profile.phone);if(profile.whatsapp&&!validation.validPhone(profile.whatsapp)||profile.phone&&!validation.validPhone(profile.phone))fail(400,'Informe telefones brasileiros válidos com DDD.');if(profile.website){let url;try{url=new URL(profile.website);}catch{fail(400,'Informe o site completo, começando por https://.');}if(!['https:','http:'].includes(url.protocol)||url.username||url.password)fail(400,'Informe um endereço de site válido.');profile.website=url.href;}
