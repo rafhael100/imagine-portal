@@ -16,6 +16,7 @@ on:
       - 'apps/portal/labs/gsc-f146/**'
       - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/labs/gsc-f152/**'
+      - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
@@ -136,6 +137,18 @@ jobs:
           node apps/portal/labs/gsc-f152/emit_node_overlap_trend.mjs > "$overlap_trend"
           PORTAL_GSC_TRENDS_LAB=1 php \
             apps/portal/labs/gsc-f152/verify_php_overlap_trend.php "$overlap_trend"
+          php -l apps/portal/tools/f153-render-gsc-overlap-trend-offline.php
+          overlap_trend_html="$(mktemp)"
+          PORTAL_GSC_TRENDS_LAB=1 PORTAL_GSC_TREND_HTML_LAB=1 php \
+            apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$overlap_trend" > "$overlap_trend_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$overlap_trend_html"
+          grep -q 'Variação da sobreposição' "$overlap_trend_html"
+          grep -q 'Investigar possível aumento da sobreposição editorial' "$overlap_trend_html"
+          grep -q 'name="robots" content="noindex,nofollow"' "$overlap_trend_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$overlap_trend_html"; then
+            echo "F153: interactive/unsafe HTML refused" >&2
+            exit 1
+          fi
           pages_html="$(mktemp)"
           trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$pages_fixture" "$pages_html"' EXIT
           PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 PORTAL_GSC_OVERLAP_HTML_LAB=1 php \
@@ -188,7 +201,7 @@ jobs:
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|OfflineGscOverlapTrendPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|PORTAL_GSC_TREND_HTML_LAB|f153-render-gsc-overlap-trend-offline|OfflineGscOverlapTrendPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
@@ -208,11 +221,20 @@ jobs:
             > .portal-f79-seo-preview/seo-review-DEMO.html
           test -s .portal-f79-seo-preview/seo-review-DEMO.html
           grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' .portal-f79-seo-preview/seo-review-DEMO.html
+          trend_json="$(mktemp)"
+          trap 'rm -f "$trend_json"' EXIT
+          node apps/portal/labs/gsc-f152/emit_node_overlap_trend.mjs > "$trend_json"
+          PORTAL_GSC_TRENDS_LAB=1 PORTAL_GSC_TREND_HTML_LAB=1 php \
+            apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$trend_json" \
+            > .portal-f79-seo-preview/gsc-overlap-trend-DEMO.html
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' .portal-f79-seo-preview/gsc-overlap-trend-DEMO.html
       - name: Preserve review-only static HTML (two days)
         if: matrix.php == '8.4' && matrix.node == '22'
         uses: actions/upload-artifact@v4
         with:
           name: portal-f79-seo-review-demo
-          path: .portal-f79-seo-preview/seo-review-DEMO.html
+          path: |
+            .portal-f79-seo-preview/seo-review-DEMO.html
+            .portal-f79-seo-preview/gsc-overlap-trend-DEMO.html
           if-no-files-found: error
           retention-days: 2
