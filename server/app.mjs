@@ -146,10 +146,15 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
  if(path==='/api/account/security-events'&&method==='GET'){
-  // Security history is owner-only: never return audit actor/resource ids,
-  // IP addresses, session tokens, or unrecognized internal audit actions.
-  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT 10",user.id);
-  return send(res,200,{events});
+  // F189: bounded pagination for the authenticated account. The old response
+  // shape remains unchanged without ?page= to preserve existing consumers.
+  // Never send audit IDs, other actors, IPs, tokens or unapproved actions.
+  const pageText=url.searchParams.get('page');
+  const paged=pageText!==null;
+  assert(!paged||/^[1-9][0-9]{0,1}$/.test(pageText)&&Number(pageText)<=30,400,'Página de histórico inválida.');
+  const page=paged?Number(pageText):1;
+  const rows=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT ? OFFSET ?",user.id,paged?11:10,(page-1)*10);
+  return send(res,200,paged?{events:rows.slice(0,10),page,has_more:rows.length>10}:{events:rows});
  }
  if(path==='/api/sessions/summary'&&method==='GET'){
   // Only aggregated counts for the authenticated current account. No
