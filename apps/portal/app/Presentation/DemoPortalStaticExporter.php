@@ -26,6 +26,15 @@ final class DemoPortalStaticExporter
         if (is_dir($directory) || file_exists($directory) || is_link($directory)) {
             throw new LogicException('Demo export target must not exist.');
         }
+        // F139: exclusive, same-parent claim prevents competing export
+        // processes from racing to publish the same local destination.
+        // An abandoned claim after a crash is intentionally fail-closed.
+        $claimFile = $directory . '.exporting';
+        $claimHandle = @fopen($claimFile, 'x+b');
+        if ($claimHandle === false) {
+            throw new LogicException('Preview export already reserved or claim is stale.');
+        }
+        try {
         // F134: stage all nine files in a private sibling, then publish the
         // complete directory in one filesystem rename. No partial export.
         $staging = $directory . '.staging-' . bin2hex(random_bytes(10));
@@ -142,6 +151,14 @@ final class DemoPortalStaticExporter
                 @rmdir($staging);
             }
             throw $error;
+        }
+        } finally {
+            fclose($claimHandle);
+            // The claim only belongs to this caller because x+b is
+            // exclusive; no lock stealing or recovery is attempted.
+            if (is_file($claimFile) && !is_link($claimFile)) {
+                @unlink($claimFile);
+            }
         }
     }
 
