@@ -12,6 +12,8 @@ use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +37,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         int $expiresAt = 2000,
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
+        int $sessionOrganizationRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -46,6 +49,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             $sessionAccountRevision,
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
+            $sessionOrganizationRevision,
         );
     }
 
@@ -70,6 +74,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         ?PortalSessionSnapshot $snapshot,
         ?OrganizationMembership $membership,
         ?OrganizationId $owner,
+        ?PortalOrganizationSnapshot $organizationState = null,
     ): PortalAuthorityBoundary {
         // Test fakes reside ONLY in tests, not in the production container.
         $sessionSource = new class($snapshot) implements PortalSessionAuthority {
@@ -105,7 +110,20 @@ final class PortalAuthorityBoundaryTest extends TestCase
             }
         };
 
-        return new PortalAuthorityBoundary($sessionSource, $membershipSource, $resourceSource);
+        $state = $organizationState ?? new PortalOrganizationSnapshot(
+            new OrganizationId('org-a'), true, 1,
+        );
+        $organizationSource = new class($state) implements PortalOrganizationAuthority {
+            public function __construct(private PortalOrganizationSnapshot $state) {}
+            public function lookup(OrganizationId $organization): ?PortalOrganizationSnapshot
+            {
+                return $this->state;
+            }
+        };
+
+        return new PortalAuthorityBoundary(
+            $sessionSource, $membershipSource, $resourceSource, $organizationSource,
+        );
     }
 
     private function inspect(
@@ -132,7 +150,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
     public function test_default_providers_deny_everything_without_official_authority(): void
     {
         $providers = new DenyingPortalAuthorities();
-        $boundary = new PortalAuthorityBoundary($providers, $providers, $providers);
+        $boundary = new PortalAuthorityBoundary($providers, $providers, $providers, $providers);
 
         self::assertFalse($this->inspect($boundary));
         self::assertFalse($this->inspect($boundary, null));
@@ -212,6 +230,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             $orgBSession,
             $orgBMembership,
             new OrganizationId('org-b'),
+            new PortalOrganizationSnapshot(new OrganizationId('org-b'), true, 1),
         );
         // Still a synthetic verdict, NEVER HTTP authorization.
         self::assertTrue($this->inspect($orgBBoundary, organization: 'org-b'));
@@ -268,6 +287,36 @@ final class PortalAuthorityBoundaryTest extends TestCase
         $this->snapshot(sessionMembershipRevision: 0);
     }
 
+    public function test_suspended_closed_or_stale_organization_cannot_authorize_member(): void
+    {
+        $member = $this->membership();
+        $owner = new OrganizationId('org-a');
+        foreach ([
+            new PortalOrganizationSnapshot(new OrganizationId('org-a'), false, 1),
+            new PortalOrganizationSnapshot(new OrganizationId('org-a'), true, 2),
+            new PortalOrganizationSnapshot(new OrganizationId('org-b'), true, 1),
+        ] as $state) {
+            $boundary = $this->syntheticBoundary(
+                $this->snapshot(), $member, $owner, $state,
+            );
+            self::assertFalse($this->inspect($boundary));
+        }
+
+        $fresh = $this->syntheticBoundary(
+            $this->snapshot(sessionOrganizationRevision:2),
+            $member,
+            $owner,
+            new PortalOrganizationSnapshot(new OrganizationId('org-a'),true,2),
+        );
+        self::assertTrue($this->inspect($fresh));
+    }
+
+    public function test_invalid_session_organization_revision_is_rejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->snapshot(sessionOrganizationRevision: 0);
+    }
+
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void
     {
         $boundary = $this->syntheticBoundary(
@@ -290,7 +339,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             }
         };
         $denied = new DenyingPortalAuthorities();
-        $boundary = new PortalAuthorityBoundary($broken, $denied, $denied);
+        $boundary = new PortalAuthorityBoundary($broken, $denied, $denied, $denied);
 
         $verdict = $boundary->inspect('test-portal-session', new OrganizationId('org-a'), 'synthetic-resource', 'services.view', 1500);
 
