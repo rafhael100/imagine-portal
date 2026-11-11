@@ -49,6 +49,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         $index = file_get_contents($this->temporaryDirectory . '/index.html');
         self::assertIsString($index);
         self::assertStringContainsString('Somente dados fictícios', $index);
+        self::assertStringContainsString('href="index.html" aria-current="page"', $index);
 
         $review = file_get_contents($this->temporaryDirectory . '/delivery-review.html');
         self::assertIsString($review);
@@ -56,6 +57,9 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertStringContainsString('DEMO-AURORA-001', $review);
         self::assertStringContainsString('Revisão de entregas', $review);
         self::assertStringContainsString('SIMULAÇÃO LOCAL', $review);
+        self::assertStringContainsString(
+            'href="delivery-review.html" aria-current="page"', $review,
+        );
         foreach (['<form', '<script', '<button', 'http://', 'https://'] as $prohibited) {
             self::assertStringNotContainsString($prohibited, $review);
         }
@@ -70,6 +74,9 @@ final class DemoPortalStaticExporterTest extends TestCase
             $html = file_get_contents($this->temporaryDirectory . '/' . $section . '.html');
             self::assertIsString($html);
             self::assertStringContainsString('href="index.html"', $html);
+            self::assertStringContainsString(
+                'href="'.$section.'.html" aria-current="page"', $html,
+            );
             self::assertStringContainsString('Navegação da prévia offline', $html);
             self::assertStringContainsString('Protótipo interno', $html);
             self::assertStringNotContainsString('<form', $html);
@@ -218,6 +225,34 @@ final class DemoPortalStaticExporterTest extends TestCase
             '<iframe src="https://example.invalid"></iframe></main>',
             $html,
         );
+        self::assertNotSame($html, $tampered);
+        file_put_contents($file, $tampered);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_wrong_active_navigation_destination_is_rejected(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/services.html';
+        $html = (string) file_get_contents($file);
+        $tampered = str_replace(
+            'href="services.html" aria-current="page"',
+            'href="overview.html" aria-current="page"',
+            $html,
+        );
+        self::assertNotSame($html, $tampered);
+        file_put_contents($file, $tampered);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_missing_active_navigation_announcement_is_rejected(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/index.html';
+        $html = (string) file_get_contents($file);
+        $tampered = str_replace(' aria-current="page"', '', $html);
         self::assertNotSame($html, $tampered);
         file_put_contents($file, $tampered);
         $this->expectException(LogicException::class);
