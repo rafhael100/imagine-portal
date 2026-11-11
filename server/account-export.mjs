@@ -10,11 +10,13 @@ export function safeCsvCell(value){
  const safe=/^[\s\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
-export function projectsCsv(projects){
+export function projectsCsv(projects,{withStage=false}={}){
  if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
- const rows=[HEADERS,...projects.map(p=>[
+ const headers=withStage?[...HEADERS,'Etapa do projeto']:HEADERS;
+ const rows=[headers,...projects.map(p=>[
   p.id,p.title,p.created_at,p.payment_status,
   p.data?.company_name||'',p.data?.domain||'',
+  ...(withStage?[p.phase||'']:[]),
  ])];
  return '\uFEFF'+rows.map(row=>row.map(safeCsvCell).join(';')).join('\r\n')+'\r\n';
 }
@@ -49,7 +51,7 @@ export function accountDataExport(account,exportedAt=new Date().toISOString()){
   profile:pickFields(account.profile,PROFILE_FIELDS),
   fiscal:pickFields(account.fiscal,FISCAL_FIELDS),
   projects:account.projects.map(p=>({
-   ...pickFields(p,['id','title','created_at','payment_status','status']),
+   ...pickFields(p,['id','title','created_at','phase','payment_status','status']),
    data:pickFields(p.data,PROJECT_FIELDS),
   })),
  };

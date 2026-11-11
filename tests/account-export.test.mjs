@@ -24,6 +24,15 @@ test('F177: exportação CSV é compatível com Excel pt-BR e não inventa dados
  assert.throws(()=>projectsCsv({}),TypeError);
 });
 
+test('F216: extended project CSV preserves original columns and appends optional phase',()=>{
+ const rows=[{id:'safe-001',title:'Site',created_at:'2026-11-11',phase:'desenvolvimento',payment_status:'RECEIVED',
+  data:{company_name:'Empresa',domain:'empresa.test'}}];
+ const legacy=projectsCsv(rows),enriched=projectsCsv(rows,{withStage:true});
+ assert.equal(legacy.includes('Etapa do projeto'),false);
+ assert.ok(enriched.startsWith(legacy.split('\r\n')[0]+';"Etapa do projeto"\r\n'));
+ assert.ok(enriched.includes('"Empresa";"empresa.test";"desenvolvimento"'));
+ assert.equal((enriched.match(/\r\n/g)||[]).length,2);
+});
 test('F181: JSON export has an explicit allowlist even with unexpected sensitive columns',()=>{
  const source={
   user:{id:'private-user-id',name:'Cliente',email:'cliente@example.test',password_hash:'hash-private',csrf:'csrf-private',permissions:['all']},

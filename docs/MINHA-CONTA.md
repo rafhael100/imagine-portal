@@ -101,3 +101,39 @@ Para reduzir pesquisas repetitivas custosas e preservar outros usuários,
 de 60 segundos. A quota é independente por titular e separada das
 exportações (20/hora). A interface informa quando é preciso aguardar e
 não recomenda tentativas automáticas contínuas.
+
+## Situação operacional e ordem dos projetos (F213)
+
+O arquivo paginado aceita `phase=all|solicitado|planejamento|desenvolvimento|revisao|entregue` e `sort=newest|oldest`. Os valores são explicitamente permitidos; tentativas com valores desconhecidos recebem erro 400. Os filtros de etapa, pagamento, busca e ordenação são aplicados no SQL **antes** da paginação de oito registros. A tela apresenta as etapas em português e mantém o comportamento anterior quando os parâmetros são omitidos.
+
+## Resumo das etapas (F215)
+
+A consulta compacta retorna `project_summary`, com contagem de projetos nas etapas solicitado, planejamento, desenvolvimento, revisão e entregue, agregada somente pelo identificador da sessão autenticada. A interface exibe o resumo sem abrir ou revelar projetos de outra empresa; a API legada permanece sem novas informações obrigatórias.
+
+## Planilha com etapas opcionais (F216)
+
+O contrato legado `GET /api/account/projects.csv` mantém seis colunas. A interface de cliente passa a baixar `GET /api/account/projects.csv?columns=stage`, que acrescenta a coluna final **Etapa do projeto**. A exportação JSON inclui o campo opcional `phase` por projeto, preservando a versão de contrato legada; os dados continuam isolados por titular e protegidos contra fórmulas CSV.
+
+## Acompanhamento da produção de sites (F218)
+
+Nos projetos do tipo **site** com pagamento confirmado, a API paginada apresenta apenas `production.stage`, `production.progress` (0–100) e a data prevista `production.due_date`. A consulta é filtrada pelo titular; projetos não pagos, projetos sem registro de produção e produtos diferentes de site não recebem dados de produção. A interface apresenta etapa legível, progresso e previsão, sem expor URL de prévia privada, identificadores de equipe ou comentários internos. O acompanhamento não constitui promessa contratual nem libera a publicação.
+
+## Projetos aguardando a revisão do cliente (F220)
+
+A interface oferece o filtro `attention=review`, que retorna somente sites **pagos** do próprio titular cuja produção esteja efetivamente em `stage=review`, prontos para uma ação de aprovação ou ajuste. O resumo compacto acrescenta `requires_review`, contado no servidor com a mesma restrição de usuário/pagamento; o cartão exibe o acesso direto ao fluxo do pedido para revisar a prévia. Nenhuma aprovação ou publicação ocorre automaticamente.
+
+## Acessibilidade de consulta e restauração de filtros (F221)
+
+O controle **Limpar filtros** restaura texto, pagamento, etapa, ordenação e revisões pendentes para seus padrões, reiniciando na primeira página. Durante requisições assíncronas, a lista informa `aria-busy`, removido ao receber resposta ou erro. A navegação pelo teclado mantém indicação visível de foco.
+
+### Compatibilidade com instalação inicial (F222)
+
+O resumo de revisões pendentes retorna zero se a tabela opcional de produção ainda não foi inicializada. Não força migração de produção em consultas de cadastro nem impede operações de perfil em bancos de testes ou instalações legadas que ainda não possuem essa tabela.
+
+### Eficiência do filtro por etapa (F223)
+
+O índice idempotente `orders(user_id,phase,created_at DESC,id DESC)` garante que os filtros por titular e fase possam usar consultas limitadas de forma estável, com a ordenação de projetos mais recentes. O teste de plano de consulta SQLite exige o uso desse índice sem dados de clientes reais. O índice aumenta o espaço em disco e deverá ser avaliado pelo DBA na revisão de integração.
+
+### GitHub Actions em desenvolvimento contínuo (F224)
+
+Os testes Node, os contratos sintéticos OAuth/GSC e os inventários F144/F186 usam controle de concorrência por PR/branch, cancelando validações obsoletas do **mesmo** grupo quando um commit mais novo chega. Isso reduz filas e consumo desnecessário dos runners, mas nenhum cancelamento equivale a aprovação. A liberação só pode considerar o último SHA exato e deve confirmar todos os testes exigidos após congelar a candidata.

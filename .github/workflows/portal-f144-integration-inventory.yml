@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+# F224: keep latest validation per review PR or branch; older jobs are
+# superseded by a newer SHA, preventing a large queue of stale candidates.
+concurrency:
+  group: portal-review-f144-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   integration-file-scope-review:
     runs-on: ubuntu-24.04

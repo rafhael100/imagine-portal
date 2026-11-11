@@ -25,6 +25,11 @@ test('F184: consultas multicliente e coleta de quotas usam índices restritos e 
    args:['owner-test'],
    index:'idx_orders_user_created',
   },
+  {
+   sql:'SELECT id,title,created_at FROM orders WHERE user_id=? AND phase=? ORDER BY created_at DESC,id DESC LIMIT 8',
+   args:['owner-test','revisao'],
+   index:'idx_orders_user_phase_created',
+  },
  ];
  for(const item of plans){
   const index=db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name=?").get(item.index);

@@ -387,6 +387,11 @@ test('F177: CSV de projetos é isolado, seguro contra fórmulas e registrado na 
  const title='=HYPERLINK("https://example.test","abrir")';
  f.db.prepare('UPDATE orders SET title=? WHERE id=?').run(title,first.id);
  const own=await a.call('/api/account/projects.csv');
+ const enriched=await a.call('/api/account/projects.csv?columns=stage');
+ assert.equal(enriched.status,200);
+ assert.ok(enriched.body.includes('"Etapa do projeto"'));
+ assert.ok(enriched.body.includes('"solicitado"'));
+ assert.equal((await a.call('/api/account/projects.csv?columns=unknown')).status,400);
  assert.equal(own.status,200);
  assert.match(own.headers.get('content-type')||'',/text\/csv/);
  assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-projetos.csv"/);
@@ -546,6 +551,23 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  const paid=await owner.call('/api/account/projects?payment=paid');
  assert.equal(paid.body.total,7);
  assert.ok(paid.body.projects.every(p=>p.payment_status==='RECEIVED'));
+ f.db.prepare('UPDATE orders SET phase=? WHERE id=?').run('entregue',ids[20]);
+ const delivered=await owner.call('/api/account/projects?phase=entregue');
+ assert.equal(delivered.status,200);
+ assert.equal(delivered.body.total,1);
+ assert.equal(delivered.body.projects[0].id,ids[20]);
+ assert.equal(delivered.body.projects[0].phase,'entregue');
+ const older=await owner.call('/api/account/projects?sort=oldest');
+ assert.equal(older.status,200);
+ assert.equal(older.body.projects[0].id,ids[0]);
+ assert.equal(older.body.projects[0].title,'Site 01');
+ const combined=await owner.call('/api/account/projects?sort=oldest&payment=paid&phase=entregue');
+ assert.equal(combined.body.total,1);
+ assert.equal(combined.body.projects[0].id,ids[20]);
+ const invalidPhase=await owner.call('/api/account/projects?phase=untrusted');
+ assert.equal(invalidPhase.status,400);
+ const invalidSort=await owner.call('/api/account/projects?sort=sql');
+ assert.equal(invalidSort.status,400);
  const pending=await owner.call('/api/account/projects?payment=other');
  assert.equal(pending.body.total,14);
  assert.ok(pending.body.projects.every(p=>p.payment_status==='PENDING'));
@@ -560,6 +582,22 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.equal(hidden.body.total,0);
  const wildcard=await owner.call('/api/account/projects?search=%25');
  assert.equal(wildcard.body.total,0);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,preview_url,updated_at) VALUES(?,'production',65,'2026-11-30','https://secret.example.internal/preview','2026-11-11')").run(ids[20]);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,updated_at) VALUES(?,'published',100,'2026-11-20','2026-11-11')").run(otherId);
+ const production=await owner.call('/api/account/projects?phase=entregue');
+ assert.deepEqual(production.body.projects[0].production,{stage:'production',progress:65,due_date:'2026-11-30'});
+ assert.ok(!JSON.stringify(production.body).includes('secret.example.internal'));
+ assert.equal(production.body.projects[0].product_id,undefined);
+ const unpaidProject=await owner.call('/api/account/projects?search=site%2019');
+ assert.equal(unpaidProject.body.projects[0].production,null);
+ f.db.prepare("UPDATE productions SET stage='review',progress=100 WHERE order_id=?").run(ids[20]);
+ const reviewOnly=await owner.call('/api/account/projects?attention=review');
+ assert.equal(reviewOnly.status,200);
+ assert.equal(reviewOnly.body.total,1);
+ assert.equal(reviewOnly.body.projects[0].id,ids[20]);
+ assert.equal(reviewOnly.body.projects[0].production.stage,'review');
+ assert.equal((await other.call('/api/account/projects?attention=review')).body.total,0);
+ assert.equal((await owner.call('/api/account/projects?attention=invalid')).status,400);
  const otherPage=await other.call('/api/account/projects');
  assert.equal(otherPage.body.total,1);assert.equal(otherPage.body.projects[0].id,otherId);
  const empty=await owner.call('/api/account/projects?page=4');
@@ -654,4 +692,22 @@ test('F211: bounded project search quota prevents expensive repeated reads witho
  const key='account-projects:'+owner.user.id;
  f.db.prepare('UPDATE rate_limits SET reset_at=? WHERE key=?').run(Date.now()-5000,key);
  assert.equal((await owner.call(route)).status,200);
+});
+
+test('F215: compact account summary reflects only the authenticated owner phase totals',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outra pessoa');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,phase,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,'PENDING','2026-11-11','2026-11-11')");
+ for(const [i,phase]of ['solicitado','desenvolvimento','desenvolvimento','entregue'].entries())
+  stmt.run(randomUUID(),owner.user.id,'Projeto '+i,phase);
+ stmt.run(randomUUID(),other.user.id,'Outro projeto','revisao');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);
+ assert.equal(compact.body.projects_total,4);
+ assert.deepEqual(compact.body.project_summary,{
+  solicitado:1,planejamento:0,desenvolvimento:2,revisao:0,entregue:1,
+ });
+ assert.equal((await other.call('/api/account?compact=1')).body.project_summary.revisao,1);
+ const original=await owner.call('/api/account');
+ assert.equal(original.body.projects_total,undefined);
+ assert.equal(original.body.project_summary,undefined);
 });

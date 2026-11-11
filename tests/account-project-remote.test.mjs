@@ -9,7 +9,8 @@ function harness(){
  const calls=[],timers=[],opened=[];
  const result={isConnected:true,innerHTML:'',textContent:'',onclick:null,contains:()=>true};
  const search={value:'',oninput:null},payment={value:'all',onchange:null};
- const nodes={'#account-project-results':result,'#account-project-search':search,'#account-project-payment':payment};
+ const phase={value:'all',onchange:null},sort={value:'newest',onchange:null},attention={value:'all',onchange:null},clear={onclick:null};
+ const nodes={'#account-project-results':result,'#account-project-search':search,'#account-project-payment':payment,'#account-project-phase':phase,'#account-project-sort':sort,'#account-project-attention':attention,'#account-project-clear':clear};
  const context={
   document:{querySelector:selector=>nodes[selector]??null},
   api:url=>new Promise((resolve,reject)=>calls.push({url,resolve,reject})),
@@ -20,7 +21,7 @@ function harness(){
  };
  runInNewContext(source+'\nthis.__bind=bindAccountProjectArchive;',context);
  context.__bind([],{remote:true,allCount:21});
- return {calls,timers,opened,result,search,payment};
+ return {calls,timers,opened,result,search,payment,phase,sort,attention,clear};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const item=n=>({id:'project-'+String(n).padStart(2,'0'),title:'Meu site '+n,payment_status:'RECEIVED',data:{company_name:'Marca '+n}});
@@ -32,13 +33,13 @@ function click(h,kind,value){
 test('F204: UI fetches first remote page and next page from server, not the entire archive',async()=>{
  const h=harness();
  assert.equal(h.calls.length,1);
- assert.equal(h.calls[0].url,'/api/account/projects?page=1&payment=all&search=');
+ assert.equal(h.calls[0].url,'/api/account/projects?page=1&payment=all&search=&phase=all&sort=newest&attention=all');
  h.calls[0].resolve({projects:Array.from({length:8},(_,i)=>item(i+1)),total:21,page:1,pages:3});
  await tick();
  assert.ok(h.result.innerHTML.includes('Página 1 de 3'));
  assert.equal((h.result.innerHTML.match(/<article>/g)||[]).length,8);
  click(h,'accountPage','next');
- assert.equal(h.calls[1].url,'/api/account/projects?page=2&payment=all&search=');
+ assert.equal(h.calls[1].url,'/api/account/projects?page=2&payment=all&search=&phase=all&sort=newest&attention=all');
  h.calls[1].resolve({projects:[item(9),item(10)],total:21,page:2,pages:3});
  await tick();
  assert.ok(h.result.innerHTML.includes('data-account-project="project-09"'));
@@ -55,9 +56,9 @@ test('F204: in-flight responses cannot replace newer search/filter results',asyn
  await tick();
  assert.equal(h.result.innerHTML.includes('data-account-project="project-01"'),false);
  h.timers[0]();
- assert.equal(h.calls[1].url,'/api/account/projects?page=1&payment=all&search=Cafe%20S%C3%A3o');
+ assert.equal(h.calls[1].url,'/api/account/projects?page=1&payment=all&search=Cafe%20S%C3%A3o&phase=all&sort=newest&attention=all');
  h.payment.value='paid';h.payment.onchange();
- assert.equal(h.calls[2].url,'/api/account/projects?page=1&payment=paid&search=Cafe%20S%C3%A3o');
+ assert.equal(h.calls[2].url,'/api/account/projects?page=1&payment=paid&search=Cafe%20S%C3%A3o&phase=all&sort=newest&attention=all');
  h.calls[2].resolve({projects:[item(3)],total:1,page:1,pages:1});
  await tick();
  h.calls[1].resolve({projects:[item(2)],total:1,page:1,pages:1});
@@ -97,4 +98,31 @@ test('F211: rate-limited project search displays a clear retry-later message',as
  await tick();
  assert.ok(h.result.innerHTML.includes('Muitas consultas em pouco tempo'));
  assert.ok(h.result.innerHTML.includes('Tentar novamente'));
+});
+
+test('F213: phase and chronology filters drive the paged request',async()=>{
+ const h=harness();
+ h.calls[0].resolve({projects:[],total:0,page:1,pages:1});await tick();
+ const phase=h.search; // remote harness attaches extra controls below
+ assert.ok(h.calls[0].url.includes('phase=all&sort=newest'));
+});
+
+test('F221: clear filters resets search, payment, phase, sort and review queue',async()=>{
+ const h=harness();
+ h.calls[0].resolve({projects:[],total:0,page:1,pages:1});await tick();
+ h.search.value='Meu site';h.payment.value='paid';h.phase.value='desenvolvimento';h.sort.value='oldest';h.attention.value='review';
+ h.clear.onclick();
+ assert.equal(h.search.value,'');assert.equal(h.payment.value,'all');
+ assert.equal(h.phase.value,'all');assert.equal(h.sort.value,'newest');assert.equal(h.attention.value,'all');
+ assert.equal(h.calls.at(-1).url,'/api/account/projects?page=1&payment=all&search=&phase=all&sort=newest&attention=all');
+ h.calls.at(-1).resolve({projects:[],total:0,page:1,pages:1});await tick();
+ assert.ok(h.result.innerHTML.includes('Nenhum projeto encontrado com os filtros informados'));
+});
+
+test('F221: review filter dispatches a scoped owner-only API query',async()=>{
+ const h=harness();h.calls[0].resolve({projects:[],total:0,page:1,pages:1});await tick();
+ h.attention.value='review';h.attention.onchange();
+ assert.ok(h.calls[1].url.endsWith('&attention=review'));
+ h.calls[1].resolve({projects:[],total:0,page:1,pages:1});await tick();
+ assert.equal(h.result.innerHTML.includes('Nenhum projeto encontrado'),true);
 });

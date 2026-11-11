@@ -32,7 +32,7 @@ test('F182: successful CSV uses same-origin credentials, expected MIME type and 
   blob:async()=>new Blob(['ID;Projeto']),
  });
  await h.download('csv');
- assert.equal(h.state.requests[0].path,'/api/account/projects.csv');
+ assert.equal(h.state.requests[0].path,'/api/account/projects.csv?columns=stage');
  assert.equal(h.state.requests[0].options.credentials,'same-origin');
  assert.equal(h.state.requests[0].options.headers.Accept,'text/csv');
  assert.equal(h.state.links[0].download,'imagine-projetos.csv');
