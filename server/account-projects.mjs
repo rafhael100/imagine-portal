@@ -8,7 +8,7 @@ export function safePublishedSiteUrl(value){
  try{
   const u=new URL(value);
   const host=u.hostname.toLowerCase();
-  if(u.protocol!=='https:'||u.username||u.password||!host.includes('.')||isIP(host)||/(?:^localhost$|\\.localhost$|\\.local$|\\.internal$)/.test(host))return null;
+  if(u.protocol!=='https:'||u.username||u.password||!host.includes('.')||isIP(host)||/(?:^localhost$|\.localhost$|\.local$|\.internal$)/.test(host))return null;
   return u.href;
  }catch{return null;}
 }
