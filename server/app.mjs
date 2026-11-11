@@ -2,6 +2,7 @@ import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,accountDataExport} from './account-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
+import {accountProjectsPage} from './account-projects.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
 import {createFiscal} from './fiscal.mjs';
 import {createFocus} from './focus.mjs';
@@ -174,8 +175,15 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   audit(db,user.id,'account.data_exported',user.id);
   return send(res,200,data);
  }
- if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
- if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/account/projects'&&method==='GET'){
+  return send(res,200,accountProjectsPage(db,user,{
+   page:url.searchParams.get('page')??'1',
+   payment:url.searchParams.get('payment')??'all',
+   search:url.searchParams.get('search')??'',
+  }));
+ }
+ if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));
+ if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req),{compact:url.searchParams.get('compact')==='1'}));}
  if(path==='/api/account/security-events'&&method==='GET'){
   // F189: bounded pagination for the authenticated account. The old response
   // shape remains unchanged without ?page= to preserve existing consumers.

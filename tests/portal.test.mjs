@@ -479,3 +479,163 @@ test('Jornada bloqueia ações sem pagamento, após estorno e fora dos limites d
  f.db.prepare("UPDATE orders SET payment_status='REFUNDED' WHERE id=?").run(po.id);
  assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:true})).status,409);
 });
+
+
+test('F200: account and fiscal APIs whitelist persisted profile, fiscal and paid briefing fields',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outro cliente'),id=owner.user.id;
+ f.db.prepare('INSERT INTO account_profiles(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({company:'Minha empresa',whatsapp:'11999999999',phone:{token:'PROFILE_NESTED_SECRET'},website:'https://site.example',internal_oauth_token:'PROFILE_PRIVATE_SECRET',version:777}),6,now());
+ f.db.prepare('INSERT INTO fiscal_customers(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({legal_name:'Minha empresa Ltda',document:'52998224725',email:'financeiro@example.test',whatsapp:{token:'FISCAL_NESTED_SECRET'},internal_bank_token:'FISCAL_PRIVATE_SECRET',version:999}),4,now());
+ const project=await order(owner);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id=?").run(project.id);
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(order_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at')
+  .run(project.id,JSON.stringify({company_name:'Empresa autorizada',domain:'empresa.test',notes:'Notas permitidas',internal_secret:'BRIEF_PRIVATE_SECRET',api_key:{secret:'BRIEF_NESTED_SECRET'},services:['ARRAY_NOT_FOR_CLIENT']}),now());
+ const own=await owner.call('/api/account');
+ assert.equal(own.status,200);
+ assert.equal(own.body.profile.version,6);
+ assert.equal(own.body.profile.company,'Minha empresa');
+ assert.equal(own.body.profile.phone,'');
+ assert.equal(own.body.profile.internal_oauth_token,undefined);
+ assert.equal(own.body.fiscal.version,4);
+ assert.equal(own.body.fiscal.legal_name,'Minha empresa Ltda');
+ assert.equal(own.body.fiscal.whatsapp,'');
+ assert.equal(own.body.fiscal.internal_bank_token,undefined);
+ assert.equal(own.body.projects[0].data.company_name,'Empresa autorizada');
+ assert.equal(own.body.projects[0].data.notes,'Notas permitidas');
+ assert.equal(own.body.projects[0].data.internal_secret,undefined);
+ assert.equal(own.body.projects[0].data.api_key,undefined);
+ assert.equal(own.body.projects[0].data.services,undefined);
+ const fiscal=await owner.call('/api/fiscal/customers/'+id);
+ assert.equal(fiscal.status,200);
+ assert.equal(fiscal.body.customer.version,4);
+ assert.equal(fiscal.body.customer.internal_bank_token,undefined);
+ assert.equal((await other.call('/api/fiscal/customers/'+id)).status,403);
+ assert.equal((await other.call('/api/account')).body.projects.length,0);
+ const blob=JSON.stringify(own)+JSON.stringify(fiscal.body);
+ for(const secret of ['PROFILE_PRIVATE_SECRET','PROFILE_NESTED_SECRET','FISCAL_PRIVATE_SECRET','FISCAL_NESTED_SECRET','BRIEF_PRIVATE_SECRET','BRIEF_NESTED_SECRET','ARRAY_NOT_FOR_CLIENT'])
+  assert.equal(blob.includes(secret),false,secret);
+});
+
+test('F201: bounded own-project endpoint paginates, filters and conceals unpaid materials',async t=>{
+ const f=await fixture(t),owner=await f.client('Arquivo do cliente'),other=await f.client('Outro cliente');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paidNames=new Set([3,6,9,12,15,18,21]);
+ const ids=[];
+ for(let i=1;i<=21;i++){
+  const id=randomUUID(),when='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  ids.push(id);
+  insert.run(id,owner.user.id,'Site '+String(i).padStart(2,'0'),paidNames.has(i)?'RECEIVED':'PENDING',when,when);
+  if(i===21||i===19){
+   f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)')
+    .run(id,JSON.stringify({company_name:'Empresa SECRETA'+i+(i===21?' Café São João':''),domain:'dominio-'+i+'.test',internal_token:'NEVER_BRIEF_TOKEN'}),when);
+  }
+ }
+ const otherId=randomUUID();
+ insert.run(otherId,other.user.id,'OTHER_PRIVATE_ORDER','PENDING','2026-11-12','2026-11-12');
+ const first=await owner.call('/api/account/projects');
+ assert.equal(first.status,200);assert.equal(first.body.total,21);assert.equal(first.body.pages,3);
+ assert.equal(first.body.page_size,8);assert.equal(first.body.projects.length,8);
+ assert.equal(first.body.projects[0].title,'Site 21');assert.equal(first.body.has_more,true);
+ assert.equal(first.body.projects[0].data.company_name,'Empresa SECRETA21 Café São João');
+ assert.equal(first.body.projects[0].data.internal_token,undefined);
+ assert.equal(first.body.projects[2].title,'Site 19');
+ assert.deepEqual(first.body.projects[2].data,{});
+ const third=await owner.call('/api/account/projects?page=3');
+ assert.equal(third.status,200);assert.equal(third.body.projects.length,5);assert.equal(third.body.has_more,false);
+ const paid=await owner.call('/api/account/projects?payment=paid');
+ assert.equal(paid.body.total,7);
+ assert.ok(paid.body.projects.every(p=>p.payment_status==='RECEIVED'));
+ const pending=await owner.call('/api/account/projects?payment=other');
+ assert.equal(pending.body.total,14);
+ assert.ok(pending.body.projects.every(p=>p.payment_status==='PENDING'));
+ const name=await owner.call('/api/account/projects?search=site%2021');
+ assert.equal(name.body.total,1);assert.equal(name.body.projects[0].id,ids[20]);
+ const accents=await owner.call('/api/account/projects?search=CAFE%20SAO');
+ assert.equal(accents.body.total,1);
+ assert.equal(accents.body.projects[0].id,ids[20]);
+ const domain=await owner.call('/api/account/projects?search=dominio-21.test');
+ assert.equal(domain.body.total,1);
+ const hidden=await owner.call('/api/account/projects?search=SECRETA19');
+ assert.equal(hidden.body.total,0);
+ const wildcard=await owner.call('/api/account/projects?search=%25');
+ assert.equal(wildcard.body.total,0);
+ const otherPage=await other.call('/api/account/projects');
+ assert.equal(otherPage.body.total,1);assert.equal(otherPage.body.projects[0].id,otherId);
+ const empty=await owner.call('/api/account/projects?page=4');
+ assert.equal(empty.body.total,21);assert.equal(empty.body.projects.length,0);
+ for(const params of ['page=0','page=1001','page=-1','page=01','page=x','payment=alll','search='+('x'.repeat(121))]){
+  assert.equal((await owner.call('/api/account/projects?'+params)).status,400,params);
+ }
+ assert.equal((await fetch(f.url+'/api/account/projects')).status,401);
+ const staff=await f.client('Colaborador','admin');
+ assert.equal((await staff.call('/api/account/projects')).status,403);
+ assert.equal(JSON.stringify(first.body).includes('NEVER_BRIEF_TOKEN'),false);
+ assert.equal(JSON.stringify(first.body).includes('OTHER_PRIVATE_ORDER'),false);
+});
+
+test('F202: compact account view retains full project count and latest authorized paid briefing',async t=>{
+ const f=await fixture(t),owner=await f.client('Responsável'),foreign=await f.client('Outro cliente');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paid=randomUUID(),pending=randomUUID(),foreignId=randomUUID();
+ stmt.run(paid,owner.user.id,'Projeto pago','RECEIVED','2026-11-10','2026-11-10');
+ stmt.run(pending,owner.user.id,'Projeto mais recente','PENDING','2026-11-11','2026-11-11');
+ stmt.run(foreignId,foreign.user.id,'Projeto estrangeiro','RECEIVED','2026-11-12','2026-11-12');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(paid,JSON.stringify({company_name:'Minha marca',domain:'marca.test',internal_key:'PRIVATE_INTERNAL'}),'2026-11-10');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(foreignId,JSON.stringify({company_name:'Outra marca',domain:'another.test'}),'2026-11-12');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,2);
+ assert.equal(compact.body.projects.length,1);
+ assert.equal(compact.body.projects[0].id,paid);
+ assert.equal(compact.body.projects[0].data.company_name,'Minha marca');
+ assert.equal(compact.body.projects[0].data.internal_key,undefined);
+ const regular=await owner.call('/api/account');
+ assert.equal(regular.status,200);
+ assert.equal(regular.body.projects.length,2);
+ assert.equal(regular.body.projects_total,undefined);
+ assert.equal((await foreign.call('/api/account?compact=1')).body.projects_total,1);
+ assert.equal(JSON.stringify(compact.body).includes('Outra marca'),false);
+ assert.equal(JSON.stringify(compact.body).includes('PRIVATE_INTERNAL'),false);
+});
+
+test('F205: compact fallback skips blank latest paid briefings and uses the latest real company suggestion',async t=>{
+ const f=await fixture(t),owner=await f.client('Marca');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const oldId=randomUUID(),blankId=randomUUID(),pendingId=randomUUID();
+ insert.run(oldId,owner.user.id,'Site antigo','RECEIVED','2026-11-09','2026-11-09');
+ insert.run(blankId,owner.user.id,'Site novo pago','RECEIVED','2026-11-10','2026-11-10');
+ insert.run(pendingId,owner.user.id,'Site pendente','PENDING','2026-11-11','2026-11-11');
+ const insertBrief=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)');
+ insertBrief.run(oldId,JSON.stringify({company_name:'Empresa histórica',whatsapp:'11999999999'}),'2026-11-09');
+ insertBrief.run(blankId,JSON.stringify({company_name:'',domain:'novo.test'}),'2026-11-10');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,3);
+ assert.equal(compact.body.projects.length,1);assert.equal(compact.body.projects[0].id,oldId);
+ assert.equal(compact.body.projects[0].data.company_name,'Empresa histórica');
+ const all=await owner.call('/api/account');
+ assert.equal(all.body.projects.length,3);
+ assert.equal(all.body.projects[0].id,pendingId);
+});
+
+test('F206: saving own account in compact mode does not return the full archive',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),foreign=await f.client('Outro');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','','PENDING',?,?)");
+ for(let i=0;i<15;i++){
+  const stamp='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  insert.run(randomUUID(),owner.user.id,'Projeto '+i,stamp,stamp);
+ }
+ const initial=(await owner.call('/api/account?compact=1')).body;
+ assert.equal(initial.projects_total,15);
+ const payload={version:0,name:'Cliente atualizado',email:owner.user.email,
+  company:'Minha empresa',whatsapp:'',phone:'',website:''};
+ const updated=await owner.call('/api/account?compact=1',payload);
+ assert.equal(updated.status,200);
+ assert.equal(updated.body.profile.version,1);
+ assert.equal(updated.body.user.name,'Cliente atualizado');
+ assert.equal(updated.body.projects_total,15);
+ assert.equal(updated.body.projects.length,0);
+ const next=await owner.call('/api/account');
+ assert.equal(next.body.projects.length,15);
+ assert.equal(next.body.profile.company,'Minha empresa');
+ assert.equal((await foreign.call('/api/account')).body.projects.length,0);
+});

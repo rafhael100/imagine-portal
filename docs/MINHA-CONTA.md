@@ -64,3 +64,24 @@ as derivações/verificações assíncronas de senha. Se houver logout,
 revogação ou alteração concorrente da credencial, respondem com conflito
 e não recriam acesso nem revogam sessões de outra pessoa. Os testes
 de corrida usam dados exclusivamente sintéticos.
+
+## Carregamento paginado da área do cliente (F201–F206)
+
+A interface usa `GET /api/account?compact=1` para carregar somente cadastro,
+dados fiscais, total de projetos e **um briefing pago com empresa informada**
+que sirva de sugestão de contato. Não transfere todos os projetos ao abrir
+a tela. Ao salvar, usa `POST /api/account?compact=1` e preserva a validação
+otimista de versão, sem retornar o histórico inteiro na resposta.
+
+`GET /api/account/projects?page=N&payment=all|paid|other&search=...` lista
+**8 projetos por página** do usuário autenticado, com contagem e indicação
+`has_more`. A página fica limitada a 1–1000 e a busca a 120 caracteres;
+termos são tratados literalmente (sem curingas SQL), com comparação
+insensível a maiúsculas e diacríticos em português. Nome e domínio de
+briefings só participam da busca quando o pagamento está confirmado.
+A interface descarta respostas assíncronas antigas, dá opção de tentar
+novamente após falha e nunca usa identificador de outro titular.
+
+As rotas antigas `GET /api/account` e `POST /api/account`, sem o parâmetro
+`compact`, mantêm a representação integral por compatibilidade. As exportações
+JSON/CSV permanecem integrais e separadas da paginação da interface.

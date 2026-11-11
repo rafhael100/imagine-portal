@@ -30,6 +30,11 @@ function pickFields(value,fields){
   return v===null||typeof v==='string'||typeof v==='boolean'||(typeof v==='number'&&Number.isFinite(v));
  }).map(key=>[key,source[key]]));
 }
+// Safe for ordinary authenticated account responses and downloads alike.
+export function publicProjectData(data){
+ return pickFields(data,PROJECT_FIELDS);
+}
+
 // Fixed privacy contract: never spread whole DB rows or arbitrary material
 // keys into an export. Unknown fields (including future internal additions)
 // are excluded by default, regardless of what the account UI can render.
