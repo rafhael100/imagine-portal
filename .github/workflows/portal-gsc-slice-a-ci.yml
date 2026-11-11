@@ -203,9 +203,15 @@ jobs:
             fi
             if [[ "$scenario" == complete ]]; then
               grep -q 'Investigar possível aumento da sobreposição editorial' "$rendered"
+              grep -q '10,0%' "$rendered"
+              grep -q '50,0%' "$rendered"
             else
               grep -q 'Amostra incompleta: tendências suprimidas' "$rendered"
-              grep -q 'Indisponível' "$rendered"
+              # F153 must hide both shares AND the delta, not merely suppress signals.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 3
+              if grep -Eq '[0-9]+,[0-9]+%' "$rendered"; then
+                echo 'GSC Slice D: partial/redacted share leaked' >&2;exit 1
+              fi
             fi
           done
 
