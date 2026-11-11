@@ -1,4 +1,5 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
+import {projectsCsv} from './account-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
@@ -120,6 +121,15 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  const fiscalAction=path.match(/^\/api\/fiscal\/([a-f\d-]{36})\/(preview|issue|sync|cancel)$/i);if(fiscalAction&&method==='POST'){const body=await jsonBody(req);return send(res,200,{result:await fiscal.act(user,fiscalAction[1],fiscalAction[2],{reason:body.reason,confirmed:body.confirmed})});}
  const collection=path.match(/^\/api\/finance\/collection\/([^/]+)$/);if(collection&&method==='POST'){limit('collection:'+user.id,40);return send(res,200,await fiscal.collection(user,decodeURIComponent(collection[1]),await jsonBody(req)));}
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
+ if(path==='/api/account/projects.csv'&&method==='GET'){
+  assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  const csv=projectsCsv(accountProfile.view(user).projects);
+  res.setHeader('Content-Type','text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
+  audit(db,user.id,'account.projects_csv_exported',user.id);
+  res.writeHead(200);
+  return res.end(csv);
+ }
  if(path==='/api/account/export'&&method==='GET'){
   // Explicitly scoped read-only self-service: profile, fiscal registration,
   // and permitted project details. Not a full contractual/billing export.
@@ -146,7 +156,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/account/security-events'&&method==='GET'){
   // Security history is owner-only: never return audit actor/resource ids,
   // IP addresses, session tokens, or unrecognized internal audit actions.
-  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed') ORDER BY id DESC LIMIT 10",user.id);
+  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT 10",user.id);
   return send(res,200,{events});
  }
  if(path==='/api/sessions/summary'&&method==='GET'){
