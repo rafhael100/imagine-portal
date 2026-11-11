@@ -32,10 +32,12 @@ $percent=static fn(?float $share): string=>$share===null?'Sem dados suficientes'
     number_format($share*100,1,',','.').'%';
 $points=static fn(?float $delta): string=>$delta===null?'Indisponível':
     ($delta>0?'+':'').number_format($delta*100,1,',','.').' p.p.';
-$prior=$percent($data->previous['overlapShare']);
-$now=$percent($data->current['overlapShare']);
-$delta=$points($data->shareChange);
+// Privacy-preserving display: when any row is redacted or either batch is
+// incomplete, ALL comparative ratios are withheld, not only the delta.
 $complete=$data->coverageComplete;
+$prior=$complete?$percent($data->previous['overlapShare']):'Indisponível';
+$now=$complete?$percent($data->current['overlapShare']):'Indisponível';
+$delta=$complete?$points($data->shareChange):'Indisponível';
 $status=$complete?'Comparação de amostras disponíveis':'Amostra incompleta: tendências suprimidas';
 $review=$data->reviewSignals===['review_overlap_share_increase']?
     'Investigar possível aumento da sobreposição editorial':
