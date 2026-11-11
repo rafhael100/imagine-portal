@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
-import {iterateOwnerExportProjects,writeExportChunks} from './owner-project-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -159,6 +159,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   limit('account-export:'+user.id,20,3600000);
   const columns=url.searchParams.get('columns')??'';
   assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
+  preflightOwnerProjectExport(db,user);
   // F229: preserve the CSV contract while avoiding the full in-memory project array.
   const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
   res.setHeader('Content-Type','text/csv; charset=utf-8');
@@ -174,6 +175,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // other tenants' projects through this endpoint.
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
   limit('account-export:'+user.id,20,3600000);
+  preflightOwnerProjectExport(db,user);
   const compact=accountProfile.view(user,{compact:true});
   const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');

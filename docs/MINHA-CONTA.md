@@ -149,3 +149,7 @@ A exportação CSV do titular agora usa um cursor SQLite e gera uma linha por ve
 ### JSON incremental da própria conta (F230)
 
 A mesma consulta restrita por titular e o mesmo controle de dados autorizados da exportação CSV alimentam agora o download JSON. O documento preserva `schema_version: 1`, `scope: cadastro_e_projetos`, perfil, fiscal e lista integral de projetos, mas é escrito em fragmentos sem manter a lista de todos os projetos na memória. A operação continua autenticada, limitada por quota e auditada.
+
+### Consistência antes de iniciar download (F232)
+
+Antes de enviar o cabeçalho HTTP de sucesso, ambos os downloads verificam que os dados JSON de briefings **pagos do próprio titular** podem ser interpretados. Em caso de corrupção, retornam erro 503 sem transmitir arquivo parcial como se fosse válido; um problema na conta de outra pessoa não bloqueia a consulta. A verificação não altera dados e não revela material de clientes em logs.

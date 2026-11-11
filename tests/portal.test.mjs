@@ -717,3 +717,25 @@ test('F215: compact account summary reflects only the authenticated owner phase 
  assert.equal(original.body.projects_total,undefined);
  assert.equal(original.body.project_summary,undefined);
 });
+
+test('F232: invalid JSON in a paid own briefing fails before HTTP response, never sends partial export',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outro');
+ const first=await order(owner),foreign=await order(other);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id IN (?,?)").run(first.id,foreign.id);
+ const upsert=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(order_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at');
+ upsert.run(first.id,'{JSON inválido','2026-11-11');
+ upsert.run(foreign.id,JSON.stringify({company_name:'Outro titular'}),'2026-11-11');
+ for(const uri of ['/api/account/export','/api/account/projects.csv','/api/account/projects.csv?columns=stage']){
+  const response=await owner.call(uri);
+  assert.equal(response.status,503,uri);
+  assert.equal(response.body.error,'Dados de projeto temporariamente indisponíveis para exportação.');
+ }
+ const validOther=await other.call('/api/account/export');
+ assert.equal(validOther.status,200);
+ assert.equal(validOther.body.projects.length,1);
+ upsert.run(first.id,JSON.stringify({company_name:'Cliente',internal_secret:'NEVER_LEAK'}),'2026-11-11');
+ const restored=await owner.call('/api/account/export');
+ assert.equal(restored.status,200);
+ assert.equal(restored.body.projects[0].data.company_name,'Cliente');
+ assert.equal(JSON.stringify(restored.body).includes('NEVER_LEAK'),false);
+});

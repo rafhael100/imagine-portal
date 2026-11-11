@@ -4,6 +4,18 @@
 import {publicProjectData} from './account-export.mjs';
 
 const paid=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
+/** F232: fail before HTTP 200 and before streaming any personal data
+ * when an authorized paid briefing holds invalid JSON. Private rows from
+ * other accounts must not block an export. */
+export function preflightOwnerProjectExport(db,user){
+ if(user?.role!=='client'||user.staff_profile||typeof user.id!=='string')
+  throw Object.assign(Error('Exportação exclusiva do titular.'),{status:403});
+ const invalid=db.prepare(`SELECT o.id FROM orders o JOIN briefings b ON b.order_id=o.id
+  WHERE o.user_id=? AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')
+    AND b.data IS NOT NULL AND b.data<>'' AND json_valid(b.data)=0 LIMIT 1`).get(user.id);
+ if(invalid)throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
+}
+
 export function *iterateOwnerExportProjects(db,user){
  if(user?.role!=='client'||user.staff_profile||typeof user.id!=='string')
   throw Object.assign(Error('Exportação exclusiva do titular.'),{status:403});
