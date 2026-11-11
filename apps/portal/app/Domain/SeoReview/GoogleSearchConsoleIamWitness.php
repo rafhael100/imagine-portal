@@ -113,8 +113,9 @@ SQL;
                 return GoogleSearchConsoleIamWitnessReview::blocked();
             }
 
-            return $statement->fetchColumn() === 1
-                || $statement->fetchColumn() === '1'
+            $matched = $statement->fetchColumn();
+
+            return $matched !== false && (string) $matched === '1'
                 ? GoogleSearchConsoleIamWitnessReview::syntheticDatabaseWitness()
                 : GoogleSearchConsoleIamWitnessReview::blocked();
         } catch (Throwable) {
