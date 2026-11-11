@@ -1,0 +1,111 @@
+name: Portal F124 - Two PostgreSQL databases, lost ACK and durable dispatch hold
+on:
+  push:
+    branches:
+      - review/portal-f124-two-store-dispatch-reconciliation-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - 'apps/portal/labs/commercial-intake-f121/**'
+      - 'apps/portal/labs/commercial-intake-f122/**'
+      - 'apps/portal/labs/commercial-intake-f123/**'
+      - 'apps/portal/labs/commercial-intake-f124/**'
+      - '.github/workflows/portal-f124-two-store-hold-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-store-no-false-ack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f124-github-ci-only
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_F118_PG_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      PORTAL_F121_CRM_MOCK_LAB: '1'
+      PORTAL_F122_GATE_LAB: '1'
+      PORTAL_F123_DISPATCH_LAB: '1'
+      PORTAL_F124_RECONCILIATION_LAB: '1'
+      DB_HOST: '127.0.0.1'
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f124-github-ci-only
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Reject lab imports inside Laravel application
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'commercial-intake-f124|test_signed_readback_hold|PORTAL_F124_RECONCILIATION_LAB' \
+            apps/portal/routes apps/portal/app apps/portal/bootstrap 2>/dev/null; then
+            echo 'F124 mock or test referenced by Laravel runtime' >&2
+            exit 1
+          fi
+      - name: Prepare source PG18 F117-F123 and separate mock receiver PG18
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f124/test_signed_readback_hold.php
+          php -l apps/portal/labs/commercial-intake-f121/router_crm_mock.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f118/test_pg18_metadata_atomicity.php
+          php apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
+          php apps/portal/labs/commercial-intake-f122/test_unknown_hold_pg18.php
+          php apps/portal/labs/commercial-intake-f123/test_dispatch_fence_pg18.php
+          export PGPASSWORD="$DB_PASSWORD"
+          test "$(psql -h 127.0.0.1 -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_crm_receiver_lab'")" = "0"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE portal_crm_receiver_lab"
+          psql -h 127.0.0.1 -U postgres -d portal_crm_receiver_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f121/mock_crm_receiver_pg18.sql
+      - name: Confirm lost delivery receipt cannot clear a source hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PORTAL_F121_REQ_KEY_HEX="$(openssl rand -hex 48)"
+          export PORTAL_F121_RECEIPT_KEY_HEX="$(openssl rand -hex 48)"
+          test "$PORTAL_F121_REQ_KEY_HEX" != "$PORTAL_F121_RECEIPT_KEY_HEX"
+          php -S 127.0.0.1:19121 \
+            apps/portal/labs/commercial-intake-f121/router_crm_mock.php \
+            >/dev/null 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if php -r '$s=@fsockopen("127.0.0.1",19121,$e,$m,0.2);if($s){fclose($s);exit(0);}exit(1);'; then
+              ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$ready" -eq 1
+          php apps/portal/labs/commercial-intake-f124/test_signed_readback_hold.php
