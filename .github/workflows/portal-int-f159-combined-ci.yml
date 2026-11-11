@@ -1,0 +1,211 @@
+name: Portal INT-F159 - Exact combined tenant isolation and race candidate (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-int-f159-combined-revocation-concurrency-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f157-dual-tenant-revocation-pg18-2026-11-11
+    paths:
+      - '.github/workflows/portal-int-f159-combined-ci.yml'
+      - 'apps/portal/**'
+      - 'server/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-combined-tree:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      F157_PARENT: 82272f132bf4fe93e107575acd9e81979c21bb30
+      F158_PARENT: aaa69e8bcf162f440af5d325d7ba958c68ae26a4
+      F159_MERGE_COMMIT: 5688ae69a01c70bad956f3beeb48e8f2ee8fb631
+      EXPECTED_TREE: 7a58422ff36cd2ac28195714b4acf967a905ab5e
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reject mismatched Git parents or unreviewed post-merge source changes
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "$F159_MERGE_COMMIT^{tree}")" = "$EXPECTED_TREE"
+          test "$(git show -s --format=%P "$F159_MERGE_COMMIT")" = "$F157_PARENT $F158_PARENT"
+          git merge-base --is-ancestor "$F159_MERGE_COMMIT" HEAD
+          set +e
+          output="$(git merge-tree --write-tree --name-only --messages "$F157_PARENT" "$F158_PARENT" 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 0
+          test "$(printf '%s\n' "$output" | head -n 1)" = "$EXPECTED_TREE"
+          changed="$(git diff --name-only "$F159_MERGE_COMMIT" HEAD)"
+          if [ -n "$changed" ]; then
+            while IFS= read -r path; do
+              case "$path" in
+                .github/workflows/portal-int-f159-combined-ci.yml|apps/portal/docs/PORTAL-INT-F159-EXACT-COMBINED-REVOCATION-REVIEW.md) ;;
+                *) echo "Unreviewed change after pinned merge: $path" >&2; exit 1 ;;
+              esac
+            done <<< "$changed"
+          fi
+          grep -Fq 'DenyingPortalAuthorities::class' apps/portal/app/Providers/AppServiceProvider.php
+          test -s apps/portal/labs/identity-f157/test_pg_dual_tenant_revision.php
+          test -s apps/portal/labs/identity-f158/test_pg_revision_race.php
+          {
+            echo '## Exact two-parent review-only integration'
+            echo "F157: `$F157_PARENT`"
+            echo "F158: `$F158_PARENT`"
+            echo "Merge: `$F159_MERGE_COMMIT`"
+            echo "Tree: `$EXPECTED_TREE`"
+            echo 'NO-GO: no trusted issuer, production authority, or deployment.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  combined-revision-pg18:
+    needs: exact-combined-tree
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {lab: f157, php: '8.3', db: portal_f157_lab, pw: f157-review-admin-only}
+          - {lab: f157, php: '8.4', db: portal_f157_lab, pw: f157-review-admin-only}
+          - {lab: f158, php: '8.3', db: portal_f158_lab, pw: f158-review-admin-only}
+          - {lab: f158, php: '8.4', db: portal_f158_lab, pw: f158-review-admin-only}
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ matrix.pw }}
+          POSTGRES_DB: ${{ matrix.db }}
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ${{ matrix.db }}"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F157_PG_LAB: NON_OPERATIONAL_F157
+      PORTAL_F158_PG_LAB: NON_OPERATIONAL_F158
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: ${{ matrix.db }}
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${{ matrix.pw }}
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: ${{ matrix.db }}
+      PGUSER: postgres
+      PGPASSWORD: ${{ matrix.pw }}
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Validate and bootstrap exact Laravel lockfile
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Run both existing revision migrations together in disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f154_membership_revision_guard','portal_f154_grant_revision_guard','portal_f154_grant_immutable_guard','portal_f156_org_revision_guard') AND NOT tgisinternal" | grep -xq 4
+          psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'portal_%'" | grep -xq 0
+      - name: Execute requested lab on same merged source tree
+        env:
+          LAB: ${{ matrix.lab }}
+        run: |
+          set -euo pipefail
+          case "$LAB" in
+            f157) php labs/identity-f157/test_pg_dual_tenant_revision.php ;;
+            f158) php labs/identity-f158/test_pg_revision_race.php ;;
+            *) echo "Unknown lab selection" >&2; exit 1 ;;
+          esac
+      - name: Clean synthetic rows and prove all revision fences can be reverted
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_auth_sessions;
+          DELETE FROM public.portal_membership_grants;
+          DELETE FROM public.portal_memberships;
+          DELETE FROM public.portal_identities;
+          DELETE FROM public.portal_organizations;
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
+
+  combined-node-laravel:
+    needs: exact-combined-tree
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Locked Node dependency and combined JS test suite
+        run: |
+          set -euo pipefail
+          npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+          npm test
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Run full Laravel regression on the combined tree
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan test --no-ansi
+          test "$(php artisan route:list --json | php -r '$a=json_decode(stream_get_contents(STDIN),true); echo count($a);')" -eq 1
+          grep -Fq 'DenyingPortalAuthorities::class' app/Providers/AppServiceProvider.php
