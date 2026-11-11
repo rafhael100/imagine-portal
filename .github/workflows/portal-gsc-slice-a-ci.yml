@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-D - isolated offline integration
+name: Portal GSC Slices A-E - isolated offline integration
 
 on:
   pull_request:
@@ -22,6 +22,7 @@ on:
       - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/labs/gsc-slice-c/**'
       - 'apps/portal/labs/gsc-slice-d/**'
+      - 'apps/portal/labs/gsc-slice-e/**'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
@@ -57,6 +58,13 @@ jobs:
           ref: f46b65aaef9b10e32d02e415907cd916a43b548e
           path: .qa/seo-rc32
           persist-credentials: false
+      - name: Checkout exact SEO F79 privacy view model under test
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: fdae08985e89b9bd1323e42d1d64678ddc69e446
+          path: .qa/seo-f79
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -75,6 +83,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           test "$(git -C .qa/seo-rc32 rev-parse HEAD)" = f46b65aaef9b10e32d02e415907cd916a43b548e
+          test "$(git -C .qa/seo-f79 rev-parse HEAD)" = fdae08985e89b9bd1323e42d1d64678ddc69e446
           test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)"
           git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
           git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > changes.zlist
@@ -95,7 +104,7 @@ jobs:
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -187,6 +196,12 @@ jobs:
           set -euo pipefail
           node --check apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
           node apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
+      - name: GSC Slice E parity of SEO-F79 withheld metrics and PHP HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
+          node apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
