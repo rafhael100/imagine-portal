@@ -36,6 +36,7 @@ final class DemoPortalStaticExporter
             $links .= ' <a href="' . $section->value . '.html">' .
                 htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>';
         }
+        $links .= ' <a href="delivery-review.html">Revisão de entregas (DEMO)</a>';
         $nav = '<nav aria-label="Navegação da prévia offline" style="background:#fff;padding:14px 20px;border-bottom:1px solid #ddd;display:flex;gap:14px;flex-wrap:wrap">' .
             $links . '</nav>';
 
@@ -55,11 +56,28 @@ final class DemoPortalStaticExporter
             $files[] = $name;
         }
 
+        // F129: standalone operator preview. It deliberately is NOT a
+        // ClientSection or route, avoiding an accidental customer entitlement.
+        $reviewHtml = view('portal.demo.delivery-review')->render();
+        if (!str_contains($reviewHtml, '<body>')
+            || preg_match('~<\\s*(script|form|iframe|button|input)\\b~i', $reviewHtml) === 1
+            || preg_match('~(?:https?:)?//~i', $reviewHtml) === 1) {
+            throw new LogicException('The delivery-review preview is not safe for offline export.');
+        }
+        $reviewHtml = str_replace('<body>', '<body>' . $nav, $reviewHtml);
+        $reviewName = 'delivery-review.html';
+        if (file_put_contents($directory . DIRECTORY_SEPARATOR . $reviewName, $reviewHtml, LOCK_EX) === false) {
+            throw new RuntimeException('Cannot write the review preview.');
+        }
+        chmod($directory . DIRECTORY_SEPARATOR . $reviewName, 0600);
+        $files[] = $reviewName;
+
         $list = '';
         foreach (ClientSection::cases() as $section) {
             $label = htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $list .= '<li><a href="' . $section->value . '.html">' . $label . '</a></li>';
         }
+        $list .= '<li><a href="delivery-review.html">Revisão de entregas (DEMO)</a></li>';
         $index = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' .
             '<meta name="viewport" content="width=device-width,initial-scale=1">' .
             '<meta name="robots" content="noindex,nofollow">' .
