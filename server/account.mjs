@@ -23,7 +23,10 @@ export function createAccount(db,fiscal){
   // briefing for optional contact suggestions, not the entire archive.
   const sql=`SELECT o.id,o.title,o.created_at,o.payment_status,b.data,b.status
    FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE o.user_id=?
-   ${compact?"AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') AND b.data IS NOT NULL":''}
+   ${compact?"AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') AND b.data IS NOT NULL
+    AND CASE WHEN json_valid(b.data) THEN
+     json_type(b.data,'$.company_name')='text' AND length(trim(json_extract(b.data,'$.company_name')))>0
+    ELSE 0 END":''}
    ORDER BY o.created_at DESC,o.id DESC ${compact?'LIMIT 1':''}`;
   const projects=db.prepare(sql).all(user.id).map(o=>({
    ...o,

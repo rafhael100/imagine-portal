@@ -597,3 +597,22 @@ test('F202: compact account view retains full project count and latest authorize
  assert.equal(JSON.stringify(compact.body).includes('Outra marca'),false);
  assert.equal(JSON.stringify(compact.body).includes('PRIVATE_INTERNAL'),false);
 });
+
+test('F205: compact fallback skips blank latest paid briefings and uses the latest real company suggestion',async t=>{
+ const f=await fixture(t),owner=await f.client('Marca');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const oldId=randomUUID(),blankId=randomUUID(),pendingId=randomUUID();
+ insert.run(oldId,owner.user.id,'Site antigo','RECEIVED','2026-11-09','2026-11-09');
+ insert.run(blankId,owner.user.id,'Site novo pago','RECEIVED','2026-11-10','2026-11-10');
+ insert.run(pendingId,owner.user.id,'Site pendente','PENDING','2026-11-11','2026-11-11');
+ const insertBrief=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)');
+ insertBrief.run(oldId,JSON.stringify({company_name:'Empresa histórica',whatsapp:'11999999999'}),'2026-11-09');
+ insertBrief.run(blankId,JSON.stringify({company_name:'',domain:'novo.test'}),'2026-11-10');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,3);
+ assert.equal(compact.body.projects.length,1);assert.equal(compact.body.projects[0].id,oldId);
+ assert.equal(compact.body.projects[0].data.company_name,'Empresa histórica');
+ const all=await owner.call('/api/account');
+ assert.equal(all.body.projects.length,3);
+ assert.equal(all.body.projects[0].id,pendingId);
+});
