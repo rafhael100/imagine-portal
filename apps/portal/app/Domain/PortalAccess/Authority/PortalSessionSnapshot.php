@@ -28,12 +28,16 @@ final readonly class PortalSessionSnapshot
         public OrganizationId $sessionOrganizationId,
         // Revision captured when the Portal-only session was issued.
         public int $sessionMembershipRevision,
+        // Required Portal organization revision captured at session issue.
+        // NULL legacy sessions are not eligible for synthetic authority.
+        public int $sessionOrganizationRevision,
     ) {
         if ($issuedAt <= 0
             || $expiresAt <= $issuedAt
             || $accountRevision <= 0
             || $sessionAccountRevision <= 0
-            || $sessionMembershipRevision <= 0) {
+            || $sessionMembershipRevision <= 0
+            || $sessionOrganizationRevision <= 0) {
             throw new InvalidArgumentException('Invalid synthetic session snapshot.');
         }
     }
