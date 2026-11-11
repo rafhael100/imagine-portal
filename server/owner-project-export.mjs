@@ -65,10 +65,13 @@ export async function writeExportChunks(res,chunks){
  try{
   for(const chunk of chunks){
    if(disconnected||res.destroyed||res.writableEnded)return;
-   if(!res.write(chunk)){
+   const writable=res.write(chunk);
+   // F240: a Writable can close during write() even when write() returns true.
+   // Stop before pulling the next DB cursor row, not on the next iteration.
+   if(disconnected||res.destroyed||res.writableEnded)return;
+   if(!writable){
     // A Writable may close synchronously inside write(). In that case its
     // close event already fired, so waiting for a future drain would hang.
-    if(disconnected||res.destroyed||res.writableEnded)return;
     const signal=await new Promise((resolve,reject)=>{
      const cleanup=()=>{res.off('drain',onDrain);res.off('close',onClose);res.off('error',onError);};
      const onDrain=()=>{cleanup();resolve('drain');};
@@ -76,7 +79,9 @@ export async function writeExportChunks(res,chunks){
      const onError=error=>{cleanup();reject(error);};
      res.once('drain',onDrain);res.once('close',onClose);res.once('error',onError);
     });
-    if(signal==='close')return;
+    // A drain may be followed immediately by close before the continuation
+    // resumes. Do not advance the cursor after either event.
+    if(signal==='close'||disconnected||res.destroyed||res.writableEnded)return;
    }
   }
   if(!disconnected&&!res.destroyed&&!res.writableEnded)res.end();
