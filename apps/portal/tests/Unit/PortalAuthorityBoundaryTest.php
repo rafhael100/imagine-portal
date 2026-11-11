@@ -34,6 +34,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         int $sessionAccountRevision = 4,
         int $expiresAt = 2000,
         string $sessionOrg = 'org-a',
+        int $sessionMembershipRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -44,6 +45,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             $accountRevision,
             $sessionAccountRevision,
             new OrganizationId($sessionOrg),
+            $sessionMembershipRevision,
         );
     }
 
@@ -52,6 +54,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         string $organization = 'org-a',
         MembershipStatus $status = MembershipStatus::Active,
         array $permissions = [Permission::ViewServices],
+        int $revision = 1,
     ): OrganizationMembership {
         return new OrganizationMembership(
             new PortalUserId($actor),
@@ -59,6 +62,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             OrganizationRole::Member,
             $status,
             $permissions,
+            $revision,
         );
     }
 
@@ -220,6 +224,48 @@ final class PortalAuthorityBoundaryTest extends TestCase
             ),
             organization: 'org-a',
         ));
+    }
+
+    public function test_stale_session_membership_revision_is_denied_even_when_membership_is_active(): void
+    {
+        // Grant/role change increments the authoritative member revision.
+        // A session carrying the previous revision must be invalidated.
+        $member = $this->membership(revision: 2);
+        $owner = new OrganizationId('org-a');
+        $stale = $this->syntheticBoundary(
+            $this->snapshot(sessionMembershipRevision: 1),
+            $member,
+            $owner,
+        );
+        self::assertFalse($this->inspect($stale));
+
+        $current = $this->syntheticBoundary(
+            $this->snapshot(sessionMembershipRevision: 2),
+            $member,
+            $owner,
+        );
+        // The positive signal is synthetic only, not a real grant.
+        self::assertTrue($this->inspect($current));
+
+        // A current membership snapshot cannot be downgraded to a
+        // session revision without reissuing a session.
+        self::assertFalse($this->inspect($this->syntheticBoundary(
+            $this->snapshot(sessionMembershipRevision: 2),
+            $this->membership(revision: 1),
+            $owner,
+        )));
+    }
+
+    public function test_invalid_membership_revision_is_not_a_valid_authority_snapshot(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->membership(revision: 0);
+    }
+
+    public function test_invalid_session_membership_revision_is_not_a_valid_session_snapshot(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->snapshot(sessionMembershipRevision: 0);
     }
 
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void

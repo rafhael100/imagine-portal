@@ -37,6 +37,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         string $actor = 'actor-a',
         int $expiry = 2000,
         string $sessionOrg = 'org-a',
+        int $sessionMembershipRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -47,6 +48,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             4,
             $revision,
             new OrganizationId($sessionOrg),
+            $sessionMembershipRevision,
         );
     }
 
@@ -56,6 +58,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         MembershipStatus $status = MembershipStatus::Active,
         string $organization = 'org-a',
         string $actor = 'actor-a',
+        int $membershipRevision = 1,
     ): OrganizationMembership {
         return new OrganizationMembership(
             new PortalUserId($actor),
@@ -63,6 +66,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             OrganizationRole::Owner,
             $status,
             $permissions,
+            $membershipRevision,
         );
     }
 
@@ -193,6 +197,9 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
                 status:MembershipStatus::Suspended,
             ), new OrganizationId('org-a')),
             $this->preflight($this->session(), $this->membership(), new OrganizationId('org-b')),
+            $this->preflight($this->session(), $this->membership(
+                membershipRevision:2,
+            ), new OrganizationId('org-a')),
             $this->preflight($this->session(), null, new OrganizationId('org-a')),
         ];
 
@@ -209,6 +216,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $this->session(revision:3),
             $this->session(expiry:1400),
             $this->session(sessionOrg:'org-b'),
+            $this->session(sessionMembershipRevision:2),
         ] as $snapshot) {
             $service = $this->preflight(
                 $snapshot, $this->membership(), new OrganizationId('org-a'),
