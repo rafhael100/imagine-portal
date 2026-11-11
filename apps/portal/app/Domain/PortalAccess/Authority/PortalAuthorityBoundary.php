@@ -62,6 +62,15 @@ final readonly class PortalAuthorityBoundary
                 $selectedOrganization,
             );
 
+            // F153: a session issued before a role/grant/membership change
+            // must be rejected, even when the same actor's membership is
+            // active now. Check the trusted current revision before
+            // resolving resource ownership or making a policy decision.
+            if ($membership === null
+                || $membership->membershipRevision !== $session->sessionMembershipRevision) {
+                return PortalBoundaryVerdict::blocked();
+            }
+
             $resourceOrganization = $this->resources->ownerOf(
                 $selectedOrganization,
                 $opaqueResourceReference,
