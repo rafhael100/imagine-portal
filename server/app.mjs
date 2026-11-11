@@ -123,6 +123,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account/projects.csv'&&method==='GET'){
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  limit('account-export:'+user.id,20,3600000);
   const csv=projectsCsv(accountProfile.view(user).projects);
   res.setHeader('Content-Type','text/csv; charset=utf-8');
   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
@@ -136,6 +137,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // Restrict to clients; never export staff/admin records, credentials or
   // other tenants' projects through this endpoint.
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  limit('account-export:'+user.id,20,3600000);
   const account=accountProfile.view(user);
   const data={
    schema_version:1,
