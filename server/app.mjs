@@ -1,5 +1,5 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
-import {projectsCsv} from './account-export.mjs';
+import {projectsCsv,accountDataExport} from './account-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
@@ -138,17 +138,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // other tenants' projects through this endpoint.
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
   limit('account-export:'+user.id,20,3600000);
-  const account=accountProfile.view(user);
-  const data={
-   schema_version:1,
-   exported_at:new Date().toISOString(),
-   scope:'cadastro_e_projetos',
-   user:{name:account.user.name,email:account.user.email},
-   created_at:account.created_at,
-   profile:account.profile,
-   fiscal:account.fiscal,
-   projects:account.projects,
-  };
+  const data=accountDataExport(accountProfile.view(user));
   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
   audit(db,user.id,'account.data_exported',user.id);
   return send(res,200,data);
