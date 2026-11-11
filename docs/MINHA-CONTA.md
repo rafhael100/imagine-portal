@@ -133,3 +133,7 @@ O resumo de revisões pendentes retorna zero se a tabela opcional de produção 
 ### Eficiência do filtro por etapa (F223)
 
 O índice idempotente `orders(user_id,phase,created_at DESC,id DESC)` garante que os filtros por titular e fase possam usar consultas limitadas de forma estável, com a ordenação de projetos mais recentes. O teste de plano de consulta SQLite exige o uso desse índice sem dados de clientes reais. O índice aumenta o espaço em disco e deverá ser avaliado pelo DBA na revisão de integração.
+
+### GitHub Actions em desenvolvimento contínuo (F224)
+
+Os testes Node, os contratos sintéticos OAuth/GSC e os inventários F144/F186 usam controle de concorrência por PR/branch, cancelando validações obsoletas do **mesmo** grupo quando um commit mais novo chega. Isso reduz filas e consumo desnecessário dos runners, mas nenhum cancelamento equivale a aprovação. A liberação só pode considerar o último SHA exato e deve confirmar todos os testes exigidos após congelar a candidata.
