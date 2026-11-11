@@ -1,0 +1,86 @@
+name: Portal F128 - Synthetic review audit and rollback boundaries
+on:
+  push:
+    branches:
+      - review/portal-f128-review-audit-attempts-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - 'apps/portal/labs/commercial-intake-f122/**'
+      - 'apps/portal/labs/commercial-intake-f123/**'
+      - 'apps/portal/labs/commercial-intake-f125/**'
+      - 'apps/portal/labs/commercial-intake-f127/**'
+      - 'apps/portal/labs/commercial-intake-f128/**'
+      - '.github/workflows/portal-f128-review-audit-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f128-committed-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f128-only-disposable-ci
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_F118_PG_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      PORTAL_F122_GATE_LAB: '1'
+      PORTAL_F123_DISPATCH_LAB: '1'
+      PORTAL_F125_REVIEW_QUEUE_LAB: '1'
+      PORTAL_F127_RESTRICTED_REVIEW_LAB: '1'
+      PORTAL_F128_REVIEW_AUDIT_LAB: '1'
+      DB_HOST: '127.0.0.1'
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f128-only-disposable-ci
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Deny synthetic audit/CRM references in Laravel runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'commercial-intake-f128|review_access_audit_lab|review_and_audit_lab_a' \
+            apps/portal/app apps/portal/routes apps/portal/bootstrap 2>/dev/null; then
+            echo 'F128 lab audit referenced by operational Laravel runtime' >&2
+            exit 1
+          fi
+      - name: Install F117-F127 and validate transactional audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f128/test_review_audit_pg18.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f118/test_pg18_metadata_atomicity.php
+          php apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
+          php apps/portal/labs/commercial-intake-f122/test_unknown_hold_pg18.php
+          php apps/portal/labs/commercial-intake-f123/test_dispatch_fence_pg18.php
+          php apps/portal/labs/commercial-intake-f125/test_review_queue_pg18.php
+          php apps/portal/labs/commercial-intake-f127/test_restricted_review_pg18.php
+          php apps/portal/labs/commercial-intake-f128/test_review_audit_pg18.php
