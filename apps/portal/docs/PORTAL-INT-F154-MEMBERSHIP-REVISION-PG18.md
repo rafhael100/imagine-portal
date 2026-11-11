@@ -28,3 +28,7 @@ A CI `portal-int-f154-membership-grant-pg18.yml` cria PostgreSQL18 temporário e
 **Limites:** ainda não existe trusted issuer, sessão real, logs independentes, autorizações de tabela para papéis de aplicação, nem garantia de operações sob roles reais. Funções SECURITY INVOKER não elevam privilégios: a futura role de gravação precisará dos privilégios mínimos para atualizar a revisão, senão as operações continuarão negadas, como devem. Um DBA superuser pode modificar qualquer esquema; a CI não é uma auditoria independente. Essa migração **não foi executada em produção ou VPS**.
 
 **NO-GO** até revisão DBA/AppSec/LGPD, testes com roles não-superuser, concorrência, idempotência e revogação, backup/rollback em staging autorizado e aprovação específica para promover a migration. Sem custos, credenciais de clientes ou publicação.
+
+## Prova adicional — papel sem BYPASSRLS
+
+A bateria PostgreSQL também cria um papel `NOLOGIN NOBYPASSRLS` temporário, concede permissões SQL explícitas de `SELECT/INSERT/UPDATE/DELETE` sobre memberships/grants e usa `SET ROLE` para verificar que, **mesmo assim**, `FORCE ROW LEVEL SECURITY` sem políticas ALLOW impede leitura e inserção de grants. O papel e seus grants são removidos no próprio runner, e a mutação recusada não deixa linha residual. Isso testa uma propriedade importante da configuração fechada, mas não substitui avaliação independente de uma futura role de aplicação quando esta for autorizada.
