@@ -116,7 +116,7 @@ test('F221: clear filters resets search, payment, phase, sort and review queue',
  assert.equal(h.phase.value,'all');assert.equal(h.sort.value,'newest');assert.equal(h.attention.value,'all');
  assert.equal(h.calls.at(-1).url,'/api/account/projects?page=1&payment=all&search=&phase=all&sort=newest&attention=all');
  h.calls.at(-1).resolve({projects:[],total:0,page:1,pages:1});await tick();
- assert.ok(h.result.innerHTML.includes('Os dados enviados'));
+ assert.ok(h.result.innerHTML.includes('Nenhum projeto encontrado com os filtros informados'));
 });
 
 test('F221: review filter dispatches a scoped owner-only API query',async()=>{
