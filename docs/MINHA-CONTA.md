@@ -51,3 +51,16 @@ Este conjunto segue na PR consolidada #392, de revisão, sem merge e sem
 deploy. A aprovação automatizada dos testes não substitui revisão
 independente AppSec/LGPD, homologação visual, plano de rollback ou
 aprovação específica do gate de integração (issue #341).
+
+## Integridade de ordenação e concorrência (F194–F196)
+O banco possui índices idempotentes em `orders(user_id,created_at DESC,id DESC)`,
+sessões por usuário, auditoria por titular e expiração de limites. Empates
+de data de criação são desempatos pelo ID do projeto, mantendo a ordem da
+listagem estável para o mesmo conjunto de registros.
+
+As rotinas de alteração de senha e revogação de outras sessões revalidam
+a existência da sessão atual dentro de uma transação SQLite **após**
+as derivações/verificações assíncronas de senha. Se houver logout,
+revogação ou alteração concorrente da credencial, respondem com conflito
+e não recriam acesso nem revogam sessões de outra pessoa. Os testes
+de corrida usam dados exclusivamente sintéticos.
