@@ -26,6 +26,8 @@ try{
         $preview->pagination['pagesReceived']!==2||
         $preview->pagination['rowsReceived']!==4||
         $preview->pagination['nextStartRow']!==4||
+        $preview->pagination['pageSize']!==2||
+        $preview->pagination['lastPageRows']!==2||
         !$preview->pagination['mayHaveMore']||
         $preview->aggregate->summary['queriesOnMultiplePages']!==1||
         $preview->aggregate->summary['redactedRows']!==1||
@@ -45,6 +47,9 @@ try{
         ['rowsReceived'=>3],
         ['maxPagesReached'=>true],
         ['mayHaveMore'=>false],
+        ['pageSize'=>3],
+        ['lastPageRows'=>1],
+        ['lastPageRows'=>3],
         ['oauthVerified'=>true]
     ] as $changes){
         $tampered=$dto;
@@ -57,6 +62,11 @@ try{
     $wrong=$dto;
     $wrong['propertyFingerprint']=str_repeat('c',64);
     if(Preview::fromDto($wrong)!==null)throw new RuntimeException();
+    // Prior v1 branches still validate under the same HOLD rules.
+    $legacy=$dto;
+    $legacy['contractVersion']='seo-gsc-query-page-pagination-offline-v1';
+    unset($legacy['pagination']['pageSize'],$legacy['pagination']['lastPageRows']);
+    if(Preview::fromDto($legacy)===null)throw new RuntimeException();
     putenv('APP_ENV=production');
     if(Preview::fromDto($dto)!==null)throw new RuntimeException();
 }catch(Throwable){
