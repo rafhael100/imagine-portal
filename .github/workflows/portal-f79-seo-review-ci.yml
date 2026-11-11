@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rafhael100/imagine-seo-engine
-          ref: 86ba0e361b0f24bb1f567dcbb5a1e31ef950ff6e
+          ref: ae2012305e67d0580f6e5e87cf0d174d245b217e
           path: .qa/seo-engine
           persist-credentials: false
       - name: Check Node SEO F50 to Portal PHP F135 DTO parity
@@ -112,6 +112,7 @@ jobs:
           node apps/portal/labs/gsc-f141/emit_node_overlap.mjs > "$overlap"
           PORTAL_GSC_OVERLAP_LAB=1 php apps/portal/labs/gsc-f141/verify_php_overlap.php "$overlap"
           node --test .qa/seo-engine/tests/gsc-query-page-url-safety.test.mjs
+          node --test .qa/seo-engine/tests/gsc-query-page-variants.test.mjs
           node --test .qa/seo-engine/tests/gsc-strict-arrays.test.mjs
           node --check apps/portal/labs/gsc-f143/emit_node_pagination.mjs
           php -l apps/portal/labs/gsc-f143/verify_php_pagination.php
