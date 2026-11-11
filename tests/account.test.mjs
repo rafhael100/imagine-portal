@@ -42,3 +42,18 @@ test('F175: troca legítima de e-mail é auditada, preserva cookie atual e revog
  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit WHERE actor_id=? AND action='account.email.changed'").get(id).n,1);
  db.close();
 });
+
+test('F196: project archive consistently sorts equal created_at timestamps by id without leaking other owners',async()=>{
+ const db=openStore(':memory:'),id=randomUUID(),other=randomUUID(),hash=await hashPassword('Uma-senha-super-segura-123!');
+ for(const [u,email] of [[id,'stable@example.test'],[other,'other@example.test']])
+  db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(u,'Responsável',email,hash,'client','2026-11-11');
+ const insert=db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','','PENDING',?,?)");
+ for(const project of ['a','z','m'])
+  insert.run(project,id,'Projeto '+project,'2026-11-10T10:00:00Z','2026-11-10T10:00:00Z');
+ insert.run('other-secret',other,'Projeto outro','2026-11-11T10:00:00Z','2026-11-11T10:00:00Z');
+ const account=createAccount(db,{customer:()=>({document:''})});
+ const own=account.view({id,role:'client'});
+ assert.deepEqual(own.projects.map(p=>p.id),['z','m','a']);
+ assert.equal(JSON.stringify(own).includes('other-secret'),false);
+ db.close();
+});
