@@ -117,6 +117,17 @@ jobs:
           node apps/portal/labs/gsc-f143/emit_node_pagination.mjs > "$pages_fixture"
           PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 php \
             apps/portal/labs/gsc-f143/verify_php_pagination.php "$pages_fixture"
+          pages_html="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$pages_fixture" "$pages_html"' EXIT
+          PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 PORTAL_GSC_OVERLAP_HTML_LAB=1 php \
+            apps/portal/tools/f142-render-gsc-overlap-offline.php "$pages_fixture" > "$pages_html"
+          grep -q 'Lotes analisados' "$pages_html"
+          grep -q 'Pode haver mais páginas de resultados' "$pages_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$pages_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$pages_html"; then
+            echo "F145: unexpected interactive HTML output" >&2
+            exit 1
+          fi
           php -l apps/portal/tools/f142-render-gsc-overlap-offline.php
           overlap_html="$(mktemp)"
           trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$overlap_html"' EXIT
@@ -131,7 +142,7 @@ jobs:
           fi
           php -l apps/portal/tools/f137-render-gsc-offline.php
           preview="$(mktemp)"
-          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$pages_fixture" "$overlap_html" "$preview"' EXIT
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$pages_fixture" "$pages_html" "$overlap_html" "$preview"' EXIT
           PORTAL_GSC_HTML_LAB=1 php apps/portal/tools/f137-render-gsc-offline.php "$fixture" > "$preview"
           grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$preview"
           grep -q 'name="robots" content="noindex,nofollow"' "$preview"
