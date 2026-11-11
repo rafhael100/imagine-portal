@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classify, parseNameStatusZ, buildReport, markdownReport, reviewPackets,
-  requireCandidateHead,
+  requireCandidateHead, selectReviewBase,
 } from './inventory.mjs';
 
 test('NUL diff parser handles ordinary, deletion and rename records without shell interpretation', () => {
@@ -125,4 +125,15 @@ test('F185: Node.js/SQLite operational files are precisely partitioned for indep
  assert.equal(Object.values(packets).reduce((n,v)=>n+(v.match(/^\- M /gm)||[]).length,0),records.length);
  for(const category of Object.values(samples))assert.ok(packets[category]);
  assert.equal(report.decision.may_merge,false);
+});
+
+test('F186: focused Node security batch uses only pinned F163 review base',()=>{
+ const legacy=selectReviewBase();
+ const node=selectReviewBase('node-f163');
+ assert.equal(legacy,'refs/remotes/origin/dev/fast-track-portal-2026-11-05');
+ assert.equal(node,'refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11');
+ for(const value of ['main','HEAD','dev','node-latest','../hidden','refs/remotes/origin/main']){
+  assert.throws(()=>selectReviewBase(value),/Unsupported inventory base selector/);
+ }
+ assert.notEqual(node,legacy);
 });
