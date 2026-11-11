@@ -92,13 +92,15 @@ jobs:
           php artisan migrate --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php --force --no-interaction
-          php artisan migrate --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
           psql -X -A -t -c "SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='public.portal_gsc_vault_reference_candidates'::regclass" | grep -xq t
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_vault_reference_candidates" | grep -xq 0
       - name: Prove no secrets, cross-tenant binding, closed policies, revoked state
         run: |
           set -euo pipefail
           php labs/gsc-f125/test_pg_vault_refs.php
+          # F125 must prove its CHECK constraints before F126's BEFORE INSERT
+          # trigger adds an earlier, stronger denial (SQLSTATE 42501).
+          php artisan migrate --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
           php labs/gsc-f126/test_pg_vault_binding_fence.php
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_vault_reference_candidates" | grep -xq 2
           ! grep -R -E 'portal_gsc_vault_reference_candidates|PORTAL_F125_PG_LAB' routes/ bootstrap/ app/Http/ app/Providers/
