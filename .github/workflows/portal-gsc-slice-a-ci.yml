@@ -1,11 +1,12 @@
-name: Portal GSC Slices A-C - isolated offline integration
+name: Portal GSC Slices A-D - isolated offline integration
 
 on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
-      - review/portal-gsc-integration-slice-a-2026-11-11
-      - review/portal-gsc-integration-slice-b-2026-11-11
+      # All controlled stacked integration review branches. Exact scopes
+      # are still constrained independently by the changed-path allowlist.
+      - 'review/portal-gsc-integration-slice-*'
     paths:
       - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
       - 'apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php'
@@ -20,6 +21,7 @@ on:
       - 'apps/portal/labs/gsc-f146/**'
       - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/labs/gsc-slice-c/**'
+      - 'apps/portal/labs/gsc-slice-d/**'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
@@ -89,10 +91,11 @@ jobs:
               "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
               "apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php",
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -135,6 +138,12 @@ jobs:
             if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
               echo 'GSC Slice A: unsafe static HTML' >&2;exit 1
             fi
+            if [[ "$scenario" == redacted || "$scenario" == multi_redacted || "$scenario" == partial ]]; then
+              # Both query metrics are withheld when source rows have
+              # privacy redactions or unconfirmed continuation.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 2
+              grep -q 'sugestões desativadas' "$rendered"
+            fi
           done
           node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
 
@@ -162,6 +171,22 @@ jobs:
           node apps/portal/labs/gsc-f143/emit_node_pagination.mjs > "$fixture"
           php apps/portal/labs/gsc-f146/verify_php_request_response_pair.php "$fixture"
           php apps/portal/labs/gsc-f151/verify_php_next_page.php "$fixture"
+      - name: GSC Slice D pure provider-status and retry fail-closed review
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_PROVIDER_POLICY_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php
+          php -l apps/portal/labs/gsc-slice-d/verify_provider_policy.php
+          php apps/portal/labs/gsc-slice-d/verify_provider_policy.php
+      - name: GSC Slice D adversarial trend HTML privacy and production refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
+          node apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
@@ -190,9 +215,15 @@ jobs:
             fi
             if [[ "$scenario" == complete ]]; then
               grep -q 'Investigar possível aumento da sobreposição editorial' "$rendered"
+              grep -q '10,0%' "$rendered"
+              grep -q '50,0%' "$rendered"
             else
               grep -q 'Amostra incompleta: tendências suprimidas' "$rendered"
-              grep -q 'Indisponível' "$rendered"
+              # F153 must hide both shares AND the delta, not merely suppress signals.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 3
+              if grep -Eq '[0-9]+,[0-9]+%' "$rendered"; then
+                echo 'GSC Slice D: partial/redacted share leaked' >&2;exit 1
+              fi
             fi
           done
 
