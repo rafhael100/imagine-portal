@@ -129,3 +129,7 @@ O controle **Limpar filtros** restaura texto, pagamento, etapa, ordenação e re
 ### Compatibilidade com instalação inicial (F222)
 
 O resumo de revisões pendentes retorna zero se a tabela opcional de produção ainda não foi inicializada. Não força migração de produção em consultas de cadastro nem impede operações de perfil em bancos de testes ou instalações legadas que ainda não possuem essa tabela.
+
+### Eficiência do filtro por etapa (F223)
+
+O índice idempotente `orders(user_id,phase,created_at DESC,id DESC)` garante que os filtros por titular e fase possam usar consultas limitadas de forma estável, com a ordenação de projetos mais recentes. O teste de plano de consulta SQLite exige o uso desse índice sem dados de clientes reais. O índice aumenta o espaço em disco e deverá ser avaliado pelo DBA na revisão de integração.
