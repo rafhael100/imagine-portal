@@ -123,6 +123,60 @@ export function markdownReport(report) {
   ].join('\n');
 }
 
+/**
+ * Partition each changed path into exactly one reviewer packet. These files
+ * are a work queue, NOT proof that any human checked their contents.
+ */
+export function reviewPackets(report) {
+  const accepted = new Set([
+    'database_migration', 'identity_security', 'domain',
+    'ci_workflow', 'presentation', 'application_runtime',
+    'isolated_lab', 'automated_tests', 'documentation', 'other',
+  ]);
+  const instructions = {
+    database_migration: 'Revisar compatibilidade, backup, rollback e RLS no PostgreSQL descartável antes de staging.',
+    identity_security: 'Requer parecer AppSec/DBA independente: origem de sessão, MFA, permissões, tenant e revogação.',
+    domain: 'Conferir regras de negócio aprovadas, transições e decisões sem autorização operacional implícita.',
+    ci_workflow: 'Confirmar ações somente de leitura, dependências fixadas, CI real e nenhuma etapa de deploy.',
+    presentation: 'Verificar dados fictícios, acessibilidade, noindex, CSP, sem rotas/ações reais.',
+    application_runtime: 'Auditar fronteiras HTTP, default-deny, ausência de API de cliente ou migração não aprovada.',
+    isolated_lab: 'Provar isolamento dos laboratórios e nenhuma referência por runtime de produção.',
+    automated_tests: 'Conferir casos negativos, critérios de cobertura e evidências de execução por SHA.',
+    documentation: 'Verificar atualização de decisões e distinção entre propostas e autorizações.',
+    other: 'Classificação manual obrigatória antes de aceitar alterações fora dos módulos conhecidos.',
+  };
+  const packets = {};
+  let observed = 0;
+  for (const [category, count] of Object.entries(report.categories)) {
+    if (!accepted.has(category) || !Number.isSafeInteger(count) || count < 1) {
+      throw new Error('Unexpected review category; cannot write reviewer packet.');
+    }
+    const files = report.changed_paths.filter(row => row.category === category);
+    if (files.length !== count) throw new Error('Reviewer packet count mismatch.');
+    observed += files.length;
+    const lines = [
+      '# Lote de revisão — '+category,
+      '',
+      '**NO-GO — arquivos NÃO revisados.** '+instructions[category],
+      '',
+      'Head candidato: '+report.head,
+      '',
+      'Total de caminhos: '+files.length,
+      '',
+      'Cada entrada abaixo é um caminho/estado Git, nunca prova de aprovação.',
+      '',
+      ...files.map(row => '- '+row.status+' '+JSON.stringify(row.path)
+        +(row.previous_path ? ' (origem: '+JSON.stringify(row.previous_path)+')' : '')),
+      '',
+    ];
+    packets[category] = lines.join('\n');
+  }
+  if (observed !== report.changed_files_total) {
+    throw new Error('Reviewer packet partition is incomplete.');
+  }
+  return packets;
+}
+
 function main() {
   if (process.env.GITHUB_ACTIONS !== 'true') {
     throw new Error('F144 inventory must run in GitHub Actions only.');
@@ -142,6 +196,11 @@ function main() {
   writeFileSync(join(outputDir,'inventory.json'), JSON.stringify(report,null,2)+'\n',{mode:0o600});
   const markdown = markdownReport(report);
   writeFileSync(join(outputDir,'review-summary.md'), markdown, {mode:0o600});
+  const packetDir = join(outputDir, 'packets');
+  mkdirSync(packetDir, {recursive:true,mode:0o700});
+  for (const [category, body] of Object.entries(reviewPackets(report))) {
+    writeFileSync(join(packetDir,category+'.md'),body,{mode:0o600});
+  }
   if (process.env.GITHUB_STEP_SUMMARY) {
     writeFileSync(process.env.GITHUB_STEP_SUMMARY, markdown, {flag:'a'});
   }
