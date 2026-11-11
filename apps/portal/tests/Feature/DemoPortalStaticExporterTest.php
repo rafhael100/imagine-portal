@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Presentation\DemoPortalStaticExporter;
 use App\Presentation\DemoPortalArtifactManifest;
+use App\Presentation\DemoPortalNavigationAudit;
 use Illuminate\Database\DatabaseManager;
 use LogicException;
 use Tests\TestCase;
@@ -84,6 +85,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertSame(DemoPortalArtifactManifest::pageNames(), $pages);
         self::assertFileExists($this->temporaryDirectory.'/manifest.json');
         self::assertTrue((new DemoPortalArtifactManifest())->verify($this->temporaryDirectory));
+        self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
         $json = json_decode(
             (string) file_get_contents($this->temporaryDirectory.'/manifest.json'),
             true,
@@ -131,6 +133,47 @@ final class DemoPortalStaticExporterTest extends TestCase
         } finally {
             unlink($this->temporaryDirectory.'/delivery-review.html');
         }
+    }
+
+    public function test_injected_external_or_parent_path_link_fails_navigation_audit(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $page = $this->temporaryDirectory.'/overview.html';
+        file_put_contents($page, '<a href="../private.html">Invalid navigation</a>', FILE_APPEND);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_page_without_skip_to_main_link_fails_navigation_audit(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $page = $this->temporaryDirectory.'/requests.html';
+        $html = (string) file_get_contents($page);
+        $without = str_replace(
+            '<a class="pi-skip" href="#pi-content">Pular para o conteúdo</a>',
+            '',
+            $html,
+        );
+        self::assertNotSame($html, $without);
+        file_put_contents($page, $without);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_missing_robots_header_fails_navigation_audit(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/index.html';
+        $html = (string) file_get_contents($file);
+        $without = str_replace(
+            '<meta name="robots" content="noindex,nofollow">',
+            '',
+            $html,
+        );
+        self::assertNotSame($html, $without);
+        file_put_contents($file, $without);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
     }
 
     public function test_existing_output_is_never_overwritten(): void
