@@ -4,6 +4,16 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const BASE = 'refs/remotes/origin/dev/fast-track-portal-2026-11-05';
+const NODE_BASE = 'refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11';
+
+// Only fixed, reviewed comparison targets. No arbitrary user-supplied ref
+// may influence an integration inventory or lead to a false NO-GO summary.
+export function selectReviewBase(selector='') {
+  if(selector==='')return BASE;
+  if(selector==='node-f163')return NODE_BASE;
+  throw new Error('Unsupported inventory base selector.');
+}
+
 
 export function classify(path) {
   // Legacy Node/SQLite Portal has operational auth and billing surfaces too.
@@ -217,13 +227,18 @@ function main() {
     git(['rev-parse', 'HEAD']),
     process.env.PORTAL_EXPECTED_HEAD ?? '',
   );
-  const mergeBase = git(['merge-base', BASE, 'HEAD']);
-  const leftRight = git(['rev-list','--left-right','--count',BASE+'...HEAD']);
+  const base = selectReviewBase(process.env.PORTAL_REVIEW_BASE ?? '');
+  const mergeBase = git(['merge-base', base, 'HEAD']);
+  // A focused candidate must be an actual descendant of the pinned review
+  // base. A divergent graph is not a safe "clean" integration batch.
+  if(base === NODE_BASE && mergeBase !== git(['rev-parse',NODE_BASE]))
+    throw new Error('Node account candidate is not descended from F163.');
+  const leftRight = git(['rev-list','--left-right','--count',base+'...HEAD']);
   const records = parseNameStatusZ(
     gitZ(['diff','--name-status','-z','--find-renames',mergeBase,'HEAD'])
   );
   const report = buildReport({
-    base: BASE, head, mergeBase, leftRight, records,
+    base, head, mergeBase, leftRight, records,
   });
   mkdirSync(outputDir, { recursive: true, mode: 0o700 });
   writeFileSync(join(outputDir,'inventory.json'), JSON.stringify(report,null,2)+'\n',{mode:0o600});
