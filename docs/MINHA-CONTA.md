@@ -125,3 +125,7 @@ A interface oferece o filtro `attention=review`, que retorna somente sites **pag
 ## Acessibilidade de consulta e restauração de filtros (F221)
 
 O controle **Limpar filtros** restaura texto, pagamento, etapa, ordenação e revisões pendentes para seus padrões, reiniciando na primeira página. Durante requisições assíncronas, a lista informa `aria-busy`, removido ao receber resposta ou erro. A navegação pelo teclado mantém indicação visível de foco.
+
+### Compatibilidade com instalação inicial (F222)
+
+O resumo de revisões pendentes retorna zero se a tabela opcional de produção ainda não foi inicializada. Não força migração de produção em consultas de cadastro nem impede operações de perfil em bancos de testes ou instalações legadas que ainda não possuem essa tabela.

@@ -57,3 +57,16 @@ test('F196: project archive consistently sorts equal created_at timestamps by id
  assert.equal(JSON.stringify(own).includes('other-secret'),false);
  db.close();
 });
+
+test('F222: compact account works before optional production tables are initialized',async()=>{
+ const db=openStore(':memory:'),id=randomUUID(),hash=await hashPassword('Uma-senha-muito-segura-123!');
+ try{
+  db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Responsável','compact@example.test',hash,'client','2026-11-11');
+  const account=createAccount(db,{customer:()=>({legal_name:'Responsável',document:''})});
+  const result=account.view({id},{compact:true});
+  assert.equal(result.projects_total,0);
+  assert.equal(result.requires_review,0);
+  assert.equal(result.project_summary.desenvolvimento,0);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name='productions'").get().n,0);
+ }finally{db.close();}
+});
