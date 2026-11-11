@@ -15,7 +15,7 @@ O teste cria dados 100% sintéticos e mantém duas conexões PDO independentes:
 3. A conexão A abre nova transação e suspende a organização, elevando provisoriamente a revisão de 1 para 2. B enxerga somente a revisão anterior e não consegue encerrar a organização até a transação A terminar.
 4. A dá rollback. A organização retorna a `active`, revisão 1. B pode então encerrar normalmente, chegando à revisão 2, sem herdar a mudança desfeita.
 5. A sessão sintética criada com revisão da associação 1 e organização 1 fica desatualizada em **ambas** as dimensões após os commits. FORCE RLS segue ativo e sem políticas de aplicação.
-6. Rollback F154/F156 com dados presentes é recusado; a própria CI remove os fixtures e testa a reversão completa do schema temporário.
+6. O rollback da migração F156 (a última do lote) é recusado com registros; a CI verifica que **ambos os triggers F154/F156 e seus registros de migração continuam existentes**. Depois remove os fixtures e testa o rollback ordenado F156 → F154 → F76 → F66. A recusa direta do downgrade F154 é testada isoladamente pela CI F154; nunca se interpreta `Migration not found` do migrator como aprovação de segurança.
 
 ## Limites importantes
 
