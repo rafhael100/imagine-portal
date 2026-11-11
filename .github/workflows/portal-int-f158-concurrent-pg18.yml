@@ -104,10 +104,13 @@ jobs:
             echo 'SECURITY FAIL: org revision trigger removed while records exist' >&2
             exit 1
           fi
-          if php artisan migrate:rollback --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction; then
-            echo 'SECURITY FAIL: member revision trigger removed while records exist' >&2
-            exit 1
-          fi
+          # Do not call migrate:rollback for F154 while F156 remains the
+          # latest migration. Laravel's batch resolver can report
+          # "Migration not found" as success for an older --path.
+          # Verify instead that the failed F156 downgrade left BOTH fences
+          # and their migration records in place.
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f154_membership_revision_guard','portal_f154_grant_revision_guard','portal_f154_grant_immutable_guard','portal_f156_org_revision_guard') AND NOT tgisinternal" | grep -xq 4
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration IN ('2026_11_11_000012_fence_portal_membership_revision','2026_11_11_000013_fence_portal_organization_revision')" | grep -xq 2
       - name: Delete synthetic fixture records and prove clean reversibility
         run: |
           set -euo pipefail
