@@ -33,16 +33,30 @@ final class DemoPortalStaticExporterTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_export_creates_navigable_index_and_seven_existing_demo_views(): void
+    public function test_export_creates_navigable_index_and_read_only_review_preview(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
-        self::assertCount(8, $pages);
+        self::assertCount(9, $pages);
         self::assertContains('index.html', $pages);
         self::assertContains('requests.html', $pages);
+        self::assertContains('delivery-review.html', $pages);
 
         $index = file_get_contents($this->temporaryDirectory . '/index.html');
         self::assertIsString($index);
         self::assertStringContainsString('Somente dados fictícios', $index);
+
+        $review = file_get_contents($this->temporaryDirectory . '/delivery-review.html');
+        self::assertIsString($review);
+        self::assertStringContainsString('href="index.html"', $review);
+        self::assertStringContainsString('DEMO-AURORA-001', $review);
+        self::assertStringContainsString('Revisão de entregas', $review);
+        self::assertStringContainsString('SIMULAÇÃO LOCAL', $review);
+        foreach (['<form', '<script', '<button', 'http://', 'https://'] as $prohibited) {
+            self::assertStringNotContainsString($prohibited, $review);
+        }
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::isOperational());
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::canResend());
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::canConfirmCrmDelivery());
 
         foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $section) {
             self::assertContains($section . '.html', $pages);
