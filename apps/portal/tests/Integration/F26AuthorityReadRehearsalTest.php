@@ -19,6 +19,7 @@ use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
+use App\Domain\PortalAccess\Authority\PortalSessionPurpose;
 use App\Labs\F24\F24LabSessionProof;
 use App\Labs\F24\F24SyntheticAuthorizedReader;
 use App\Labs\F26\F26AuthorityReadRehearsal;
@@ -93,6 +94,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
         int $sessionOrganizationRevision = 1,
+        PortalSessionPurpose $purpose = PortalSessionPurpose::Business,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -105,6 +107,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
             $sessionOrganizationRevision,
+            $purpose,
         );
     }
 
@@ -282,6 +285,19 @@ final class F26AuthorityReadRehearsalTest extends TestCase
     {
         $key = random_bytes(32);
         $sources = $this->fixture(session: $this->snapshot(sessionOrg: 'org-b'));
+        $reader = $this->rehearsal($this->db(), $key, $sources);
+        $this->assertBlocked(
+            $this->read($reader, $this->token($key)),
+            'untrusted_lab_authority',
+        );
+    }
+
+    public function test_invitation_only_session_cannot_prepare_any_pg_service_projection(): void
+    {
+        $key = random_bytes(32);
+        $sources = $this->fixture(
+            session: $this->snapshot(purpose: PortalSessionPurpose::InvitationOnly),
+        );
         $reader = $this->rehearsal($this->db(), $key, $sources);
         $this->assertBlocked(
             $this->read($reader, $this->token($key)),

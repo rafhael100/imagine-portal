@@ -18,6 +18,7 @@ use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
+use App\Domain\PortalAccess\Authority\PortalSessionPurpose;
 use App\Domain\SeoReview\GoogleSearchConsoleConnectionPreflight;
 use App\Domain\SeoReview\GoogleSearchConsoleConnectionReview;
 use App\Domain\SeoReview\GoogleSearchConsolePropertyIdentifier;
@@ -41,6 +42,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
         int $sessionOrganizationRevision = 1,
+        PortalSessionPurpose $purpose = PortalSessionPurpose::Business,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -53,6 +55,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
             $sessionOrganizationRevision,
+            $purpose,
         );
     }
 
@@ -244,6 +247,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $this->session(sessionOrg:'org-b'),
             $this->session(sessionMembershipRevision:2),
             $this->session(sessionOrganizationRevision:2),
+            $this->session(purpose: PortalSessionPurpose::InvitationOnly),
         ] as $snapshot) {
             $service = $this->preflight(
                 $snapshot, $this->membership(), new OrganizationId('org-a'),
