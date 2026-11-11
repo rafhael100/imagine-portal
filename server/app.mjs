@@ -21,6 +21,7 @@ import {token,digest,equal,hashPassword,verifyPassword,cleanText,validEmail,vali
 import {now,audit} from './store.mjs';
 export const MAINTENANCE_CENTS=3990;
 export const MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8;
+export const RATE_LIMIT_PRUNE_INTERVAL_MS=5*60*1000;
 export function addDays(date,days){const value=new Date(date);value.setUTCDate(value.getUTCDate()+days);return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value)}
 const settled=new Set(['RECEIVED','CONFIRMED','RECEIVED_IN_CASH']);
 const phases=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
@@ -28,7 +29,7 @@ function problem(status,message){return Object.assign(new Error(message),{status
 function assert(condition,status,message){if(!condition)throw problem(status,message)}
 const cents=value=>Math.round(Number(value)*100);
 export function createApp({db,asaas,publicDir,origin,production=false,sellerName='',sellerDocument='',webhookToken='',clock=()=>new Date(),uploadDir=null,focus=createFocus(),mailer=createMailer(),focusWebhookToken='',billingTokenKey='',newSiteBilling=RECURRING_MODEL,trustProxy=false}){
- const root=resolve(publicDir),locks=new Set();let processing=false;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
+ const root=resolve(publicDir),locks=new Set();let processing=false,lastRateLimitPruneAt=0;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
  const accountProfile=createAccount(db,fiscal);
  const q=(sql,...args)=>db.prepare(sql).get(...args),list=(sql,...args)=>db.prepare(sql).all(...args),run=(sql,...args)=>db.prepare(sql).run(...args);
  db.exec("UPDATE orders SET billing_state='uncertain' WHERE billing_state='creating'; UPDATE maintenance SET status='uncertain' WHERE status='creating';");
@@ -39,7 +40,23 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  // entry: clients can prepend arbitrary IPs before a correctly appending
  // proxy. With APP_TRUST_PROXY=false, ignore forwarded headers completely.
  function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',').at(-1).trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
- function limit(key,max=20,window=900000){const row=q('SELECT * FROM rate_limits WHERE key=?',key),time=Date.now();if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);else{assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');run('UPDATE rate_limits SET count=count+1 WHERE key=?',key)}}
+ function limit(key,max=20,window=900000){
+  const time=Date.now();
+  // Distinct login emails and IPs create distinct bucket keys. Without
+  // cleanup, expired rows accumulate forever in the SQLite legacy Portal.
+  // Bound collection work to once per five minutes per process, then preserve
+  // live counters. Fail closed on storage failure.
+  if(time-lastRateLimitPruneAt>=RATE_LIMIT_PRUNE_INTERVAL_MS){
+   run('DELETE FROM rate_limits WHERE reset_at<=?',time);
+   lastRateLimitPruneAt=time;
+  }
+  const row=q('SELECT * FROM rate_limits WHERE key=?',key);
+  if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);
+  else{
+   assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');
+   run('UPDATE rate_limits SET count=count+1 WHERE key=?',key);
+  }
+ }
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
  function session(res,user){
   const raw=token(),csrf=token(),time=Date.now(),expiresAt=time+12*3600000;
