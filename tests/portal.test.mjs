@@ -341,7 +341,8 @@ test('F177: CSV de projetos é isolado, seguro contra fórmulas e registrado na 
  assert.match(own.headers.get('content-type')||'',/text\/csv/);
  assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-projetos.csv"/);
  assert.match(own.headers.get('cache-control')||'',/no-store/);
- assert.ok(own.body.startsWith('\uFEFF'));
+ // fetch().text() intentionally consumes UTF-8 BOM; the serializer unit test checks raw BOM.
+ assert.ok(own.body.startsWith('"ID";"Projeto";'));
  assert.ok(own.body.includes('"\'=HYPERLINK(""https://example.test"",""abrir"")"'));
  assert.ok(own.body.includes(first.id));
  assert.equal(own.body.includes(second.id),false);
