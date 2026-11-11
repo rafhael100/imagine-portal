@@ -303,6 +303,7 @@ test('F174: duas ou mais alterações simultâneas não podem reabrir credenciai
 
 test('F176: exportação do cadastro e dos projetos pertence exclusivamente ao cliente autenticado',async t=>{
  const f=await fixture(t),a=await f.client('Cliente A'),b=await f.client('Cliente B');
+ const ownUserId=a.user.id;
  const first=await order(a),other=await order(b);
  const own=await a.call('/api/account/export');
  assert.equal(own.status,200);
@@ -327,7 +328,7 @@ test('F176: exportação do cadastro e dos projetos pertence exclusivamente ao c
  const staff=await f.client('Equipe','admin');
  f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
  assert.equal((await staff.call('/api/account/export')).status,403);
- assert.equal(f.db.prepare("SELECT count(*) AS n FROM audit WHERE actor_id=? AND action='account.data_exported'").get(a.user.id).n,1);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM audit WHERE actor_id=? AND action='account.data_exported'").get(ownUserId).n,1);
 });
 
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
