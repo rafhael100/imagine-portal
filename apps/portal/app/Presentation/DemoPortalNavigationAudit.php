@@ -16,6 +16,7 @@ use RuntimeException;
  */
 final class DemoPortalNavigationAudit
 {
+    public const OFFLINE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
     public function verify(string $directory): bool
     {
         if (!app()->environment(['local', 'testing'])) {
@@ -65,6 +66,33 @@ final class DemoPortalNavigationAudit
             $robots = $xpath->query('//meta[@name="robots" and @content="noindex,nofollow"]');
             if ($robots === false || $robots->length !== 1) {
                 throw new LogicException('Offline preview must explicitly disallow indexing.');
+            }
+            $policies = $xpath->query('//meta[@http-equiv="Content-Security-Policy"]');
+            $policy = $policies === false ? null : $policies->item(0);
+            if ($policies === false || $policies->length !== 1
+                || !$policy instanceof DOMElement
+                || $policy->getAttribute('content') !== self::OFFLINE_CSP) {
+                throw new LogicException('Private offline preview must use the restrictive CSP.');
+            }
+            $referrer = $xpath->query('//meta[@name="referrer" and @content="no-referrer"]');
+            if ($referrer === false || $referrer->length !== 1) {
+                throw new LogicException('Private offline preview cannot leak referrer context.');
+            }
+            $active = $xpath->query('//*[self::script or self::form or self::iframe or self::object or self::embed or self::link or self::base or self::input or self::button or self::audio or self::video or self::source]');
+            $events = $xpath->query('//@*[starts-with(name(),"on")]');
+            $refresh = $xpath->query('//meta[translate(@http-equiv,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="refresh"]');
+            if ($active === false || $active->length !== 0
+                || $events === false || $events->length !== 0
+                || $refresh === false || $refresh->length !== 0) {
+                throw new LogicException('Active or externally loaded markup is forbidden.');
+            }
+            foreach ($doc->getElementsByTagName('img') as $img) {
+                if (!$img instanceof DOMElement
+                    || !$img->hasAttribute('alt')
+                    || preg_match('~\\Adata:image/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+\\z~D',
+                        $img->getAttribute('src')) !== 1) {
+                    throw new LogicException('Offline images must be inert embedded raster data with alt text.');
+                }
             }
             if ($doc->getElementsByTagName('nav')->length < 1) {
                 throw new LogicException('Offline page lacks a navigation landmark.');

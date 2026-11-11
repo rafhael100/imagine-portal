@@ -176,6 +176,54 @@ final class DemoPortalStaticExporterTest extends TestCase
         (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
     }
 
+    public function test_offline_navigation_audit_rejects_removed_content_security_policy(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/index.html';
+        $html = (string) file_get_contents($file);
+        $tampered = str_replace(
+            'http-equiv="Content-Security-Policy"',
+            'http-equiv="X-Unprotected-Preview"',
+            $html,
+        );
+        self::assertNotSame($html, $tampered);
+        file_put_contents($file, $tampered);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_offline_navigation_audit_rejects_inline_event_handlers(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/delivery-review.html';
+        $html = (string) file_get_contents($file);
+        $tampered = str_replace(
+            '<main id="pi-content"',
+            '<main onclick="alert(1)" id="pi-content"',
+            $html,
+        );
+        self::assertNotSame($html, $tampered);
+        file_put_contents($file, $tampered);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_offline_navigation_audit_rejects_embedded_remote_iframe(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $file = $this->temporaryDirectory.'/index.html';
+        $html = (string) file_get_contents($file);
+        $tampered = str_replace(
+            '</main>',
+            '<iframe src="https://example.invalid"></iframe></main>',
+            $html,
+        );
+        self::assertNotSame($html, $tampered);
+        file_put_contents($file, $tampered);
+        $this->expectException(LogicException::class);
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
     public function test_existing_output_is_never_overwritten(): void
     {
         $exporter = new DemoPortalStaticExporter();
