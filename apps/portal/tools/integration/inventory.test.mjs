@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  classify, parseNameStatusZ, buildReport, markdownReport,
+  classify, parseNameStatusZ, buildReport, markdownReport, reviewPackets,
 } from './inventory.mjs';
 
 test('NUL diff parser handles ordinary, deletion and rename records without shell interpretation', () => {
@@ -55,4 +55,31 @@ test('report is explicitly NON-authoritative regardless of successful checks', (
   assert.match(summary,/NO-GO/);
   assert.match(summary,/700/);
   assert.doesNotMatch(summary,/Aprovado para produção/);
+});
+
+test('review packets partition files exactly once and never imply approval', () => {
+  const records = parseNameStatusZ(
+    'A\\0apps/portal/app/Domain/Identity/Trusted.php\\0' +
+    'M\\0apps/portal/resources/views/portal/demo/overview.blade.php\\0' +
+    'D\\0apps/portal/database/migrations/old.php\\0'
+  );
+  const report = buildReport({
+    base:'origin/dev',head:'head123',mergeBase:'base123',
+    leftRight:'0\\t10',records,
+  });
+  const packets = reviewPackets(report);
+  assert.deepEqual(Object.keys(packets),[
+    'identity_security','presentation','database_migration'
+  ]);
+  assert.equal(Object.keys(packets).length,3);
+  for (const [category, content] of Object.entries(packets)) {
+    assert.match(content,/NO-GO/);
+    assert.match(content,/NÃO revisados/);
+    assert.match(content,new RegExp(category));
+  }
+  assert.match(packets.identity_security,/Trusted\\.php/);
+  assert.doesNotMatch(packets.identity_security,/overview\\.blade\\.php/);
+  assert.match(packets.presentation,/overview\\.blade\\.php/);
+  assert.match(packets.database_migration,/old\\.php/);
+  assert.equal(report.decision.may_merge,false);
 });
