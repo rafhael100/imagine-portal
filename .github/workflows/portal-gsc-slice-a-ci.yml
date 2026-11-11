@@ -138,6 +138,12 @@ jobs:
             if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
               echo 'GSC Slice A: unsafe static HTML' >&2;exit 1
             fi
+            if [[ "$scenario" == redacted || "$scenario" == multi_redacted || "$scenario" == partial ]]; then
+              # Both query metrics are withheld when source rows have
+              # privacy redactions or unconfirmed continuation.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 2
+              grep -q 'sugestões desativadas' "$rendered"
+            fi
           done
           node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
 
