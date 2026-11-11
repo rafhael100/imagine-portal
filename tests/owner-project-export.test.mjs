@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {randomUUID} from 'node:crypto';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {openStore} from '../server/store.mjs';
 import {iterateOwnerExportProjects,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases,OWNER_EXPORT_LEASE_MS} from '../server/owner-project-export.mjs';
 import {projectsCsv,projectsCsvChunks} from '../server/account-export.mjs';
@@ -140,4 +143,24 @@ test('F237: indexed stale-lease pruning removes crashed workers, preserves live 
   assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(b).token,active);
   assert.equal(pruneExpiredOwnerExportLeases(db,at),0);
  }finally{db.close();}
+});
+
+test('F238: separate SQLite connections cannot bypass per-account export lease',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'imagine-export-lease-'));
+ t.after(()=>rm(dir,{recursive:true,force:true}));
+ const filename=join(dir,'portal.sqlite'),dbA=openStore(filename),dbB=openStore(filename);
+ try{
+  const id=randomUUID();
+  dbA.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Cliente','concurrent@example.test','hash','client','2026-11-11');
+  const first=acquireOwnerExportLease(dbA,id);
+  assert.throws(()=>acquireOwnerExportLease(dbB,id),e=>e.status===409);
+  assert.equal(dbB.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(id).token,first);
+  releaseOwnerExportLease(dbA,id,first);
+  const second=acquireOwnerExportLease(dbB,id);
+  assert.notEqual(first,second);
+  releaseOwnerExportLease(dbA,id,first);
+  assert.equal(dbA.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(id).token,second);
+  releaseOwnerExportLease(dbB,id,second);
+  assert.equal(dbA.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,0);
+ }finally{dbB.close();dbA.close();}
 });
