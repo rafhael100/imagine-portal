@@ -117,7 +117,7 @@ $insert=$db->prepare(
        clock_timestamp()-interval '2 seconds',clock_timestamp()+interval '20 minutes',now(),now())"
 );
 $issue=static function(
-    string $sid,string $digest,string $status,string $purpose,
+    string $sid,string $digest,string $status,?string $purpose,
     ?string $mfa=null
 )use($insert,$id,$org):void{
     $insert->execute([$sid,$digest,$id,$org,$status,$purpose,$mfa]);
@@ -129,6 +129,22 @@ $deny(static fn()=> $issue(
     $primaryId,hash('sha256','forged-already-active'), 'active','invitation_only',
     date('Y-m-d H:i:sP')
 ),'23514','new session cannot skip MFA phase');
+$deny(static fn()=> $issue(
+    '5bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    hash('sha256','forged-legacy-null'),'pending_mfa',null
+),'23514','NULL-purpose sessions cannot exploit SQL three-valued logic');
+$deny(static fn()=> $db->prepare(
+    "INSERT INTO portal_auth_sessions(
+       id,session_sha256,identity_id,organization_id,status,session_purpose,
+       identity_revision,membership_revision,organization_revision,
+       issued_at,expires_at,created_at,updated_at)
+     VALUES(?,?,?,?,'pending_mfa','invitation_only',1,1,1,
+        clock_timestamp()-interval '10 minutes',
+        clock_timestamp()+interval '20 minutes',now(),now())"
+)->execute([
+    '5ccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    hash('sha256','stale-issued-token'),$id,$org
+]),'23514','backdated issuance cannot bypass fresh credential admission');
 $issue($primaryId,$primaryDigest,'pending_mfa','invitation_only');
 $issue($siblingId,hash('sha256','f119-pending-sibling'),'pending_mfa','invitation_only');
 
@@ -144,6 +160,10 @@ $deny(static fn()=> $db->prepare(
     "UPDATE portal_auth_sessions SET session_sha256=? WHERE id=?"
 )->execute([hash('sha256','tampered-token'),$primaryId]),
 '23514','issued bearer digest cannot be rewritten');
+$deny(static fn()=> $db->prepare(
+    "UPDATE portal_auth_sessions SET created_at=created_at-interval '1 day'
+     WHERE id=?"
+)->execute([$primaryId]),'23514','issued session creation time is immutable');
 $deny(static fn()=> $db->prepare(
     "UPDATE portal_auth_sessions SET expires_at=expires_at+interval '1 minute'
      WHERE id=?"
