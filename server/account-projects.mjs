@@ -48,7 +48,7 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
    ['preparation','production','changes','review','approved','published'].includes(row.production_stage)?{
     stage:row.production_stage,
     progress:Number.isSafeInteger(row.production_progress)?Math.max(0,Math.min(100,row.production_progress)):0,
-    due_date:typeof row.production_due_date==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(row.production_due_date)?row.production_due_date:null,
+    due_date:typeof row.production_due_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(row.production_due_date)?row.production_due_date:null,
    }:null,
  }));
  return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages,limited};

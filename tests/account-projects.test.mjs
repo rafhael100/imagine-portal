@@ -103,3 +103,13 @@ test('F218: site production badge uses approved labels and sanitized progress on
  assert.ok(html.includes('Em produção'));
  assert.ok(html.includes('2026-11-30'));
 });
+
+test('F219: production progress hidden for unpaid, missing or unknown stage',()=>{
+ const html=cards([{id:'unpaid',title:'Novo',payment_status:'PENDING',data:{},production:null},
+  {id:'unknown',title:'Futuro',payment_status:'RECEIVED',data:{},production:null}]);
+ assert.equal(html.includes('account-production'),false);
+ const authorized=cards([{id:'paid',title:'Pago',payment_status:'RECEIVED',data:{},
+  production:{stage:'review',progress:100,due_date:null}}]);
+ assert.ok(authorized.includes('Aguardando revisão'));
+ assert.ok(authorized.includes('value="100"'));
+});
