@@ -247,7 +247,7 @@ $issueBusiness=$db->prepare(
       identity_revision,membership_revision,organization_revision,
       issued_at,expires_at,created_at,updated_at)
      VALUES(?,?,?,?,'pending_mfa','business',1,2,1,
-       clock_timestamp(),clock_timestamp()+interval '20 minutes',now(),now())"
+       clock_timestamp()-interval '4 seconds',clock_timestamp()+interval '20 minutes',now(),now())"
 );
 $issueBusiness->execute([$businessId,$businessDigest,$id,$org]);
 $ok(!$isTrue($business->query(
