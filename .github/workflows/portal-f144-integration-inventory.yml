@@ -20,6 +20,9 @@ jobs:
       - name: Checkout candidate with full Git history
         uses: actions/checkout@v5
         with:
+          # pull_request's default checkout is a GitHub-generated merge commit.
+          # The inventory must inspect the PR's actual head, not that synthetic merge.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Use pinned major Node release
@@ -27,17 +30,20 @@ jobs:
         with:
           node-version: '24'
       - name: Fetch only the protected development comparison ref
+        env:
+          PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin \
             refs/heads/dev/fast-track-portal-2026-11-05:refs/remotes/origin/dev/fast-track-portal-2026-11-05
           git rev-parse --verify refs/remotes/origin/dev/fast-track-portal-2026-11-05^{commit}
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
       - name: Test the review inventory tool on synthetic git-path fixtures
         run: node --test apps/portal/tools/integration/inventory.test.mjs
       - name: Generate exact full diff inventory and NO-GO summary
         env:
+          PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-integration-inventory
         run: node apps/portal/tools/integration/inventory.mjs
       - name: Archive metadata-only evidence, not source or secrets
