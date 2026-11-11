@@ -177,13 +177,29 @@ export function reviewPackets(report) {
   return packets;
 }
 
+/**
+ * The GitHub pull_request event's GITHUB_SHA points at a temporary merge ref.
+ * Never silently report that commit as the candidate PR head.
+ */
+export function requireCandidateHead(actualHead, expectedHead) {
+  if (!/^[0-9a-f]{40}$/.test(actualHead)
+      || !/^[0-9a-f]{40}$/.test(expectedHead)
+      || actualHead !== expectedHead) {
+    throw new Error('Inventory checkout does not match the actual candidate HEAD.');
+  }
+  return actualHead;
+}
+
 function main() {
   if (process.env.GITHUB_ACTIONS !== 'true') {
     throw new Error('F144 inventory must run in GitHub Actions only.');
   }
   const outputDir = process.env.PORTAL_REVIEW_INVENTORY_DIR;
   if (!outputDir) throw new Error('Missing CI-only artifact output directory.');
-  const head = git(['rev-parse', 'HEAD']);
+  const head = requireCandidateHead(
+    git(['rev-parse', 'HEAD']),
+    process.env.PORTAL_EXPECTED_HEAD ?? '',
+  );
   const mergeBase = git(['merge-base', BASE, 'HEAD']);
   const leftRight = git(['rev-list','--left-right','--count',BASE+'...HEAD']);
   const records = parseNameStatusZ(
