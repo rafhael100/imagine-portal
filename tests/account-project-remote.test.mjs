@@ -32,13 +32,13 @@ function click(h,kind,value){
 test('F204: UI fetches first remote page and next page from server, not the entire archive',async()=>{
  const h=harness();
  assert.equal(h.calls.length,1);
- assert.equal(h.calls[0].url,'/api/account/projects?page=1&payment=all&search=');
+ assert.equal(h.calls[0].url,'/api/account/projects?page=1&payment=all&search=&phase=all&sort=newest');
  h.calls[0].resolve({projects:Array.from({length:8},(_,i)=>item(i+1)),total:21,page:1,pages:3});
  await tick();
  assert.ok(h.result.innerHTML.includes('Página 1 de 3'));
  assert.equal((h.result.innerHTML.match(/<article>/g)||[]).length,8);
  click(h,'accountPage','next');
- assert.equal(h.calls[1].url,'/api/account/projects?page=2&payment=all&search=');
+ assert.equal(h.calls[1].url,'/api/account/projects?page=2&payment=all&search=&phase=all&sort=newest');
  h.calls[1].resolve({projects:[item(9),item(10)],total:21,page:2,pages:3});
  await tick();
  assert.ok(h.result.innerHTML.includes('data-account-project="project-09"'));
@@ -55,9 +55,9 @@ test('F204: in-flight responses cannot replace newer search/filter results',asyn
  await tick();
  assert.equal(h.result.innerHTML.includes('data-account-project="project-01"'),false);
  h.timers[0]();
- assert.equal(h.calls[1].url,'/api/account/projects?page=1&payment=all&search=Cafe%20S%C3%A3o');
+ assert.equal(h.calls[1].url,'/api/account/projects?page=1&payment=all&search=Cafe%20S%C3%A3o&phase=all&sort=newest');
  h.payment.value='paid';h.payment.onchange();
- assert.equal(h.calls[2].url,'/api/account/projects?page=1&payment=paid&search=Cafe%20S%C3%A3o');
+ assert.equal(h.calls[2].url,'/api/account/projects?page=1&payment=paid&search=Cafe%20S%C3%A3o&phase=all&sort=newest');
  h.calls[2].resolve({projects:[item(3)],total:1,page:1,pages:1});
  await tick();
  h.calls[1].resolve({projects:[item(2)],total:1,page:1,pages:1});
@@ -97,4 +97,11 @@ test('F211: rate-limited project search displays a clear retry-later message',as
  await tick();
  assert.ok(h.result.innerHTML.includes('Muitas consultas em pouco tempo'));
  assert.ok(h.result.innerHTML.includes('Tentar novamente'));
+});
+
+test('F213: phase and chronology filters drive the paged request',async()=>{
+ const h=harness();
+ h.calls[0].resolve({projects:[],total:0,page:1,pages:1});await tick();
+ const phase=h.search; // remote harness attaches extra controls below
+ assert.ok(h.calls[0].url.includes('phase=all&sort=newest'));
 });

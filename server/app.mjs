@@ -181,6 +181,8 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    page:url.searchParams.get('page')??'1',
    payment:url.searchParams.get('payment')??'all',
    search:url.searchParams.get('search')??'',
+   phase:url.searchParams.get('phase')??'all',
+   sort:url.searchParams.get('sort')??'newest',
   }));
  }
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));

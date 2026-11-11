@@ -8,7 +8,7 @@ const source=await readFile(fileURLToPath(new URL('../account-ui.js',import.meta
 const context={
  escapeHtml:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 };
-runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel};',context);
+runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel,accountProjectPhaseLabel};',context);
 const {filteredAccountProjects:filter,accountProjectCards:cards}=context.projectTestApi;
 
 function projects(n=21){
@@ -79,4 +79,14 @@ test('F192: project cards show translated payment labels and fail closed on unkn
  assert.ok(html.includes('Pagamento estornado'));
  assert.ok(html.includes('Pagamento em análise'));
  assert.equal(html.includes('UNRECOGNIZED'),false);
+});
+
+test('F213: project phase and sort are recognized and safe labels are translated',()=>{
+ const label=context.projectTestApi.accountProjectPhaseLabel;
+ assert.equal(label('desenvolvimento'),'Em desenvolvimento');
+ assert.equal(label('entregue'),'Entregue');
+ assert.equal(label('injected'),'Etapa a confirmar');
+ const rows=[{id:'z',title:'Mais novo',phase:'entregue',created_at:'2026-11-11',payment_status:'RECEIVED',data:{}},{id:'a',title:'Mais antigo',phase:'solicitado',created_at:'2026-11-01',payment_status:'RECEIVED',data:{}}];
+ assert.equal(filter(rows,'','all',1,'entregue').count,1);
+ assert.equal(filter(rows,'','all',1,'all','oldest').items[0].id,'a');
 });

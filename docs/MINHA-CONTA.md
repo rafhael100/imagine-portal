@@ -101,3 +101,7 @@ Para reduzir pesquisas repetitivas custosas e preservar outros usuários,
 de 60 segundos. A quota é independente por titular e separada das
 exportações (20/hora). A interface informa quando é preciso aguardar e
 não recomenda tentativas automáticas contínuas.
+
+## Situação operacional e ordem dos projetos (F213)
+
+O arquivo paginado aceita `phase=all|solicitado|planejamento|desenvolvimento|revisao|entregue` e `sort=newest|oldest`. Os valores são explicitamente permitidos; tentativas com valores desconhecidos recebem erro 400. Os filtros de etapa, pagamento, busca e ordenação são aplicados no SQL **antes** da paginação de oito registros. A tela apresenta as etapas em português e mantém o comportamento anterior quando os parâmetros são omitidos.
