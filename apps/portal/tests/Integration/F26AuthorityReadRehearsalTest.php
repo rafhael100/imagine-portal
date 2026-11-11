@@ -88,6 +88,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         bool $active = true,
         bool $mfa = true,
         int $sessionRevision = 1,
+        string $sessionOrg = 'org-a',
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -97,6 +98,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             1800000900,
             1,
             $sessionRevision,
+            new OrganizationId($sessionOrg),
         );
     }
 
@@ -250,6 +252,17 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             );
             $this->assertBlocked($this->read($reader, $this->token($key)), 'untrusted_lab_authority');
         }
+    }
+
+    public function test_f1_session_cannot_cross_tenant_even_when_f24_token_and_member_are_for_selected_org(): void
+    {
+        $key = random_bytes(32);
+        $sources = $this->fixture(session: $this->snapshot(sessionOrg: 'org-b'));
+        $reader = $this->rehearsal($this->db(), $key, $sources);
+        $this->assertBlocked(
+            $this->read($reader, $this->token($key)),
+            'untrusted_lab_authority',
+        );
     }
 
     public function test_revoked_membership_missing_grant_or_wrong_resource_owner_denies(): void
