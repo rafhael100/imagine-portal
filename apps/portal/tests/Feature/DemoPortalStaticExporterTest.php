@@ -87,6 +87,37 @@ final class DemoPortalStaticExporterTest extends TestCase
         }
     }
 
+    public function test_failed_review_render_never_leaves_partial_html_or_target(): void
+    {
+        // Force failure late, after the exporter has staged the seven client
+        // previews but before it can rename the complete nine-page bundle.
+        $this->app['view']->composer('portal.demo.delivery-review',
+            static function (): void {
+                throw new \RuntimeException('Intentional F134 fixture failure');
+            });
+
+        try {
+            (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+            self::fail('Invalid preview rendering must abort the export');
+        } catch (\RuntimeException $e) {
+            self::assertSame('Intentional F134 fixture failure', $e->getMessage());
+        }
+        self::assertDirectoryDoesNotExist($this->temporaryDirectory);
+        self::assertSame([], glob($this->temporaryDirectory . '.staging-*') ?: []);
+    }
+
+    public function test_completed_demo_export_has_private_directory_and_file_permissions(): void
+    {
+        $files = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        self::assertCount(9, $files);
+        self::assertSame(0700, fileperms($this->temporaryDirectory) & 0777);
+        foreach ($files as $name) {
+            self::assertSame(0600,
+                fileperms($this->temporaryDirectory . '/' . $name) & 0777);
+        }
+        self::assertSame([], glob($this->temporaryDirectory . '.staging-*') ?: []);
+    }
+
     public function test_export_does_not_register_routes_or_grant_real_access(): void
     {
         $before = [];
