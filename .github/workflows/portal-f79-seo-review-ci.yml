@@ -86,7 +86,7 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
           fixture="$(mktemp)"
           trap 'rm -f "$fixture"' EXIT
-          for scenario in complete redacted partial empty; do
+          for scenario in complete redacted partial empty multi multi_redacted; do
             node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
             php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
           done
