@@ -1,0 +1,71 @@
+name: Portal INT-F151 - Permission grant rollout hold (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-int-f151-permission-rollout-fence-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f150-latest-seo-pagination-2026-11-11
+    paths:
+      - 'apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php'
+      - 'apps/portal/docs/PORTAL-INT-F151-PERMISSION-ROLLOUT-FENCE.md'
+      - '.github/workflows/portal-int-f151-permission-rollout-ci.yml'
+      - '.github/workflows/portal-int-f150-latest-seo-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-permission-rollout-hold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    env:
+      F150_PINNED_SHA: 04e250a19153421abec39703c3b85f8add3b3cef
+      F150_MERGE_SHA: e655c3f8d61debce89920bd22c1ed28878e1d501
+      F150_MERGE_TREE: 94c5bf76c1161927ec213bec38abfb0a98892799
+      PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact review HEAD only
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify F150 lineage and limit changes to CI/doc/tests only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
+          git merge-base --is-ancestor "$F150_PINNED_SHA" HEAD
+          test "$(git rev-parse "$F150_MERGE_SHA^{tree}")" = "$F150_MERGE_TREE"
+          changed="$(git diff --name-only "$F150_PINNED_SHA" HEAD)"
+          test -n "$changed"
+          while IFS= read -r path; do
+            case "$path" in
+              .github/workflows/portal-int-f150-latest-seo-ci.yml|.github/workflows/portal-int-f151-permission-rollout-ci.yml|apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php|apps/portal/docs/PORTAL-INT-F151-PERMISSION-ROLLOUT-FENCE.md) ;;
+              *) echo "Unreviewed runtime or schema change: $path" >&2; exit 1 ;;
+            esac
+          done <<< "$changed"
+          grep -Fq "case ConnectGoogleSearchConsole = 'seo.gsc.connect';" apps/portal/app/Domain/Authorization/Permission.php
+          grep -Fq "case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';" apps/portal/app/Domain/Authorization/Permission.php
+          grep -Fq 'DenyingPortalAuthorities::class' apps/portal/app/Providers/AppServiceProvider.php
+          echo 'No post-F150 runtime, schema or grant modifications. Release remains NO-GO.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Setup PHP for isolated permission canary
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+          extensions: mbstring,dom,xml,pdo_pgsql,zip
+      - name: Install packages locked by F150
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+      - name: Execute combined schema/enum permission hold tests
+        working-directory: apps/portal
+        run: ./vendor/bin/phpunit tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php --no-coverage
