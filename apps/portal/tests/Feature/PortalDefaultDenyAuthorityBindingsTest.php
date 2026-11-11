@@ -9,6 +9,7 @@ use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use Tests\TestCase;
 
@@ -24,10 +25,12 @@ final class PortalDefaultDenyAuthorityBindingsTest extends TestCase
         $sessions = $this->app->make(PortalSessionAuthority::class);
         $memberships = $this->app->make(PortalMembershipAuthority::class);
         $resources = $this->app->make(PortalResourceAuthority::class);
+        $organizations = $this->app->make(PortalOrganizationAuthority::class);
 
         self::assertInstanceOf(DenyingPortalAuthorities::class, $sessions);
         self::assertSame($sessions, $memberships);
         self::assertSame($sessions, $resources);
+        self::assertSame($sessions, $organizations);
         self::assertSame($sessions, $this->app->make(DenyingPortalAuthorities::class));
     }
 
@@ -36,8 +39,11 @@ final class PortalDefaultDenyAuthorityBindingsTest extends TestCase
         $sessions = $this->app->make(PortalSessionAuthority::class);
         $memberships = $this->app->make(PortalMembershipAuthority::class);
         $resources = $this->app->make(PortalResourceAuthority::class);
+        $organizations = $this->app->make(PortalOrganizationAuthority::class);
 
         $org = new OrganizationId('org-a');
+        self::assertNull($organizations->lookup($org));
+        self::assertNull($organizations->lookup(new OrganizationId('org-b')));
 
         foreach (['portal-session', 'crm-session', 'synthetic-positive-test', ''] as $ref) {
             self::assertNull($sessions->find($ref));

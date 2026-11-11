@@ -14,6 +14,8 @@ use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
 use App\Domain\SeoReview\GoogleSearchConsoleConnectionPreflight;
@@ -38,6 +40,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         int $expiry = 2000,
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
+        int $sessionOrganizationRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -49,6 +52,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $revision,
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
+            $sessionOrganizationRevision,
         );
     }
 
@@ -74,6 +78,9 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         ?PortalSessionSnapshot $session,
         ?OrganizationMembership $membership,
         ?OrganizationId $resourceOwner = null,
+        bool $organizationActive = true,
+        int $organizationRevision = 1,
+        string $organizationStateTenant = 'org-a',
     ): GoogleSearchConsoleConnectionPreflight {
         $sessionSource = new class($session) implements PortalSessionAuthority {
             public function __construct(private ?PortalSessionSnapshot $snapshot)
@@ -115,11 +122,24 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             }
         };
 
+        $organizationSource = new class($organizationActive,$organizationRevision,$organizationStateTenant)
+            implements PortalOrganizationAuthority {
+            public function __construct(
+                private bool $active, private int $revision, private string $tenant
+            ) {}
+            public function lookup(OrganizationId $selected): ?PortalOrganizationSnapshot
+            {
+                return new PortalOrganizationSnapshot(
+                    new OrganizationId($this->tenant), $this->active, $this->revision
+                );
+            }
+        };
         return new GoogleSearchConsoleConnectionPreflight(
             new PortalAuthorityBoundary(
                 $sessionSource,
                 $membershipSource,
                 $resourceSource,
+                $organizationSource,
             ),
         );
     }
@@ -149,7 +169,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
     {
         $deny = new DenyingPortalAuthorities();
         $preflight = new GoogleSearchConsoleConnectionPreflight(
-            new PortalAuthorityBoundary($deny, $deny, $deny),
+            new PortalAuthorityBoundary($deny, $deny, $deny, $deny),
         );
         self::assertFalse($this->verdict($preflight)->syntheticEligibilityPass);
     }
@@ -200,6 +220,12 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $this->preflight($this->session(), $this->membership(
                 membershipRevision:2,
             ), new OrganizationId('org-a')),
+            $this->preflight($this->session(), $this->membership(),
+                new OrganizationId('org-a'), organizationActive:false),
+            $this->preflight($this->session(), $this->membership(),
+                new OrganizationId('org-a'), organizationRevision:2),
+            $this->preflight($this->session(), $this->membership(),
+                new OrganizationId('org-a'), organizationStateTenant:'org-b'),
             $this->preflight($this->session(), null, new OrganizationId('org-a')),
         ];
 
@@ -217,6 +243,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $this->session(expiry:1400),
             $this->session(sessionOrg:'org-b'),
             $this->session(sessionMembershipRevision:2),
+            $this->session(sessionOrganizationRevision:2),
         ] as $snapshot) {
             $service = $this->preflight(
                 $snapshot, $this->membership(), new OrganizationId('org-a'),

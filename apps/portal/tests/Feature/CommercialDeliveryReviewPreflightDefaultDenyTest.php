@@ -14,6 +14,8 @@ use App\Domain\Organizations\OrganizationRole;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
 use Tests\TestCase;
@@ -31,11 +33,16 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
         int $currentMembershipRevision = 1,
+        int $sessionOrganizationRevision = 1,
+        bool $organizationActive = true,
+        int $organizationRevision = 1,
+        string $organizationStateTenant = 'org-a',
     ): CommercialDeliveryReviewPreflight {
         $session = new PortalSessionSnapshot(
             new PortalUserId('actor-a'),$active,$mfa,1000,2000,7,7,
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
+            $sessionOrganizationRevision,
         );
         $membership = new OrganizationMembership(
             new PortalUserId('actor-a'),
@@ -68,8 +75,20 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
                     : null;
             }
         };
+        $organizationSource = new class($organizationActive,$organizationRevision,$organizationStateTenant)
+            implements PortalOrganizationAuthority {
+            public function __construct(
+                private bool $active, private int $revision, private string $tenant
+            ) {}
+            public function lookup(OrganizationId $selected): ?PortalOrganizationSnapshot
+            {
+                return new PortalOrganizationSnapshot(
+                    new OrganizationId($this->tenant), $this->active, $this->revision
+                );
+            }
+        };
         return new CommercialDeliveryReviewPreflight(
-            new PortalAuthorityBoundary($sessionSource,$membershipSource,$resourceSource)
+            new PortalAuthorityBoundary($sessionSource,$membershipSource,$resourceSource,$organizationSource)
         );
     }
 
@@ -125,6 +144,14 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
                 sessionOrg:'org-b'),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],
                 sessionMembershipRevision:1, currentMembershipRevision:2),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                organizationActive:false),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                organizationRevision:2),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                organizationStateTenant:'org-b'),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                sessionOrganizationRevision:2),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],mfa:false),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],active:false),
         ] as $preflight) {

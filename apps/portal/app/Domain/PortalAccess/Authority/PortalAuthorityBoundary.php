@@ -23,6 +23,7 @@ final readonly class PortalAuthorityBoundary
         private PortalSessionAuthority $sessions,
         private PortalMembershipAuthority $memberships,
         private PortalResourceAuthority $resources,
+        private PortalOrganizationAuthority $organizations,
         private OrganizationAuthorizationService $policy = new OrganizationAuthorizationService(),
     ) {
     }
@@ -54,6 +55,17 @@ final readonly class PortalAuthorityBoundary
                 // session to inspect an org-B resource. Check before any
                 // membership/resource lookup and always fail closed.
                 || ! $session->sessionOrganizationId->equals($selectedOrganization)) {
+                return PortalBoundaryVerdict::blocked();
+            }
+
+            // F155: tenant selection is not organization state. Even a
+            // valid actor/member must be denied when the organization was
+            // suspended, closed or revised since the session was issued.
+            $organizationState = $this->organizations->lookup($selectedOrganization);
+            if ($organizationState === null
+                || ! $organizationState->organizationId->equals($selectedOrganization)
+                || ! $organizationState->active
+                || $organizationState->securityRevision !== $session->sessionOrganizationRevision) {
                 return PortalBoundaryVerdict::blocked();
             }
 

@@ -15,6 +15,8 @@ use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
 use App\Labs\F24\F24LabSessionProof;
@@ -90,6 +92,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         int $sessionRevision = 1,
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
+        int $sessionOrganizationRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -101,6 +104,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             $sessionRevision,
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
+            $sessionOrganizationRevision,
         );
     }
 
@@ -126,18 +130,24 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         ?OrganizationMembership $membership = null,
         ?OrganizationId $owner = null,
         bool $failSession = false,
+        bool $organizationActive = true,
+        int $organizationRevision = 1,
     ): object {
         return new class(
             $session ?? $this->snapshot(),
             $membership ?? $this->member(),
             $owner ?? new OrganizationId('org-a'),
             $failSession,
-        ) implements PortalSessionAuthority, PortalMembershipAuthority, PortalResourceAuthority {
+            $organizationActive,
+            $organizationRevision,
+        ) implements PortalSessionAuthority, PortalMembershipAuthority, PortalResourceAuthority, PortalOrganizationAuthority {
             public function __construct(
                 private PortalSessionSnapshot $session,
                 private OrganizationMembership $membership,
                 private OrganizationId $owner,
                 private bool $failSession,
+                private bool $organizationActive,
+                private int $organizationRevision,
             ) {
             }
 
@@ -158,6 +168,15 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             {
                 return $opaqueResourceReference === 'DEMO-SVC-ONEPAGE' ? $this->owner : null;
             }
+
+            public function lookup(OrganizationId $organization): ?PortalOrganizationSnapshot
+            {
+                return new PortalOrganizationSnapshot(
+                    new OrganizationId('org-a'),
+                    $this->organizationActive,
+                    $this->organizationRevision,
+                );
+            }
         };
     }
 
@@ -166,9 +185,10 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         self::assertInstanceOf(PortalSessionAuthority::class, $sources);
         self::assertInstanceOf(PortalMembershipAuthority::class, $sources);
         self::assertInstanceOf(PortalResourceAuthority::class, $sources);
+        self::assertInstanceOf(PortalOrganizationAuthority::class, $sources);
 
         return new F26AuthorityReadRehearsal(
-            new PortalAuthorityBoundary($sources, $sources, $sources),
+            new PortalAuthorityBoundary($sources, $sources, $sources, $sources),
             $sources,
             new F24SyntheticAuthorizedReader($pdo, $key),
             $key,
@@ -280,6 +300,22 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             $this->read($reader, $this->token($key)),
             'untrusted_lab_authority',
         );
+    }
+
+    public function test_suspended_or_revision_stale_organization_denies_before_pg_read(): void
+    {
+        $key = random_bytes(32);
+        foreach ([
+            $this->fixture(organizationActive: false),
+            $this->fixture(organizationRevision: 2),
+            $this->fixture(session: $this->snapshot(sessionOrganizationRevision: 2)),
+        ] as $sources) {
+            $reader = $this->rehearsal($this->db(), $key, $sources);
+            $this->assertBlocked(
+                $this->read($reader, $this->token($key)),
+                'untrusted_lab_authority',
+            );
+        }
     }
 
     public function test_revoked_membership_missing_grant_or_wrong_resource_owner_denies(): void
