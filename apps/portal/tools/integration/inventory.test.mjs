@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classify, parseNameStatusZ, buildReport, markdownReport, reviewPackets,
+  requireCandidateHead,
 } from './inventory.mjs';
 
 test('NUL diff parser handles ordinary, deletion and rename records without shell interpretation', () => {
@@ -82,4 +83,17 @@ test('review packets partition files exactly once and never imply approval', () 
   assert.match(packets.presentation,/overview\.blade\.php/);
   assert.match(packets.database_migration,/old\.php/);
   assert.equal(report.decision.may_merge,false);
+});
+
+test('candidate SHA guard rejects a synthetic PR merge checkout even if it is a valid SHA', () => {
+  const trueHead = 'a'.repeat(40);
+  const syntheticMerge = 'b'.repeat(40);
+  assert.equal(requireCandidateHead(trueHead, trueHead), trueHead);
+  assert.throws(
+    () => requireCandidateHead(syntheticMerge, trueHead),
+    /actual candidate HEAD/,
+  );
+  for (const invalid of ['', 'not-a-sha', 'A'.repeat(40), 'a'.repeat(39)]) {
+    assert.throws(() => requireCandidateHead(invalid, trueHead));
+  }
 });
