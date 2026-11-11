@@ -22,7 +22,7 @@ final readonly class OfflineGscQueryPageOverlapPreview
         return $keys===$fields;
     }
 
-    private static function counter(mixed $n,int $max=1000): bool
+    private static function counter(mixed $n,int $max=4000): bool
     {
         return is_int($n)&&$n>=0&&$n<=$max;
     }
