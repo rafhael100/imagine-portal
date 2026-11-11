@@ -39,7 +39,9 @@ function filteredAccountProjects(projects,query='',payment='all',requestedPage=1
   return !term||[p.title,p.id,p.data?.company_name,p.data?.domain].some(v=>norm(v).includes(term));
  });
  matches.sort((a,b)=>{
-  const chronological=String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id).localeCompare(String(b.id));
+  // Historical in-memory callers can omit dates; preserve their stable input order.
+  const aDate=String(a.created_at||''),bDate=String(b.created_at||'');
+  const chronological=aDate&&bDate?(aDate.localeCompare(bDate)||String(a.id).localeCompare(String(b.id))):0;
   return sort==='oldest'?chronological:-chronological;
  });
  const pages=Math.max(1,Math.ceil(matches.length/ACCOUNT_PROJECTS_PER_PAGE));
