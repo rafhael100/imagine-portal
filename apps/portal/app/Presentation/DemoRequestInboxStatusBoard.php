@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Presentation;
 
 use App\Domain\ServiceRequests\ServiceRequestStatus;
+use App\Domain\ServiceRequests\ServiceRequestSnapshot;
+use App\Domain\ServiceRequests\RequestInboxPreviewResult;
 
 /**
  * F142: in-memory status overview over the same authorized-for-DEMO-only
@@ -18,11 +20,29 @@ final class DemoRequestInboxStatusBoard
     /** @return list<array{0:string,1:string}> */
     public static function rows(): array
     {
-        $inbox = DemoRequestInbox::preview();
+        return self::fromPreview(DemoRequestInbox::preview());
+    }
+
+    /** @return list<array{0:string,1:string}> */
+    public static function fromPreview(RequestInboxPreviewResult $inbox): array
+    {
         if (!$inbox->isPreparedPreview()
             || $inbox->nextOffset !== null
-            || $inbox->total !== count($inbox->items)) {
+            || $inbox->total !== count($inbox->items)
+            || $inbox->total > 50) {
             return [];
+        }
+
+        // Even a valid typed DTO is not a bearer of tenant authority.
+        // The DEMO summary only accepts the one fixed fictional company.
+        $seen = [];
+        foreach ($inbox->items as $request) {
+            if (!$request instanceof ServiceRequestSnapshot
+                || !$request->organizationId->equals(DemoRequestInbox::organization())
+                || isset($seen[$request->requestId])) {
+                return [];
+            }
+            $seen[$request->requestId] = true;
         }
 
         $counts = [];
