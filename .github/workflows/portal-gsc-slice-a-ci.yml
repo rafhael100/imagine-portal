@@ -1,17 +1,25 @@
-name: Portal GSC Slices A-B - isolated offline integration
+name: Portal GSC Slices A-C - isolated offline integration
 
 on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
       - review/portal-gsc-integration-slice-a-2026-11-11
+      - review/portal-gsc-integration-slice-b-2026-11-11
     paths:
       - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
       - 'apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/GoogleSearchConsole*.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php'
       - 'apps/portal/labs/gsc-f155/**'
       - 'apps/portal/labs/gsc-f156/**'
       - 'apps/portal/labs/gsc-f160/**'
       - 'apps/portal/labs/gsc-f157/**'
+      - 'apps/portal/labs/gsc-f143/**'
+      - 'apps/portal/labs/gsc-f146/**'
+      - 'apps/portal/labs/gsc-f151/**'
+      - 'apps/portal/labs/gsc-slice-c/**'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
@@ -75,10 +83,16 @@ jobs:
               ".github/workflows/portal-gsc-slice-a-ci.yml",
               "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php",
               "apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+              "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+              "apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php",
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -123,6 +137,31 @@ jobs:
             fi
           done
           node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+
+      - name: GSC Slice C readonly pagination planning and continuation
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_OVERLAP_LAB: '1'
+          PORTAL_GSC_PAGINATION_LAB: '1'
+          PORTAL_GSC_REQUEST_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f143/emit_node_pagination.mjs
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php
+          php -l apps/portal/labs/gsc-f146/verify_php_request_response_pair.php
+          php -l apps/portal/labs/gsc-f151/verify_php_next_page.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          node apps/portal/labs/gsc-f143/emit_node_pagination.mjs > "$fixture"
+          php apps/portal/labs/gsc-f146/verify_php_request_response_pair.php "$fixture"
+          php apps/portal/labs/gsc-f151/verify_php_next_page.php "$fixture"
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
