@@ -6,6 +6,9 @@ import {randomUUID} from 'node:crypto';
 
 const paid=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
 export const OWNER_EXPORT_LEASE_MS=15*60*1000;
+export function pruneExpiredOwnerExportLeases(db,time=Date.now()){
+ return db.prepare('DELETE FROM account_export_leases WHERE expires_at<=?').run(time).changes;
+}
 /** F236: an account may hold one active export lease across Node processes
  * using the shared SQLite database; expiration recovers from process crashes. */
 export function acquireOwnerExportLease(db,userId,at=Date.now()){

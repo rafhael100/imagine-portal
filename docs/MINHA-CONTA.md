@@ -165,3 +165,7 @@ Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação 
 ### Uma exportação ativa por conta (F236)
 
 CSV e JSON compartilham um lease transacional SQLite por titular. Uma segunda exportação simultânea recebe HTTP 409 com aviso, sem consumir memória ou iniciar outro cursor. Outro cliente não é afetado. O lease é liberado no bloco `finally` após sucesso, erro ou desconexão, com expiração defensiva de 15 minutos para recuperar de falhas do processo. A operação é apenas documental/testada em ambiente sintético até revisão DBA de concorrência e persistência.
+
+### Limpeza de leases abandonados (F237)
+
+O mesmo ciclo de coleta de quotas (a cada cinco minutos por processo) remove leases de exportação vencidos pelo índice `idx_account_export_leases_expires`, sem remover transferências ainda válidas. Testes sintéticos cobrem expiração por falha de worker e isolamento da exportação ativa de outro titular.

@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
-import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease} from './owner-project-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -82,6 +82,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // live counters. Fail closed on storage failure.
   if(time-lastRateLimitPruneAt>=RATE_LIMIT_PRUNE_INTERVAL_MS){
    run('DELETE FROM rate_limits WHERE reset_at<=?',time);
+   pruneExpiredOwnerExportLeases(db,time);
    lastRateLimitPruneAt=time;
   }
   const row=q('SELECT * FROM rate_limits WHERE key=?',key);

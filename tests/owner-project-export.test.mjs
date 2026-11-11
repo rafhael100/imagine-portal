@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {randomUUID} from 'node:crypto';
 import {openStore} from '../server/store.mjs';
-import {iterateOwnerExportProjects,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,OWNER_EXPORT_LEASE_MS} from '../server/owner-project-export.mjs';
+import {iterateOwnerExportProjects,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases,OWNER_EXPORT_LEASE_MS} from '../server/owner-project-export.mjs';
 import {projectsCsv,projectsCsvChunks} from '../server/account-export.mjs';
 
 test('F229: streaming customer rows never reveal another owner or unpaid briefing',()=>{
@@ -124,5 +124,20 @@ test('F236: an expired lease is recoverable after worker crash without stale-rel
   releaseOwnerExportLease(db,user,dead);
   assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(user).token,revived);
   releaseOwnerExportLease(db,user,revived);
+ }finally{db.close();}
+});
+
+test('F237: indexed stale-lease pruning removes crashed workers, preserves live exports',()=>{
+ const db=openStore(':memory:');
+ try{
+  const a=randomUUID(),b=randomUUID(),at=Date.now();
+  for(const [id,email]of [[a,'expired@example.test'],[b,'active@example.test']])
+   db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Cliente',email,'hash','client','2026-11-11');
+  acquireOwnerExportLease(db,a,at-OWNER_EXPORT_LEASE_MS-1);
+  const active=acquireOwnerExportLease(db,b,at);
+  assert.equal(pruneExpiredOwnerExportLeases(db,at),1);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,1);
+  assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(b).token,active);
+  assert.equal(pruneExpiredOwnerExportLeases(db,at),0);
  }finally{db.close();}
 });
