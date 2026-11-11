@@ -739,3 +739,41 @@ test('F232: invalid JSON in a paid own briefing fails before HTTP response, neve
  assert.equal(restored.body.projects[0].data.company_name,'Cliente');
  assert.equal(JSON.stringify(restored.body).includes('NEVER_LEAK'),false);
 });
+
+test('F233: 240-project CSV/JSON round trip is complete, isolated and schema-compatible',async t=>{
+ const f=await fixture(t),owner=await f.client('Exportador'),other=await f.client('Outra empresa');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,phase,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?,?)");
+ const brief=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)');
+ const projects=[];
+ for(let i=0;i<240;i++){
+  const id=randomUUID(),paid=i%3===0,stamp='2026-11-11T08:00:00Z',title='Site do cliente '+String(i).padStart(3,'0');
+  projects.push({id,title,paid});
+  insert.run(id,owner.user.id,title,paid?'entregue':'solicitado',paid?'RECEIVED':'PENDING',stamp,stamp);
+  brief.run(id,JSON.stringify({company_name:paid?'Empresa permitida '+i:'Empresa ainda não paga '+i,
+   internal_secret:'PRIVATE_BULK_EXPORT_TOKEN'}),stamp);
+ }
+ const foreignId=randomUUID();
+ insert.run(foreignId,other.user.id,'PROJETO EXCLUSIVO DO OUTRO TITULAR','entregue','RECEIVED','2026-11-11','2026-11-11');
+ const ownJson=await owner.call('/api/account/export');
+ assert.equal(ownJson.status,200);
+ assert.equal(ownJson.body.schema_version,1);
+ assert.equal(ownJson.body.projects.length,240);
+ assert.deepEqual(new Set(ownJson.body.projects.map(p=>p.id)),new Set(projects.map(p=>p.id)));
+ assert.equal(ownJson.body.projects.filter(p=>p.data?.company_name).length,80);
+ assert.equal(ownJson.body.projects.filter(p=>p.phase==='entregue').length,80);
+ assert.equal(ownJson.body.projects.some(p=>p.id===foreignId),false);
+ assert.equal(JSON.stringify(ownJson.body).includes('PRIVATE_BULK_EXPORT_TOKEN'),false);
+ const legacy=await owner.call('/api/account/projects.csv');
+ assert.equal(legacy.status,200);
+ const staged=await owner.call('/api/account/projects.csv?columns=stage');
+ assert.equal(staged.status,200);
+ assert.equal(legacy.body.split('\r\n').filter(Boolean).length,241);
+ assert.equal(staged.body.split('\r\n').filter(Boolean).length,241);
+ assert.equal(legacy.body.includes('Etapa do projeto'),false);
+ assert.equal(staged.body.includes('Etapa do projeto'),true);
+ assert.equal(staged.body.includes('"entregue"'),true);
+ assert.equal(staged.body.includes('PRIVATE_BULK_EXPORT_TOKEN'),false);
+ assert.equal(staged.body.includes('PROJETO EXCLUSIVO DO OUTRO TITULAR'),false);
+ assert.equal((await other.call('/api/account/export')).body.projects.length,1);
+ assert.equal((await other.call('/api/account/projects.csv')).body.includes(projects[0].id),false);
+});
