@@ -11,6 +11,7 @@ async function downloadAccountFile(kind){
  if(!response.ok){
   let details;
   try{details=await response.json();}catch{details={};}
+  if(response.status===401&&state.user){state.user=null;renderAuth();}
   throw Error(response.status===401?'Sua sessão expirou. Entre novamente para baixar seus dados.':details.error||'Não foi possível exportar seus dados.');
  }
  if(!(response.headers.get('content-type')||'').includes(resource.type))
