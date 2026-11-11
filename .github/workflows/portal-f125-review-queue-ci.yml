@@ -1,0 +1,80 @@
+name: Portal F125 - Tenant-scoped metadata-only human review queue
+on:
+  push:
+    branches:
+      - review/portal-f125-tenant-review-queue-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/commercial-intake-f117/**'
+      - 'apps/portal/labs/commercial-intake-f118/**'
+      - 'apps/portal/labs/commercial-intake-f119/**'
+      - 'apps/portal/labs/commercial-intake-f122/**'
+      - 'apps/portal/labs/commercial-intake-f123/**'
+      - 'apps/portal/labs/commercial-intake-f125/**'
+      - '.github/workflows/portal-f125-review-queue-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tenant-routed-review-only-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f125-only-disposable-fixture
+          POSTGRES_DB: portal_commercial_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_commercial_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORTAL_F118_PG_LAB: '1'
+      PORTAL_F119_PG_LAB: '1'
+      PORTAL_F122_GATE_LAB: '1'
+      PORTAL_F123_DISPATCH_LAB: '1'
+      PORTAL_F125_REVIEW_QUEUE_LAB: '1'
+      DB_HOST: '127.0.0.1'
+      DB_DATABASE: portal_commercial_lab
+      DB_PASSWORD: f125-only-disposable-fixture
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Prohibit F125 CI-only queue usage in the Laravel runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'delivery_review_queue|commercial-intake-f125|F125_REVIEW_QUEUE_LAB' \
+            apps/portal/routes apps/portal/app apps/portal/bootstrap 2>/dev/null; then
+            echo 'F125 review-only fixture referenced by production runtime' >&2
+            exit 1
+          fi
+      - name: Exercise F122/F123 and SQL security-invoker review projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/commercial-intake-f125/test_review_queue_pg18.php
+          php apps/portal/labs/commercial-intake-f117/test_commercial_metadata.php
+          php apps/portal/labs/commercial-intake-f118/test_pg18_metadata_atomicity.php
+          php apps/portal/labs/commercial-intake-f119/test_pg18_service_mac_nonce.php
+          php apps/portal/labs/commercial-intake-f122/test_unknown_hold_pg18.php
+          php apps/portal/labs/commercial-intake-f123/test_dispatch_fence_pg18.php
+          php apps/portal/labs/commercial-intake-f125/test_review_queue_pg18.php
