@@ -12,6 +12,7 @@ on:
       - 'apps/portal/labs/gsc-f138/**'
       - 'apps/portal/labs/gsc-f140/**'
       - 'apps/portal/labs/gsc-f141/**'
+      - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
       - 'apps/portal/tests/ui/test-f79-seo-review.mjs'
@@ -108,9 +109,21 @@ jobs:
           trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap"' EXIT
           node apps/portal/labs/gsc-f141/emit_node_overlap.mjs > "$overlap"
           PORTAL_GSC_OVERLAP_LAB=1 php apps/portal/labs/gsc-f141/verify_php_overlap.php "$overlap"
+          php -l apps/portal/tools/f142-render-gsc-overlap-offline.php
+          overlap_html="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$overlap_html"' EXIT
+          PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_OVERLAP_HTML_LAB=1 php \
+            apps/portal/tools/f142-render-gsc-overlap-offline.php "$overlap" > "$overlap_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$overlap_html"
+          grep -q 'Consultas associadas a mais de uma página' "$overlap_html"
+          grep -q 'name="robots" content="noindex,nofollow"' "$overlap_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$overlap_html"; then
+            echo "F142: interactive output refused" >&2
+            exit 1
+          fi
           php -l apps/portal/tools/f137-render-gsc-offline.php
           preview="$(mktemp)"
-          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$preview"' EXIT
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$overlap_html" "$preview"' EXIT
           PORTAL_GSC_HTML_LAB=1 php apps/portal/tools/f137-render-gsc-offline.php "$fixture" > "$preview"
           grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$preview"
           grep -q 'name="robots" content="noindex,nofollow"' "$preview"
@@ -131,7 +144,7 @@ jobs:
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
