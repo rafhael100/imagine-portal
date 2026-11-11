@@ -256,6 +256,18 @@ final class PortalAuthorityBoundaryTest extends TestCase
         )));
     }
 
+    public function test_invalid_membership_revision_is_not_a_valid_authority_snapshot(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->membership(revision: 0);
+    }
+
+    public function test_invalid_session_membership_revision_is_not_a_valid_session_snapshot(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->snapshot(sessionMembershipRevision: 0);
+    }
+
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void
     {
         $boundary = $this->syntheticBoundary(
