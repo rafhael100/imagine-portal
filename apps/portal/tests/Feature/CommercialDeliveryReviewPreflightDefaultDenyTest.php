@@ -28,9 +28,11 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
         string $ownerOrg = 'org-a',
         bool $mfa = true,
         bool $active = true,
+        string $sessionOrg = 'org-a',
     ): CommercialDeliveryReviewPreflight {
         $session = new PortalSessionSnapshot(
             new PortalUserId('actor-a'),$active,$mfa,1000,2000,7,7,
+            new OrganizationId($sessionOrg),
         );
         $membership = new OrganizationMembership(
             new PortalUserId('actor-a'),
@@ -115,6 +117,8 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
                 membershipOrg:'org-b'),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],
                 ownerOrg:'org-b'),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                sessionOrg:'org-b'),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],mfa:false),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],active:false),
         ] as $preflight) {
