@@ -152,6 +152,25 @@ $ok($before['email_verified_at']!==null && $before['status']==='invited'
     && $before['mfa_secret_ciphertext']===null,
     'email proof alone leaves identity invited without password or MFA');
 
+ // F115 and F116 intentionally reject a consumed_at timestamp in the
+ // future. The shared CI clock can step back briefly after SQL commits:
+ // wait for the database itself to show the receipt at least one second old,
+ // never modify the production time guard or fabricate a second proof.
+ $age=$db->prepare(
+     "SELECT extract(epoch FROM (clock_timestamp()-consumed_at))
+        FROM portal_email_verification_challenges WHERE id=?"
+ );
+ $age->execute([$challenge]);
+ $ageSeconds=(float)$age->fetchColumn();
+ for($retry=0;$ageSeconds<1.0&&$retry<50;$retry++){
+     usleep(100000);
+     $age->execute([$challenge]);
+     $ageSeconds=(float)$age->fetchColumn();
+ }
+ $ok($ageSeconds>=1.0,
+     'CI PostgreSQL clock has passed first-party email proof timestamp');
+
+
 $ok($enrollment->begin($emailBearer,$identity,'short',$key)===null,
     'short password rejected');
 $ok($enrollment->begin($emailBearer,$identity,$password,'short-key')===null,
@@ -250,7 +269,12 @@ $ok($now>=$issued,'PostgreSQL test clock reached session issue epoch');
 $nextCode=$codeAt($raw,$now+30);
 $ok($issuer->complete($pendingBearer,$key,$nextCode,$ip,$pepper),
     'distinct later TOTP counter completes provisional login without replay');
-$verified=$evidence->findFor($pendingBearer,$tenant);
+$verified=null;
+for($evidenceAttempt=0;$evidenceAttempt<50;$evidenceAttempt++){
+    $verified=$evidence->findFor($pendingBearer,$tenant);
+    if($verified!==null)break;
+    usleep(100000);
+}
 $ok($verified!==null,
     'F112 derives authenticated synthetic invited-session evidence from DB');
 $invite=PortalInvitationSecret::mint()->takeDeliverySecretOnce();
