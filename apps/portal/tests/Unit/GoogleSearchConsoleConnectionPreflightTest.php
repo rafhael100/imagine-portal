@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
 {
-    private const DOMAIN = 'sc-domain:imaginecomunicacao.com.br';
+    public const DOMAIN = 'sc-domain:imaginecomunicacao.com.br';
     private const PREFIX = 'https://www.imaginecomunicacao.com.br/';
 
     private function session(
@@ -84,11 +84,6 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         $membershipSource = new class($membership) implements PortalMembershipAuthority {
             public function __construct(private ?OrganizationMembership $membership)
             {
-            }
-
-            public function find(PortalUserId $actor, OrganizationId $organization): ?OrganizationMembership
-            {
-                return $this->membership;
             }
 
             public function findFor(PortalUserId $actor, OrganizationId $organization): ?OrganizationMembership
