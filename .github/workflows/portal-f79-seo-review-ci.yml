@@ -20,6 +20,7 @@ on:
       - 'apps/portal/labs/gsc-f156/**'
       - 'apps/portal/labs/gsc-f157/**'
       - 'apps/portal/labs/gsc-f160/**'
+      - 'apps/portal/labs/gsc-f161/**'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
@@ -165,6 +166,36 @@ jobs:
               grep -q 'Indisponível' "$html"
             fi
           done
+      - name: F161 checkout exact Portal PR head with complete Git history
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: .qa/portal-inventory
+          persist-credentials: false
+      - name: F161 full untruncated SEO/Portal integration inventory
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-f161/inventory.mjs
+          node --test apps/portal/labs/gsc-f161/inventory.test.mjs
+          node apps/portal/labs/gsc-f161/inventory.mjs \
+            .qa/portal-inventory \
+            "${{ github.event.pull_request.head.sha }}" \
+            "${{ github.event.pull_request.base.sha }}"
+          cat .portal-gsc-f161-inventory/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: F161 retain review-only full inventory (2 days)
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-f161-full-git-inventory
+          path: |
+            .portal-gsc-f161-inventory/summary.md
+            .portal-gsc-f161-inventory/full-diff.json
+          if-no-files-found: error
+          retention-days: 2
       - name: Check Node SEO F50 to Portal PHP F135 DTO parity
         if: matrix.php == '8.4' && matrix.node == '22'
         shell: bash
