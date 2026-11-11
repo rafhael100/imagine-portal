@@ -43,6 +43,29 @@ export function summarizeDiff(pairs){
   return {totalPaths:records.length,categories:counts,statuses:statusCounts,files:records};
 }
 
+/**
+ * GSC-F162 — narrow fence for the specific F154 -> F155/F161 review slice.
+ * Not a general permissions audit; it only blocks scope expansion.
+ */
+const F162_BASE='d43323c9f0efe8ab5144e0b1e0f2da920a44d817';
+export function verifyGscReviewSlice(paths){
+  if(!Array.isArray(paths))throw Error('F162: exact changed paths required');
+  for(const item of paths){
+    if(!item||typeof item.path!=='string')
+      throw Error('F162: invalid changed path');
+    const path=item.path;
+    const allowed=path==='.github/workflows/portal-f79-seo-review-ci.yml'||
+      path==='apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'||
+      path==='apps/portal/labs/gsc-f152/verify_php_overlap_trend.php'||
+      path==='apps/portal/tools/f159-render-gsc-query-page-review-offline.php'||
+      /^apps\/portal\/labs\/gsc-f(?:155|156|157|159|160|161)\//.test(path);
+    if(!allowed)throw Error('F162: out-of-scope review change refused');
+  }
+  return {policy:'gsc-f162-narrow-review-slice-v1',
+    permittedPaths:paths.length,verified:true,
+    operationalAuthorization:'NO_GO_REVIEW_ONLY'};
+}
+
 function inventory(root,baseSha,headSha){
   const text=execFileSync('git',['diff','--no-renames','--name-status','-z',
     baseSha,headSha],{cwd:root,encoding:'utf8',maxBuffer:20*1024*1024,
@@ -75,6 +98,7 @@ export function main([repositoryPath,expectedHead,prBaseSha]=[]){
       throw Error('F161: missing ancestry; review divergent branches');
   const againstDev=inventory(root,dev,head);
   const againstPr=inventory(root,prBaseSha,head);
+  const scopeFence=prBaseSha===F162_BASE?verifyGscReviewSlice(againstPr.files):null;
   const commitsDev=Number(git(root,'rev-list','--count',dev+'..'+head));
   const commitsPr=Number(git(root,'rev-list','--count',prBaseSha+'..'+head));
   if(!Number.isSafeInteger(commitsDev)||!Number.isSafeInteger(commitsPr)||
@@ -84,7 +108,7 @@ export function main([repositoryPath,expectedHead,prBaseSha]=[]){
   const out={contractVersion:'portal-seo-read-only-diff-inventory-v1',
     operationalAuthorization:'NO_GO_REVIEW_ONLY',
     headSha:head,devBaseSha:dev,prBaseSha,commitsAheadDev:commitsDev,
-    commitsAheadPr:commitsPr,againstDev,againstPr,
+    commitsAheadPr:commitsPr,againstDev,againstPr,scopeFence,
     limitations:[
       'Paths and change counts do not establish compatibility or security approval.',
       'No merge, migration, deployment, OAuth or customer data access is performed.'
@@ -106,6 +130,7 @@ export function main([repositoryPath,expectedHead,prBaseSha]=[]){
     overview('Base do PR → candidata',againstPr,commitsPr)+
     '**NO-GO:** revisão humana de conteúdo, AppSec/DBA/LGPD, staging e autorização de merge necessárias. Nenhuma alteração foi aplicada.\n';
   writeFileSync(resolve(outDir,'summary.md'),md);
+  if(scopeFence)process.stdout.write('F162 narrow review scope: '+scopeFence.permittedPaths+' paths accepted; NO-GO\n');
   process.stdout.write('F161 inventory: '+againstDev.totalPaths+
     ' full Git paths vs dev, '+againstPr.totalPaths+' vs PR base; NO-GO\n');
 }
