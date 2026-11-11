@@ -34,7 +34,11 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  db.exec("UPDATE orders SET billing_state='uncertain' WHERE billing_state='creating'; UPDATE maintenance SET status='uncertain' WHERE status='creating';");
  const ready=()=>asaas.configured&&(!production||Boolean(sellerName&&sellerDocument&&webhookToken.length>=32));
  const recurring=createRecurringBilling({db,asaas,fiscal,clock,origin,ready,tokenKey:billingTokenKey,exclusive});
- function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
+ // The local reverse proxy must append the verified TCP peer as the LAST
+ // X-Forwarded-For entry (or overwrite the header). Never trust the first
+ // entry: clients can prepend arbitrary IPs before a correctly appending
+ // proxy. With APP_TRUST_PROXY=false, ignore forwarded headers completely.
+ function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',').at(-1).trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
  function limit(key,max=20,window=900000){const row=q('SELECT * FROM rate_limits WHERE key=?',key),time=Date.now();if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);else{assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');run('UPDATE rate_limits SET count=count+1 WHERE key=?',key)}}
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
  function session(res,user){
