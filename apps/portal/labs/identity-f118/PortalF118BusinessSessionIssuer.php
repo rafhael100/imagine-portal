@@ -11,7 +11,7 @@ use App\Domain\Identity\Security\PortalTotpVerifier;
  *
  * This lives in labs/ and requires postgres superuser for fixture writes:
  * it is NOT an operational issuer, not a browser login, and cannot grant
- * Portal business rights. The typed session is ALWAYS invitation_only.
+ * Portal business rights. The typed session is ALWAYS business. Invitation-only credentials stay revoked.
  * A trusted KMS, real throttling network boundary, non-superuser writer,
  * recovery policies, audit witness and independent security review are
  * still mandatory before any customer flow is allowed.
@@ -239,7 +239,7 @@ final readonly class PortalF118BusinessSessionIssuer
             )->fetchColumn();
             if (!is_array($row)
                 || $row['session_status']!=='pending_mfa'
-                || $row['session_purpose']!=='invitation_only'
+                || $row['session_purpose']!=='business'
                 || $row['identity_status']!=='active'
                 || $row['member_status']!=='active'
                 || $row['org_status']!=='active'
