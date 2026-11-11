@@ -117,3 +117,7 @@ O contrato legado `GET /api/account/projects.csv` mantém seis colunas. A interf
 ## Acompanhamento da produção de sites (F218)
 
 Nos projetos do tipo **site** com pagamento confirmado, a API paginada apresenta apenas `production.stage`, `production.progress` (0–100) e a data prevista `production.due_date`. A consulta é filtrada pelo titular; projetos não pagos, projetos sem registro de produção e produtos diferentes de site não recebem dados de produção. A interface apresenta etapa legível, progresso e previsão, sem expor URL de prévia privada, identificadores de equipe ou comentários internos. O acompanhamento não constitui promessa contratual nem libera a publicação.
+
+## Projetos aguardando a revisão do cliente (F220)
+
+A interface oferece o filtro `attention=review`, que retorna somente sites **pagos** do próprio titular cuja produção esteja efetivamente em `stage=review`, prontos para uma ação de aprovação ou ajuste. O resumo compacto acrescenta `requires_review`, contado no servidor com a mesma restrição de usuário/pagamento; o cartão exibe o acesso direto ao fluxo do pedido para revisar a prévia. Nenhuma aprovação ou publicação ocorre automaticamente.

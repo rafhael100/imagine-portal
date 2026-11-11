@@ -11,18 +11,20 @@ export function boundedProjectPages(total){
 const paid="('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')";
 export const ACCOUNT_PROJECT_PHASES=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
-export function accountProjectsPage(db,user,{page='1',payment='all',search='',phase='all',sort='newest'}={}){
+export function accountProjectsPage(db,user,{page='1',payment='all',search='',phase='all',sort='newest',attention='all'}={}){
  if(user?.role!=='client'||user.staff_profile||!user.id)fail(403,'Arquivo de projetos exclusivo do cliente.');
  if(typeof page!=='string'||!/^[1-9][0-9]{0,3}$/.test(page)||Number(page)>1000)fail(400,'Página de projetos inválida.');
  if(!['all','paid','other'].includes(payment))fail(400,'Filtro de pagamento inválido.');
  if(phase!=='all'&&!ACCOUNT_PROJECT_PHASES.includes(phase))fail(400,'Etapa do projeto inválida.');
  if(!['newest','oldest'].includes(sort))fail(400,'Ordenação dos projetos inválida.');
+ if(!['all','review'].includes(attention))fail(400,'Filtro de revisão inválido.');
  if(typeof search!=='string'||search.length>120)fail(400,'Busca de projetos inválida.');
  const term=search.trim();
  const where=['o.user_id=?'],params=[user.id];
  if(payment==='paid')where.push(`o.payment_status IN ${paid}`);
  else if(payment==='other')where.push(`o.payment_status NOT IN ${paid}`);
  if(phase!=='all'){where.push('o.phase=?');params.push(phase);}
+ if(attention==='review')where.push(`o.product_id='site' AND o.payment_status IN ${paid} AND pr.stage='review'`);
  if(term){
   // INSTR treats user input as literal text, not LIKE wildcards.
   // Briefing lookup is limited to paid/confirmed orders.

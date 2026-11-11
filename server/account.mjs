@@ -44,6 +44,7 @@ export function createAccount(db,fiscal){
    for(const row of groups)if(Object.hasOwn(phases,row.phase))phases[row.phase]=Number(row.n);
    response.projects_total=groups.reduce((sum,row)=>sum+Number(row.n),0);
    response.project_summary=phases;
+   response.requires_review=db.prepare("SELECT count(*) AS n FROM orders o JOIN productions pr ON pr.order_id=o.id WHERE o.user_id=? AND o.product_id='site' AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') AND pr.stage='review'").get(user.id).n;
   }
   return response;
  }

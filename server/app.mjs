@@ -185,6 +185,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    search:url.searchParams.get('search')??'',
    phase:url.searchParams.get('phase')??'all',
    sort:url.searchParams.get('sort')??'newest',
+   attention:url.searchParams.get('attention')??'all',
   }));
  }
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));
