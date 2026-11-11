@@ -4,6 +4,10 @@ on:
     branches:
       - review/portal-int-f149-portal-seo-merged-candidate-2026-11-11
   pull_request:
+    # Scope this gate to the original F149 integration PR only.
+    # The next integration F150 has a different, independently pinned tree.
+    branches:
+      - review/portal-f148-ephemeral-portal-seo-integration-ci-2026-11-11
     paths:
       - '.github/workflows/portal-int-f149-merged-candidate-ci.yml'
       - 'apps/portal/**'
