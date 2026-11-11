@@ -7,6 +7,14 @@ on:
       - 'apps/portal/tools/f79-render-seo-review.php'
       - 'apps/portal/tests/Fixtures/seo-review-offline-v1.json'
       - 'apps/portal/tests/Unit/OfflineSeoHandoffPreviewTest.php'
+      - 'apps/portal/labs/gsc-f135/**'
+      - 'apps/portal/labs/gsc-f136/**'
+      - 'apps/portal/labs/gsc-f138/**'
+      - 'apps/portal/labs/gsc-f140/**'
+      - 'apps/portal/labs/gsc-f141/**'
+      - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
+      - 'apps/portal/tools/f137-render-gsc-offline.php'
+      - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
       - 'apps/portal/tests/ui/test-f79-seo-review.mjs'
       - '.github/workflows/portal-f79-seo-review-ci.yml'
   workflow_dispatch:
@@ -40,15 +48,103 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
+      - name: Checkout exact reviewed SEO Engine source for synthetic parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 45168ae3b556363720ea0b8b0cb8832083ea041d
+          path: .qa/seo-engine
+          persist-credentials: false
+      - name: Check Node SEO F50 to Portal PHP F135 DTO parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_WORKFLOW_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f136/emit_node_seo_f50.mjs
+          php -l apps/portal/labs/gsc-f136/verify_php_seo_f50.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          node apps/portal/labs/gsc-f136/emit_node_seo_f50.mjs > "$fixture"
+          php apps/portal/labs/gsc-f136/verify_php_seo_f50.php "$fixture"
+          node --check apps/portal/labs/gsc-f138/emit_node_daily_comparison.mjs
+          php -l apps/portal/labs/gsc-f138/verify_php_daily_comparison.php
+          comparison="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison"' EXIT
+          node apps/portal/labs/gsc-f138/emit_node_daily_comparison.mjs > "$comparison"
+          PORTAL_GSC_COMPARISON_LAB=1 php apps/portal/labs/gsc-f138/verify_php_daily_comparison.php "$comparison"
+          php -l apps/portal/tools/f139-render-gsc-comparison-offline.php
+          trend_html="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html"' EXIT
+          PORTAL_GSC_COMPARISON_LAB=1 PORTAL_GSC_COMPARISON_HTML_LAB=1 php             apps/portal/tools/f139-render-gsc-comparison-offline.php "$comparison" > "$trend_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$trend_html"
+          grep -q 'Revisar redução de impressões' "$trend_html"
+          grep -q 'name="robots" content="noindex,nofollow"' "$trend_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$trend_html"; then
+            echo "F139: interactive output refused" >&2
+            exit 1
+          fi
+          node --check apps/portal/labs/gsc-f140/emit_node_daily_portal_handoff.mjs
+          php -l apps/portal/labs/gsc-f140/verify_php_daily_portal_handoff.php
+          handoff="$(mktemp)"
+          handoff_html="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html"' EXIT
+          node apps/portal/labs/gsc-f140/emit_node_daily_portal_handoff.mjs > "$handoff"
+          PORTAL_SEO_HANDOFF_LAB=1 php apps/portal/labs/gsc-f140/verify_php_daily_portal_handoff.php "$handoff"
+          PORTAL_SEO_HANDOFF_LAB=1 PORTAL_F79_HTML_LAB=1 php \
+            apps/portal/tools/f79-render-seo-review.php "$handoff" > "$handoff_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$handoff_html"
+          grep -q 'Cliques fictícios' "$handoff_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$handoff_html"; then
+            echo "F140: executable/interactive output refused" >&2
+            exit 1
+          fi
+          node --check apps/portal/labs/gsc-f141/emit_node_overlap.mjs
+          php -l apps/portal/labs/gsc-f141/verify_php_overlap.php
+          overlap="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap"' EXIT
+          node apps/portal/labs/gsc-f141/emit_node_overlap.mjs > "$overlap"
+          PORTAL_GSC_OVERLAP_LAB=1 php apps/portal/labs/gsc-f141/verify_php_overlap.php "$overlap"
+          php -l apps/portal/tools/f142-render-gsc-overlap-offline.php
+          overlap_html="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$overlap_html"' EXIT
+          PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_OVERLAP_HTML_LAB=1 php \
+            apps/portal/tools/f142-render-gsc-overlap-offline.php "$overlap" > "$overlap_html"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$overlap_html"
+          grep -q 'Consultas associadas a mais de uma página' "$overlap_html"
+          grep -q 'name="robots" content="noindex,nofollow"' "$overlap_html"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$overlap_html"; then
+            echo "F142: interactive output refused" >&2
+            exit 1
+          fi
+          php -l apps/portal/tools/f137-render-gsc-offline.php
+          preview="$(mktemp)"
+          trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$overlap_html" "$preview"' EXIT
+          PORTAL_GSC_HTML_LAB=1 php apps/portal/tools/f137-render-gsc-offline.php "$fixture" > "$preview"
+          grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$preview"
+          grep -q 'name="robots" content="noindex,nofollow"' "$preview"
+          if grep -Eiq '<(script|form|a)([[:space:]>])' "$preview"; then
+            echo "F137: interactive/public surface rejected" >&2
+            exit 1
+          fi
       - name: Strict offline SEO schema, HTML and fail-closed checks
         shell: bash
         run: |
           set -euo pipefail
           php -l apps/portal/app/Domain/SeoReview/OfflineSeoHandoffPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscWorkflowPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscDailyComparisonPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php
+          php -l apps/portal/labs/gsc-f135/test_dto_bridge.php
+          APP_ENV=testing PORTAL_GSC_WORKFLOW_LAB=1 php apps/portal/labs/gsc-f135/test_dto_bridge.php
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
