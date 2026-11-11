@@ -99,6 +99,10 @@ final class DemoPortalStaticExporter
         chmod($staging . DIRECTORY_SEPARATOR . 'index.html', 0600);
         $files[] = 'index.html';
 
+            // F135: audit a fixed nine-page synthetic package before the
+            // atomic directory rename; never signal a completed partial set.
+            (new DemoPortalArtifactManifest())->create($staging, $files);
+
             if (is_dir($directory) || file_exists($directory) || is_link($directory)
                 || !rename($staging, $directory)) {
                 throw new RuntimeException('Demo export target changed before commit.');
@@ -109,6 +113,10 @@ final class DemoPortalStaticExporter
                 if (is_file($part) && !is_link($part)) {
                     @unlink($part);
                 }
+            }
+            $stagedManifest = $staging . DIRECTORY_SEPARATOR . 'manifest.json';
+            if (is_file($stagedManifest) && !is_link($stagedManifest)) {
+                @unlink($stagedManifest);
             }
             if (is_dir($staging) && !is_link($staging)) {
                 @rmdir($staging);
