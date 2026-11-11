@@ -52,7 +52,14 @@ final class DemoPortalStaticExporter
                 preg_match('~(?:https?:)?//~i', $html) === 1) {
                 throw new LogicException('The demo view is not suitable for offline static export.');
             }
-            $html = str_replace('<body>', '<body>' . $nav, $html);
+            // F138: mark the current exported page without adding JS routes
+            // or falsely granting a clickable customer Portal menu.
+            $pageNav = str_replace(
+                'href="' . $section->value . '.html"',
+                'href="' . $section->value . '.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
+                $nav,
+            );
+            $html = str_replace('<body>', '<body>' . $pageNav, $html);
             $name = $section->value . '.html';
             if (file_put_contents($staging . DIRECTORY_SEPARATOR . $name, $html, LOCK_EX) === false) {
                 throw new RuntimeException('Cannot write a demo page.');
@@ -69,7 +76,12 @@ final class DemoPortalStaticExporter
             || preg_match('~(?:https?:)?//~i', $reviewHtml) === 1) {
             throw new LogicException('The delivery-review preview is not safe for offline export.');
         }
-        $reviewHtml = str_replace('<body>', '<body>' . $nav, $reviewHtml);
+        $reviewNav = str_replace(
+            'href="delivery-review.html"',
+            'href="delivery-review.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
+            $nav,
+        );
+        $reviewHtml = str_replace('<body>', '<body>' . $reviewNav, $reviewHtml);
         $reviewName = 'delivery-review.html';
         if (file_put_contents($staging . DIRECTORY_SEPARATOR . $reviewName, $reviewHtml, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the review preview.');
@@ -77,7 +89,7 @@ final class DemoPortalStaticExporter
         chmod($staging . DIRECTORY_SEPARATOR . $reviewName, 0600);
         $files[] = $reviewName;
 
-        $list = '';
+        $list = '<li><a href="index.html" aria-current="page" style="font-weight:700;text-decoration:underline">Índice da prévia</a></li>';
         foreach (ClientSection::cases() as $section) {
             $label = htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $list .= '<li><a href="' . $section->value . '.html">' . $label . '</a></li>';

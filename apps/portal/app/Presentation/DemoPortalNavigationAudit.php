@@ -104,11 +104,18 @@ final class DemoPortalNavigationAudit
             }
             $hasSkip = false;
             $hasIndexLink = false;
+            $selectedPageLinks = 0;
             foreach ($links as $link) {
                 if (!$link instanceof DOMElement || !$link->hasAttribute('href')) {
                     throw new LogicException('Offline anchor must have an explicit destination.');
                 }
                 $href = $link->getAttribute('href');
+                if ($link->hasAttribute('aria-current')) {
+                    if ($link->getAttribute('aria-current') !== 'page' || $href !== $page) {
+                        throw new LogicException('Offline current-page announcement is inconsistent.');
+                    }
+                    ++$selectedPageLinks;
+                }
                 if ($href === '#pi-content') {
                     $hasSkip = true;
                     continue;
@@ -122,6 +129,9 @@ final class DemoPortalNavigationAudit
                 if (!isset($allowed[$href])) {
                     throw new LogicException('Offline preview contains an unapproved link.');
                 }
+            }
+            if ($selectedPageLinks !== 1) {
+                throw new LogicException('Offline page must mark exactly one current destination.');
             }
             if (!$hasSkip) {
                 throw new LogicException('Offline page needs a skip-to-main link.');
