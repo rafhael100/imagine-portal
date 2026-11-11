@@ -120,6 +120,27 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  const fiscalAction=path.match(/^\/api\/fiscal\/([a-f\d-]{36})\/(preview|issue|sync|cancel)$/i);if(fiscalAction&&method==='POST'){const body=await jsonBody(req);return send(res,200,{result:await fiscal.act(user,fiscalAction[1],fiscalAction[2],{reason:body.reason,confirmed:body.confirmed})});}
  const collection=path.match(/^\/api\/finance\/collection\/([^/]+)$/);if(collection&&method==='POST'){limit('collection:'+user.id,40);return send(res,200,await fiscal.collection(user,decodeURIComponent(collection[1]),await jsonBody(req)));}
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
+ if(path==='/api/account/export'&&method==='GET'){
+  // Explicitly scoped read-only self-service: profile, fiscal registration,
+  // and permitted project details. Not a full contractual/billing export.
+  // Restrict to clients; never export staff/admin records, credentials or
+  // other tenants' projects through this endpoint.
+  assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  const account=accountProfile.view(user);
+  const data={
+   schema_version:1,
+   exported_at:new Date().toISOString(),
+   scope:'cadastro_e_projetos',
+   user:{name:account.user.name,email:account.user.email},
+   created_at:account.created_at,
+   profile:account.profile,
+   fiscal:account.fiscal,
+   projects:account.projects,
+  };
+  res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
+  audit(db,user.id,'account.data_exported',user.id);
+  return send(res,200,data);
+ }
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
  if(path==='/api/account/security-events'&&method==='GET'){
