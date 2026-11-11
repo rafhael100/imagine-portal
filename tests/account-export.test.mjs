@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {projectsCsv,safeCsvCell,accountDataExport} from '../server/account-export.mjs';
 
 test('F177: valores de planilhas potencialmente executáveis viram texto, inclusive com espaços',()=>{
- for(const value of ['=1+1','+SUM(1,2)','-1+2','@SUM(1)','  =HYPERLINK("https://example.test")','\t=2+2']){
+ for(const value of ['=1+1','+SUM(1,2)','-1+2','@SUM(1)','  =HYPERLINK("https://example.test")','\t=2+2','\u200B=1+1','\u2060@SUM(1)','\u202E=HYPERLINK(1)','\u0000+1']){
   assert.ok(safeCsvCell(value).startsWith('"\''),value);
  }
  assert.equal(safeCsvCell('Normal "entre aspas"; ok'),'"Normal ""entre aspas""; ok"');
@@ -40,6 +40,12 @@ test('F181: JSON export has an explicit allowlist even with unexpected sensitive
  assert.equal(data.exported_at,'2026-11-11T14:00:00Z');
  assert.equal(data.profile.company,'Empresa');
  assert.equal(data.profile.api_secret,undefined);
+ const nested=accountDataExport({...source,profile:{company:{nested_token:'NOT_FOR_EXPORT'},version:2},
+  fiscal:{document:['DO_NOT_EXPORT'],version:1},
+  projects:[{...source.projects[0],data:{company_name:['NOT_FOR_EXPORT'],domain:'example.test'}}]});
+ assert.deepEqual(nested.profile,{version:2});
+ assert.deepEqual(nested.fiscal,{version:1});
+ assert.deepEqual(nested.projects[0].data,{domain:'example.test'});
  assert.equal(data.fiscal.bank_token,undefined);
  assert.equal(data.projects[0].internal_owner_id,undefined);
  assert.deepEqual(Object.keys(data.projects[0].data).sort(),['company_intro','company_name','domain','notes']);
