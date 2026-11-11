@@ -22,7 +22,10 @@ try {
     if(!is_string($content))throw new RuntimeException();
     $dto=json_decode($content,true,64,JSON_THROW_ON_ERROR);
     $paging=null;
-    if(($dto['contractVersion']??null)==='seo-gsc-query-page-pagination-offline-v1'){
+    if(in_array(($dto['contractVersion']??null),[
+        'seo-gsc-query-page-pagination-offline-v1',
+        'seo-gsc-query-page-pagination-offline-v2'
+    ],true)){
         $paginated=\App\Domain\SeoReview\OfflineGscQueryPagePaginationPreview::fromDto($dto);
         if($paginated===null||$paginated->canQueryGoogle()||
             $paginated->canPublish()||$paginated->canStoreTokens()||

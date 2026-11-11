@@ -41,14 +41,23 @@ final readonly class OfflineGscQueryPagePaginationPreview
             'oauthVerified','tenantGrantVerified','customerDisplayAuthorized',
             'productionReadAuthorized','networkPerformed','releaseStatus','caveats'
         ]) ||
-            $dto['contractVersion']!=='seo-gsc-query-page-pagination-offline-v1'||
+            !in_array($dto['contractVersion'],[
+                'seo-gsc-query-page-pagination-offline-v1',
+                'seo-gsc-query-page-pagination-offline-v2'
+            ],true)||
             $dto['sourceType']!=='operator_supplied_paginated_query_page_not_verified')
             return null;
 
+        $versionTwo=$dto['contractVersion']==='seo-gsc-query-page-pagination-offline-v2';
         $paging=$dto['pagination'];
-        if(!self::shape($paging,[
+        $fields=[
             'pagesReceived','rowsReceived','mayHaveMore','maxPagesReached','nextStartRow'
-        ]) ||
+        ];
+        if($versionTwo){
+            $fields[]='pageSize';
+            $fields[]='lastPageRows';
+        }
+        if(!self::shape($paging,$fields) ||
             !self::countValue($paging['pagesReceived'],4)||
             $paging['pagesReceived']<1||
             !self::countValue($paging['rowsReceived'],4000)||
@@ -60,6 +69,22 @@ final readonly class OfflineGscQueryPagePaginationPreview
             ($dto['summary']['receivedRows']??null)!==$paging['rowsReceived']||
             ($dto['summary']['possibleTruncation']??null)!==$paging['mayHaveMore'])
             return null;
+
+        if($versionTwo){
+            // F59 v2 exposes enough counters to validate the arithmetic
+            // exactly instead of inferring it from total rows alone.
+            if(!self::countValue($paging['pageSize'],1000)||
+                $paging['pageSize']<1||
+                !self::countValue($paging['lastPageRows'],$paging['pageSize'])||
+                $paging['rowsReceived']!==(
+                    ($paging['pagesReceived']-1)*$paging['pageSize']+
+                    $paging['lastPageRows']
+                )||
+                $paging['mayHaveMore']!==(
+                    $paging['lastPageRows']===$paging['pageSize']
+                ))
+                return null;
+        }
 
         if($paging['mayHaveMore']){
             // With a full final page and no skipped offsets, every page in
