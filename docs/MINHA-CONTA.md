@@ -161,3 +161,15 @@ Uma conexão interrompida cancela o cursor da exportação em vez de continuar l
 ### Índice utilizado nos downloads incrementais (F235)
 
 Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação por titular utiliza o índice existente `idx_orders_user_created` e faz `JOIN` com o briefing pelo identificador do pedido. Não é criada cópia integral da tabela nem um índice desnecessário no banco de clientes.
+
+### Uma exportação ativa por conta (F236)
+
+CSV e JSON compartilham um lease transacional SQLite por titular. Uma segunda exportação simultânea recebe HTTP 409 com aviso, sem consumir memória ou iniciar outro cursor. Outro cliente não é afetado. O lease é liberado no bloco `finally` após sucesso, erro ou desconexão, com expiração defensiva de 15 minutos para recuperar de falhas do processo. A operação é apenas documental/testada em ambiente sintético até revisão DBA de concorrência e persistência.
+
+### Limpeza de leases abandonados (F237)
+
+O mesmo ciclo de coleta de quotas (a cada cinco minutos por processo) remove leases de exportação vencidos pelo índice `idx_account_export_leases_expires`, sem remover transferências ainda válidas. Testes sintéticos cobrem expiração por falha de worker e isolamento da exportação ativa de outro titular.
+
+### Evitar CI duplicada para push e PR da mesma branch (F239)
+
+As verificações Node.js, OAuth/GSC e inventários F144/F186 agora identificam a concorrência por `github.head_ref || github.ref_name`, fazendo com que `push` e `pull_request` do mesmo ramo compartilhem o grupo. Execuções antigas dessa branch são canceladas, em vez de permanecerem duplicadas na fila. Uma execução cancelada não é sinal verde; a verificação do SHA final continua obrigatória. Verificações de branches distintas continuam independentes.

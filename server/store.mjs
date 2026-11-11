@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT,actor_id T
 CREATE INDEX IF NOT EXISTS idx_audit_actor_id_id ON audit(actor_id,id DESC);
 CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,reset_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_reset_at ON rate_limits(reset_at);
+CREATE TABLE IF NOT EXISTS account_export_leases(user_id TEXT PRIMARY KEY REFERENCES users(id),token TEXT NOT NULL,expires_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_account_export_leases_expires ON account_export_leases(expires_at);
 `);migrateBriefing(db);for(const [id,title,price] of [['site','Site Onepage',99000],['sistema','Desenvolvimento de sistema',null],['app','Desenvolvimento de aplicativo',null],['ia','Desenvolvimento de agente de IA',null]])db.prepare('INSERT OR IGNORE INTO products(id,title,price_cents) VALUES(?,?,?)').run(id,title,price);return db}
 export const now=()=>new Date().toISOString();
 export function audit(db,actor,action,resource){db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)').run(actor||null,action,resource||null,now())}

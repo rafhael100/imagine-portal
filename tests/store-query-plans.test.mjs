@@ -23,6 +23,11 @@ test('F184: consultas multicliente e coleta de quotas usam índices restritos e 
    index:'idx_rate_limits_reset_at',
   },
   {
+   sql:'DELETE FROM account_export_leases WHERE expires_at<=?',
+   args:[Date.now()],
+   index:'idx_account_export_leases_expires',
+  },
+  {
    sql:'SELECT o.id,o.title,o.created_at FROM orders o WHERE o.user_id=? ORDER BY o.created_at DESC',
    args:['owner-test'],
    index:'idx_orders_user_created',

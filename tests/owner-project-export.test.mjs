@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {randomUUID} from 'node:crypto';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {openStore} from '../server/store.mjs';
-import {iterateOwnerExportProjects,writeExportChunks} from '../server/owner-project-export.mjs';
+import {iterateOwnerExportProjects,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases,OWNER_EXPORT_LEASE_MS} from '../server/owner-project-export.mjs';
 import {projectsCsv,projectsCsvChunks} from '../server/account-export.mjs';
 
 test('F229: streaming customer rows never reveal another owner or unpaid briefing',()=>{
@@ -89,4 +92,75 @@ test('F234: failures after HTTP headers abort the transport rather than producin
  assert.equal(res.destroyed,true);
  assert.equal(res.writableEnded,false);
  assert.equal(res.listenerCount('close'),0);
+});
+
+test('F236: only one active export per account, different accounts remain independent',()=>{
+ const db=openStore(':memory:');
+ try{
+  const user=randomUUID(),other=randomUUID();
+  for(const [id,email] of [[user,'lease1@example.test'],[other,'lease2@example.test']])
+   db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Cliente',email,'hash','client','2026-11-11');
+  const at=Date.now();
+  const ownerToken=acquireOwnerExportLease(db,user,at);
+  assert.throws(()=>acquireOwnerExportLease(db,user,at+5),e=>e.status===409&&/exportação em andamento/.test(e.message));
+  const otherToken=acquireOwnerExportLease(db,other,at+5);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,2);
+  releaseOwnerExportLease(db,user,ownerToken);
+  const newToken=acquireOwnerExportLease(db,user,at+10);
+  assert.notEqual(newToken,ownerToken);
+  releaseOwnerExportLease(db,user,ownerToken); // stale lease release cannot delete new ownership
+  assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(user).token,newToken);
+  releaseOwnerExportLease(db,user,newToken);
+  releaseOwnerExportLease(db,other,otherToken);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,0);
+ }finally{db.close();}
+});
+
+test('F236: an expired lease is recoverable after worker crash without stale-release takeover',()=>{
+ const db=openStore(':memory:');
+ try{
+  const user=randomUUID();
+  db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(user,'Cliente','crash@example.test','hash','client','2026-11-11');
+  const start=Date.now(),dead=acquireOwnerExportLease(db,user,start);
+  const revived=acquireOwnerExportLease(db,user,start+OWNER_EXPORT_LEASE_MS+1);
+  assert.notEqual(dead,revived);
+  releaseOwnerExportLease(db,user,dead);
+  assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(user).token,revived);
+  releaseOwnerExportLease(db,user,revived);
+ }finally{db.close();}
+});
+
+test('F237: indexed stale-lease pruning removes crashed workers, preserves live exports',()=>{
+ const db=openStore(':memory:');
+ try{
+  const a=randomUUID(),b=randomUUID(),at=Date.now();
+  for(const [id,email]of [[a,'expired@example.test'],[b,'active@example.test']])
+   db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Cliente',email,'hash','client','2026-11-11');
+  acquireOwnerExportLease(db,a,at-OWNER_EXPORT_LEASE_MS-1);
+  const active=acquireOwnerExportLease(db,b,at);
+  assert.equal(pruneExpiredOwnerExportLeases(db,at),1);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,1);
+  assert.equal(db.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(b).token,active);
+  assert.equal(pruneExpiredOwnerExportLeases(db,at),0);
+ }finally{db.close();}
+});
+
+test('F238: separate SQLite connections cannot bypass per-account export lease',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'imagine-export-lease-'));
+ t.after(()=>rm(dir,{recursive:true,force:true}));
+ const filename=join(dir,'portal.sqlite'),dbA=openStore(filename),dbB=openStore(filename);
+ try{
+  const id=randomUUID();
+  dbA.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Cliente','concurrent@example.test','hash','client','2026-11-11');
+  const first=acquireOwnerExportLease(dbA,id);
+  assert.throws(()=>acquireOwnerExportLease(dbB,id),e=>e.status===409);
+  assert.equal(dbB.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(id).token,first);
+  releaseOwnerExportLease(dbA,id,first);
+  const second=acquireOwnerExportLease(dbB,id);
+  assert.notEqual(first,second);
+  releaseOwnerExportLease(dbA,id,first);
+  assert.equal(dbA.prepare('SELECT token FROM account_export_leases WHERE user_id=?').get(id).token,second);
+  releaseOwnerExportLease(dbB,id,second);
+  assert.equal(dbA.prepare('SELECT count(*) AS n FROM account_export_leases').get().n,0);
+ }finally{dbB.close();dbA.close();}
 });
