@@ -117,6 +117,14 @@ export function renderMergeAssessment(report) {
   ].join('\n');
 }
 
+/** F147 deliberately requires clean merge-tree while F146 records conflicts as data. */
+export function requireCleanConvergence(report, requested) {
+  if (requested && (!report?.simulated_merge_clean || report.simulated_merge_conflicts)) {
+    throw new Error('F147 permission convergence still has unresolved Git conflicts.');
+  }
+  return true;
+}
+
 function main() {
   if (process.env.GITHUB_ACTIONS !== 'true') {
     throw new Error('Parallel-stack assessment is CI-only.');
@@ -167,6 +175,10 @@ function main() {
     writeFileSync(process.env.GITHUB_STEP_SUMMARY,summary,{flag:'a'});
   }
   process.stdout.write(summary);
+  requireCleanConvergence(
+    report,
+    process.env.PORTAL_REQUIRE_CLEAN_MERGE === 'true',
+  );
 }
 
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
