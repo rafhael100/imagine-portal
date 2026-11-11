@@ -1,0 +1,131 @@
+name: Portal INT-F158 - Concurrent PostgreSQL revision serialization (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-int-f158-concurrent-revision-serialization-pg18-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f156-org-revision-pg18-fence-2026-11-11
+    paths:
+      - 'apps/portal/labs/identity-f158/**'
+      - 'apps/portal/docs/PORTAL-INT-F158-CONCURRENT-REVISION-SERIALIZATION.md'
+      - '.github/workflows/portal-int-f158-concurrent-pg18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  concurrent-revision-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f158-review-admin-only
+          POSTGRES_DB: portal_f158_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_f158_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F158_PG_LAB: NON_OPERATIONAL_F158
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_f158_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f158-review-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_f158_lab
+      PGUSER: postgres
+      PGPASSWORD: f158-review-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout exact draft head, do not persist credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: PHP 8.3/8.4 with PDO PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Validate exact revision migrations and fixture
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_11_000012_fence_portal_membership_revision.php
+          php -l database/migrations/2026_11_11_000013_fence_portal_organization_revision.php
+          php -l labs/identity-f158/test_pg_revision_race.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Apply existing reviewed revision schema to disposable PG18
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f154_membership_revision_guard','portal_f154_grant_revision_guard','portal_f154_grant_immutable_guard','portal_f156_org_revision_guard') AND NOT tgisinternal" | grep -xq 4
+          psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'portal_%'" | grep -xq 0
+      - name: Probe two independent connections racing grant and status changes
+        run: |
+          set -euo pipefail
+          php labs/identity-f158/test_pg_revision_race.php
+      - name: Refuse unsafe downgrade with residual session/member/org
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction; then
+            echo 'SECURITY FAIL: org revision trigger removed while records exist' >&2
+            exit 1
+          fi
+          # Do not call migrate:rollback for F154 while F156 remains the
+          # latest migration. Laravel's batch resolver can report
+          # "Migration not found" as success for an older --path.
+          # Verify instead that the failed F156 downgrade left BOTH fences
+          # and their migration records in place.
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f154_membership_revision_guard','portal_f154_grant_revision_guard','portal_f154_grant_immutable_guard','portal_f156_org_revision_guard') AND NOT tgisinternal" | grep -xq 4
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration IN ('2026_11_11_000012_fence_portal_membership_revision','2026_11_11_000013_fence_portal_organization_revision')" | grep -xq 2
+      - name: Delete synthetic fixture records and prove clean reversibility
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_auth_sessions;
+          DELETE FROM public.portal_membership_grants;
+          DELETE FROM public.portal_memberships;
+          DELETE FROM public.portal_identities;
+          DELETE FROM public.portal_organizations;
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
