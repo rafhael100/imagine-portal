@@ -1,10 +1,12 @@
-name: Portal GSC F125 - vault reference digests PG18 NO-GO
+name: Portal GSC F125/F126 - immutable vault reference metadata PG18 NO-GO
 
 on:
   pull_request:
     paths:
       - 'apps/portal/database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php'
       - 'apps/portal/labs/gsc-f125/**'
+      - 'apps/portal/database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php'
+      - 'apps/portal/labs/gsc-f126/**'
       - '.github/workflows/portal-gsc-f125-vault-refs-pg18.yml'
   workflow_dispatch:
 
@@ -37,6 +39,7 @@ jobs:
       APP_ENV: testing
       APP_DEBUG: 'false'
       PORTAL_F125_PG_LAB: '1'
+      PORTAL_F126_PG_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -75,12 +78,14 @@ jobs:
           php -l database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php
           php -l database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php
           php -l labs/gsc-f125/test_pg_vault_refs.php
+          php -l database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php
+          php -l labs/gsc-f126/test_pg_vault_binding_fence.php
           composer validate --strict --no-check-publish
           composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
           composer dump-autoload --no-interaction --no-scripts --no-plugins
           cp .env.example .env
           php artisan key:generate --force --no-interaction
-      - name: Apply actual F66 F123 F124 F125 migrations to disposable PG18
+      - name: Apply actual F66 F123 F124 F125 F126 migrations to disposable PG18
         run: |
           set -euo pipefail
           php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
@@ -93,17 +98,21 @@ jobs:
         run: |
           set -euo pipefail
           php labs/gsc-f125/test_pg_vault_refs.php
+          # F125 must prove its CHECK constraints before F126's BEFORE INSERT
+          # trigger adds an earlier, stronger denial (SQLSTATE 42501).
+          php artisan migrate --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
+          php labs/gsc-f126/test_pg_vault_binding_fence.php
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_vault_reference_candidates" | grep -xq 2
           ! grep -R -E 'portal_gsc_vault_reference_candidates|PORTAL_F125_PG_LAB' routes/ bootstrap/ app/Http/ app/Providers/
       - name: Deny destructive rollback while metadata remains
         run: |
           set -euo pipefail
-          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php --force --no-interaction; then
-            echo "ERROR: token-vault reference metadata discarded silently" >&2
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction; then
+            echo "ERROR: F126 binding guard was removed while metadata remained" >&2
             exit 1
           fi
           psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_vault_reference_candidates" | grep -xq 2
-          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000010_create_gsc_vault_reference_candidates'" | grep -xq 1
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000011_fence_gsc_vault_binding'" | grep -xq 1
       - name: Cleanup synthetic metadata and rollback in reverse migration order
         run: |
           set -euo pipefail
@@ -122,6 +131,7 @@ jobs:
             '123e4567-e89b-42d3-a456-426614176002');
           COMMIT;
           SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
           php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction
