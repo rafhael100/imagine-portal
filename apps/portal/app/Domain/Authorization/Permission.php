@@ -12,4 +12,6 @@ enum Permission: string
     case ManageServices = 'services.manage';
     case ViewBilling = 'billing.view';
     case ManageMembers = 'members.manage';
+    // F126: ungranted permission for future human review; no HTTP capability.
+    case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';
 }
