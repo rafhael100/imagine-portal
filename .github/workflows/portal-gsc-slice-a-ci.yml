@@ -181,6 +181,12 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php
           php -l apps/portal/labs/gsc-slice-d/verify_provider_policy.php
           php apps/portal/labs/gsc-slice-d/verify_provider_policy.php
+      - name: GSC Slice D adversarial trend HTML privacy and production refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
+          node apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
