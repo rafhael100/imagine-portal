@@ -63,7 +63,8 @@ foreach (['portal_memberships', 'portal_membership_grants', 'portal_auth_session
     $sql = "SELECT relrowsecurity AND relforcerowsecurity
               FROM pg_class
              WHERE oid = ('public.".$table."')::regclass";
-    f154Ensure($pdo->query($sql)?->fetchColumn() === true,
+    $forceRls = $pdo->query($sql)?->fetchColumn();
+    f154Ensure(in_array($forceRls, [true, 't', '1', 1], true),
         $table.' must keep FORCE RLS');
     f154Ensure(f154Count($pdo,
         "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename='".$table."'"
