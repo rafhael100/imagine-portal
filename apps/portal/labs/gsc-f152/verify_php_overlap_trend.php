@@ -54,6 +54,40 @@ try{
     $report=Preview::fromDto($partial);
     if($report===null||$report->coverageComplete||$report->reviewSignals!==[])
         throw new RuntimeException();
+    // SEO-F67: newer offline reports include a fourth privacy caveat.
+    $modern=$dto;
+    $modern['caveats'][]='Redacted lines suppress trends.';
+    if(Preview::fromDto($modern)===null)throw new RuntimeException();
+
+    // A redacted observation is partial by policy, even if visible rows
+    // still show possible page overlap. Do not surface a review signal.
+    $redacted=$modern;
+    $redacted['current']['redactedRows']=1;
+    $redacted['coverageComplete']=false;
+    $redacted['coverageStatus']='REDACTED_GSC_ROWS_NO_SIGNALS';
+    $redacted['overlapShareChange']=null;
+    $redacted['reviewSignals']=[];
+    $masked=Preview::fromDto($redacted);
+    if($masked===null||$masked->coverageComplete||
+        $masked->reviewSignals!==[]||
+        $masked->canPublish()||$masked->canQueryGoogle()||
+        $masked->hasVerifiedTenantGrant())
+        throw new RuntimeException();
+
+    foreach([
+        ['coverageComplete'=>true],
+        ['coverageStatus'=>'PARTIAL_GSC_BATCHES_NO_SIGNALS'],
+        ['reviewSignals'=>['review_overlap_share_increase']],
+        ['overlapShareChange'=>0.4],
+        ['caveats'=>$dto['caveats']]
+    ] as $change){
+        $modified=[...$redacted,...$change];
+        if(Preview::fromDto($modified)!==null)throw new RuntimeException();
+    }
+    $forged=$modern;
+    $forged['coverageStatus']='REDACTED_GSC_ROWS_NO_SIGNALS';
+    if(Preview::fromDto($forged)!==null)throw new RuntimeException();
+
     putenv('APP_ENV=production');
     if(Preview::fromDto($dto)!==null)throw new RuntimeException();
 }catch(Throwable){
