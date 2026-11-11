@@ -16,7 +16,13 @@ on:
       - 'apps/portal/labs/gsc-f146/**'
       - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/labs/gsc-f152/**'
+      - 'apps/portal/labs/gsc-f155/**'
+      - 'apps/portal/labs/gsc-f156/**'
+      - 'apps/portal/labs/gsc-f157/**'
+      - 'apps/portal/labs/gsc-f160/**'
+      - 'apps/portal/labs/gsc-f161/**'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
+      - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
@@ -61,6 +67,135 @@ jobs:
           ref: bbcc198b5eb88585534c0a0374ed8c787f40e7ca
           path: .qa/seo-engine
           persist-credentials: false
+      - name: Checkout immutable SEO RC32 for F156 synthetic parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: f46b65aaef9b10e32d02e415907cd916a43b548e
+          path: .qa/seo-rc32
+          persist-credentials: false
+      - name: F160 verify immutable SEO RC32 checkout provenance
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='f46b65aaef9b10e32d02e415907cd916a43b548e'
+          actual="$(git -C .qa/seo-rc32 rev-parse HEAD)"
+          test "$actual" = "$expected" || {
+            echo 'F160: unexpected SEO source revision' >&2
+            exit 1
+          }
+          test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)" || {
+            echo 'F160: SEO source checkout is dirty' >&2
+            exit 1
+          }
+          test -f .qa/seo-rc32/src/gsc-query-page-planner.mjs
+          test -f .qa/seo-rc32/src/portal-query-page-review.mjs
+          test -f .qa/seo-rc32/src/gsc-query-page-overlap-trend.mjs
+      - name: Verify SEO RC32 F74 to Portal F155 strict DTO parity
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_QUERY_PAGE_REVIEW_LAB: '1'
+          PORTAL_GSC_REVIEW_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs
+          php -l apps/portal/labs/gsc-f156/verify_php_query_page_review.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
+          php -l apps/portal/tools/f159-render-gsc-query-page-review-offline.php
+          fixture="$(mktemp)"
+          html="$(mktemp)"
+          trap 'rm -f "$fixture" "$html"' EXIT
+          for scenario in complete redacted partial empty multi multi_redacted; do
+            node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+            php apps/portal/tools/f159-render-gsc-query-page-review-offline.php "$fixture" > "$html"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$html"
+            grep -q 'name="robots" content="noindex,nofollow"' "$html"
+            grep -q "connect-src 'none'" "$html"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$html"; then
+              echo 'F159: interactive/unsafe HTML refused' >&2
+              exit 1
+            fi
+            if [[ "$scenario" == redacted || "$scenario" == multi_redacted ]]; then
+              grep -q 'Linhas privadas ocultadas: sugestões desativadas' "$html"
+            elif [[ "$scenario" == partial ]]; then
+              grep -q 'Amostra possivelmente incompleta: sugestões desativadas' "$html"
+            fi
+          done
+      - name: F160 fail-closed synthetic renderer and input hardening
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+          node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+      - name: Verify SEO RC32 F67 privacy trends through Portal PHP and static HTML
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TRENDS_LAB: '1'
+          PORTAL_GSC_TREND_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs
+          php -l apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php
+          fixture="$(mktemp)"
+          html="$(mktemp)"
+          trap 'rm -f "$fixture" "$html"' EXIT
+          for scenario in complete redacted partial; do
+            node apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php "$fixture" "$scenario"
+            php apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$fixture" > "$html"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$html"
+            grep -q 'name="robots" content="noindex,nofollow"' "$html"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$html"; then
+              echo 'F157: unexpected executable/interactive HTML' >&2
+              exit 1
+            fi
+            if [[ "$scenario" == complete ]]; then
+              grep -q 'Investigar possível aumento da sobreposição editorial' "$html"
+            else
+              grep -q 'Amostra incompleta: tendências suprimidas' "$html"
+              grep -q 'Indisponível' "$html"
+            fi
+          done
+      - name: F161 checkout exact Portal PR head with complete Git history
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: .qa/portal-inventory
+          persist-credentials: false
+      - name: F161 full untruncated SEO/Portal integration inventory
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-f161/inventory.mjs
+          node --test apps/portal/labs/gsc-f161/inventory.test.mjs
+          node apps/portal/labs/gsc-f161/inventory.mjs \
+            .qa/portal-inventory \
+            "${{ github.event.pull_request.head.sha }}" \
+            "${{ github.event.pull_request.base.sha }}"
+          cat .portal-gsc-f161-inventory/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: F161 retain review-only full inventory (2 days)
+        if: github.event_name == 'pull_request' && matrix.php == '8.4' && matrix.node == '22'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-f161-full-git-inventory
+          path: |
+            .portal-gsc-f161-inventory/summary.md
+            .portal-gsc-f161-inventory/full-diff.json
+          if-no-files-found: error
+          retention-days: 2
       - name: Check Node SEO F50 to Portal PHP F135 DTO parity
         if: matrix.php == '8.4' && matrix.node == '22'
         shell: bash
@@ -201,7 +336,7 @@ jobs:
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|PORTAL_GSC_TREND_HTML_LAB|f153-render-gsc-overlap-trend-offline|OfflineGscOverlapTrendPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|PORTAL_GSC_TREND_HTML_LAB|f153-render-gsc-overlap-trend-offline|OfflineGscOverlapTrendPreview|f159-render-gsc-query-page-review-offline|OfflineGscQueryPageReviewPreview|PORTAL_GSC_TRENDS_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
