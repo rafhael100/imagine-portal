@@ -125,7 +125,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/account/security-events'&&method==='GET'){
   // Security history is owner-only: never return audit actor/resource ids,
   // IP addresses, session tokens, or unrecognized internal audit actions.
-  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others') ORDER BY id DESC LIMIT 10",user.id);
+  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed') ORDER BY id DESC LIMIT 10",user.id);
   return send(res,200,{events});
  }
  if(path==='/api/sessions/summary'&&method==='GET'){
