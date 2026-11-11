@@ -8,7 +8,7 @@ const source=await readFile(fileURLToPath(new URL('../account-ui.js',import.meta
 const context={
  escapeHtml:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 };
-runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards};',context);
+runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel};',context);
 const {filteredAccountProjects:filter,accountProjectCards:cards}=context.projectTestApi;
 
 function projects(n=21){
@@ -63,4 +63,20 @@ test('F188: card html escapes user-supplied strings while preserving safe projec
  assert.ok(html.includes('&lt;b&gt;unsafe&lt;/b&gt;'));
  assert.ok(html.includes('data-account-project="safe-123"'));
  assert.ok(!html.includes('<script>'));
+});
+
+test('F192: project cards show translated payment labels and fail closed on unknown states',()=>{
+ const label=context.projectTestApi.accountProjectPaymentLabel;
+ for(const [state,expected] of Object.entries({
+  RECEIVED:'Pago',CONFIRMED:'Pagamento confirmado',PENDING:'Pagamento pendente',
+  OVERDUE:'Pagamento em atraso',REFUNDED:'Pagamento estornado',NOT_CREATED:'Pagamento não iniciado',
+  UNRECOGNIZED:'Pagamento em análise',
+ })) assert.equal(label(state),expected);
+ const html=cards([
+  {id:'a-safe-id',title:'Site',payment_status:'REFUNDED',data:{}},
+  {id:'b-safe-id',title:'Novo site',payment_status:'UNRECOGNIZED',data:{}},
+ ]);
+ assert.ok(html.includes('Pagamento estornado'));
+ assert.ok(html.includes('Pagamento em análise'));
+ assert.equal(html.includes('UNRECOGNIZED'),false);
 });
