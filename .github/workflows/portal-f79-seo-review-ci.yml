@@ -14,6 +14,7 @@ on:
       - 'apps/portal/labs/gsc-f141/**'
       - 'apps/portal/labs/gsc-f143/**'
       - 'apps/portal/labs/gsc-f146/**'
+      - 'apps/portal/labs/gsc-f151/**'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
       - 'apps/portal/tools/f139-render-gsc-comparison-offline.php'
@@ -124,6 +125,9 @@ jobs:
           php -l apps/portal/labs/gsc-f146/verify_php_request_response_pair.php
           PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 PORTAL_GSC_REQUEST_LAB=1 php \
             apps/portal/labs/gsc-f146/verify_php_request_response_pair.php "$pages_fixture"
+          php -l apps/portal/labs/gsc-f151/verify_php_next_page.php
+          PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 PORTAL_GSC_REQUEST_LAB=1 php \
+            apps/portal/labs/gsc-f151/verify_php_next_page.php "$pages_fixture"
           pages_html="$(mktemp)"
           trap 'rm -f "$fixture" "$comparison" "$trend_html" "$handoff" "$handoff_html" "$overlap" "$pages_fixture" "$pages_html"' EXIT
           PORTAL_GSC_OVERLAP_LAB=1 PORTAL_GSC_PAGINATION_LAB=1 PORTAL_GSC_OVERLAP_HTML_LAB=1 php \
@@ -168,13 +172,14 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php
           php -l apps/portal/tests/Unit/GoogleSearchConsoleProviderResponsePolicyTest.php
           php -l apps/portal/labs/gsc-f135/test_dto_bridge.php
           APP_ENV=testing PORTAL_GSC_WORKFLOW_LAB=1 php apps/portal/labs/gsc-f135/test_dto_bridge.php
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_PAGINATION_LAB|PORTAL_GSC_REQUEST_LAB|GoogleSearchConsoleNextPageIntent|GoogleSearchConsoleProviderResponsePolicy|GoogleSearchConsoleQueryPagePaginationPlan|OfflineGscQueryPagePaginationPreview|PORTAL_GSC_OVERLAP_HTML_LAB|f142-render-gsc-overlap-offline|PORTAL_GSC_OVERLAP_LAB|OfflineGscQueryPageOverlapPreview|PORTAL_GSC_COMPARISON_LAB|PORTAL_GSC_COMPARISON_HTML_LAB|f139-render-gsc-comparison-offline|OfflineGscDailyComparisonPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_GSC_HTML_LAB|f137-render-gsc-offline|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
