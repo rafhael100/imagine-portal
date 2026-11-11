@@ -80,3 +80,13 @@ test('F204: remote query error offers retry and never displays a misleading empt
  h.payment.value='other';h.payment.onchange();
  assert.equal(h.calls.length,2);
 });
+
+test('F210: remote browser stops at capped last page and offers full export guidance',async()=>{
+ const h=harness();
+ h.calls[0].resolve({projects:[item(8000)],total:8008,page:1000,pages:1000,limited:true});
+ await tick();
+ assert.ok(h.result.innerHTML.includes('8.000 projetos'));
+ assert.ok(h.result.innerHTML.includes('exportação completa'));
+ assert.ok(h.result.innerHTML.includes('Página 1000 de 1000'));
+ assert.ok(h.result.innerHTML.includes('data-account-page="next" disabled'));
+});

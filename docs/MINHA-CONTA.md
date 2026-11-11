@@ -85,3 +85,11 @@ novamente após falha e nunca usa identificador de outro titular.
 As rotas antigas `GET /api/account` e `POST /api/account`, sem o parâmetro
 `compact`, mantêm a representação integral por compatibilidade. As exportações
 JSON/CSV permanecem integrais e separadas da paginação da interface.
+
+## Arquivos com volume excepcional (F210)
+
+A navegação dinâmica admite até 1000 páginas de oito registros (8000 projetos)
+por busca/filtro. Caso o total filtrado ultrapasse esse teto, a API indica
+`limited: true`, encerra `has_more` no último resultado permitido e a tela
+informa que a exportação completa continua disponível. Não há tentativa de
+consultar páginas inválidas nem truncagem silenciosa do CSV/JSON.

@@ -98,7 +98,8 @@ function bindAccountProjectArchive(projects,{remote=false,allCount=projects.leng
   projectPage=result.page;
   projectResults.innerHTML=count?
    '<p class="fine">'+count+' projeto(s) encontrado(s) · Página '+result.page+' de '+pages+'</p><div class="account-projects">'+accountProjectCards(items)+'</div>'+
-   (pages>1?'<div class="account-project-pagination"><button class="btn secondary" type="button" data-account-page="previous" '+(result.page===1?'disabled':'')+'>← Anterior</button> <button class="btn secondary" type="button" data-account-page="next" '+(result.page===pages?'disabled':'')+'>Próxima →</button></div>':''):
+   (pages>1?'<div class="account-project-pagination"><button class="btn secondary" type="button" data-account-page="previous" '+(result.page===1?'disabled':'')+'>← Anterior</button> <button class="btn secondary" type="button" data-account-page="next" '+(result.page===pages?'disabled':'')+'>Próxima →</button></div>':'')+
+   (result.limited?'<p class="fine">A navegação exibe até 8.000 projetos. Para consultar todos os registros, use a exportação completa de projetos.</p>':''):
    '<div class="empty">'+(allCount?'Nenhum projeto encontrado com os filtros informados.':'Os dados enviados nos seus projetos aparecerão aqui.')+'</div>';
  };
  const renderProjectPage=()=>{
@@ -109,7 +110,7 @@ function bindAccountProjectArchive(projects,{remote=false,allCount=projects.leng
   projectResults.textContent='Consultando seus projetos…';
   return api(url).then(result=>{
    if(request!==generation||!projectResults.isConnected)return;
-   show({items:result.projects,count:result.total,page:result.page,pages:result.pages});
+   show({items:result.projects,count:result.total,page:result.page,pages:result.pages,limited:result.limited});
   }).catch(()=>{
    if(request===generation&&projectResults.isConnected)
     projectResults.innerHTML='<div class="empty">Não foi possível consultar os projetos. <button class="btn secondary" type="button" data-account-page="retry">Tentar novamente</button></div>';
