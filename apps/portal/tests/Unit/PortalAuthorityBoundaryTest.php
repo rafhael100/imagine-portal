@@ -16,6 +16,7 @@ use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
+use App\Domain\PortalAccess\Authority\PortalSessionPurpose;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -38,6 +39,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         string $sessionOrg = 'org-a',
         int $sessionMembershipRevision = 1,
         int $sessionOrganizationRevision = 1,
+        PortalSessionPurpose $purpose = PortalSessionPurpose::Business,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -50,6 +52,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
             $sessionOrganizationRevision,
+            $purpose,
         );
     }
 
@@ -315,6 +318,36 @@ final class PortalAuthorityBoundaryTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->snapshot(sessionOrganizationRevision: 0);
+    }
+
+    public function test_invitation_purpose_and_overlong_business_session_fail_closed(): void
+    {
+        $member = $this->membership();
+        $owner = new OrganizationId('org-a');
+        self::assertFalse($this->inspect($this->syntheticBoundary(
+            $this->snapshot(purpose: PortalSessionPurpose::InvitationOnly),
+            $member, $owner,
+        )));
+
+        // PostgreSQL F113 limits business sessions to 24h. A fake
+        // untrusted source claiming more than 24h is not eligible.
+        self::assertFalse($this->inspect($this->syntheticBoundary(
+            $this->snapshot(expiresAt: 1000 + 86401),
+            $member, $owner,
+        )));
+        self::assertTrue($this->inspect($this->syntheticBoundary(
+            $this->snapshot(expiresAt: 1000 + 86400),
+            $member, $owner,
+        )));
+    }
+
+    public function test_purpose_vocabulary_matches_closed_f113_migration(): void
+    {
+        self::assertSame('business', PortalSessionPurpose::Business->value);
+        self::assertSame('invitation_only', PortalSessionPurpose::InvitationOnly->value);
+        self::assertNull(PortalSessionPurpose::tryFrom('oauth'));
+        self::assertNull(PortalSessionPurpose::tryFrom('business '));
+        self::assertNull(PortalSessionPurpose::tryFrom(''));
     }
 
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void
