@@ -1,8 +1,8 @@
-name: Portal F131 - Current Portal PHP against pinned real CRM PHP lab
+name: Portal F132 - Current Portal pre-send fence with pinned real CRM PHP lab
 on:
   push:
     branches:
-      - review/portal-f131-cross-repo-crm-compat-ci-2026-11-10
+      - review/portal-f132-real-crm-pre-send-fencing-ci-2026-11-10
   pull_request:
     paths:
       - 'apps/portal/labs/commercial-intake-f117/**'
@@ -11,6 +11,7 @@ on:
       - 'apps/portal/labs/commercial-intake-f122/**'
       - 'apps/portal/labs/commercial-intake-f123/**'
       - 'apps/portal/labs/commercial-intake-f124/**'
+      - 'apps/portal/labs/commercial-intake-f132/**'
       - '.github/workflows/portal-f131-cross-repo-crm-compat.yml'
   workflow_dispatch:
 
@@ -58,6 +59,7 @@ jobs:
       CRM_F341_HTTP_LAB: '1'
       CRM_F342_CROSS_REPO_LAB: '1'
       PORTAL_F119_PG_LAB: '1'
+      PORTAL_F132_REAL_CRM_FENCE_LAB: '1'
       DB_HOST: 127.0.0.1
       DB_DATABASE: portal_commercial_lab
       DB_PASSWORD: f131-disposable-contract-ci-only
@@ -109,6 +111,8 @@ jobs:
             -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f119/nonce_pg18.sql
           psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab \
             -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f122/unknown_hold_pg18.sql
+          psql -h 127.0.0.1 -p 5433 -U postgres -d portal_commercial_lab \
+            -v ON_ERROR_STOP=1 -f apps/portal/labs/commercial-intake-f123/dispatch_fence_pg18.sql
       - name: Exercise real PHP classes in both repositories and signed lost-ACK readback
         shell: bash
         run: |
@@ -136,3 +140,5 @@ jobs:
           done
           test "$ready" -eq 1
           (cd crm-source && php tests/Labs/F3_42/test_real_portal_crm_cross_repo.php)
+          php -l apps/portal/labs/commercial-intake-f132/test_real_crm_fence.php
+          php apps/portal/labs/commercial-intake-f132/test_real_crm_fence.php
