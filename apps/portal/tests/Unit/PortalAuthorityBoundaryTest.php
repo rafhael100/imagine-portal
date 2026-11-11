@@ -33,6 +33,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
         int $accountRevision = 4,
         int $sessionAccountRevision = 4,
         int $expiresAt = 2000,
+        string $sessionOrg = 'org-a',
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -42,6 +43,7 @@ final class PortalAuthorityBoundaryTest extends TestCase
             $expiresAt,
             $accountRevision,
             $sessionAccountRevision,
+            new OrganizationId($sessionOrg),
         );
     }
 
@@ -186,6 +188,38 @@ final class PortalAuthorityBoundaryTest extends TestCase
             $boundary = $this->syntheticBoundary($this->snapshot(), $membership, $owner);
             self::assertFalse($this->inspect($boundary));
         }
+    }
+
+    public function test_session_tenant_binding_prevents_cross_org_session_reuse_for_multi_company_actor(): void
+    {
+        // A valid actor may have an explicit membership and resource in two
+        // companies, yet a session from org A must never authorize org B.
+        $aSession = $this->snapshot(sessionOrg: 'org-a');
+        $orgBMembership = $this->membership(organization: 'org-b');
+        $orgBBoundary = $this->syntheticBoundary(
+            $aSession,
+            $orgBMembership,
+            new OrganizationId('org-b'),
+        );
+        self::assertFalse($this->inspect($orgBBoundary, organization: 'org-b'));
+
+        $orgBSession = $this->snapshot(sessionOrg: 'org-b');
+        $orgBBoundary = $this->syntheticBoundary(
+            $orgBSession,
+            $orgBMembership,
+            new OrganizationId('org-b'),
+        );
+        // Still a synthetic verdict, NEVER HTTP authorization.
+        self::assertTrue($this->inspect($orgBBoundary, organization: 'org-b'));
+
+        self::assertFalse($this->inspect(
+            $this->syntheticBoundary(
+                $orgBSession,
+                $this->membership(organization: 'org-a'),
+                new OrganizationId('org-a'),
+            ),
+            organization: 'org-a',
+        ));
     }
 
     public function test_header_grants_or_wildcard_cannot_replace_authoritative_permission(): void

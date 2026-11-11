@@ -48,7 +48,12 @@ final readonly class PortalAuthorityBoundary
         try {
             $session = $this->sessions->find($opaqueSessionReference);
 
-            if ($session === null || ! $session->passesSyntheticFreshnessChecks($now)) {
+            if ($session === null
+                || ! $session->passesSyntheticFreshnessChecks($now)
+                // F152: even a multi-company user cannot reuse an org-A
+                // session to inspect an org-B resource. Check before any
+                // membership/resource lookup and always fail closed.
+                || ! $session->sessionOrganizationId->equals($selectedOrganization)) {
                 return PortalBoundaryVerdict::blocked();
             }
 

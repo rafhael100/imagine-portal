@@ -3,6 +3,7 @@
 namespace App\Domain\PortalAccess\Authority;
 
 use App\Domain\Identity\PortalUserId;
+use App\Domain\Organizations\OrganizationId;
 use InvalidArgumentException;
 
 /**
@@ -22,6 +23,9 @@ final readonly class PortalSessionSnapshot
         public int $expiresAt,
         public int $accountRevision,
         public int $sessionAccountRevision,
+        // INT-F152: the authenticated Portal session's intended tenant.
+        // A selected tenant supplied to the boundary is NOT session evidence.
+        public OrganizationId $sessionOrganizationId,
     ) {
         if ($issuedAt <= 0
             || $expiresAt <= $issuedAt
