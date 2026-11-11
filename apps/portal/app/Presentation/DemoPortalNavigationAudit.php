@@ -16,7 +16,7 @@ use RuntimeException;
  */
 final class DemoPortalNavigationAudit
 {
-    private const OFFLINE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
+    public const OFFLINE_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'";
     public function verify(string $directory): bool
     {
         if (!app()->environment(['local', 'testing'])) {
