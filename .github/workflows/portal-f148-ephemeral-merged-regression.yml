@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 23
     env:
-      SEO_PIN: 500c7cbd2379a1869a52a8ad3133af5c62de830a
+      SEO_PIN: 0cc38441e0ce62c01b76a8caa9e3032d14dd0274
       PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout exact Portal review HEAD with no persistent GitHub credentials
@@ -34,10 +34,10 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
           git fetch --no-tags origin \
-            refs/heads/review/portal-gsc-f142-overlap-static-panel-2026-11-11:refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+            refs/heads/review/portal-gsc-f143-crossstack-permission-test-2026-11-11:refs/remotes/origin/review/portal-gsc-f143-crossstack-permission-test-2026-11-11
           git cat-file -e "$SEO_PIN^{commit}"
           git merge-base --is-ancestor "$SEO_PIN" \
-            refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+            refs/remotes/origin/review/portal-gsc-f143-crossstack-permission-test-2026-11-11
           set +e
           output="$(git merge-tree --write-tree --name-only --messages "$PORTAL_EXPECTED_HEAD" "$SEO_PIN" 2>&1)"
           status=$?
