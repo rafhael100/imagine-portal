@@ -88,6 +88,9 @@ try{
     $forged['coverageStatus']='REDACTED_GSC_ROWS_NO_SIGNALS';
     if(Preview::fromDto($forged)!==null)throw new RuntimeException();
 
+    // Run F155 synthetic PHP DTO checks through the existing gated CI lab.
+    require_once __DIR__.'/../gsc-f155/test_php_query_page_review.php';
+    portalGscF155SyntheticChecks();
     putenv('APP_ENV=production');
     if(Preview::fromDto($dto)!==null)throw new RuntimeException();
 }catch(Throwable){
