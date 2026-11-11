@@ -190,11 +190,27 @@ foreach ([
     prove127(reviewCount($db)===5,
         'synthetic fixture restored only by CI administrator');
 }
-$attempt=withRole127($db,'portal_f127_reviewer_b',static function(PDO $db): int {
-    $db->exec("SET LOCAL app.lab_tenant_id='11111111-1111-4111-8111-111111111111'");
-    return (int)$db->query(
-        "SELECT count(*) FROM portal_commercial_ci.delivery_gate")->fetchColumn();
-});
-// Reviewer B has no SELECT privilege on the gate (the statement must fail).
-// If this line is ever reached, the direct gate privilege was widened.
-throw new RuntimeException('F127 FAIL: foreign role read a gate row ('.$attempt.')');
+// Tenant selector spoofing never grants SELECT or EXECUTE.
+try {
+    withRole127($db,'portal_f127_reviewer_b',static function(PDO $db): void {
+        $db->exec("SET LOCAL app.lab_tenant_id='11111111-1111-4111-8111-111111111111'");
+        $db->query('SELECT count(*) FROM portal_commercial_ci.delivery_gate');
+    });
+    throw new RuntimeException('F127 FAIL: tenant B bypassed direct grant');
+} catch (PDOException) {
+    ++$checks;
+}
+blockedSQL($db,'portal_f127_reviewer_a',
+    "UPDATE portal_commercial_ci.review_authority_lab
+       SET permission_code='services.view'",
+    'reviewer must not alter grant');
+blockedSQL($db,'portal_f127_reviewer_a',
+    'UPDATE portal_commercial_ci.delivery_gate SET attempts=1',
+    'reviewer must not mutate dispatch state');
+prove127(reviewCount($db)===5,'adversarial tests preserve authorized lab read');
+prove127((int)$db->query("SELECT count(*) FROM information_schema.columns
+   WHERE table_schema='portal_commercial_ci'
+   AND table_name='delivery_gate'")->fetchColumn()===7,
+   'no token, personal data or positive CRM receipt added');
+
+echo "F127 PASS: {$checks} PG18 unprivileged reviewer/tenant/revocation assertions; no real IAM or CRM ACK.\\n";
