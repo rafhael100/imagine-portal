@@ -7,6 +7,7 @@ use App\Domain\Identity\Invitations\PortalInvitationIdentitySource;
 use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use Illuminate\Support\ServiceProvider;
 
@@ -43,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PortalSessionAuthority::class, $deny);
         $this->app->bind(PortalMembershipAuthority::class, $deny);
         $this->app->bind(PortalResourceAuthority::class, $deny);
+        $this->app->bind(PortalOrganizationAuthority::class, $deny);
     }
 
     public function boot(): void
