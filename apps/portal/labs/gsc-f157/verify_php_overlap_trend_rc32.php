@@ -31,7 +31,7 @@ try{
         $dto['networkPerformed']!==false)
         throw new RuntimeException();
     $expected=[
-        'complete'=>['COMPLETE_SUPPLIED_BATCHES',true,0.4,1,
+        'complete'=>['COMPLETE_SUPPLIED_BATCHES',true,0.4,0,
             ['review_overlap_share_increase']],
         'redacted'=>['REDACTED_GSC_ROWS_NO_SIGNALS',false,null,1,[]],
         'partial'=>['PARTIAL_GSC_BATCHES_NO_SIGNALS',false,null,0,[]]
