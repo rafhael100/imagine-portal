@@ -64,13 +64,13 @@ $reviewRaw=file_get_contents($reviewFile);
 $authRaw=file_get_contents($authFile);
 check133(is_string($epochRaw)&&is_string($reviewRaw)&&is_string($authRaw),
     'real Sites secondary contract bytes readable');
-check133(sha1('blob '.strlen($epochRaw)."\\0".$epochRaw)
+check133(sha1('blob '.strlen($epochRaw)."\0".$epochRaw)
     ==='d985f8e406b49741480678ecb7f639ec0b38dc30',
     'v2 review epoch schema pinned to exact upstream Git blob');
-check133(sha1('blob '.strlen($reviewRaw)."\\0".$reviewRaw)
+check133(sha1('blob '.strlen($reviewRaw)."\0".$reviewRaw)
     ==='bc59c5a56838adbc3779afb88243f702b08216ee',
     'v1 review candidate schema pinned to exact upstream Git blob');
-check133(sha1('blob '.strlen($authRaw)."\\0".$authRaw)
+check133(sha1('blob '.strlen($authRaw)."\0".$authRaw)
     ==='d1dc7e1c77d9c813bc3fd2031e4b40ee28e97da0',
     'project authority snapshot schema pinned to upstream blob');
 $epoch=json_decode($epochRaw,true,32,JSON_THROW_ON_ERROR);
