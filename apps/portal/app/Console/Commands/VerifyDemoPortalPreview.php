@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Presentation\DemoPortalArtifactManifest;
+use App\Presentation\DemoPortalNavigationAudit;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -18,16 +19,18 @@ final class VerifyDemoPortalPreview extends Command
 
     protected $description = 'Verify hashes and inventory of the private synthetic Portal preview';
 
-    public function handle(DemoPortalArtifactManifest $manifest): int
+    public function handle(DemoPortalArtifactManifest $manifest, DemoPortalNavigationAudit $navigation): int
     {
         try {
-            $manifest->verify(storage_path('app/portal-demo-preview'));
+            $directory = storage_path('app/portal-demo-preview');
+            $manifest->verify($directory);
+            $navigation->verify($directory);
         } catch (Throwable $error) {
             $this->error('Private synthetic preview integrity check failed.');
             return self::FAILURE;
         }
 
-        $this->info('Verified nine synthetic HTML preview pages. No publication or customer access.');
+        $this->info('Verified nine synthetic HTML preview pages and local navigation. No publication or customer access.');
         return self::SUCCESS;
     }
 }

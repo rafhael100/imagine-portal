@@ -89,15 +89,20 @@ final class DemoPortalStaticExporter
             '<title>Imagine Portal — prévia interna offline</title>' .
             '<style>body{font:16px/1.6 system-ui;margin:30px auto;max-width:760px;padding:0 20px;color:#142239}' .
             'a{color:#225fc2}li{padding:7px 0}.warning{border:1px solid #c78b39;padding:15px}</style>' .
-            '</head><body><h1>Imagine Portal — prévia interna offline</h1>' .
+            '</head><body><a href="#pi-content">Pular para o conteúdo</a>' .
+            '<main id="pi-content"><h1>Imagine Portal — prévia interna offline</h1>' .
             '<p class="warning">Somente dados fictícios. Sem login, contrato, pagamento, cliente ou publicação.</p>' .
-            '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav></body></html>';
+            '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav></main></body></html>';
 
         if (file_put_contents($staging . DIRECTORY_SEPARATOR . 'index.html', $index, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the demo index.');
         }
         chmod($staging . DIRECTORY_SEPARATOR . 'index.html', 0600);
         $files[] = 'index.html';
+
+            // F136: verify all offline links, skip targets and landmarks
+            // before the manifest is signed by local hashes and committed.
+            (new DemoPortalNavigationAudit())->verify($staging);
 
             // F135: audit a fixed nine-page synthetic package before the
             // atomic directory rename; never signal a completed partial set.
