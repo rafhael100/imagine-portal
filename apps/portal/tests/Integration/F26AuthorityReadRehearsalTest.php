@@ -89,6 +89,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         bool $mfa = true,
         int $sessionRevision = 1,
         string $sessionOrg = 'org-a',
+        int $sessionMembershipRevision = 1,
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -99,6 +100,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             1,
             $sessionRevision,
             new OrganizationId($sessionOrg),
+            $sessionMembershipRevision,
         );
     }
 
@@ -107,6 +109,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         string $org = 'org-a',
         MembershipStatus $status = MembershipStatus::Active,
         array $permissions = [Permission::ViewServices],
+        int $revision = 1,
     ): OrganizationMembership {
         return new OrganizationMembership(
             new PortalUserId($actor),
@@ -114,6 +117,7 @@ final class F26AuthorityReadRehearsalTest extends TestCase
             OrganizationRole::Member,
             $status,
             $permissions,
+            $revision,
         );
     }
 
@@ -259,6 +263,19 @@ final class F26AuthorityReadRehearsalTest extends TestCase
         $key = random_bytes(32);
         $sources = $this->fixture(session: $this->snapshot(sessionOrg: 'org-b'));
         $reader = $this->rehearsal($this->db(), $key, $sources);
+        $this->assertBlocked(
+            $this->read($reader, $this->token($key)),
+            'untrusted_lab_authority',
+        );
+    }
+
+    public function test_older_membership_revision_denies_synthetic_pg_projection(): void
+    {
+        $key = random_bytes(32);
+        $reader = $this->rehearsal(
+            $this->db(), $key,
+            $this->fixture(membership: $this->member(revision: 2)),
+        );
         $this->assertBlocked(
             $this->read($reader, $this->token($key)),
             'untrusted_lab_authority',
