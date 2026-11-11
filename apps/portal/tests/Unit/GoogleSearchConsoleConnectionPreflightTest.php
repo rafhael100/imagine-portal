@@ -36,6 +36,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
         int $revision = 4,
         string $actor = 'actor-a',
         int $expiry = 2000,
+        string $sessionOrg = 'org-a',
     ): PortalSessionSnapshot {
         return new PortalSessionSnapshot(
             new PortalUserId($actor),
@@ -45,6 +46,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $expiry,
             4,
             $revision,
+            new OrganizationId($sessionOrg),
         );
     }
 
@@ -206,6 +208,7 @@ final class GoogleSearchConsoleConnectionPreflightTest extends TestCase
             $this->session(active:false),
             $this->session(revision:3),
             $this->session(expiry:1400),
+            $this->session(sessionOrg:'org-b'),
         ] as $snapshot) {
             $service = $this->preflight(
                 $snapshot, $this->membership(), new OrganizationId('org-a'),
