@@ -54,9 +54,9 @@ final class DemoPortalStaticExporterTest extends TestCase
         foreach (['<form', '<script', '<button', 'http://', 'https://'] as $prohibited) {
             self::assertStringNotContainsString($prohibited, $review);
         }
-        self::assertFalse(\\App\\Presentation\\DemoCommercialDeliveryReview::isOperational());
-        self::assertFalse(\\App\\Presentation\\DemoCommercialDeliveryReview::canResend());
-        self::assertFalse(\\App\\Presentation\\DemoCommercialDeliveryReview::canConfirmCrmDelivery());
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::isOperational());
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::canResend());
+        self::assertFalse(\App\Presentation\DemoCommercialDeliveryReview::canConfirmCrmDelivery());
 
         foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $section) {
             self::assertContains($section . '.html', $pages);
