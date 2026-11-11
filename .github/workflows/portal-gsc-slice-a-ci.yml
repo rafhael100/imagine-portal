@@ -4,9 +4,9 @@ on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
-      - review/portal-gsc-integration-slice-a-2026-11-11
-      - review/portal-gsc-integration-slice-b-2026-11-11
-      - review/portal-gsc-integration-slice-c-2026-11-11
+      # All controlled stacked integration review branches. Exact scopes
+      # are still constrained independently by the changed-path allowlist.
+      - 'review/portal-gsc-integration-slice-*'
     paths:
       - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
       - 'apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php'
