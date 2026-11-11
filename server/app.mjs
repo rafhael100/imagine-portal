@@ -122,6 +122,12 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/account/security-events'&&method==='GET'){
+  // Security history is owner-only: never return audit actor/resource ids,
+  // IP addresses, session tokens, or unrecognized internal audit actions.
+  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others') ORDER BY id DESC LIMIT 10",user.id);
+  return send(res,200,{events});
+ }
  if(path==='/api/sessions/summary'&&method==='GET'){
   // Only aggregated counts for the authenticated current account. No
   // bearer tokens, raw session hashes, device IDs, IP addresses or other
