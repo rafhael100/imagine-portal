@@ -27,7 +27,7 @@ SELECT
   CASE
     WHEN state = 'unknown' THEN 'unknown_outcome'
     WHEN state = 'dispatching' THEN 'expired_dispatch_may_have_committed'
-    WHEN state = 'claimed' THEN 'unsent_attempt_limit_reached'
+    WHEN state = 'claimed' THEN 'claim_attempt_limit_reached'
   END::text AS review_reason,
   true::boolean AS requires_manual_review,
   false::boolean AS automatic_retry_allowed,
