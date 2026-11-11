@@ -1,4 +1,4 @@
-name: Portal F144 - Inventory of cumulative review diff (NO-GO)
+name: Portal F144 - Review-file and commit-level integration risk evidence (NO-GO)
 on:
   push:
     branches:
@@ -40,12 +40,17 @@ jobs:
           git rev-parse --verify refs/remotes/origin/dev/fast-track-portal-2026-11-05^{commit}
           test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
       - name: Test the review inventory tool on synthetic git-path fixtures
-        run: node --test apps/portal/tools/integration/inventory.test.mjs
+        run: node --test apps/portal/tools/integration/*.test.mjs
       - name: Generate exact full diff inventory and NO-GO summary
         env:
           PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-integration-inventory
         run: node apps/portal/tools/integration/inventory.mjs
+      - name: Inspect all candidate commit deltas and require reviewer attention for sensitive changes
+        env:
+          PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-integration-inventory
+        run: node apps/portal/tools/integration/commit-review.mjs
       - name: Archive metadata-only evidence, not source or secrets
         uses: actions/upload-artifact@v5
         with:
