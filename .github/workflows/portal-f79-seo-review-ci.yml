@@ -18,6 +18,7 @@ on:
       - 'apps/portal/labs/gsc-f152/**'
       - 'apps/portal/labs/gsc-f155/**'
       - 'apps/portal/labs/gsc-f156/**'
+      - 'apps/portal/labs/gsc-f157/**'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
       - 'apps/portal/tools/f142-render-gsc-overlap-offline.php'
       - 'apps/portal/tools/f137-render-gsc-offline.php'
@@ -88,6 +89,38 @@ jobs:
           for scenario in complete redacted partial empty; do
             node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
             php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+          done
+      - name: Verify SEO RC32 F67 privacy trends through Portal PHP and static HTML
+        if: matrix.php == '8.4' && matrix.node == '22'
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TRENDS_LAB: '1'
+          PORTAL_GSC_TREND_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs
+          php -l apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php
+          fixture="$(mktemp)"
+          html="$(mktemp)"
+          trap 'rm -f "$fixture" "$html"' EXIT
+          for scenario in complete redacted partial; do
+            node apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php "$fixture" "$scenario"
+            php apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$fixture" > "$html"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$html"
+            grep -q 'name="robots" content="noindex,nofollow"' "$html"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$html"; then
+              echo 'F157: unexpected executable/interactive HTML' >&2
+              exit 1
+            fi
+            if [[ "$scenario" == complete ]]; then
+              grep -q 'Investigar possível aumento da sobreposição editorial' "$html"
+            else
+              grep -q 'Amostra incompleta: tendências suprimidas' "$html"
+              grep -q 'Indisponível' "$html"
+            fi
           done
       - name: Check Node SEO F50 to Portal PHP F135 DTO parity
         if: matrix.php == '8.4' && matrix.node == '22'
