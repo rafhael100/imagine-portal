@@ -31,6 +31,10 @@ final readonly class PortalSessionSnapshot
         // Required Portal organization revision captured at session issue.
         // NULL legacy sessions are not eligible for synthetic authority.
         public int $sessionOrganizationRevision,
+        // Must come from a trusted Portal session row after F113.
+        // Invitation-only or legacy NULL purposes can never authorize
+        // business/GSC/review capabilities through this boundary.
+        public PortalSessionPurpose $sessionPurpose,
     ) {
         if ($issuedAt <= 0
             || $expiresAt <= $issuedAt
@@ -46,6 +50,9 @@ final readonly class PortalSessionSnapshot
     {
         return $this->active
             && $this->mfaVerified
+            && $this->sessionPurpose === PortalSessionPurpose::Business
+            // F113 PG business-session maximum lifetime is exactly 24h.
+            && ($this->expiresAt - $this->issuedAt) <= 86400
             && $now >= $this->issuedAt
             && $now < $this->expiresAt
             && $this->accountRevision === $this->sessionAccountRevision;
