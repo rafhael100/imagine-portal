@@ -19,7 +19,7 @@ async function loadClientAccount(){const box=document.querySelector('#account-co
   try{
    const {events}=await api('/api/account/security-events');
    if(!target.isConnected||state.tab!=='account')return;
-   const labels={'account.created':'Conta criada','password.changed':'Senha atualizada','sessions.revoked_others':'Outras sessões encerradas'};
+   const labels={'account.created':'Conta criada','password.changed':'Senha atualizada','sessions.revoked_others':'Outras sessões encerradas','account.email.changed':'E-mail de acesso alterado'};
    target.innerHTML=events.length?'<ul>'+events.map(e=>'<li>'+escapeHtml(labels[e.action]||'Evento de segurança')+' · '+escapeHtml(date(e.created_at))+'</li>').join('')+'</ul>':'Nenhuma alteração de segurança registrada.';
   }catch{if(target.isConnected)target.textContent='Histórico indisponível no momento.';}
  };
