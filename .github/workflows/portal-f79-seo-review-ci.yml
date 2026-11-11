@@ -7,6 +7,7 @@ on:
       - 'apps/portal/tools/f79-render-seo-review.php'
       - 'apps/portal/tests/Fixtures/seo-review-offline-v1.json'
       - 'apps/portal/tests/Unit/OfflineSeoHandoffPreviewTest.php'
+      - 'apps/portal/labs/gsc-f135/**'
       - 'apps/portal/tests/ui/test-f79-seo-review.mjs'
       - '.github/workflows/portal-f79-seo-review-ci.yml'
   workflow_dispatch:
@@ -45,10 +46,13 @@ jobs:
         run: |
           set -euo pipefail
           php -l apps/portal/app/Domain/SeoReview/OfflineSeoHandoffPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscWorkflowPreview.php
+          php -l apps/portal/labs/gsc-f135/test_dto_bridge.php
+          APP_ENV=testing PORTAL_GSC_WORKFLOW_LAB=1 php apps/portal/labs/gsc-f135/test_dto_bridge.php
           php -l apps/portal/tools/f79-render-seo-review.php
           node --check apps/portal/tests/ui/test-f79-seo-review.mjs
           node apps/portal/tests/ui/test-f79-seo-review.mjs
-          if grep -R -n -E 'OfflineSeoHandoffPreview|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
+          if grep -R -n -E 'OfflineSeoHandoffPreview|OfflineGscWorkflowPreview|PORTAL_GSC_WORKFLOW_LAB|PORTAL_F79_HTML_LAB|f79-render-seo-review' apps/portal/routes/ apps/portal/bootstrap/ apps/portal/app/Providers/; then
             echo 'F79 SEO review fixture is wired to an operational route' >&2
             exit 1
           fi
