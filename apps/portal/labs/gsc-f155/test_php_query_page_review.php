@@ -49,13 +49,22 @@ function portalGscF155SyntheticChecks(): void
         ['releaseStatus'=>'APPROVED'],
         ['scope'=>[...$dto['scope'],'tenantRef'=>'other-tenant']],
         ['summary'=>[...$dto['summary'],'receivedRows'=>4]],
-        ['pagination'=>[...$dto['pagination'],'pageSize'=>4]],
+        ['pagination'=>[...$dto['pagination'],'pageSize'=>1]],
         ['suggestedReviews'=>[]],
         ['rawQuery'=>'example@example.com']
     ] as $change){
         if(Review::fromDto([...$dto,...$change])!==null)
             throw new RuntimeException('F155 accepted forged field');
     }
+
+    // A different well-formed page size is structurally valid; only a
+    // separately authenticated backend request can bind its true size.
+    $alternative=$dto;
+    $alternative['pagination']['pageSize']=4;
+    $other=Review::fromDto($alternative);
+    if($other===null||$other->canPublish()||
+        $other->hasVerifiedTenantGrant())
+        throw new RuntimeException('F155 misclassified operator-declared pagination');
 
     $redacted=$dto;
     $redacted['summary']=[
