@@ -12,6 +12,14 @@
             :rows="\App\Presentation\DemoCommercialDeliveryReview::rows()"
         />
     </x-portal.panel>
+    <x-portal.panel title="Resumo do exemplo por motivo de revisão">
+        <p>Contagem calculada somente a partir das três amostras fictícias, após validação do modelo de metadados. Não representa a quantidade de envios, leads ou solicitações reais.</p>
+        <x-portal.table
+            caption="Contagem demonstrativa — somente registros fictícios"
+            :columns="['Motivo ilustrativo', 'Exemplos']"
+            :rows="\App\Presentation\DemoCommercialDeliveryReview::reasonSummaryRows()"
+        />
+    </x-portal.panel>
     <x-portal.panel title="Regras de decisão — bloqueadas nesta prévia">
         <ul>
             <li>Resultado desconhecido: não confirmar entrega nem repetir automaticamente.</li>
