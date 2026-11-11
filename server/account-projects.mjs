@@ -3,6 +3,11 @@
 import {publicProjectData} from './account-export.mjs';
 
 export const ACCOUNT_PROJECT_PAGE_SIZE=8;
+export const ACCOUNT_PROJECT_MAX_PAGE=1000;
+export function boundedProjectPages(total){
+ const requested=Math.max(1,Math.ceil(total/ACCOUNT_PROJECT_PAGE_SIZE));
+ return {pages:Math.min(requested,ACCOUNT_PROJECT_MAX_PAGE),limited:requested>ACCOUNT_PROJECT_MAX_PAGE};
+}
 const paid="('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')";
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 export function accountProjectsPage(db,user,{page='1',payment='all',search=''}={}){
@@ -26,7 +31,7 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search=''}={
  }
  const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE '+where.join(' AND ');
  const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
- const current=Number(page),pages=Math.max(1,Math.ceil(total/ACCOUNT_PROJECT_PAGE_SIZE));
+ const current=Number(page),{pages,limited}=boundedProjectPages(total);
  const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.payment_status,b.data,b.status '+from+
   ' ORDER BY o.created_at DESC,o.id DESC LIMIT ? OFFSET ?')
   .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
@@ -35,5 +40,5 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search=''}={
   data:['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)?
     publicProjectData(JSON.parse(row.data||'{}')):{},
  }));
- return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages};
+ return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages,limited};
 }
