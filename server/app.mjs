@@ -182,7 +182,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    search:url.searchParams.get('search')??'',
   }));
  }
- if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
+ if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));
  if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
  if(path==='/api/account/security-events'&&method==='GET'){
   // F189: bounded pagination for the authenticated account. The old response

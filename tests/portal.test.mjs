@@ -570,3 +570,27 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.equal(JSON.stringify(first.body).includes('NEVER_BRIEF_TOKEN'),false);
  assert.equal(JSON.stringify(first.body).includes('OTHER_PRIVATE_ORDER'),false);
 });
+
+test('F202: compact account view retains full project count and latest authorized paid briefing',async t=>{
+ const f=await fixture(t),owner=await f.client('Responsável'),foreign=await f.client('Outro cliente');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paid=randomUUID(),pending=randomUUID(),foreignId=randomUUID();
+ stmt.run(paid,owner.user.id,'Projeto pago','RECEIVED','2026-11-10','2026-11-10');
+ stmt.run(pending,owner.user.id,'Projeto mais recente','PENDING','2026-11-11','2026-11-11');
+ stmt.run(foreignId,foreign.user.id,'Projeto estrangeiro','RECEIVED','2026-11-12','2026-11-12');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(paid,JSON.stringify({company_name:'Minha marca',domain:'marca.test',internal_key:'PRIVATE_INTERNAL'}),'2026-11-10');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(foreignId,JSON.stringify({company_name:'Outra marca',domain:'another.test'}),'2026-11-12');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,2);
+ assert.equal(compact.body.projects.length,1);
+ assert.equal(compact.body.projects[0].id,paid);
+ assert.equal(compact.body.projects[0].data.company_name,'Minha marca');
+ assert.equal(compact.body.projects[0].data.internal_key,undefined);
+ const regular=await owner.call('/api/account');
+ assert.equal(regular.status,200);
+ assert.equal(regular.body.projects.length,2);
+ assert.equal(regular.body.projects_total,undefined);
+ assert.equal((await foreign.call('/api/account?compact=1')).body.projects_total,1);
+ assert.equal(JSON.stringify(compact.body).includes('Outra marca'),false);
+ assert.equal(JSON.stringify(compact.body).includes('PRIVATE_INTERNAL'),false);
+});
