@@ -17,3 +17,30 @@ export function projectsCsv(projects){
  ])];
  return '\uFEFF'+rows.map(row=>row.map(safeCsvCell).join(';')).join('\r\n')+'\r\n';
 }
+
+const PROFILE_FIELDS=['company','whatsapp','phone','website','version','updated_at'];
+const FISCAL_FIELDS=['legal_name','email','document','whatsapp','street','number','district','city','municipality','uf','zip','complement','version'];
+const PROJECT_FIELDS=['company_name','domain','email','whatsapp','phone','address','current_site','contact_site','company_intro','services','notes'];
+function pickFields(value,fields){
+ const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+ return Object.fromEntries(fields.filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));
+}
+// Fixed privacy contract: never spread whole DB rows or arbitrary material
+// keys into an export. Unknown fields (including future internal additions)
+// are excluded by default, regardless of what the account UI can render.
+export function accountDataExport(account,exportedAt=new Date().toISOString()){
+ if(!account||!Array.isArray(account.projects))throw new TypeError('Cadastro inválido.');
+ return {
+  schema_version:1,
+  exported_at:exportedAt,
+  scope:'cadastro_e_projetos',
+  user:pickFields(account.user,['name','email']),
+  created_at:account.created_at,
+  profile:pickFields(account.profile,PROFILE_FIELDS),
+  fiscal:pickFields(account.fiscal,FISCAL_FIELDS),
+  projects:account.projects.map(p=>({
+   ...pickFields(p,['id','title','created_at','payment_status','status']),
+   data:pickFields(p.data,PROJECT_FIELDS),
+  })),
+ };
+}
