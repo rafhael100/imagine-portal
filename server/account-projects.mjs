@@ -1,0 +1,39 @@
+// Bounded, read-only projects listing for the currently authenticated
+// customer. SQL always includes the owner ID; no client-provided tenant key.
+import {publicProjectData} from './account-export.mjs';
+
+export const ACCOUNT_PROJECT_PAGE_SIZE=8;
+const paid="('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')";
+const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
+export function accountProjectsPage(db,user,{page='1',payment='all',search=''}={}){
+ if(user?.role!=='client'||user.staff_profile||!user.id)fail(403,'Arquivo de projetos exclusivo do cliente.');
+ if(typeof page!=='string'||!/^[1-9][0-9]{0,3}$/.test(page)||Number(page)>1000)fail(400,'Página de projetos inválida.');
+ if(!['all','paid','other'].includes(payment))fail(400,'Filtro de pagamento inválido.');
+ if(typeof search!=='string'||search.length>120)fail(400,'Busca de projetos inválida.');
+ const term=search.trim();
+ const where=['o.user_id=?'],params=[user.id];
+ if(payment==='paid')where.push(`o.payment_status IN ${paid}`);
+ else if(payment==='other')where.push(`o.payment_status NOT IN ${paid}`);
+ if(term){
+  // INSTR treats user input as literal text, not LIKE wildcards.
+  // Briefing lookup is limited to paid/confirmed orders.
+  const safeField=field=>`CASE WHEN json_valid(b.data) THEN json_extract(b.data,'$.${field}') ELSE '' END`;
+  where.push(`(instr(lower(o.title),lower(?))>0 OR instr(lower(o.id),lower(?))>0 OR
+   (o.payment_status IN ${paid} AND
+    (instr(lower(${safeField('company_name')}),lower(?))>0 OR
+     instr(lower(${safeField('domain')}),lower(?))>0)))`);
+  params.push(term,term,term,term);
+ }
+ const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE '+where.join(' AND ');
+ const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
+ const current=Number(page),pages=Math.max(1,Math.ceil(total/ACCOUNT_PROJECT_PAGE_SIZE));
+ const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.payment_status,b.data,b.status '+from+
+  ' ORDER BY o.created_at DESC,o.id DESC LIMIT ? OFFSET ?')
+  .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
+ const projects=rows.map(row=>({
+  id:row.id,title:row.title,created_at:row.created_at,payment_status:row.payment_status,status:row.status,
+  data:['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)?
+    publicProjectData(JSON.parse(row.data||'{}')):{},
+ }));
+ return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages};
+}

@@ -516,3 +516,57 @@ test('F200: account and fiscal APIs whitelist persisted profile, fiscal and paid
  for(const secret of ['PROFILE_PRIVATE_SECRET','PROFILE_NESTED_SECRET','FISCAL_PRIVATE_SECRET','FISCAL_NESTED_SECRET','BRIEF_PRIVATE_SECRET','BRIEF_NESTED_SECRET','ARRAY_NOT_FOR_CLIENT'])
   assert.equal(blob.includes(secret),false,secret);
 });
+
+test('F201: bounded own-project endpoint paginates, filters and conceals unpaid materials',async t=>{
+ const f=await fixture(t),owner=await f.client('Arquivo do cliente'),other=await f.client('Outro cliente');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paidNames=new Set([3,6,9,12,15,18,21]);
+ const ids=[];
+ for(let i=1;i<=21;i++){
+  const id=randomUUID(),when='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  ids.push(id);
+  insert.run(id,owner.user.id,'Site '+String(i).padStart(2,'0'),paidNames.has(i)?'RECEIVED':'PENDING',when,when);
+  if(i===21||i===19){
+   f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)')
+    .run(id,JSON.stringify({company_name:'Empresa SECRETA'+i,domain:'dominio-'+i+'.test',internal_token:'NEVER_BRIEF_TOKEN'}),when);
+  }
+ }
+ const otherId=randomUUID();
+ insert.run(otherId,other.user.id,'OTHER_PRIVATE_ORDER','PENDING','2026-11-12','2026-11-12');
+ const first=await owner.call('/api/account/projects');
+ assert.equal(first.status,200);assert.equal(first.body.total,21);assert.equal(first.body.pages,3);
+ assert.equal(first.body.page_size,8);assert.equal(first.body.projects.length,8);
+ assert.equal(first.body.projects[0].title,'Site 21');assert.equal(first.body.has_more,true);
+ assert.equal(first.body.projects[0].data.company_name,'Empresa SECRETA21');
+ assert.equal(first.body.projects[0].data.internal_token,undefined);
+ assert.equal(first.body.projects[2].title,'Site 19');
+ assert.deepEqual(first.body.projects[2].data,{});
+ const third=await owner.call('/api/account/projects?page=3');
+ assert.equal(third.status,200);assert.equal(third.body.projects.length,5);assert.equal(third.body.has_more,false);
+ const paid=await owner.call('/api/account/projects?payment=paid');
+ assert.equal(paid.body.total,7);
+ assert.ok(paid.body.projects.every(p=>p.payment_status==='RECEIVED'));
+ const pending=await owner.call('/api/account/projects?payment=other');
+ assert.equal(pending.body.total,14);
+ assert.ok(pending.body.projects.every(p=>p.payment_status==='PENDING'));
+ const name=await owner.call('/api/account/projects?search=site%2021');
+ assert.equal(name.body.total,1);assert.equal(name.body.projects[0].id,ids[20]);
+ const domain=await owner.call('/api/account/projects?search=dominio-21.test');
+ assert.equal(domain.body.total,1);
+ const hidden=await owner.call('/api/account/projects?search=SECRETA19');
+ assert.equal(hidden.body.total,0);
+ const wildcard=await owner.call('/api/account/projects?search=%25');
+ assert.equal(wildcard.body.total,0);
+ const otherPage=await other.call('/api/account/projects');
+ assert.equal(otherPage.body.total,1);assert.equal(otherPage.body.projects[0].id,otherId);
+ const empty=await owner.call('/api/account/projects?page=4');
+ assert.equal(empty.body.total,21);assert.equal(empty.body.projects.length,0);
+ for(const params of ['page=0','page=1001','page=-1','page=01','page=x','payment=alll','search='+('x'.repeat(121))]){
+  assert.equal((await owner.call('/api/account/projects?'+params)).status,400,params);
+ }
+ assert.equal((await fetch(f.url+'/api/account/projects')).status,401);
+ const staff=await f.client('Colaborador','admin');
+ assert.equal((await staff.call('/api/account/projects')).status,403);
+ assert.equal(JSON.stringify(first.body).includes('NEVER_BRIEF_TOKEN'),false);
+ assert.equal(JSON.stringify(first.body).includes('OTHER_PRIVATE_ORDER'),false);
+});
