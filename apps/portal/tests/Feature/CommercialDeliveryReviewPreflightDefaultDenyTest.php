@@ -18,6 +18,7 @@ use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalOrganizationSnapshot;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionSnapshot;
+use App\Domain\PortalAccess\Authority\PortalSessionPurpose;
 use Tests\TestCase;
 
 final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
@@ -37,12 +38,14 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
         bool $organizationActive = true,
         int $organizationRevision = 1,
         string $organizationStateTenant = 'org-a',
+        PortalSessionPurpose $purpose = PortalSessionPurpose::Business,
     ): CommercialDeliveryReviewPreflight {
         $session = new PortalSessionSnapshot(
             new PortalUserId('actor-a'),$active,$mfa,1000,2000,7,7,
             new OrganizationId($sessionOrg),
             $sessionMembershipRevision,
             $sessionOrganizationRevision,
+            $purpose,
         );
         $membership = new OrganizationMembership(
             new PortalUserId('actor-a'),
@@ -152,6 +155,8 @@ final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
                 organizationStateTenant:'org-b'),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],
                 sessionOrganizationRevision:2),
+            $this->synthetic([Permission::ViewCommercialDeliveryReview],
+                purpose:PortalSessionPurpose::InvitationOnly),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],mfa:false),
             $this->synthetic([Permission::ViewCommercialDeliveryReview],active:false),
         ] as $preflight) {
