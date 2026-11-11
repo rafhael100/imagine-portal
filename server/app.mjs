@@ -20,6 +20,7 @@ import {join,resolve,extname} from 'node:path';
 import {token,digest,equal,hashPassword,verifyPassword,cleanText,validEmail,validDocument,safeAsaasUrl,publicUser} from './security.mjs';
 import {now,audit} from './store.mjs';
 export const MAINTENANCE_CENTS=3990;
+export const MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8;
 export function addDays(date,days){const value=new Date(date);value.setUTCDate(value.getUTCDate()+days);return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value)}
 const settled=new Set(['RECEIVED','CONFIRMED','RECEIVED_IN_CASH']);
 const phases=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
@@ -36,7 +37,23 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
  function limit(key,max=20,window=900000){const row=q('SELECT * FROM rate_limits WHERE key=?',key),time=Date.now();if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);else{assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');run('UPDATE rate_limits SET count=count+1 WHERE key=?',key)}}
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
- function session(res,user){const raw=token(),csrf=token();run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,Date.now()+12*3600000);res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);return {user:publicUser(team.decorate(user)),csrf}}
+ function session(res,user){
+  const raw=token(),csrf=token(),time=Date.now(),expiresAt=time+12*3600000;
+  // Keep the SQLite legacy Portal bounded until the independent Portal
+  // PostgreSQL session issuer is reviewed. Every mutation is atomic, so a
+  // failed insert cannot revoke valid logins or expose an unusable cookie.
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   run('DELETE FROM sessions WHERE expires_at<=?',time);
+   // Reserve one slot for the freshly issued credential. Existing sessions
+   // are ranked per user, never globally; another customer's token is safe.
+   run('DELETE FROM sessions WHERE user_id=? AND hash IN (SELECT hash FROM sessions WHERE user_id=? ORDER BY expires_at DESC,hash DESC LIMIT -1 OFFSET ?)',user.id,user.id,MAX_ACTIVE_SESSIONS_PER_ACCOUNT-1);
+   run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,expiresAt);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);
+  return {user:publicUser(team.decorate(user)),csrf};
+ }
  function own(id,user){const order=q('SELECT * FROM orders WHERE id=?',id);assert(order&&team.canOrder(user,id)&&(user.role==='admin'||order.user_id===user.id),404,'Pedido não encontrado.');return order}
  function viewOrder(order,user){const result=orderView(order,user);result.complaints=orderOps.complaints(order.id);if(user.staff_profile&&user.staff_profile!=='financeiro'){result.payments=[];result.price_cents=null;result.invoice_url=null;result.maintenance=null;result.subscription_action=null;result.billing_terms=null;result.billing_schedule=[];result.billing_card=null;result.scope='Consulte a administração para condições comerciais.';}return result;}
  function orderView(order,user){return {...order,billing_terms:recurring.terms(order),billing_schedule:order.billing_model===RECURRING_MODEL?recurring.publicState(order.id).schedule:[],billing_card:recurring.cardSummary(order.id),subscription_action:subscriptionGuidance(order,q('SELECT * FROM maintenance WHERE order_id=?',order.id),list('SELECT * FROM payments WHERE order_id=?',order.id),{billingReady:recurring.enabled(),now:clock(),alerts:recurring.publicState(order.id).alerts,processing:!!q("SELECT id FROM billing_operations WHERE order_id=? AND state IN ('processing','uncertain')",order.id)}),production:order.product_id==='site'?productionFlow.view(order.id):null,customer_id:undefined,briefing_summary:order.product_id==='site'?briefings.summary(order.id,user.staff_profile!=='financeiro'&&(user.role==='admin'||settled.has(order.payment_status))):null,maintenance:q('SELECT order_id,checkout_url,subscription_id,status,first_due,next_due,cancel_requested_at,canceled_at FROM maintenance WHERE order_id=?',order.id)||null,messages:list('SELECT m.id,m.body,m.created_at,u.name,u.role FROM messages m JOIN users u ON u.id=m.user_id WHERE m.order_id=? ORDER BY m.id',order.id),payments:list('SELECT * FROM payments WHERE order_id=? ORDER BY due_date DESC',order.id),client:user.role==='admin'?q('SELECT name,email FROM users WHERE id=?',order.user_id):undefined}}
