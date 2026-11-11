@@ -28,5 +28,11 @@ jobs:
       # Dependências fixadas; provedores de pagamento, fiscal e e-mail são simulados nos testes.
       - name: Instalar dependências
         run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+      - name: Conferir sintaxe do Portal cliente, equipe e servidor
+        run: |
+          node --check account-ui.js
+          node --check portal.js
+          node --check server/app.mjs
+          node --check server/account-export.mjs
       - name: Testar aplicação sem credenciais ou cobranças reais
         run: npm test
