@@ -29,8 +29,11 @@ try{
 }
 $number=static fn(int $value): string=>number_format($value,0,',','.');
 $rows=$number($report->summary['receivedRows']);
-$queries=$number($report->summary['distinctQueries']);
-$overlap=$number($report->summary['queriesOnMultiplePages']);
+// F74 suppresses review suggestions for redaction/partial coverage. The
+// static demo must also suppress query/overlap indicators in those cases.
+$suppliedBatchOnly=$report->coverageStatus==='SUPPLIED_BATCH_ONLY_UNVERIFIED';
+$queries=$suppliedBatchOnly?$number($report->summary['distinctQueries']):'Indisponível';
+$overlap=$suppliedBatchOnly?$number($report->summary['queriesOnMultiplePages']):'Indisponível';
 $redacted=$number($report->summary['redactedRows']);
 $status=match($report->coverageStatus){
     'REDACTED_ROWS_NO_SIGNALS'=>'Linhas privadas ocultadas: sugestões desativadas',
