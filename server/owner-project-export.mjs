@@ -56,6 +56,29 @@ export function *iterateOwnerExportProjects(db,user){
  }
 }
 
+// F244: ServerResponse.end() only marks writableEnded; buffered data may still
+// be flushing. Hold the export lease until finish or disconnect, and keep the
+// transport error handler alive throughout this final phase.
+async function finishExportResponse(res){
+ // Lightweight EventEmitter test doubles have no Writable completion contract.
+ // Actual Node HTTP ServerResponse instances expose writableFinished.
+ if(typeof res.writableFinished!=='boolean'){res.end();return;}
+ await new Promise((resolve,reject)=>{
+  const cleanup=()=>{
+   res.off('finish',onFinish);res.off('close',onClose);res.off('error',onError);
+  };
+  const onFinish=()=>{cleanup();resolve();};
+  const onClose=()=>{cleanup();resolve();};
+  const onError=error=>{cleanup();reject(error);};
+  res.once('finish',onFinish);res.once('close',onClose);res.once('error',onError);
+  try{
+   res.end();
+   if(res.writableFinished)onFinish();
+   else if(res.destroyed)onClose();
+  }catch(error){cleanup();reject(error);}
+ });
+}
+
 // Respect Writable backpressure and disconnects, without accumulating
 // unbounded response buffers for accounts with thousands of projects.
 export async function writeExportChunks(res,chunks){
@@ -91,7 +114,7 @@ export async function writeExportChunks(res,chunks){
    }
   }
   if(!disconnected&&!res.destroyed&&!res.writableEnded){
-   res.end();
+   await finishExportResponse(res);
    if(responseError)throw responseError;
   }
  }catch(error){
@@ -114,7 +137,9 @@ export async function writeOwnerExportWithinLease(res,chunks,maxMs=OWNER_EXPORT_
   throw new RangeError('Prazo máximo da exportação inválido.');
  const timer=setTimeout(()=>{
   // ServerResponse.destroy() triggers close, releasing the streaming cursor.
-  if(!res.destroyed&&!res.writableEnded&&typeof res.destroy==='function')res.destroy();
+  // writableEnded means end() was called, NOT that pending bytes flushed.
+  // Close a transport still awaiting finish before its lease can expire.
+  if(!res.destroyed&&res.writableFinished!==true&&typeof res.destroy==='function')res.destroy();
  },maxMs);
  try{return await writeExportChunks(res,chunks);}
  finally{clearTimeout(timer);}
