@@ -1,0 +1,147 @@
+name: Portal INT-F163 - Immutable session issuance and terminal revocation PostgreSQL18
+on:
+  push:
+    branches:
+      - review/portal-int-f163-session-identity-immutability-pg18-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f162-postgres-purpose-eloquent-parity-2026-11-11
+    paths:
+      - 'apps/portal/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php'
+      - 'apps/portal/labs/identity-f163/**'
+      - 'apps/portal/docs/PORTAL-INT-F163-SESSION-ISSUANCE-IMMUTABILITY.md'
+      - '.github/workflows/portal-int-f163-session-immutability-pg18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-session-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f163-review-admin-only
+          POSTGRES_DB: portal_f163_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_f163_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F163_PG_LAB: NON_OPERATIONAL_F163
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_f163_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f163-review-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_f163_lab
+      PGUSER: postgres
+      PGPASSWORD: f163-review-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout review branch without credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Validate PHP and Composer locked dependencies
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_11_000014_guard_portal_session_issuance.php
+          php -l labs/identity-f163/test_pg_session_issuance_immutability.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          git diff --exit-code -- composer.lock
+      - name: Migrate Portal session schema and F163 only in disposable PG18
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f113_session_purpose_immutable','portal_f163_session_issuance_guard') AND NOT tgisinternal" | grep -xq 2
+          psql -X -A -t -c "SELECT count(*) FROM pg_proc WHERE proname='portal_f163_guard_session_issuance' AND prosecdef" | grep -xq 0
+          psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'portal_%'" | grep -xq 0
+      - name: Exercise immutable issuance, MFA and terminal revocation against real SQL
+        run: |
+          set -euo pipefail
+          php labs/identity-f163/test_pg_session_issuance_immutability.php
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_auth_sessions" | grep -xq 2
+      - name: Prove security rollback blocked with synthetic sessions
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction; then
+            echo 'SECURITY FAIL: immutable issuance guard removed while sessions exist' >&2
+            exit 1
+          fi
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname='portal_f163_session_issuance_guard' AND NOT tgisinternal" | grep -xq 1
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_11_000014_guard_portal_session_issuance'" | grep -xq 1
+      - name: Confirm non-bypass SQL reader remains default-deny despite GRANT
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE portal_f163_reader NOLOGIN NOBYPASSRLS;
+          GRANT USAGE ON SCHEMA public TO portal_f163_reader;
+          GRANT SELECT ON public.portal_auth_sessions TO portal_f163_reader;
+          SET ROLE portal_f163_reader;
+          DO $f163$
+          BEGIN
+            IF (SELECT count(*) FROM public.portal_auth_sessions) <> 0 THEN
+              RAISE EXCEPTION 'F163 RLS bypass under untrusted SQL reader';
+            END IF;
+          END;
+          $f163$;
+          RESET ROLE;
+          DROP OWNED BY portal_f163_reader;
+          DROP ROLE portal_f163_reader;
+          SQL
+      - name: Explicit disposable fixture cleanup and ordered rollback
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_auth_sessions;
+          DELETE FROM public.portal_membership_grants;
+          DELETE FROM public.portal_memberships;
+          DELETE FROM public.portal_identities;
+          DELETE FROM public.portal_organizations;
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
