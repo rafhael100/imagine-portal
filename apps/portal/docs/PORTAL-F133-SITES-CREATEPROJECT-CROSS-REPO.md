@@ -7,3 +7,7 @@ O teste executa a classe `SiteEngineSchemaDriftGate` do **Portal atual**, e conf
 A CI executa com PHP 8.3/8.4 e ambos os checkouts de revisão em SHA; não cria API, sessão, credenciais, servidor, compra ou acesso de cliente.
 
 **Limite:** bytes e versões iguais não comprovam autenticação, consentimento, propriedade de tenant, assinatura de mensagens ou emissão autorizada. A migração para uma integração operável depende de fontes confiáveis, revisão independente AppSec/DBA, homologação da VPS e gate operacional de ambos os projetos. Não altera `main`, deploy ou DNS.
+
+## Compatibilidade do handoff Sites → Portal
+
+A mesma rodada verifica os contratos reais `review-handoff-epoch-envelope.schema.json`, `review-handoff-envelope.schema.json` e `project-authorization-snapshot.candidate.schema.json`, todos por SHA Git blob fixo. O envelope v2 precisa manter exatamente os nove campos `SiteEngineContractVocabulary::reviewProposalV2Keys()`, emissor `imagine-sites`, destinatário `imagine-portal` e versão tipada. O conteúdo do review v1 ainda exige `portalAuthorityRequired=true`, `officialClientAcceptance=false` e `publishable=false`, enquanto o snapshot de autorização só admite `eligible`, `suspended`, `revoked` e deve ficar vinculado ao comando CreateProject. Nenhum desses valores é um atestado operacional.
