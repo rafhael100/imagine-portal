@@ -1,0 +1,62 @@
+name: Portal F133 - Real Imagine Sites CreateProject schema parity
+on:
+  push:
+    branches:
+      - review/portal-f133-sites-create-project-crossrepo-gate-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SiteIntake/**'
+      - 'apps/portal/labs/sites-intake-f55/**'
+      - 'apps/portal/labs/sites-intake-f133/**'
+      - '.github/workflows/portal-f133-sites-cross-repo-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  create-project-cross-repo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F133_SITES_CROSS_REPO_LAB: '1'
+    steps:
+      - name: Checkout current Portal candidate
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Checkout immutable Sites contract source
+        uses: actions/checkout@v5
+        with:
+          repository: rafhael100/imagine-sites
+          ref: ed6cf956fb62c3b9496fcd026afd0c1fa66adf61
+          path: sites-source
+          persist-credentials: false
+      - name: Pin both repos and prevent test imports into runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C sites-source rev-parse HEAD)" = ed6cf956fb62c3b9496fcd026afd0c1fa66adf61
+          test -f sites-source/contracts/portal-sites/v1/create-project.schema.json
+          test -f apps/portal/labs/sites-intake-f55/create-project.schema.snapshot.json
+          if grep -R -E 'sites-intake-f133|sites-source|PORTAL_F133_SITES_CROSS_REPO_LAB' \
+              apps/portal/app apps/portal/routes apps/portal/bootstrap 2>/dev/null; then
+            echo 'F133 cross-repo fixtures must not be imported by Laravel runtime' >&2
+            exit 1
+          fi
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Verify exact Git blob, product enum, drift denial, missing schema denial
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/sites-intake-f133/test_live_repo_schema_parity.php
+          php apps/portal/labs/sites-intake-f133/test_live_repo_schema_parity.php
