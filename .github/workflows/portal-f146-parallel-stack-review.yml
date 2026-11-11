@@ -1,0 +1,57 @@
+name: Portal F146 - Parallel Portal and SEO stack conflict review (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-f146-parallel-stack-conflict-review-2026-11-11
+  pull_request:
+    paths:
+      - 'apps/portal/tools/integration/parallel-stacks*'
+      - '.github/workflows/portal-f146-parallel-stack-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parallel-stack-review:
+    name: Read-only merge-tree and overlap assessment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact current Portal candidate SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch a public SEO/GSC review reference without credentials
+        shell: bash
+        env:
+          PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
+          git fetch --no-tags origin \
+            refs/heads/review/portal-gsc-f142-overlap-static-panel-2026-11-11:refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+          git cat-file -e 500c7cbd2379a1869a52a8ad3133af5c62de830a^{commit}
+          git merge-base --is-ancestor 500c7cbd2379a1869a52a8ad3133af5c62de830a \
+            refs/remotes/origin/review/portal-gsc-f142-overlap-static-panel-2026-11-11
+      - name: Node 24 and read-only reviewer tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test pure graph and merge classification
+        run: node --test apps/portal/tools/integration/parallel-stacks.test.mjs
+      - name: Run Git merge-tree without creating a commit or modifying working files
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-parallel-stack-review
+        run: node apps/portal/tools/integration/parallel-stacks.mjs
+      - name: Archive metadata-only report
+        uses: actions/upload-artifact@v5
+        with:
+          name: portal-f146-parallel-stack-review
+          path: ${{ runner.temp }}/portal-parallel-stack-review/
+          if-no-files-found: error
+          retention-days: 3
