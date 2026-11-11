@@ -94,7 +94,11 @@ jobs:
       - name: Verify actual PostgreSQL records hydrate strict enum with no issuer capabilities
         run: |
           set -euo pipefail
-          php artisan test --no-ansi --filter=PortalTypedSessionPg18Test
+          # Default phpunit.xml intentionally excludes Integration and
+          # forcibly sets a disconnected DB_DATABASE. Run this one file
+          # with the disposable PG18 CI env instead of reporting zero tests.
+          ./vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php tests/Integration/PortalTypedSessionPg18Test.php --no-coverage --colors=never | tee /tmp/portal-f162-pg18-test.log
+          grep -Eq 'OK \\(1 test, [1-9][0-9]* assertions\\)' /tmp/portal-f162-pg18-test.log
           psql -X -A -t -c "SELECT count(*) FROM public.portal_auth_sessions" | grep -xq 0
           psql -X -A -t -c "SELECT count(*) FROM public.portal_memberships" | grep -xq 0
           test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true); echo count($r);')" -eq 1
