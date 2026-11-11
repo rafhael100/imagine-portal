@@ -8,7 +8,7 @@ const source=await readFile(fileURLToPath(new URL('../account-ui.js',import.meta
 const context={
  escapeHtml:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 };
-runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel,accountProjectPhaseLabel};',context);
+runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel,accountProjectPhaseLabel,accountProductionLabel};',context);
 const {filteredAccountProjects:filter,accountProjectCards:cards}=context.projectTestApi;
 
 function projects(n=21){
@@ -89,4 +89,17 @@ test('F213: project phase and sort are recognized and safe labels are translated
  const rows=[{id:'z',title:'Mais novo',phase:'entregue',created_at:'2026-11-11',payment_status:'RECEIVED',data:{}},{id:'a',title:'Mais antigo',phase:'solicitado',created_at:'2026-11-01',payment_status:'RECEIVED',data:{}}];
  assert.equal(filter(rows,'','all',1,'entregue').count,1);
  assert.equal(filter(rows,'','all',1,'all','oldest').items[0].id,'a');
+});
+
+test('F218: site production badge uses approved labels and sanitized progress only',()=>{
+ const label=context.projectTestApi.accountProductionLabel;
+ assert.equal(label('production'),'Em produção');
+ assert.equal(label('review'),'Aguardando revisão');
+ assert.equal(label('published'),'Publicado');
+ assert.equal(label('<script>'),'Acompanhamento indisponível');
+ const html=cards([{id:'owned',title:'Site',phase:'desenvolvimento',payment_status:'RECEIVED',
+  data:{company_name:'Empresa'},production:{stage:'production',progress:65,due_date:'2026-11-30'}}]);
+ assert.ok(html.includes('value="65" max="100"'));
+ assert.ok(html.includes('Em produção'));
+ assert.ok(html.includes('2026-11-30'));
 });

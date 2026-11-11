@@ -582,6 +582,14 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.equal(hidden.body.total,0);
  const wildcard=await owner.call('/api/account/projects?search=%25');
  assert.equal(wildcard.body.total,0);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,preview_url,updated_at) VALUES(?,'production',65,'2026-11-30','https://secret.example.internal/preview','2026-11-11')").run(ids[20]);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,updated_at) VALUES(?,'published',100,'2026-11-20','2026-11-11')").run(otherId);
+ const production=await owner.call('/api/account/projects?phase=entregue');
+ assert.deepEqual(production.body.projects[0].production,{stage:'production',progress:65,due_date:'2026-11-30'});
+ assert.ok(!JSON.stringify(production.body).includes('secret.example.internal'));
+ assert.equal(production.body.projects[0].product_id,undefined);
+ const unpaidProject=await owner.call('/api/account/projects?search=site%2019');
+ assert.equal(unpaidProject.body.projects[0].production,null);
  const otherPage=await other.call('/api/account/projects');
  assert.equal(otherPage.body.total,1);assert.equal(otherPage.body.projects[0].id,otherId);
  const empty=await owner.call('/api/account/projects?page=4');

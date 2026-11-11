@@ -113,3 +113,7 @@ A consulta compacta retorna `project_summary`, com contagem de projetos nas etap
 ## Planilha com etapas opcionais (F216)
 
 O contrato legado `GET /api/account/projects.csv` mantém seis colunas. A interface de cliente passa a baixar `GET /api/account/projects.csv?columns=stage`, que acrescenta a coluna final **Etapa do projeto**. A exportação JSON inclui o campo opcional `phase` por projeto, preservando a versão de contrato legada; os dados continuam isolados por titular e protegidos contra fórmulas CSV.
+
+## Acompanhamento da produção de sites (F218)
+
+Nos projetos do tipo **site** com pagamento confirmado, a API paginada apresenta apenas `production.stage`, `production.progress` (0–100) e a data prevista `production.due_date`. A consulta é filtrada pelo titular; projetos não pagos, projetos sem registro de produção e produtos diferentes de site não recebem dados de produção. A interface apresenta etapa legível, progresso e previsão, sem expor URL de prévia privada, identificadores de equipe ou comentários internos. O acompanhamento não constitui promessa contratual nem libera a publicação.

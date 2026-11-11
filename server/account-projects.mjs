@@ -33,17 +33,23 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
      instr(imagine_fold(${safeField('domain')}),imagine_fold(?))>0)))`);
   params.push(term,term,term,term);
  }
- const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE '+where.join(' AND ');
+ const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id LEFT JOIN productions pr ON pr.order_id=o.id WHERE '+where.join(' AND ');
  const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
  const current=Number(page),{pages,limited}=boundedProjectPages(total);
  const direction=sort==='oldest'?'ASC':'DESC';
- const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,b.data,b.status '+from+
+ const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,b.data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date '+from+
   ` ORDER BY o.created_at ${direction},o.id ${direction} LIMIT ? OFFSET ?`)
   .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
  const projects=rows.map(row=>({
   id:row.id,title:row.title,created_at:row.created_at,phase:row.phase,payment_status:row.payment_status,status:row.status,
   data:['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)?
     publicProjectData(JSON.parse(row.data||'{}')):{},
+  production:row.product_id==='site'&&['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)&&
+   ['preparation','production','changes','review','approved','published'].includes(row.production_stage)?{
+    stage:row.production_stage,
+    progress:Number.isSafeInteger(row.production_progress)?Math.max(0,Math.min(100,row.production_progress)):0,
+    due_date:typeof row.production_due_date==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(row.production_due_date)?row.production_due_date:null,
+   }:null,
  }));
  return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages,limited};
 }
