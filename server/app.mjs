@@ -1,5 +1,5 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
-import {projectsCsv,projectsCsvChunks,accountDataExport} from './account-export.mjs';
+import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
 import {iterateOwnerExportProjects,writeExportChunks} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
@@ -174,10 +174,13 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // other tenants' projects through this endpoint.
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
   limit('account-export:'+user.id,20,3600000);
-  const data=accountDataExport(accountProfile.view(user));
+  const compact=accountProfile.view(user,{compact:true});
+  const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
+  res.setHeader('Content-Type','application/json; charset=utf-8');
   audit(db,user.id,'account.data_exported',user.id);
-  return send(res,200,data);
+  res.writeHead(200);
+  return writeExportChunks(res,chunks);
  }
  if(path==='/api/account/projects'&&method==='GET'){
   limit('account-projects:'+user.id,120,60000);

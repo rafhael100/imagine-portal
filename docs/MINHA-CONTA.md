@@ -145,3 +145,7 @@ Quando um site estiver comprovadamente em etapa de **publicação** e ainda esti
 ### Exportação CSV sem carregar o arquivo inteiro (F229)
 
 A exportação CSV do titular agora usa um cursor SQLite e gera uma linha por vez, mantendo o mesmo contrato de campos, BOM UTF-8, separadores e proteção contra fórmulas. O envio HTTP respeita backpressure, desconexões e o limite compartilhado de exportações. A consulta obriga `WHERE o.user_id=?` e só inclui dados permitidos em pedidos pagos. O endpoint JSON permanece integral até a conclusão de sua migração específica.
+
+### JSON incremental da própria conta (F230)
+
+A mesma consulta restrita por titular e o mesmo controle de dados autorizados da exportação CSV alimentam agora o download JSON. O documento preserva `schema_version: 1`, `scope: cadastro_e_projetos`, perfil, fiscal e lista integral de projetos, mas é escrito em fragmentos sem manter a lista de todos os projetos na memória. A operação continua autenticada, limitada por quota e auditada.
