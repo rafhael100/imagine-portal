@@ -1,0 +1,105 @@
+name: Portal F118 - Atomic prior-session retirement PG18
+on:
+  push:
+    branches:
+      - review/portal-f118-revoke-all-preactivation-sessions-2026-11-10
+  pull_request:
+    paths:
+      - 'apps/portal/labs/identity-f118/**'
+      - 'apps/portal/labs/identity-f117/**'
+      - '.github/workflows/portal-f118-full-session-retirement-ci.yml'
+permissions:
+  contents: read
+jobs:
+  retire-every-prior-session:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f118-db-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f118-db-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f118-db-only
+      F66_PG_ADMIN_PASSWORD: ci-f118-db-only
+      F76_PG_READER_PASSWORD: ci-f76-reader-only
+      F117_PG_PROBE_PASSWORD: ci-f117-probe-only
+      F118_PG_PROBE_PASSWORD: ci-f118-probe-only
+      PORTAL_F117_PG_LAB: '1'
+      PORTAL_F118_PG_LAB: '1'
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Locked PHP, syntax and deny-by-default regression
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l labs/identity-f118/test_pg_full_session_retirement.php
+          php artisan test --no-ansi --filter=PortalInvitationPreflight
+      - name: Run F117 then F118 in disposable PostgreSQL 18
+        run: |
+          set -euo pipefail
+          for p in 2026_11_09_000002_create_portal_identity_foundation 2026_11_10_000004_add_org_revision_to_portal_sessions 2026_11_10_000008_add_session_purpose_to_portal_auth_sessions 2026_11_10_000007_create_portal_access_invitations 2026_11_10_000006_create_portal_security_event_log; do
+            php artisan migrate --path="database/migrations/$p.php" --force --no-interaction
+          done
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE portal_f76_reader LOGIN PASSWORD 'ci-f76-reader-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE portal_identity_lab TO portal_f76_reader"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO portal_f76_reader"
+          for f in identity-f76/permission_gate identity-f112/verified_portal_session_evidence identity-f113/purpose_isolation_gate identity-f106/atomic_invitation_claim identity-f107/atomic_invitation_audit identity-f108/locked_invitation_claim identity-f117/atomic_membership_activation; do
+            psql -X -v ON_ERROR_STOP=1 -f "labs/$f.sql"
+          done
+          php labs/identity-f117/test_pg_atomic_membership_activation.php
+          psql -X -v ON_ERROR_STOP=1 -f labs/identity-f118/retire_all_pre_activation_sessions.sql
+          php labs/identity-f118/test_pg_full_session_retirement.php
+          test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true);echo count($r);')" -eq 1
+          ! grep -R -E 'portal_f118_accept_and_retire_all|PORTAL_F118_PG_LAB' routes/ bootstrap/ app/Providers/ public/
+      - name: Drop all disposable objects
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA public CASCADE"
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE SCHEMA public AUTHORIZATION postgres"
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" -eq 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
