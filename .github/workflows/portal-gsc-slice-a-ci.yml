@@ -1,0 +1,106 @@
+name: Portal GSC Slice A - isolated offline integration
+
+on:
+  pull_request:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+    paths:
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
+      - 'apps/portal/labs/gsc-f155/**'
+      - 'apps/portal/labs/gsc-f156/**'
+      - 'apps/portal/labs/gsc-f160/**'
+      - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
+      - '.github/workflows/portal-gsc-slice-a-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-gsc-slice-a-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-offline-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        node: ['22', '24']
+    steps:
+      - name: Checkout exact review head with full ancestry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout pinned SEO RC32 code
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: f46b65aaef9b10e32d02e415907cd916a43b548e
+          path: .qa/seo-rc32
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Verify Git provenance and narrow-scope review
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-rc32 rev-parse HEAD)" = f46b65aaef9b10e32d02e415907cd916a43b548e
+          test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > changes.zlist
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const files=readFileSync("changes.zlist","utf8").split("\\0").filter(Boolean);
+            const allow=/^(apps\\/portal\\/(app\\/Domain\\/SeoReview\\/OfflineGscQueryPageReviewPreview\\.php|labs\\/gsc-f(?:155|156|160)\\/[^/]+|tools\\/f159-render-gsc-query-page-review-offline\\.php)|\\.github\\/workflows\\/portal-gsc-slice-a-ci\\.yml)$/;
+            if(files.length<4||files.length>12||files.some(p=>!allow.test(p))){
+              console.error("GSC Slice A: unexpected modified paths");process.exit(1);
+            }
+            console.log("GSC Slice A: "+files.length+" reviewed paths, no production route or migration");
+          '
+          rm -f changes.zlist
+      - name: PHP and Node offline contract acceptance
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_QUERY_PAGE_REVIEW_LAB: '1'
+          PORTAL_GSC_REVIEW_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
+          php -l apps/portal/labs/gsc-f155/test_php_query_page_review.php
+          php -l apps/portal/labs/gsc-f156/verify_php_query_page_review.php
+          php -l apps/portal/tools/f159-render-gsc-query-page-review-offline.php
+          node --check apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs
+          node --check apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+          php -r 'require "apps/portal/labs/gsc-f155/test_php_query_page_review.php"; portalGscF155SyntheticChecks(); echo "F155: synthetic contract passed".PHP_EOL;'
+          fixture="$(mktemp)"
+          rendered="$(mktemp)"
+          trap 'rm -f "$fixture" "$rendered"' EXIT
+          for scenario in complete redacted partial empty multi multi_redacted; do
+            node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+            php apps/portal/tools/f159-render-gsc-query-page-review-offline.php "$fixture" > "$rendered"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$rendered"
+            grep -q 'noindex,nofollow' "$rendered"
+            grep -q "connect-src 'none'" "$rendered"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
+              echo 'GSC Slice A: unsafe static HTML' >&2;exit 1
+            fi
+          done
+          node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
