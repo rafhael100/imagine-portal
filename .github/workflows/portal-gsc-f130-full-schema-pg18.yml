@@ -1,0 +1,171 @@
+name: Portal GSC F130 - full deny-all schema integration PG18 NO-GO
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/gsc-f130/**'
+      - '.github/workflows/portal-gsc-f130-full-schema-pg18.yml'
+      - 'apps/portal/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php'
+      - 'apps/portal/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php'
+      - 'apps/portal/database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php'
+      - 'apps/portal/database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php'
+      - 'apps/portal/database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-f125-admin-only
+          POSTGRES_DB: portal_identity_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_identity_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F125_PG_LAB: '1'
+      PORTAL_F126_PG_LAB: '1'
+      PORTAL_F130_PG_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_identity_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-f125-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_identity_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-f125-admin-only
+      F125_PG_ADMIN_PASSWORD: ci-f125-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout review-only code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install isolated PHP version
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Validate migrations and PHP tests with locked Laravel
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php
+          php -l database/migrations/2026_11_10_000008_create_gsc_property_candidates.php
+          php -l database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php
+          php -l database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php
+          php -l database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php
+          php -l labs/gsc-f125/test_pg_vault_refs.php
+          php -l labs/gsc-f126/test_pg_vault_binding_fence.php
+          php -l labs/gsc-f130/test_pg_integrated_schema.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Apply real F66 F76 F113 F123 F124 F125 migrations
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq t
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_membership_grants" | grep -xq 0
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_property_candidates" | grep -xq 0
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_gsc_vault_reference_candidates" | grep -xq 0
+      - name: Run F125 checks before installing F126 stricter trigger
+        run: |
+          set -euo pipefail
+          php labs/gsc-f125/test_pg_vault_refs.php
+          php artisan migrate --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
+      - name: Prove immutable revocation and complete deny-all migration compatibility
+        run: |
+          set -euo pipefail
+          php labs/gsc-f126/test_pg_vault_binding_fence.php
+          php labs/gsc-f130/test_pg_integrated_schema.php
+          ! grep -R -E 'PORTAL_F130_PG_LAB|portal_gsc_vault_reference_candidates' routes/ bootstrap/ app/Http/ app/Providers/
+      - name: Refuse to remove F126 fence while any metadata exists
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction; then
+            echo "SECURITY ERROR: F126 rollback accepted nonempty protected metadata" >&2
+            exit 1
+          fi
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000011_fence_gsc_vault_binding'" | grep -xq 1
+      - name: Remove only synthetic vault and property fixtures then reverse schema
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_gsc_vault_reference_candidates;
+          DELETE FROM public.portal_gsc_property_candidates;
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_create_gsc_property_candidates.php --force --no-interaction
+      - name: Ensure F113 grant prevents rollback until explicit revocation
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction; then
+            echo "SECURITY ERROR: F113 rollback accepted remaining SEO grant" >&2
+            exit 1
+          fi
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect'" | grep -xq 1
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration='2026_11_10_000007_allow_seo_gsc_connect_grant'" | grep -xq 1
+      - name: Explicitly revoke synthetic grant and fully restore original schema
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          DELETE FROM public.portal_membership_grants WHERE permission_code='seo.gsc.connect';
+          DELETE FROM public.portal_memberships WHERE id IN (
+            '123e4567-e89b-42d3-a456-426614176005',
+            '123e4567-e89b-42d3-a456-426614176006');
+          DELETE FROM public.portal_identities WHERE id IN (
+            '123e4567-e89b-42d3-a456-426614176003',
+            '123e4567-e89b-42d3-a456-426614176004');
+          DELETE FROM public.portal_organizations WHERE id IN (
+            '123e4567-e89b-42d3-a456-426614176001',
+            '123e4567-e89b-42d3-a456-426614176002');
+          COMMIT;
+          SQL
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          psql -X -A -t -c "SELECT pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' FROM pg_constraint WHERE conname='portal_grant_permission_ck'" | grep -xq f
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'portal_gsc_f1%_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
