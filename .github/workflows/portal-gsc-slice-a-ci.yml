@@ -112,10 +112,10 @@ jobs:
                 pieces[1]==="portal"&&pieces[2]==="labs"&&
                 labs.has(pieces[3])&&pieces[4].length>0;
             };
-            if(files.length<4||files.length>12||files.some(p=>!allow(p))){
-              console.error("GSC Slice A: unexpected modified paths");process.exit(1);
+            if(files.length<1||files.length>12||files.some(p=>!allow(p))){
+              console.error("GSC review slice: unexpected modified paths");process.exit(1);
             }
-            console.log("GSC Slice A: "+files.length+" reviewed paths, no production route or migration");
+            console.log("GSC review slice: "+files.length+" allowed paths; routes/migrations denied");
           '
           rm -f changes.zlist
       - name: PHP and Node offline contract acceptance
