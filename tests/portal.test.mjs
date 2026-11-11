@@ -387,6 +387,11 @@ test('F177: CSV de projetos é isolado, seguro contra fórmulas e registrado na 
  const title='=HYPERLINK("https://example.test","abrir")';
  f.db.prepare('UPDATE orders SET title=? WHERE id=?').run(title,first.id);
  const own=await a.call('/api/account/projects.csv');
+ const enriched=await a.call('/api/account/projects.csv?columns=stage');
+ assert.equal(enriched.status,200);
+ assert.ok(enriched.body.includes('"Etapa do projeto"'));
+ assert.ok(enriched.body.includes('"solicitado"'));
+ assert.equal((await a.call('/api/account/projects.csv?columns=unknown')).status,400);
  assert.equal(own.status,200);
  assert.match(own.headers.get('content-type')||'',/text\/csv/);
  assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-projetos.csv"/);

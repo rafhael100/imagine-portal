@@ -156,7 +156,9 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/account/projects.csv'&&method==='GET'){
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
   limit('account-export:'+user.id,20,3600000);
-  const csv=projectsCsv(accountProfile.view(user).projects);
+  const columns=url.searchParams.get('columns')??'';
+  assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
+  const csv=projectsCsv(accountProfile.view(user).projects,{withStage:columns==='stage'});
   res.setHeader('Content-Type','text/csv; charset=utf-8');
   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
   audit(db,user.id,'account.projects_csv_exported',user.id);

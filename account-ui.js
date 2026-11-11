@@ -3,7 +3,7 @@
 async function downloadAccountFile(kind){
  const resources={
   json:{path:'/api/account/export',filename:'imagine-cadastro-projetos.json',type:'application/json'},
-  csv:{path:'/api/account/projects.csv',filename:'imagine-projetos.csv',type:'text/csv'},
+  csv:{path:'/api/account/projects.csv?columns=stage',filename:'imagine-projetos.csv',type:'text/csv'},
  };
  const resource=Object.hasOwn(resources,kind)?resources[kind]:null;
  if(!resource)throw Error('Formato de exportação inválido.');

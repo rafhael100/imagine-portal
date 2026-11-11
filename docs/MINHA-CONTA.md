@@ -109,3 +109,7 @@ O arquivo paginado aceita `phase=all|solicitado|planejamento|desenvolvimento|rev
 ## Resumo das etapas (F215)
 
 A consulta compacta retorna `project_summary`, com contagem de projetos nas etapas solicitado, planejamento, desenvolvimento, revisão e entregue, agregada somente pelo identificador da sessão autenticada. A interface exibe o resumo sem abrir ou revelar projetos de outra empresa; a API legada permanece sem novas informações obrigatórias.
+
+## Planilha com etapas opcionais (F216)
+
+O contrato legado `GET /api/account/projects.csv` mantém seis colunas. A interface de cliente passa a baixar `GET /api/account/projects.csv?columns=stage`, que acrescenta a coluna final **Etapa do projeto**. A exportação JSON inclui o campo opcional `phase` por projeto, preservando a versão de contrato legada; os dados continuam isolados por titular e protegidos contra fórmulas CSV.
