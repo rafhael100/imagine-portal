@@ -14,3 +14,7 @@ A F144 cria uma ferramenta de CI **somente leitura** que usa o histórico Git lo
 O workflow `.github/workflows/portal-f144-integration-inventory.yml` usa apenas GitHub Actions público, Node24, `contents: read` e artefato efêmero com retenção de três dias. Sem execução na VPS, credenciais, acesso a clientes, rede de serviços, migração ou merge. A execução do relatório é repetível na revisão; ela não altera a branch `dev`.
 
 **Próximo passo obrigatório:** usar esse inventário para decompor/fechar dependências de PRs por módulo e obter decisões de integração e revisão, conforme [PORTAL-INT-01 #341](https://github.com/rafhael100/imagine-portal/issues/341). Não aplicar o resultado automaticamente à `main` ou produção.
+
+## Pacotes para revisão independente
+
+A etapa incremental da F144 também emite a pasta `packets/`: um Markdown por categoria, com os caminhos exatos, estados de alteração e origem de arquivos renomeados. Cada arquivo inclui explicitamente **NO-GO / NÃO revisado** e critérios de conferência da área; o particionamento deve cobrir todos os paths uma única vez. Isso permite designar revisores distintos sem reproduzir o diff inteiro nem confundir classificação automática com parecer humano.
