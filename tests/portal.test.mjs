@@ -170,6 +170,27 @@ test('Membro da equipe pode encerrar outras sessões próprias, sem obter privil
  assert.equal((await staff.call('/api/admin/finance.csv')).status,403);
 });
 
+test('Resumo de sessões mostra apenas contagem da própria conta e atualiza após revogação',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa';
+ const first=await a.call('/api/sessions/summary');
+ assert.equal(first.status,200);
+ assert.deepEqual(first.body,{active_sessions:1,other_sessions:0,max_active_sessions:8});
+ assert.equal((await a.call('/api/login',{email:a.user.email,password})).status,200);
+ const summary=(await a.call('/api/sessions/summary')).body;
+ assert.deepEqual(summary,{active_sessions:2,other_sessions:1,max_active_sessions:8});
+ assert.deepEqual((await b.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ assert.equal(JSON.stringify(summary).includes('hash'),false);
+ assert.equal(JSON.stringify(summary).includes('csrf'),false);
+ assert.equal(JSON.stringify(summary).includes(a.user.id),false);
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ assert.deepEqual((await a.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ const anonymous=await fetch(f.url+'/api/sessions/summary');
+ assert.equal(anonymous.status,401);
+});
+
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
 test('Preço vem do servidor; repetir checkout não duplica cobrança; proposta fica imutável',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c);const first=await pay(c,o,{price:1,price_cents:1});assert.equal(first.status,200);assert.equal(f.gateway.payments.length,1);assert.equal(f.gateway.payments[0].value,990);assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1);assert.equal((await admin.call('/api/orders/'+o.id+'/proposal',{price_cents:1,scope:'Escopo adulterado depois de aceito.',delivery:'1 dia'})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM payments').get().n,1);assert.equal((await c.call('/api/orders/'+o.id)).body.order.payment_status,'PENDING')});
 test('Timeout após cobrança criada exige conciliação e não permite cobrança duplicada',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),o=await order(c),create=f.gateway.createPayment;f.gateway.createPayment=async data=>{await create(data);throw Object.assign(Error('Timeout de teste'),{uncertain:true,status:502})};assert.equal((await pay(c,o)).status,502);assert.equal((await pay(c,o)).status,409);assert.equal(f.gateway.payments.length,1);assert.equal((await c.call('/api/orders/'+o.id+'/sync',{})).status,200);assert.equal((await c.call('/api/orders/'+o.id)).body.order.billing_state,'ready');assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1)});
