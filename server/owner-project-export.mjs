@@ -2,8 +2,30 @@
 // truncation: the cursor iterates DB rows one at a time for large exports.
 // Do not use outside a route that already authenticated the owner.
 import {publicProjectData} from './account-export.mjs';
+import {randomUUID} from 'node:crypto';
 
 const paid=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
+export const OWNER_EXPORT_LEASE_MS=15*60*1000;
+/** F236: an account may hold one active export lease across Node processes
+ * using the shared SQLite database; expiration recovers from process crashes. */
+export function acquireOwnerExportLease(db,userId,at=Date.now()){
+ if(typeof userId!=='string'||!userId)throw new TypeError('Titular inválido.');
+ const token=randomUUID();
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  db.prepare('DELETE FROM account_export_leases WHERE user_id=? AND expires_at<=?').run(userId,at);
+  const result=db.prepare('INSERT OR IGNORE INTO account_export_leases(user_id,token,expires_at) VALUES(?,?,?)')
+   .run(userId,token,at+OWNER_EXPORT_LEASE_MS);
+  if(result.changes!==1)
+   throw Object.assign(Error('Já existe uma exportação em andamento nesta conta. Conclua ou aguarde antes de tentar novamente.'),{status:409});
+  db.exec('COMMIT');
+  return token;
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+export function releaseOwnerExportLease(db,userId,token){
+ db.prepare('DELETE FROM account_export_leases WHERE user_id=? AND token=?').run(userId,token);
+}
+
 /** F232: fail before HTTP 200 and before streaming any personal data
  * when an authorized paid briefing holds invalid JSON. Private rows from
  * other accounts must not block an export. */

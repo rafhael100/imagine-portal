@@ -161,3 +161,7 @@ Uma conexão interrompida cancela o cursor da exportação em vez de continuar l
 ### Índice utilizado nos downloads incrementais (F235)
 
 Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação por titular utiliza o índice existente `idx_orders_user_created` e faz `JOIN` com o briefing pelo identificador do pedido. Não é criada cópia integral da tabela nem um índice desnecessário no banco de clientes.
+
+### Uma exportação ativa por conta (F236)
+
+CSV e JSON compartilham um lease transacional SQLite por titular. Uma segunda exportação simultânea recebe HTTP 409 com aviso, sem consumir memória ou iniciar outro cursor. Outro cliente não é afetado. O lease é liberado no bloco `finally` após sucesso, erro ou desconexão, com expiração defensiva de 15 minutos para recuperar de falhas do processo. A operação é apenas documental/testada em ambiente sintético até revisão DBA de concorrência e persistência.

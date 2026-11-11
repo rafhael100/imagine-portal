@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
-import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks} from './owner-project-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -160,13 +160,16 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   const columns=url.searchParams.get('columns')??'';
   assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
   preflightOwnerProjectExport(db,user);
-  // F229: preserve the CSV contract while avoiding the full in-memory project array.
-  const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
-  res.setHeader('Content-Type','text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
-  audit(db,user.id,'account.projects_csv_exported',user.id);
-  res.writeHead(200);
-  return writeExportChunks(res,chunks);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   // F229/F236: stream the authorized cursor while holding only one export lease per account.
+   const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
+   audit(db,user.id,'account.projects_csv_exported',user.id);
+   res.writeHead(200);
+   return await writeExportChunks(res,chunks);
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/export'&&method==='GET'){
   // Explicitly scoped read-only self-service: profile, fiscal registration,
@@ -176,13 +179,16 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
   limit('account-export:'+user.id,20,3600000);
   preflightOwnerProjectExport(db,user);
-  const compact=accountProfile.view(user,{compact:true});
-  const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
-  res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
-  res.setHeader('Content-Type','application/json; charset=utf-8');
-  audit(db,user.id,'account.data_exported',user.id);
-  res.writeHead(200);
-  return writeExportChunks(res,chunks);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   const compact=accountProfile.view(user,{compact:true});
+   const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
+   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
+   res.setHeader('Content-Type','application/json; charset=utf-8');
+   audit(db,user.id,'account.data_exported',user.id);
+   res.writeHead(200);
+   return await writeExportChunks(res,chunks);
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/projects'&&method==='GET'){
   limit('account-projects:'+user.id,120,60000);
