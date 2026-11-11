@@ -11,7 +11,7 @@ use App\Domain\SeoReview\OfflineGscQueryPageReviewPreview as Review;
 if(PHP_SAPI!=='cli'||getenv('APP_ENV')!=='testing'||
     getenv('PORTAL_GSC_QUERY_PAGE_REVIEW_LAB')!=='1'||
     count($argv)!==3||
-    !in_array($argv[2],['complete','redacted','partial','empty'],true)){
+    !in_array($argv[2],['complete','redacted','partial','empty','multi','multi_redacted'],true)){
     fwrite(STDERR,"GSC-F156: private CI laboratory only\n");
     exit(2);
 }
@@ -38,7 +38,9 @@ try{
         'complete'=>['SUPPLIED_BATCH_ONLY_UNVERIFIED',1,0,2,['review_query_page_overlap']],
         'redacted'=>['REDACTED_ROWS_NO_SIGNALS',0,1,2,[]],
         'partial'=>['PARTIAL_BATCH_NO_SIGNALS',1,0,2,[]],
-        'empty'=>['SUPPLIED_BATCH_ONLY_UNVERIFIED',0,0,0,[]]
+        'empty'=>['SUPPLIED_BATCH_ONLY_UNVERIFIED',0,0,0,[]],
+        'multi'=>['SUPPLIED_BATCH_ONLY_UNVERIFIED',1,0,3,['review_query_page_overlap']],
+        'multi_redacted'=>['REDACTED_ROWS_NO_SIGNALS',0,1,3,[]]
     ][$mode];
     if($report->coverageStatus!==$expected[0]||
         $report->summary['queriesOnMultiplePages']!==$expected[1]||
@@ -62,8 +64,15 @@ try{
         if(Review::fromDto([...$dto,...$change])!==null)
             throw new RuntimeException();
     }
+    if(str_starts_with($mode,'multi')){
+        if($dto['pagination']['pagesReceived']!==2||
+            $dto['pagination']['pageSize']!==2||
+            $dto['pagination']['lastPageRows']!==1||
+            $dto['pagination']['mayHaveMore']!==false)
+            throw new RuntimeException();
+    }
     $forged=$dto;
-    if($mode==='redacted'||$mode==='partial'){
+    if(in_array($mode,['redacted','partial','multi_redacted'],true)){
         $forged['suggestedReviews']=['review_query_page_overlap'];
         if(Review::fromDto($forged)!==null)throw new RuntimeException();
     }
