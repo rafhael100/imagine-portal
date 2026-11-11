@@ -8,6 +8,7 @@ use App\Presentation\DemoPortalStaticExporter;
 use App\Presentation\DemoPortalArtifactManifest;
 use App\Presentation\DemoPortalNavigationAudit;
 use App\Presentation\DemoPortalOfflineExtras;
+use App\Presentation\DemoPortalReviewWalkthrough;
 use App\Presentation\ClientSection;
 use Illuminate\Database\DatabaseManager;
 use LogicException;
@@ -111,6 +112,49 @@ final class DemoPortalStaticExporterTest extends TestCase
             self::assertStringNotContainsString('http://', $html);
             self::assertStringNotContainsString('https://', $html);
         }
+    }
+
+    public function test_index_guides_reviewer_through_each_offline_screen_without_client_actions(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $html = (string) file_get_contents($this->temporaryDirectory.'/index.html');
+        self::assertStringContainsString('Roteiro de avaliação interna', $html);
+        self::assertStringContainsString('Não registram tarefas nem ações de clientes', $html);
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $previous = libxml_use_internal_errors(true);
+        try {
+            self::assertTrue($document->loadHTML($html));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $xpath = new \DOMXPath($document);
+        $items = $xpath->query('//section[@aria-labelledby="pi-review-route"]/ol/li');
+        self::assertNotFalse($items);
+        self::assertCount(10, DemoPortalReviewWalkthrough::steps());
+        self::assertSame(10, $items->length);
+
+        $seen = [];
+        foreach (DemoPortalReviewWalkthrough::steps() as $position => $step) {
+            $link = $xpath->query('./a', $items->item($position))?->item(0);
+            self::assertInstanceOf(\DOMElement::class, $link);
+            self::assertSame($step['href'], $link->getAttribute('href'));
+            self::assertSame($step['title'], trim($link->textContent));
+            self::assertStringContainsString($step['description'], $html);
+            self::assertFileExists($this->temporaryDirectory.'/'.$step['href']);
+            self::assertArrayNotHasKey($step['href'], $seen);
+            $seen[$step['href']] = true;
+        }
+        $expected = array_diff(DemoPortalArtifactManifest::pageNames(), ['index.html']);
+        sort($expected);
+        $actual = array_keys($seen);
+        sort($actual);
+        self::assertSame($expected, $actual);
+        self::assertFalse(DemoPortalReviewWalkthrough::authorizesAction());
+        self::assertStringNotContainsString('<form', $html);
+        self::assertStringNotContainsString('<script', $html);
+        self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
     }
 
     public function test_exact_eleven_page_bundle_contains_verifiable_local_manifest(): void
