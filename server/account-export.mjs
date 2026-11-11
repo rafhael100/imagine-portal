@@ -4,9 +4,10 @@ const HEADERS=['ID','Projeto','Criado em','Situação do pagamento','Empresa','D
 export function safeCsvCell(value){
  const valueText=String(value??'').replace(/\r\n?/g,'\n');
  // Spreadsheet programs may evaluate cells beginning with formulas, even
- // when a field is surrounded by CSV quotes. An apostrophe in the first
+ // when a field is surrounded by CSV quotes. Guard leading invisible Unicode
+ // format/control characters as well as regular whitespace. An apostrophe in the first
  // position ensures it remains data (including with preceding whitespace).
- const safe=/^[\s\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
+ const safe=/^[\s\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
 export function projectsCsv(projects){
@@ -23,7 +24,11 @@ const FISCAL_FIELDS=['legal_name','email','document','whatsapp','street','number
 const PROJECT_FIELDS=['company_name','domain','email','whatsapp','phone','address','current_site','contact_site','company_intro','services','notes'];
 function pickFields(value,fields){
  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
- return Object.fromEntries(fields.filter(key=>Object.hasOwn(source,key)).map(key=>[key,source[key]]));
+ return Object.fromEntries(fields.filter(key=>{
+  if(!Object.hasOwn(source,key))return false;
+  const v=source[key];
+  return v===null||typeof v==='string'||typeof v==='boolean'||(typeof v==='number'&&Number.isFinite(v));
+ }).map(key=>[key,source[key]]));
 }
 // Fixed privacy contract: never spread whole DB rows or arbitrary material
 // keys into an export. Unknown fields (including future internal additions)
