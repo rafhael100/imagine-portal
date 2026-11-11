@@ -137,3 +137,7 @@ O índice idempotente `orders(user_id,phase,created_at DESC,id DESC)` garante qu
 ### GitHub Actions em desenvolvimento contínuo (F224)
 
 Os testes Node, os contratos sintéticos OAuth/GSC e os inventários F144/F186 usam controle de concorrência por PR/branch, cancelando validações obsoletas do **mesmo** grupo quando um commit mais novo chega. Isso reduz filas e consumo desnecessário dos runners, mas nenhum cancelamento equivale a aprovação. A liberação só pode considerar o último SHA exato e deve confirmar todos os testes exigidos após congelar a candidata.
+
+## Acesso ao site publicado (F226)
+
+Quando um site estiver comprovadamente em etapa de **publicação** e ainda estiver pago, a API da conta pode apresentar o link público `production.live_url` após validação de URL HTTPS, sem credenciais nem destinos internos. A interface inclui **Abrir site publicado**, com `rel=noopener noreferrer`. Prévia privada, ambientes internos e outros clientes não aparecem nesta relação; o recurso não substitui a publicação controlada nem cria domínios.

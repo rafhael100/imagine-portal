@@ -1,7 +1,17 @@
 // Bounded, read-only projects listing for the currently authenticated
 // customer. SQL always includes the owner ID; no client-provided tenant key.
 import {publicProjectData} from './account-export.mjs';
+import {isIP} from 'node:net';
 
+export function safePublishedSiteUrl(value){
+ if(typeof value!=='string'||value.length>800)return null;
+ try{
+  const u=new URL(value);
+  const host=u.hostname.toLowerCase();
+  if(u.protocol!=='https:'||u.username||u.password||!host.includes('.')||isIP(host)||/(?:^localhost$|\\.localhost$|\\.local$|\\.internal$)/.test(host))return null;
+  return u.href;
+ }catch{return null;}
+}
 export const ACCOUNT_PROJECT_PAGE_SIZE=8;
 export const ACCOUNT_PROJECT_MAX_PAGE=1000;
 export function boundedProjectPages(total){
@@ -39,7 +49,7 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
  const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
  const current=Number(page),{pages,limited}=boundedProjectPages(total);
  const direction=sort==='oldest'?'ASC':'DESC';
- const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,b.data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date '+from+
+ const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,b.data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date,pr.live_url AS production_live_url '+from+
   ` ORDER BY o.created_at ${direction},o.id ${direction} LIMIT ? OFFSET ?`)
   .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
  const projects=rows.map(row=>({
@@ -51,6 +61,7 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
     stage:row.production_stage,
     progress:Number.isSafeInteger(row.production_progress)?Math.max(0,Math.min(100,row.production_progress)):0,
     due_date:typeof row.production_due_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(row.production_due_date)?row.production_due_date:null,
+    live_url:row.production_stage==='published'?safePublishedSiteUrl(row.production_live_url):null,
    }:null,
  }));
  return {projects,page:current,page_size:ACCOUNT_PROJECT_PAGE_SIZE,pages,total,has_more:current<pages,limited};

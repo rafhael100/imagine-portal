@@ -590,6 +590,12 @@ test('F201: bounded own-project endpoint paginates, filters and conceals unpaid 
  assert.equal(production.body.projects[0].product_id,undefined);
  const unpaidProject=await owner.call('/api/account/projects?search=site%2019');
  assert.equal(unpaidProject.body.projects[0].production,null);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id=?").run(otherId);
+ f.db.prepare("UPDATE productions SET stage='published',live_url='https://site-publicado.example.test/' WHERE order_id=?").run(otherId);
+ const otherPublished=await other.call('/api/account/projects');
+ assert.equal(otherPublished.body.projects[0].production.live_url,'https://site-publicado.example.test/');
+ assert.equal(JSON.stringify(first.body).includes('site-publicado.example.test'),false);
+
  f.db.prepare("UPDATE productions SET stage='review',progress=100 WHERE order_id=?").run(ids[20]);
  const reviewOnly=await owner.call('/api/account/projects?attention=review');
  assert.equal(reviewOnly.status,200);

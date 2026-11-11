@@ -113,3 +113,12 @@ test('F219: production progress hidden for unpaid, missing or unknown stage',()=
  assert.ok(authorized.includes('Aguardando revisão'));
  assert.ok(authorized.includes('value="100"'));
 });
+
+test('F226: published site links are displayed safely and only after publication',()=>{
+ const published=cards([{id:'paid',title:'Site',payment_status:'RECEIVED',data:{},production:{stage:'published',progress:100,due_date:null,live_url:'https://site.example.test/'}}]);
+ assert.ok(published.includes('Abrir site publicado'));
+ assert.ok(published.includes('rel="noopener noreferrer"'));
+ assert.ok(published.includes('href="https://site.example.test/"'));
+ const privatePreview=cards([{id:'review',title:'Aguardando revisão',payment_status:'RECEIVED',data:{},production:{stage:'review',progress:100,due_date:null,live_url:null}}]);
+ assert.equal(privatePreview.includes('Abrir site publicado'),false);
+});
