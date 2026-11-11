@@ -20,7 +20,7 @@ use Tests\TestCase;
 
 final class CommercialDeliveryReviewPreflightDefaultDenyTest extends TestCase
 {
-    private const SUBMISSION = 'e4e4e4e4-e4e4-4e4e-8e4e-e4e4e4e4e4e4';
+    public const SUBMISSION = 'e4e4e4e4-e4e4-4e4e-8e4e-e4e4e4e4e4e4';
 
     private function synthetic(
         array $permissions,
