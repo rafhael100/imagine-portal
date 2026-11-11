@@ -105,10 +105,11 @@ jobs:
             echo 'SECURITY FAIL: organization trigger removed while tenants exist' >&2
             exit 1
           fi
-          if php artisan migrate:rollback --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction; then
-            echo 'SECURITY FAIL: member trigger removed while tenants exist' >&2
-            exit 1
-          fi
+          # Laravel rolls back only the most recent migration batch. F154
+          # is from the previous batch, so a successful "Migration not found"
+          # result is NOT evidence of unsafe downgrade. Inspect actual schema.
+          psql -X -A -t -c "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_f154_membership_revision_guard','portal_f154_grant_revision_guard','portal_f154_grant_immutable_guard','portal_f156_org_revision_guard') AND NOT tgisinternal" | grep -xq 4
+          psql -X -A -t -c "SELECT count(*) FROM migrations WHERE migration IN ('2026_11_11_000012_fence_portal_membership_revision','2026_11_11_000013_fence_portal_organization_revision')" | grep -xq 2
       - name: Explicitly remove lab rows and reverse schema
         run: |
           set -euo pipefail
