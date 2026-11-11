@@ -115,9 +115,14 @@ final readonly class OfflineGscOverlapTrendPreview
         if($dates['previous']['until']>=$dates['current']['from'])return null;
 
         $complete=$dto['coverageComplete'];
-        if($dto['coverageStatus']!==($complete?
-            'COMPLETE_SUPPLIED_BATCHES':'PARTIAL_GSC_BATCHES_NO_SIGNALS'))
-            return null;
+        $redacted=$dto['previous']['redactedRows']>0||
+            $dto['current']['redactedRows']>0;
+        // SEO-F67: redacted evidence cannot claim complete coverage or
+        // emit overlap trend signals even if a former batch was full.
+        if($complete&&$redacted)return null;
+        $expectedCoverage=$redacted?'REDACTED_GSC_ROWS_NO_SIGNALS':
+            ($complete?'COMPLETE_SUPPLIED_BATCHES':'PARTIAL_GSC_BATCHES_NO_SIGNALS');
+        if($dto['coverageStatus']!==$expectedCoverage)return null;
         $before=$dto['previous']['overlapShare'];
         $after=$dto['current']['overlapShare'];
         $expected=$before===null||$after===null?null:
@@ -143,7 +148,8 @@ final readonly class OfflineGscOverlapTrendPreview
         if(($signals!==[])!==$shouldSignal)return null;
 
         if(!is_array($dto['caveats'])||!array_is_list($dto['caveats'])||
-            count($dto['caveats'])!==3)return null;
+            !in_array(count($dto['caveats']),[3,4],true)||
+            ($redacted&&count($dto['caveats'])!==4))return null;
         foreach($dto['caveats'] as $caveat)
             if(!is_string($caveat)||strlen($caveat)>240)return null;
 
