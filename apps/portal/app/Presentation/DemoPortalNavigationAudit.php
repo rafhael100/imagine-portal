@@ -68,7 +68,7 @@ final class DemoPortalNavigationAudit
                 throw new LogicException('Offline preview must explicitly disallow indexing.');
             }
             $policies = $xpath->query('//meta[@http-equiv="Content-Security-Policy"]');
-            $policy = $policies?->item(0);
+            $policy = $policies === false ? null : $policies->item(0);
             if ($policies === false || $policies->length !== 1
                 || !$policy instanceof DOMElement
                 || $policy->getAttribute('content') !== self::OFFLINE_CSP) {
