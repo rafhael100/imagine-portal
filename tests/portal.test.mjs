@@ -293,6 +293,18 @@ test('F189: historico de seguranca paginado preserva isolamento e o formato anti
  assert.equal((await fetch(f.url+'/api/account/security-events?page=1')).status,401);
 });
 
+test('F198: ultima pagina autorizada nao promete acesso a eventos fora do limite',async t=>{
+ const f=await fixture(t),owner=await f.client('Responsável');
+ const stmt=f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)');
+ for(let i=0;i<310;i++)stmt.run(owner.user.id,'password.changed','internal','2026-11-11T10:00:00Z');
+ const last=await owner.call('/api/account/security-events?page=30');
+ assert.equal(last.status,200);
+ assert.equal(last.body.page,30);
+ assert.equal(last.body.events.length,10);
+ assert.equal(last.body.has_more,false);
+ assert.equal((await owner.call('/api/account/security-events?page=31')).status,400);
+});
+
 test('F173: reutilizar senha atual é rejeitado sem invalidar sessões; troca válida permanece auditada',async t=>{
  const f=await fixture(t),a=await f.client('Ana');
  const old='uma-senha-de-teste-longa',next='outra-senha-forte-12345';
