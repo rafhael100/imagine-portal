@@ -114,15 +114,17 @@ try {
         f156Assert((int)$pdo->query(
             "SELECT count(*) FROM public.portal_organizations"
         )->fetchColumn()===0,'worker cannot read org rows');
-        f156Reject($pdo,
-            "UPDATE public.portal_organizations SET status='active'
-             WHERE id='22222222-2222-4222-8222-222222222222'");
-    } catch (RuntimeException $error) {
-        // With denied RLS UPDATE on a nonexistent visible row, PG may
-        // return affected=0 rather than a 42501 SQLSTATE. Verify no
-        // actual data was changed instead of requiring a thrown error.
-        if (!str_contains($error->getMessage(),'invalid mutation succeeded')) {
-            throw $error;
+        // UPDATE under RLS without policies normally affects zero rows;
+        // it need not throw. Either behavior must leave the row unchanged.
+        try {
+            $affected = $pdo->exec(
+                "UPDATE public.portal_organizations SET status='active'
+                 WHERE id='22222222-2222-4222-8222-222222222222'"
+            );
+            f156Assert($affected === 0, 'worker unexpectedly changed organization');
+        } catch (PDOException $exception) {
+            f156Assert((string)$exception->getCode() === '42501',
+                'unexpected worker SQLSTATE');
         }
     } finally {
         $pdo->exec('RESET ROLE');
