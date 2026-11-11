@@ -75,8 +75,8 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertNull(ClientSection::tryFrom('notices'));
 
         foreach ([
-            'help' => ['Central de Ajuda', 'Nenhum atendimento', 'demo_help'],
-            'notices' => ['Central de Avisos', 'Nenhum aviso foi enviado', 'demo_notice'],
+            'help' => ['Central de Ajuda', 'Nenhum atendimento', 'Onepage'],
+            'notices' => ['Central de Avisos', 'Nenhum aviso foi enviado', 'Landing Page'],
         ] as $slug => $expected) {
             $html = file_get_contents($this->temporaryDirectory.'/'.$slug.'.html');
             self::assertIsString($html);
