@@ -1,0 +1,113 @@
+name: Portal INT-F162 - Exact PostgreSQL session purpose and Eloquent parity (NO-GO)
+on:
+  push:
+    branches:
+      - review/portal-int-f162-postgres-purpose-eloquent-parity-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f161-typed-session-persistence-2026-11-11
+    paths:
+      - 'apps/portal/tests/Integration/PortalTypedSessionPg18Test.php'
+      - '.github/workflows/portal-int-f162-session-purpose-pg18.yml'
+      - 'apps/portal/docs/PORTAL-INT-F162-SESSION-PURPOSE-PG18-BOUNDARY.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  session-purpose-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f162-review-admin-only
+          POSTGRES_DB: portal_f162_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_f162_lab"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_F162_PG_LAB: NON_OPERATIONAL_F162
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_f162_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f162-review-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_f162_lab
+      PGUSER: postgres
+      PGPASSWORD: f162-review-admin-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - name: Checkout exact review head without credential persistence
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Configure PHP with PostgreSQL PDO
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Install locked packages and verify test syntax
+        run: |
+          set -euo pipefail
+          php -l tests/Integration/PortalTypedSessionPg18Test.php
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Apply F66 F76 F113 into disposable PostgreSQL18 only
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          psql -X -A -t -c "SELECT count(*) FROM pg_constraint WHERE conname IN ('portal_session_purpose_ck','portal_invitation_session_lifetime_ck','portal_business_session_lifetime_ck')" | grep -xq 3
+          psql -X -A -t -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename LIKE 'portal_%'" | grep -xq 0
+      - name: Verify actual PostgreSQL records hydrate strict enum with no issuer capabilities
+        run: |
+          set -euo pipefail
+          # Default phpunit.xml intentionally excludes Integration and
+          # forcibly sets a disconnected DB_DATABASE. Run this one file
+          # with the disposable PG18 CI env instead of reporting zero tests.
+          ./vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php tests/Integration/PortalTypedSessionPg18Test.php --no-coverage --colors=never | tee /tmp/portal-f162-pg18-test.log
+          grep -Fq 'OK (1 test,' /tmp/portal-f162-pg18-test.log
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_auth_sessions" | grep -xq 0
+          psql -X -A -t -c "SELECT count(*) FROM public.portal_memberships" | grep -xq 0
+          test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true); echo count($r);')" -eq 1
+          grep -Fq 'DenyingPortalAuthorities::class' app/Providers/AppServiceProvider.php
+      - name: Reverse F113 F76 F66 and verify no residual Portal tables
+        run: |
+          set -euo pipefail
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate:rollback --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          test "$(psql -X -A -t -c "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'portal_%'")" = 0
+          git diff --exit-code -- composer.lock routes/ bootstrap/
