@@ -15,6 +15,12 @@
             :columns="['Referência', 'Serviço', 'Estado ilustrativo', 'Versão de exemplo']"
             :rows="\App\Presentation\DemoRequestInbox::rows()" />
     </x-portal.panel>
+    <x-portal.panel title="Resumo por situação — apenas exemplos">
+        <p>Contagem derivada da mesma fila fictícia acima, sem dados de clientes, prazos, compromissos ou indicadores operacionais. Se o conjunto estiver incompleto, o resumo não será apresentado.</p>
+        <x-portal.table caption="Distribuição de solicitações fictícias — total de exemplo, não de atendimento"
+            :columns="['Situação ilustrativa', 'Solicitações de exemplo']"
+            :rows="\App\Presentation\DemoRequestInboxStatusBoard::rows()" />
+    </x-portal.panel>
     <x-portal.panel title="Onepage e Landing Page — briefing e revisão de conteúdo fictícios">
         <p>Exemplos locais de briefing, versão de conteúdo e conferência editorial. Uma aprovação simulada não representa aceite assinado, contratação ou autorização para publicar um site.</p>
         <x-portal.table caption="Conteúdos fictícios de Sites Imagine — sem aprovação real"
