@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
-import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -169,7 +169,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
    audit(db,user.id,'account.projects_csv_exported',user.id);
    res.writeHead(200);
-   return await writeExportChunks(res,chunks);
+   return await writeOwnerExportWithinLease(res,chunks);
   }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/export'&&method==='GET'){
@@ -188,7 +188,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    res.setHeader('Content-Type','application/json; charset=utf-8');
    audit(db,user.id,'account.data_exported',user.id);
    res.writeHead(200);
-   return await writeExportChunks(res,chunks);
+   return await writeOwnerExportWithinLease(res,chunks);
   }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/projects'&&method==='GET'){
