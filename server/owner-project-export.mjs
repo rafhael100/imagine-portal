@@ -34,16 +34,30 @@ export function *iterateOwnerExportProjects(db,user){
 // Respect Writable backpressure and disconnects, without accumulating
 // unbounded response buffers for accounts with thousands of projects.
 export async function writeExportChunks(res,chunks){
- for(const chunk of chunks){
-  if(res.destroyed||res.writableEnded)return;
-  if(!res.write(chunk)){
-   await new Promise((resolve,reject)=>{
-    const cleanup=()=>{res.off('drain',onReady);res.off('close',onReady);res.off('error',onError);};
-    const onReady=()=>{cleanup();resolve();};
-    const onError=error=>{cleanup();reject(error);};
-    res.once('drain',onReady);res.once('close',onReady);res.once('error',onError);
-   });
+ let disconnected=false;
+ const onDisconnect=()=>{disconnected=true;};
+ res.on('close',onDisconnect);
+ try{
+  for(const chunk of chunks){
+   if(disconnected||res.destroyed||res.writableEnded)return;
+   if(!res.write(chunk)){
+    const signal=await new Promise((resolve,reject)=>{
+     const cleanup=()=>{res.off('drain',onDrain);res.off('close',onClose);res.off('error',onError);};
+     const onDrain=()=>{cleanup();resolve('drain');};
+     const onClose=()=>{cleanup();resolve('close');};
+     const onError=error=>{cleanup();reject(error);};
+     res.once('drain',onDrain);res.once('close',onClose);res.once('error',onError);
+    });
+    if(signal==='close')return;
+   }
   }
+  if(!disconnected&&!res.destroyed&&!res.writableEnded)res.end();
+ }catch(error){
+  // Never complete an HTTP 200 with a syntactically valid, truncated CSV if
+  // the database cursor or the output stream fails partway through.
+  if(res.headersSent&&!res.destroyed&&typeof res.destroy==='function')res.destroy();
+  throw error;
+ }finally{
+  res.off('close',onDisconnect);
  }
- if(!res.destroyed&&!res.writableEnded)res.end();
 }

@@ -52,3 +52,41 @@ test('F229: streaming writer respects drain and safely stops after disconnect',a
  assert.deepEqual(closed.chunks,['header']);
  assert.equal(closed.writableEnded,false);
 });
+
+test('F234: a remote close without the destroyed flag stops the cursor and never ends a partial download',async()=>{
+ class Slow extends EventEmitter{
+  constructor(){super();this.chunks=[];this.destroyed=false;this.writableEnded=false;}
+  write(c){this.chunks.push(c);return false;}
+  end(){this.writableEnded=true;}
+ }
+ const res=new Slow();
+ let iterated=0;
+ function *privateChunks(){for(const c of ['header','secret-after-close']){iterated++;yield c;}}
+ const pending=writeExportChunks(res,privateChunks());
+ res.emit('close');
+ await pending;
+ assert.deepEqual(res.chunks,['header']);
+ assert.equal(iterated,1);
+ assert.equal(res.writableEnded,false);
+ assert.equal(res.listenerCount('close'),0);
+ assert.equal(res.listenerCount('drain'),0);
+});
+
+test('F234: failures after HTTP headers abort the transport rather than producing a partial 200 response',async()=>{
+ class Broken extends EventEmitter{
+  constructor(){super();this.headersSent=true;this.destroyed=false;this.writableEnded=false;this.chunks=[];}
+  write(c){this.chunks.push(c);return true;}
+  destroy(){this.destroyed=true;this.emit('close');}
+  end(){this.writableEnded=true;}
+ }
+ const res=new Broken();
+ function *faulty(){
+  yield 'header';
+  throw Error('DB cursor failed');
+ }
+ await assert.rejects(writeExportChunks(res,faulty()),/DB cursor failed/);
+ assert.deepEqual(res.chunks,['header']);
+ assert.equal(res.destroyed,true);
+ assert.equal(res.writableEnded,false);
+ assert.equal(res.listenerCount('close'),0);
+});

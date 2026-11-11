@@ -153,3 +153,7 @@ A mesma consulta restrita por titular e o mesmo controle de dados autorizados da
 ### Consistência antes de iniciar download (F232)
 
 Antes de enviar o cabeçalho HTTP de sucesso, ambos os downloads verificam que os dados JSON de briefings **pagos do próprio titular** podem ser interpretados. Em caso de corrupção, retornam erro 503 sem transmitir arquivo parcial como se fosse válido; um problema na conta de outra pessoa não bloqueia a consulta. A verificação não altera dados e não revela material de clientes em logs.
+
+### Falhas de rede durante transferências (F234)
+
+Uma conexão interrompida cancela o cursor da exportação em vez de continuar lendo os dados da conta ou tentar concluir um arquivo incompleto. Se ocorrer erro depois do início da resposta HTTP, o transporte é encerrado abruptamente para evitar comunicar sucesso com conteúdo truncado. O protocolo de exportação mantém os mesmos campos e regras de autenticação.
