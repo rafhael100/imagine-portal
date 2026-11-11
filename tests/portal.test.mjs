@@ -305,12 +305,16 @@ test('F176: exportação do cadastro e dos projetos pertence exclusivamente ao c
  const f=await fixture(t),a=await f.client('Cliente A'),b=await f.client('Cliente B');
  const ownUserId=a.user.id;
  const first=await order(a),other=await order(b);
+ f.db.prepare('INSERT INTO account_profiles(user_id,data,version,updated_at) VALUES(?,?,1,?)')
+  .run(ownUserId,JSON.stringify({company:'Empresa A',api_secret:'NEVER_EXPORT_ME'}),new Date().toISOString());
  const own=await a.call('/api/account/export');
  assert.equal(own.status,200);
  assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-cadastro-projetos.json"/);
  assert.match(own.headers.get('cache-control')||'',/no-store/);
  assert.equal(own.body.schema_version,1);
  assert.equal(own.body.scope,'cadastro_e_projetos');
+ assert.equal(own.body.profile.company,'Empresa A');
+ assert.equal(JSON.stringify(own.body).includes('NEVER_EXPORT_ME'),false);
  assert.equal(own.body.user.email,a.user.email);
  assert.equal(own.body.projects.some(p=>p.id===first.id),true);
  assert.equal(own.body.projects.some(p=>p.id===other.id),false);
