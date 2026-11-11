@@ -1,10 +1,11 @@
-name: Portal GSC F130/F133 - transactional IAM PostgreSQL 18 NO-GO
+name: Portal GSC F130/F134 - scoped RLS IAM PostgreSQL 18 NO-GO
 
 on:
   pull_request:
     paths:
       - 'apps/portal/labs/gsc-f130/**'
       - 'apps/portal/labs/gsc-f133/**'
+      - 'apps/portal/labs/gsc-f134/**'
       - '.github/workflows/portal-gsc-f130-full-schema-pg18.yml'
       - 'apps/portal/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php'
       - 'apps/portal/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php'
@@ -53,6 +54,7 @@ jobs:
       PORTAL_F126_PG_LAB: '1'
       PORTAL_F130_PG_LAB: '1'
       PORTAL_F133_PG_LAB: '1'
+      PORTAL_F134_PG_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -97,6 +99,7 @@ jobs:
           php -l labs/gsc-f126/test_pg_vault_binding_fence.php
           php -l labs/gsc-f130/test_pg_integrated_schema.php
           php -l labs/gsc-f133/test_pg_iam_witness.php
+          php -l labs/gsc-f134/test_pg_scoped_iam_role.php
           php -l app/Domain/SeoReview/GoogleSearchConsoleIamWitness.php
           php -l app/Domain/SeoReview/GoogleSearchConsoleIamWitnessReview.php
           composer validate --strict --no-check-publish
@@ -135,6 +138,7 @@ jobs:
           php labs/gsc-f126/test_pg_vault_binding_fence.php
           php labs/gsc-f130/test_pg_integrated_schema.php
           php labs/gsc-f133/test_pg_iam_witness.php
+          php labs/gsc-f134/test_pg_scoped_iam_role.php
           ! grep -R -E 'PORTAL_F130_PG_LAB|portal_gsc_vault_reference_candidates' routes/ bootstrap/ app/Http/ app/Providers/
       - name: Refuse to remove F126 fence while any metadata exists
         run: |
