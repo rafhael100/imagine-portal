@@ -9,7 +9,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * F58: offline, read-only artifact generator for seven existing DEMO Blade
+ * F58: offline, read-only artifact generator for eleven local DEMO Blade
  * screens. This is NOT a customer-facing route or an authorization system.
  *
  * Only local/testing application environments may invoke it. Output must
@@ -35,7 +35,7 @@ final class DemoPortalStaticExporter
             throw new LogicException('Preview export already reserved or claim is stale.');
         }
         try {
-        // F134: stage all nine files in a private sibling, then publish the
+        // F134: stage all preview files in a private sibling, then publish the
         // complete directory in one filesystem rename. No partial export.
         $staging = $directory . '.staging-' . bin2hex(random_bytes(10));
         if (is_dir($staging) || file_exists($staging) || is_link($staging)
@@ -51,6 +51,10 @@ final class DemoPortalStaticExporter
                 htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>';
         }
         $links .= ' <a href="delivery-review.html">Revisão de entregas (DEMO)</a>';
+        foreach (DemoPortalOfflineExtras::labels() as $slug => $label) {
+            $links .= ' <a href="' . $slug . '.html">' .
+                htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>';
+        }
         $nav = '<nav aria-label="Navegação da prévia offline" style="background:#fff;padding:14px 20px;border-bottom:1px solid #ddd;display:flex;gap:14px;flex-wrap:wrap">' .
             $links . '</nav>';
 
@@ -98,12 +102,39 @@ final class DemoPortalStaticExporter
         chmod($staging . DIRECTORY_SEPARATOR . $reviewName, 0600);
         $files[] = $reviewName;
 
+        // F140: two already-implemented illustrations become traversable
+        // offline only. No changes to ClientSection, permissions or routes.
+        foreach (DemoPortalOfflineExtras::labels() as $slug => $label) {
+            $extraHtml = view('portal.demo.'.$slug)->render();
+            if (!str_contains($extraHtml, '<body>')
+                || preg_match('~<\\s*(script|form|iframe|button|input)\\b~i', $extraHtml) === 1
+                || preg_match('~(?:https?:)?//~i', $extraHtml) === 1) {
+                throw new LogicException('Extra demo illustration is not safe for offline export.');
+            }
+            $extraNav = str_replace(
+                'href="' . $slug . '.html"',
+                'href="' . $slug . '.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
+                $nav,
+            );
+            $extraHtml = str_replace('<body>', '<body>' . $extraNav, $extraHtml);
+            $extraName = $slug . '.html';
+            if (file_put_contents($staging . DIRECTORY_SEPARATOR . $extraName, $extraHtml, LOCK_EX) === false) {
+                throw new RuntimeException('Cannot write additional preview page.');
+            }
+            chmod($staging . DIRECTORY_SEPARATOR . $extraName, 0600);
+            $files[] = $extraName;
+        }
+
         $list = '<li><a href="index.html" aria-current="page" style="font-weight:700;text-decoration:underline">Índice da prévia</a></li>';
         foreach (ClientSection::cases() as $section) {
             $label = htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $list .= '<li><a href="' . $section->value . '.html">' . $label . '</a></li>';
         }
         $list .= '<li><a href="delivery-review.html">Revisão de entregas (DEMO)</a></li>';
+        foreach (DemoPortalOfflineExtras::labels() as $slug => $label) {
+            $list .= '<li><a href="' . $slug . '.html">' .
+                htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a></li>';
+        }
         $index = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' .
             '<meta name="viewport" content="width=device-width,initial-scale=1">' .
             '<meta name="robots" content="noindex,nofollow">' .
@@ -128,7 +159,7 @@ final class DemoPortalStaticExporter
             // before the manifest is signed by local hashes and committed.
             (new DemoPortalNavigationAudit())->verify($staging);
 
-            // F135: audit a fixed nine-page synthetic package before the
+            // F135: audit a fixed synthetic page package before the
             // atomic directory rename; never signal a completed partial set.
             (new DemoPortalArtifactManifest())->create($staging, $files);
 
