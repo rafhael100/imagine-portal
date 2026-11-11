@@ -116,6 +116,27 @@ test('Sem confiança de proxy, X-Forwarded-For manipulado nunca reseta o limite 
  assert.ok(['register:127.0.0.1','register:::1'].includes(buckets[0].key));
 });
 
+test('Buckets de rate limit vencidos são eliminados sem resetar quotas ativas',async t=>{
+ const f=await fixture(t);
+ const expired=Date.now()-1000,active=Date.now()+3600000;
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('login-email:expired-1',15,expired);
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('register:expired-2',8,expired);
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('login-email:still-active',3,active);
+ const request=()=>fetch(f.url+'/api/register',{
+  method:'POST',headers:{Origin:f.origin,'Content-Type':'application/json'},
+  body:JSON.stringify({}),
+ });
+ assert.equal((await request()).status,400);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM rate_limits WHERE key LIKE '%expired-%'").get().n,0);
+ const preserved=f.db.prepare('SELECT count,reset_at FROM rate_limits WHERE key=?').get('login-email:still-active');
+ assert.equal(preserved.count,3);
+ assert.equal(preserved.reset_at,active);
+ for(let i=0;i<7;i++)assert.equal((await request()).status,400);
+ assert.equal((await request()).status,429);
+ const counters=f.db.prepare("SELECT count FROM rate_limits WHERE key LIKE 'register:%'").all();
+ assert.deepEqual(counters.map(row=>row.count),[8]);
+});
+
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
 test('Preço vem do servidor; repetir checkout não duplica cobrança; proposta fica imutável',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c);const first=await pay(c,o,{price:1,price_cents:1});assert.equal(first.status,200);assert.equal(f.gateway.payments.length,1);assert.equal(f.gateway.payments[0].value,990);assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1);assert.equal((await admin.call('/api/orders/'+o.id+'/proposal',{price_cents:1,scope:'Escopo adulterado depois de aceito.',delivery:'1 dia'})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM payments').get().n,1);assert.equal((await c.call('/api/orders/'+o.id)).body.order.payment_status,'PENDING')});
 test('Timeout após cobrança criada exige conciliação e não permite cobrança duplicada',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),o=await order(c),create=f.gateway.createPayment;f.gateway.createPayment=async data=>{await create(data);throw Object.assign(Error('Timeout de teste'),{uncertain:true,status:502})};assert.equal((await pay(c,o)).status,502);assert.equal((await pay(c,o)).status,409);assert.equal(f.gateway.payments.length,1);assert.equal((await c.call('/api/orders/'+o.id+'/sync',{})).status,200);assert.equal((await c.call('/api/orders/'+o.id)).body.order.billing_state,'ready');assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1)});
