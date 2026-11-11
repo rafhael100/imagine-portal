@@ -9,6 +9,7 @@ use App\Domain\PortalAccess\Authority\DenyingPortalAuthorities;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\PortalAccess\Authority\PortalMembershipAuthority;
 use App\Domain\PortalAccess\Authority\PortalResourceAuthority;
+use App\Domain\PortalAccess\Authority\PortalOrganizationAuthority;
 use App\Domain\PortalAccess\Authority\PortalSessionAuthority;
 use App\Domain\SeoReview\GoogleSearchConsoleConnectionPreflight;
 use Tests\TestCase;
@@ -24,13 +25,15 @@ final class PortalGscConnectionPreflightDefaultDenyTest extends TestCase
         $sessions = app(PortalSessionAuthority::class);
         $memberships = app(PortalMembershipAuthority::class);
         $resources = app(PortalResourceAuthority::class);
+        $organizations = app(PortalOrganizationAuthority::class);
 
         self::assertInstanceOf(DenyingPortalAuthorities::class, $sessions);
         self::assertInstanceOf(DenyingPortalAuthorities::class, $memberships);
         self::assertInstanceOf(DenyingPortalAuthorities::class, $resources);
+        self::assertSame($sessions, $organizations);
 
         $service = new GoogleSearchConsoleConnectionPreflight(
-            new PortalAuthorityBoundary($sessions, $memberships, $resources),
+            new PortalAuthorityBoundary($sessions, $memberships, $resources, $organizations),
         );
         $review = $service->inspect(
             'synthetic-browser-session',
