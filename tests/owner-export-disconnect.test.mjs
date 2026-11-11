@@ -78,3 +78,24 @@ test('F240: drain immediately followed by close does not read the next cursor ro
  assert.equal(ended,false);
  for(const event of ['close','drain','error'])assert.equal(res.listenerCount(event),0);
 });
+
+for(const when of ['write:true','write:false','end']){
+ test(`F242: synchronous transport error during ${when} is rejected and releases listeners`,async()=>{
+  const res=new EventEmitter();
+  let destroyed=0,ended=0,finalized=false;
+  const error=new Error(`transport failed: ${when}`);
+  res.headersSent=true;
+  res.destroy=()=>{destroyed++;res.destroyed=true;res.emit('close');};
+  res.write=()=>{
+   if(when.startsWith('write'))res.emit('error',error);
+   return when!=='write:false';
+  };
+  res.end=()=>{ended++;if(when==='end')res.emit('error',error);};
+  function *chunks(){try{yield 'first';yield 'must-not-read';}finally{finalized=true;}}
+  await assert.rejects(writeExportChunks(res,chunks()),err=>err===error);
+  assert.equal(destroyed,1);
+  assert.equal(finalized,true);
+  assert.equal(ended,when==='end'?1:0);
+  for(const event of ['close','drain','error'])assert.equal(res.listenerCount(event),0);
+ });
+}
