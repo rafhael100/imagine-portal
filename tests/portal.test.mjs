@@ -234,6 +234,31 @@ test('F171: recibo de revogação informa sessões próprias ativas, nunca conta
  assert.equal(Object.keys(repeated.body).some(k=>/hash|csrf|token|email|ip/.test(k)),false);
 });
 
+test('F172: histórico de segurança é próprio, limitado e não expõe dados de auditoria interna',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa';
+ f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)')
+  .run(a.user.id,'billing.token_failed','segredo-interno',new Date().toISOString());
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ const own=await a.call('/api/account/security-events');
+ assert.equal(own.status,200);
+ assert.equal(own.body.events.length,2);
+ assert.deepEqual(own.body.events.map(e=>e.action),['sessions.revoked_others','account.created']);
+ assert.ok(own.body.events.every(e=>Object.keys(e).sort().join(',')==='action,created_at'));
+ assert.equal(JSON.stringify(own.body).includes(a.user.id),false);
+ assert.equal(JSON.stringify(own.body).includes('segredo-interno'),false);
+ assert.deepEqual((await b.call('/api/account/security-events')).body.events.map(e=>e.action),['account.created']);
+ const response=await fetch(f.url+'/api/account/security-events');
+ assert.equal(response.status,401);
+ assert.match(response.headers.get('cache-control')||'',/no-store/);
+ const staff=await f.client('Atendimento','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ const staffHistory=await staff.call('/api/account/security-events');
+ assert.equal(staffHistory.status,200);
+ assert.deepEqual(staffHistory.body,{events:[]});
+ assert.equal((await staff.call('/api/admin/finance.csv')).status,403);
+});
+
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
 test('Preço vem do servidor; repetir checkout não duplica cobrança; proposta fica imutável',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c);const first=await pay(c,o,{price:1,price_cents:1});assert.equal(first.status,200);assert.equal(f.gateway.payments.length,1);assert.equal(f.gateway.payments[0].value,990);assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1);assert.equal((await admin.call('/api/orders/'+o.id+'/proposal',{price_cents:1,scope:'Escopo adulterado depois de aceito.',delivery:'1 dia'})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM payments').get().n,1);assert.equal((await c.call('/api/orders/'+o.id)).body.order.payment_status,'PENDING')});
 test('Timeout após cobrança criada exige conciliação e não permite cobrança duplicada',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),o=await order(c),create=f.gateway.createPayment;f.gateway.createPayment=async data=>{await create(data);throw Object.assign(Error('Timeout de teste'),{uncertain:true,status:502})};assert.equal((await pay(c,o)).status,502);assert.equal((await pay(c,o)).status,409);assert.equal(f.gateway.payments.length,1);assert.equal((await c.call('/api/orders/'+o.id+'/sync',{})).status,200);assert.equal((await c.call('/api/orders/'+o.id)).body.order.billing_state,'ready');assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1)});
