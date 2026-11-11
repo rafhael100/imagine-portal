@@ -10,6 +10,7 @@ if(PHP_SAPI!=='cli'||getenv('APP_ENV')!=='testing'||
     exit(2);
 }
 require_once dirname(__DIR__).'/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php';
+require_once dirname(__DIR__).'/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php';
 $path=$argv[1];
 if(!is_file($path)||is_link($path)||!is_readable($path)||
     filesize($path)===false||filesize($path)>65536){
@@ -20,7 +21,21 @@ try {
     $content=file_get_contents($path);
     if(!is_string($content))throw new RuntimeException();
     $dto=json_decode($content,true,64,JSON_THROW_ON_ERROR);
-    $preview=\App\Domain\SeoReview\OfflineGscQueryPageOverlapPreview::fromDto($dto);
+    $paging=null;
+    if(in_array(($dto['contractVersion']??null),[
+        'seo-gsc-query-page-pagination-offline-v1',
+        'seo-gsc-query-page-pagination-offline-v2'
+    ],true)){
+        $paginated=\App\Domain\SeoReview\OfflineGscQueryPagePaginationPreview::fromDto($dto);
+        if($paginated===null||$paginated->canQueryGoogle()||
+            $paginated->canPublish()||$paginated->canStoreTokens()||
+            $paginated->canDisplayToCustomers())
+            throw new RuntimeException();
+        $preview=$paginated->aggregate;
+        $paging=$paginated->pagination;
+    }else{
+        $preview=\App\Domain\SeoReview\OfflineGscQueryPageOverlapPreview::fromDto($dto);
+    }
     if($preview===null||$preview->canPublish()||$preview->canReadGoogle()||
         $preview->hasVerifiedTenantGrant()||$preview->canStoreTokens())
         throw new RuntimeException();
@@ -79,6 +94,18 @@ echo '<section aria-labelledby="review-title"><h2 id="review-title">Situação d
         'O limite da exportação pode ter sido atingido; não extrapolar este resultado.':
         'Não há confirmação de cobertura integral do Search Console, apenas das linhas fornecidas.')
     .'</p></section>';
+if($paging!==null){
+    echo '<section aria-labelledby="pagination-title">'
+        .'<h2 id="pagination-title">Cobertura dos lotes de resultados (DEMO)</h2>'
+        .'<p>Lotes analisados: <strong>'.$fmt($paging['pagesReceived']).'</strong>.</p>'
+        .'<p>Registros no lote: <strong>'.$fmt($paging['rowsReceived']).'</strong>.</p>'
+        .'<p>'.($paging['mayHaveMore']?
+            'Pode haver mais páginas de resultados; comparação parcial.':
+            'Último lote menor que o limite; ainda não comprova cobertura total do Google.')
+        .'</p>'
+        .'<p class="muted">Limite de quatro lotes por análise local; nenhum acesso Google foi executado pelo Portal.</p>'
+        .'</section>';
+}
 echo '<footer>Uma mesma busca aparecer em várias páginas não comprova canibalização ou falha de SEO. '
     .'Revise intenção, relevância e canônicos antes de tomar decisões. '
     .'Esta demonstração não contém termos, URLs ou dados reais e não realiza nenhuma alteração no site.</footer>'
