@@ -5,8 +5,10 @@ declare(strict_types=1);
 // F133 CI-only parity across two real repositories, not permission to send.
 // Both schema files are local to the GitHub runner after immutable checkouts.
 require_once dirname(__DIR__,2).'/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php';
+require_once dirname(__DIR__,2).'/app/Domain/SiteIntake/SiteEngineContractVocabulary.php';
 
 use App\Domain\SiteIntake\SiteEngineSchemaDriftGate;
+use App\Domain\SiteIntake\SiteEngineContractVocabulary;
 
 if (getenv('GITHUB_ACTIONS')!=='true'
     || getenv('RUNNER_ENVIRONMENT')!=='github-hosted'
@@ -48,6 +50,53 @@ check133(($schema['properties']['productCode']['enum']??null)
 check133(!SiteEngineSchemaDriftGate::authorizesIntegration()
     && !SiteEngineSchemaDriftGate::verifiesRemoteOrigin(),
     'schema parity never authenticates or authorizes real integration');
+
+// F133 also checks the latest Sites-to-Portal review candidate contract
+// against the Portal's existing v2 vocabulary, without promoting any sender.
+$contractDir=$root.'/sites-source/contracts/portal-sites/v1/';
+$epochFile=$contractDir.'review-handoff-epoch-envelope.schema.json';
+$reviewFile=$contractDir.'review-handoff-envelope.schema.json';
+$authFile=$contractDir.'project-authorization-snapshot.candidate.schema.json';
+check133(is_file($epochFile)&&is_file($reviewFile)&&is_file($authFile),
+    'real Sites review and authority schemas exist');
+$epochRaw=file_get_contents($epochFile);
+$reviewRaw=file_get_contents($reviewFile);
+$authRaw=file_get_contents($authFile);
+check133(is_string($epochRaw)&&is_string($reviewRaw)&&is_string($authRaw),
+    'real Sites secondary contract bytes readable');
+check133(sha1('blob '.strlen($epochRaw)."\\0".$epochRaw)
+    ==='d985f8e406b49741480678ecb7f639ec0b38dc30',
+    'v2 review epoch schema pinned to exact upstream Git blob');
+check133(sha1('blob '.strlen($reviewRaw)."\\0".$reviewRaw)
+    ==='bc59c5a56838adbc3779afb88243f702b08216ee',
+    'v1 review candidate schema pinned to exact upstream Git blob');
+check133(sha1('blob '.strlen($authRaw)."\\0".$authRaw)
+    ==='d1dc7e1c77d9c813bc3fd2031e4b40ee28e97da0',
+    'project authority snapshot schema pinned to upstream blob');
+$epoch=json_decode($epochRaw,true,32,JSON_THROW_ON_ERROR);
+$review=json_decode($reviewRaw,true,32,JSON_THROW_ON_ERROR);
+$auth=json_decode($authRaw,true,32,JSON_THROW_ON_ERROR);
+check133(($epoch['additionalProperties']??null)===false
+    && ($epoch['required']??null)===SiteEngineContractVocabulary::reviewProposalV2Keys()
+    && array_keys($epoch['properties']??[])===SiteEngineContractVocabulary::reviewProposalV2Keys(),
+    'current Portal v2 review vocabulary matches actual Sites schema');
+check133(($epoch['properties']['schemaVersion']['const']??null)
+    ===SiteEngineContractVocabulary::SITES_REVIEW_PROPOSAL_V2
+    && ($epoch['properties']['issuer']['const']??null)==='imagine-sites'
+    && ($epoch['properties']['audience']['const']??null)==='imagine-portal',
+    'v2 issuer/audience and exact version remain fixed');
+check133(($review['properties']['candidate']['properties']['officialClientAcceptance']['const']??null)===false
+    && ($review['properties']['candidate']['properties']['publishable']['const']??null)===false
+    && ($review['properties']['candidate']['properties']['portalAuthorityRequired']['const']??null)===true,
+    'review candidate cannot grant acceptance or publication');
+check133(($auth['additionalProperties']??null)===false
+    && ($auth['properties']['status']['enum']??null)===['eligible','suspended','revoked']
+    && ($auth['properties']['boundCommand']['$ref']??null)==='./create-project.schema.json',
+    'project authority candidate cannot silently bypass bound command');
+check133(!SiteEngineContractVocabulary::mayInvokeOperationalSitesEngine()
+    && !SiteEngineContractVocabulary::mayAcceptCustomerApproval()
+    && !SiteEngineContractVocabulary::mayRequestPublication(),
+    'matching schemas never authorize Sites operation or publication');
 
 // A different but valid JSON schema MUST fail, including same basic keys.
 $tmp=sys_get_temp_dir().'/portal-f133-'.bin2hex(random_bytes(10));
