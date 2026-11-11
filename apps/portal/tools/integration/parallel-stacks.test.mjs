@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   readNulPaths, compareCandidatePaths, mergeAssessment,
-  renderMergeAssessment, PINNED_SEO_HEAD,
+  renderMergeAssessment, PINNED_SEO_HEAD, requireCleanConvergence,
 } from './parallel-stacks.mjs';
 
 test('NUL-delimited Git paths parse without splitting spaces or loss of names',()=>{
@@ -77,4 +77,11 @@ test('invalid commits and graph counts fail closed',()=>{
     mergeBase:'b'.repeat(40),counts:'n/a',
     paths:compareCandidatePaths([],[]),mergeStatus:0,mergeOutput:'',
   }),/divergence/);
+});
+
+test('F147 convergence gate fails on a real conflict and accepts only a clean simulation',()=>{
+  assert.equal(requireCleanConvergence(sample(0),true),true);
+  assert.throws(()=>requireCleanConvergence(sample(1),true),/unresolved Git conflicts/);
+  assert.equal(requireCleanConvergence(sample(1),false),true);
+  assert.throws(()=>requireCleanConvergence(null,true));
 });

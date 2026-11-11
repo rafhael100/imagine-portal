@@ -8,10 +8,14 @@ namespace App\Domain\Authorization;
  */
 enum Permission: string
 {
+    // F126: ungranted permission for future human review; no HTTP capability.
+    // The GSC permission below is also vocabulary-only, without OAuth access.
+    // Keep the GSC addition at the same position as its independent branch
+    // to permit a clean three-way merge without dropping either contract.
+    case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';
     case ViewServices = 'services.view';
     case ManageServices = 'services.manage';
     case ViewBilling = 'billing.view';
     case ManageMembers = 'members.manage';
-    // F126: ungranted permission for future human review; no HTTP capability.
-    case ViewCommercialDeliveryReview = 'commercial.delivery-review.view';
+    case ConnectGoogleSearchConsole = 'seo.gsc.connect';
 }

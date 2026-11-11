@@ -3,9 +3,12 @@ on:
   push:
     branches:
       - review/portal-f146-parallel-stack-conflict-review-2026-11-11
+      - review/portal-f147-permission-enum-stack-convergence-2026-11-11
   pull_request:
     paths:
       - 'apps/portal/tools/integration/parallel-stacks*'
+      - 'apps/portal/app/Domain/Authorization/Permission.php'
+      - 'apps/portal/tests/Unit/PortalSeoPermissionConvergenceTest.php'
       - '.github/workflows/portal-f146-parallel-stack-review.yml'
   workflow_dispatch:
 
@@ -46,6 +49,7 @@ jobs:
         env:
           GITHUB_ACTIONS: 'true'
           PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PORTAL_REQUIRE_CLEAN_MERGE: ${{ github.head_ref == 'review/portal-f147-permission-enum-stack-convergence-2026-11-11' || github.ref_name == 'review/portal-f147-permission-enum-stack-convergence-2026-11-11' }}
           PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-parallel-stack-review
         run: node apps/portal/tools/integration/parallel-stacks.mjs
       - name: Archive metadata-only report
