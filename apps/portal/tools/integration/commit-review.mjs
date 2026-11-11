@@ -3,10 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  classify, parseNameStatusZ, requireCandidateHead,
+  classify, parseNameStatusZ, requireCandidateHead, selectReviewBase,
 } from './inventory.mjs';
 
-const BASE = 'refs/remotes/origin/dev/fast-track-portal-2026-11-05';
 const CRITICAL = new Set([
   'identity_security', 'database_migration', 'application_runtime',
   'node_identity_security', 'node_sensitive_export', 'node_application_runtime',
@@ -158,7 +157,8 @@ function main() {
     git(['rev-parse','HEAD']),
     process.env.PORTAL_EXPECTED_HEAD ?? '',
   );
-  const shas = git(['rev-list','--reverse','--topo-order',BASE+'..HEAD'])
+  const base=selectReviewBase(process.env.PORTAL_REVIEW_BASE ?? '');
+  const shas = git(['rev-list','--reverse','--topo-order',base+'..HEAD'])
     .split('\n').filter(Boolean);
   if (shas.length > 5000) throw new Error('Candidate history exceeds review bound.');
 
@@ -173,7 +173,7 @@ function main() {
   });
 
   const report = buildCommitReview({
-    base: BASE, head, commits,
+    base, head, commits,
   });
   mkdirSync(folder, {recursive:true,mode:0o700});
   writeFileSync(join(folder,'commit-review.json'),
