@@ -454,7 +454,37 @@ jobs:
           unset F32_AFTER_RESTORE
           rm -f "$f32_backup"
 
+          # F359: alternate recovery strategy, synthetic and strictly offline.
+          # BEFORE serving anything, invalidate all restored F24 sessions
+          # and membership permissions in one SQL transaction. It must not
+          # touch/reconstruct the independently booted witness container.
+          php -l tests/Integration/F359PostRestoreQuarantineTest.php
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql >/dev/null
+          state_query="SELECT string_agg(organization_id||':'||session_id||':'||
+                      mock_state||':'||session_revision,'|' ORDER BY organization_id)
+                      FROM f24.session_fixture"
+          state_once="$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "$state_query")"
+          test "$state_once" = 'org-a:DEMO-SESSION-A:revoked:2|org-b:DEMO-SESSION-B:revoked:2'
+          # Running the quarantine again may not increment epochs endlessly.
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql >/dev/null
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "$state_query")" = "$state_once"
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.membership_fixture WHERE mock_state='revoked'
+                AND membership_revision=2 AND NOT can_view_services")" = 2
+          export F359_QUARANTINED=ALL_FIXTURE_SESSIONS_REVOKED
+          vendor/bin/phpunit --configuration phpunit.xml \
+            tests/Integration/F359PostRestoreQuarantineTest.php
+          unset F359_QUARANTINED
+
           echo "F32 ACTUAL SYNTHETIC PG_DUMP/PG_RESTORE: primary restored; independent witness retained newer floor."
+          echo "F359 SYNTHETIC QUARANTINE: both tenant sessions and memberships revoked, idempotent, no serving."
           echo "F32 RESTRICTION: no production backup, PITR, physical restore, external trust domain or Z4 certification."
           echo "F22/F24 LAB ONLY: PHP PDO verified local DB identities/RLS and synthetic revocation; no real IAM."
           echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
