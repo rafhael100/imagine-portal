@@ -8,6 +8,9 @@ import {writeExportChunks} from '../server/owner-project-export.mjs';
 function fakeDatabase(payments){
  let queried=0,visited=0,closed=0;
  const db={prepare(sql){
+  // F257: forbid SELECT * so payment provider internals are never fetched.
+  assert.match(sql,/SELECT p\.order_id,p\.kind,p\.status,p\.value_cents,p\.net_cents,p\.due_date,p\.paid_at,o\.title,u\.name,u\.email/);
+  assert.doesNotMatch(sql,/\bp\.\*/);
   assert.match(sql,/FROM payments p JOIN orders o/);
   return {iterate(){
    queried++;
