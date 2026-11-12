@@ -19,7 +19,33 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const updates=all(`SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM task_updates
   UNION ALL SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM manual_task_updates
   UNION ALL SELECT task_id,'done' AS status,completed_at AS created_at,0 AS management_note FROM task_completion_events ORDER BY created_at`),
- history=all('SELECT task_id,action,before_json,after_json,created_at FROM task_management_history ORDER BY created_at');
+ // F276: snapshots can contain full client/task details. Derive only the
+ // fields used by BI while still distinguishing missing/null, text, numeric
+ // and complex JSON values for accurate due-date change counting.
+ history=all(`WITH snapshots AS (
+   SELECT task_id,created_at,
+    CASE WHEN json_valid(before_json) THEN before_json ELSE '{}' END AS before_safe,
+    CASE WHEN json_valid(after_json) THEN after_json ELSE '{}' END AS after_safe,
+    CASE WHEN json_valid(before_json) AND json_valid(after_json) THEN 0 ELSE 1 END AS invalid_json
+   FROM task_management_history
+  )
+  SELECT task_id,
+   json_extract(before_safe,'$.status') AS before_status,
+   json_extract(before_safe,'$.updated_at') AS before_updated_at,
+   CASE WHEN invalid_json=0 AND json_type(before_safe)='object' AND json_type(after_safe)='object'
+    THEN CASE
+     WHEN json_type(before_safe,'$.due_date') IN ('array','object')
+       OR json_type(after_safe,'$.due_date') IN ('array','object') THEN 1
+     WHEN json_type(before_safe,'$.due_date') IN ('integer','real')
+      AND json_type(after_safe,'$.due_date') IN ('integer','real')
+      THEN CASE WHEN json_extract(before_safe,'$.due_date') IS json_extract(after_safe,'$.due_date') THEN 0 ELSE 1 END
+     WHEN json_type(before_safe,'$.due_date') IS json_type(after_safe,'$.due_date')
+      AND json_extract(before_safe,'$.due_date') IS json_extract(after_safe,'$.due_date') THEN 0
+     ELSE 1 END
+    ELSE NULL END AS due_changed,
+   CASE WHEN invalid_json=1 OR json_type(before_safe)!='object' OR json_type(after_safe)!='object'
+    THEN 1 ELSE 0 END AS malformed_history
+  FROM snapshots ORDER BY created_at`);
  const eventMap=new Map(),historyMap=new Map();for(const e of updates){if(!eventMap.has(e.task_id))eventMap.set(e.task_id,[]);eventMap.get(e.task_id).push(e);}for(const h of history){if(!historyMap.has(h.task_id))historyMap.set(h.task_id,[]);historyMap.get(h.task_id).push(h);}
  // F269: explicitly exclude source_key and the full private checklist from
  // SQLite results. BI already excluded both from its public response.
@@ -28,8 +54,10 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  let rows=all(`SELECT t.id,t.order_id,t.kind,t.title,t.assignee_id,t.status,t.due_date,t.note,t.version,t.created_at,t.updated_at,t.priority,t.instructions,t.goal,t.archived_at,t.canceled_at,u.name AS assignee,s.active AS staff_active,u.role AS assignee_role,o.title AS order_title,o.product_id,o.user_id AS client_id,c.name AS client,p.stage FROM work_items t LEFT JOIN users u ON u.id=t.assignee_id LEFT JOIN staff s ON s.user_id=t.assignee_id LEFT JOIN orders o ON o.id=t.order_id LEFT JOIN users c ON c.id=o.user_id LEFT JOIN productions p ON p.order_id=t.order_id`).map(t=>{
   const events=eventMap.get(t.id)||[],hist=historyMap.get(t.id)||[],progress=events.filter(e=>!e.management_note);let completion=null;for(const e of progress){if(e.status!=='done')completion=null;else completion??=e.created_at;}
   let completed_at=t.status==='done'?completion:null,completion_estimated=false;
-  if(t.status==='done'&&!completed_at){const before=hist.map(h=>JSON.parse(h.before_json)).find(b=>b.status==='done');completed_at=before?.updated_at||t.updated_at;completion_estimated=true;}
-  const due_changes=hist.filter(h=>JSON.parse(h.before_json).due_date!==JSON.parse(h.after_json).due_date).length;
+  if(hist.some(h=>h.malformed_history))
+   throw Object.assign(Error('Histórico de atividade temporariamente indisponível.'),{status:503});
+  if(t.status==='done'&&!completed_at){const before=hist.find(h=>h.before_status==='done');completed_at=before?.before_updated_at||t.updated_at;completion_estimated=true;}
+  const due_changes=hist.reduce((sum,h)=>sum+Number(h.due_changed),0);
   const age_days=days(day(t.created_at),today),overdue_days=open(t)&&t.due_date<today?days(t.due_date,today):0;
   return {...t,assignee:t.assignee||'Sem responsável',client:t.client||'Atividade interna',order_title:t.order_title||'Sem pedido vinculado',active:open(t),unassigned:!t.assignee_id||(t.assignee_role!=='admin'&&t.staff_active!==1),age_days,overdue_days,completed_at,completion_estimated,cycle_days:completed_at?Math.round(days(t.created_at,completed_at)*10)/10:null,on_time:completed_at?day(completed_at)<=t.due_date:null,due_changes,updates_count:events.length};
  });
