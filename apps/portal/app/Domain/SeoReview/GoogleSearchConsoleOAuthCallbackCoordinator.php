@@ -66,9 +66,12 @@ final class GoogleSearchConsoleOAuthCallbackCoordinator
             self::$issuedOutcomes[$outcome]=true;
             return $outcome;
         }
-        return new GoogleSearchConsoleOAuthCallbackOutcome(
+        $outcome=new GoogleSearchConsoleOAuthCallbackOutcome(
             $decision['decision'],null,null
         );
+        self::$issuedOutcomes ??= new \WeakMap();
+        self::$issuedOutcomes[$outcome]=true;
+        return $outcome;
     }
 
     public static function authorizesGoogleHttp(): bool{return false;}
@@ -100,7 +103,7 @@ final class GoogleSearchConsoleOAuthCallbackOutcome
         return [
             'contractVersion'=>'portal-gsc-oauth-one-time-callback-review-v1',
             'decision'=>$this->decision,
-            'stateConsumed'=>true,
+            'stateConsumed'=>GoogleSearchConsoleOAuthCallbackCoordinator::issuedByConsumedState($this),
             'oauthVerified'=>false,
             'tenantGrantVerified'=>false,
             'propertyAuthorizationVerified'=>false,
