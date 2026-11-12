@@ -169,9 +169,16 @@ final class DemoPortalStaticExporterTest extends TestCase
             (new DemoPortalStaticExporter())->export($destination);
             $count = count(DemoPortalArtifactManifest::pageNames());
             self::assertSame(11, $count);
-            $this->artisan('portal:demo-verify')
-                ->expectsOutput('Verified '.$count.' synthetic HTML preview pages and local navigation. No publication or customer access.')
-                ->assertExitCode(0);
+            // Use the real console kernel; InteractsWithConsole::artisan()
+            // depends on optional Mockery, which is absent from the pinned
+            // production-only Composer lockfile used by isolated CI.
+            $output = new \Symfony\Component\Console\Output\BufferedOutput();
+            $exitCode = \Illuminate\Support\Facades\Artisan::call('portal:demo-verify', [], $output);
+            self::assertSame(0, $exitCode);
+            self::assertStringContainsString(
+                'Verified '.$count.' synthetic HTML preview pages and local navigation. No publication or customer access.',
+                $output->fetch(),
+            );
         } finally {
             $this->app->useStoragePath($originalStorage);
             foreach (glob($destination.'/*') ?: [] as $path) {
