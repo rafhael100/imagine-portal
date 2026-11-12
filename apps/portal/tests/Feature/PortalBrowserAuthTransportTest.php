@@ -179,14 +179,30 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $this->request('POST', 'mfa', ['code' => '123456'], $this->csrf())->assertUnauthorized();
     }
 
-    public function test_revoked_backend_state_is_rechecked_on_each_request(): void
+    public function test_revoked_backend_state_is_rechecked_and_durably_revoked(): void
     {
         $adapter = $this->loginWithMfa();
         $this->request('GET', 'session')->assertOk();
+        self::assertNotContains(str_repeat('b', 64), $adapter->revoked);
         $adapter->active = false;
         $this->request('GET', 'session')->assertUnauthorized();
+        self::assertContains(str_repeat('b', 64), $adapter->revoked,
+            'F294: a stale backend reference must be revoked before the cookie is discarded.');
         $adapter->active = true;
         $this->request('GET', 'session')->assertUnauthorized();
+    }
+
+    public function test_inactive_backend_revocation_failure_is_not_reported_as_normal_denial(): void
+    {
+        $adapter = $this->loginWithMfa();
+        $adapter->active = false;
+        $adapter->revocationSucceeds = false;
+        $this->request('GET', 'session')
+            ->assertStatus(503)->assertExactJson(['error' => 'authentication_unavailable']);
+        $adapter->revocationSucceeds = true;
+        $adapter->active = true;
+        $this->request('GET', 'session')->assertUnauthorized();
+        self::assertNotContains(str_repeat('b', 64), $adapter->revoked);
     }
 
     public function test_logout_destroys_local_state_and_waits_for_durable_revocation(): void
