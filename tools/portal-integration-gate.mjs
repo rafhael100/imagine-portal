@@ -152,6 +152,13 @@ async function githubGet(path, token) {
   };
 }
 
+// The stacked candidate is always measured against dev, NOT its nested PR
+// base. Only a separately pinned second-stage lot may compare to its parent.
+export function comparisonBase(m, lot = null) {
+  validateManifest(m);
+  return lot === null ? m.targetBranch : lot.baseBranch;
+}
+
 export async function fetchEvidence(m, token, lot = null) {
   validateManifest(m);
   if (typeof token !== 'string' || token.length < 20) {
@@ -163,7 +170,7 @@ export async function fetchEvidence(m, token, lot = null) {
   const runs = await githubGet(root + '/actions/runs?head_sha=' +
     candidate.headSha + '&per_page=100', token);
   const comparison = await githubGet(root + '/compare/' +
-    encodeURIComponent(candidate.baseBranch ?? m.targetBranch) + '...' +
+    encodeURIComponent(comparisonBase(m, lot)) + '...' +
     candidate.headSha, token);
   if (pr.paginated || runs.paginated ||
       !Array.isArray(runs.data?.workflow_runs) ||
