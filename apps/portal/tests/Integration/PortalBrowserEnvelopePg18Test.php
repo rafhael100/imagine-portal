@@ -199,6 +199,7 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
     public function test_http_password_mfa_logout_use_real_sql_identity_and_sql_envelopes():void
     {
         fwrite(STDERR,"HTTP integration: preparing fixture\n");
+        putenv('PORTAL_BROWSER_ENVELOPE_TRACE=1');
         $actor='11111111-1111-4111-8111-111111111111';
         $org='22222222-2222-4222-8222-222222222222';
         $this->admin->exec('TRUNCATE public.portal_auth_sessions,public.portal_membership_grants,public.portal_memberships,
@@ -221,7 +222,10 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         $this->app->instance(PortalBrowserAuthentication::class,$adapter);
         config(['app.url'=>'https://portal.example.test','session.driver'=>'portal_pg_encrypted','session.encrypt'=>false,'session.lottery'=>[0,100]]);
         $this->app['session']->extend('portal_pg_encrypted',function(){
-            return new EncryptedPostgresPortalSessionHandler($this->other(),'portal_browser_lab',$this->app['encrypter']);
+            fwrite(STDERR,"[F287 HTTP] custom driver factory enter\n");
+            $handler = new EncryptedPostgresPortalSessionHandler($this->other(),'portal_browser_lab',$this->app['encrypter']);
+            fwrite(STDERR,"[F287 HTTP] custom driver factory exit\n");
+            return $handler;
         });
         Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void{
             Route::get('/__pg-envelope/csrf',[PortalBrowserAuthController::class,'csrf']);
@@ -234,7 +238,9 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         $cookie=null;
         $request=function(string $method,string $path,array $body=[],?string $token=null)use(&$cookie){
             fwrite(STDERR,"HTTP integration: request ".$method." ".$path."\n");
+            fwrite(STDERR,"[F287 HTTP] manager-reset begin\n");
             $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
+            fwrite(STDERR,"[F287 HTTP] manager-reset done\n");
             $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>'https://portal.example.test','REMOTE_ADDR'=>'192.0.2.10'];
             if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
