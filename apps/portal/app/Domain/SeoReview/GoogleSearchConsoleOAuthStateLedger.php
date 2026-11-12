@@ -76,9 +76,13 @@ final class GoogleSearchConsoleOAuthStateLedger
                 sealed_verifier,issued_at,expires_at,consumed_at
                 FROM portal_gsc_oauth_states
                 WHERE state_hash=:hash AND tenant_ref=:tenant AND actor_ref=:actor
-                AND issued_at<=:now AND expires_at>=:now AND consumed_at IS NULL');
+                AND issued_at<=:now_start AND expires_at>=:now_end AND consumed_at IS NULL');
             if (!$stmt)return null;
-            $stmt->execute($arg);
+            $stmt->execute([
+                'hash'=>$arg['hash'],'tenant'=>$arg['tenant'],
+                'actor'=>$arg['actor'],'now_start'=>$trustedNow,
+                'now_end'=>$trustedNow
+            ]);
             $row=$stmt->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row))return null;
             $verifier=$this->open($row);
@@ -111,11 +115,15 @@ final class GoogleSearchConsoleOAuthStateLedger
             $stmt=$this->pdo->prepare('UPDATE portal_gsc_oauth_states
                 SET consumed_at=:consumed
                 WHERE state_hash=:hash AND tenant_ref=:tenant AND actor_ref=:actor
-                AND issued_at<=:now AND expires_at>=:now AND consumed_at IS NULL
+                AND issued_at<=:now_start AND expires_at>=:now_end AND consumed_at IS NULL
                 RETURNING state_hash,tenant_ref,actor_ref,sealed_verifier,
                     issued_at,expires_at,consumed_at');
             if (!$stmt)return null;
-            $stmt->execute([...$arg,'consumed'=>$trustedNow]);
+            $stmt->execute([
+                'hash'=>$arg['hash'],'tenant'=>$arg['tenant'],
+                'actor'=>$arg['actor'],'now_start'=>$trustedNow,
+                'now_end'=>$trustedNow,'consumed'=>$trustedNow
+            ]);
             $row=$stmt->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row))return null;
             $verifier=$this->open($row);
