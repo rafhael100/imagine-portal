@@ -80,3 +80,13 @@ A CI agora inclui um **segundo contêiner PostgreSQL 18**, com cluster próprio 
 ## F349 — contrato SQL compartilhado para recuperar funções e migrations
 
 Os dois ensaios de restauração (no mesmo cluster descartável e no segundo cluster sem rede) agora executam `restore-contracts.sql` contra o **banco restaurado**, e não apenas o banco de origem. A instrução SQL exige as dez migrations exatas e confere as **13 funções de identidade/envelope**: existência, `SECURITY DEFINER`, papel proprietário, `row_security=on`, `search_path` restrito e matriz exata de `EXECUTE` de ambos os papéis runtime. A função interna de prova HMAC não pode ser executada diretamente. O contrato é somente leitura e falha fechado; não substitui teste de recuperação de credenciais reais nem auditoria independente.
+
+## F350 — provas negativas para o contrato SQL
+
+A CI exige que `restore-contracts.sql` passe com a fundação sintética íntegra, falhe após uma alteração temporária de `SECURITY DEFINER` para `SECURITY INVOKER` na função de validação de sessão e falhe quando `PUBLIC` recebe `EXECUTE` direto na função interna HMAC. Cada alteração é revertida antes de uma segunda aprovação do contrato e da comparação do fingerprint original. São testes exclusivamente no cluster descartável, sem alterar autenticação real, sem abrir rotas HTTP e sem deploy.
+
+**Correção de inicialização F348 (CI):** uma execução da candidata F350 detectou que `pg_isready` aceita o servidor temporário do `initdb` **antes** de `POSTGRES_DB` existir. O segundo cluster agora precisa ter o processo final PostgreSQL como PID 1 **e** responder a uma consulta SQL ao banco-alvo correto antes de criar os papéis. Esse teste evita a corrida de inicialização sem aumentar permissões ou usar rede externa.
+
+## F351 — continuidade da chave de prova HMAC sintética
+
+Os dois ensaios de restauração deixam de verificar apenas que existe uma linha na tabela privada de chave HMAC. Agora capturam na origem um hash SHA-256 da **chave aleatória de CI** (sem expor chave bruta), exigem que esse fingerprint permaneça igual após gerar o dump e que o banco restaurado — no mesmo cluster ou no segundo contêiner independente — tenha exatamente o mesmo fingerprint. O último cheque garante que a origem também não mudou. A comparação comprova integridade de uma chave sintética durante a cópia; **não** comprova custódia externa de chaves de clientes, rotação, backup off-host nem recuperação anti-rollback.
