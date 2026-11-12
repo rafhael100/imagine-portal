@@ -69,7 +69,14 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const active=rows.filter(t=>t.active),done=rows.filter(t=>t.status==='done'),reliable=done.filter(t=>!t.completion_estimated),cycles=reliable.map(t=>t.cycle_days),ontime=reliable.filter(t=>t.on_time).length;
  const summary={total:rows.length,open:active.length,doing:active.filter(t=>t.status==='doing').length,blocked:active.filter(t=>t.status==='blocked').length,overdue:active.filter(t=>t.overdue_days>0).length,today:active.filter(t=>t.due_date===today).length,unassigned:active.filter(t=>t.unassigned).length,urgent:active.filter(t=>['critical','high'].includes(t.priority)).length,done:done.length,canceled:rows.filter(t=>t.status==='canceled').length,archived:rows.filter(t=>t.archived_at).length,cycle_mean:mean(cycles),cycle_median:median(cycles),on_time_percent:reliable.length?Math.round(ontime/reliable.length*100):null,on_time_sample:reliable.length,estimated_completions:done.length-reliable.length,oldest_open:active.length?Math.max(...active.map(t=>t.age_days)):null,due_changes:rows.reduce((s,t)=>s+t.due_changes,0)};
  const breakdown=key=>[...new Set(rows.map(t=>t[key]))].map(value=>({key:value||'',count:rows.filter(t=>t[key]===value).length})).sort((a,b)=>b.count-a.count);
- const workload=[...new Set(rows.map(t=>t.assignee_id))].map(id=>{const ts=rows.filter(t=>t.assignee_id===id),os=ts.filter(t=>t.active),ds=ts.filter(t=>t.status==='done'&&!t.completion_estimated);return {id:id||'none',name:ts[0].assignee,total:ts.length,open:os.length,overdue:os.filter(t=>t.overdue_days>0).length,blocked:os.filter(t=>t.status==='blocked').length,urgent:os.filter(t=>['critical','high'].includes(t.priority)).length,done:ts.filter(t=>t.status==='done').length,cycle_mean:mean(ds.map(t=>t.cycle_days)),on_time_percent:ds.length?Math.round(ds.filter(t=>t.on_time).length/ds.length*100):null};}).sort((a,b)=>b.overdue-a.overdue||b.open-a.open);
+ // F282: bucket tasks once per responsible person instead of filtering the
+ // entire cohort for every assignee (O(N × unique assignees)).
+ const workloadGroups=new Map();
+ for(const task of rows){
+  if(!workloadGroups.has(task.assignee_id))workloadGroups.set(task.assignee_id,[]);
+  workloadGroups.get(task.assignee_id).push(task);
+ }
+ const workload=[...workloadGroups].map(([id,ts])=>{const os=ts.filter(t=>t.active),ds=ts.filter(t=>t.status==='done'&&!t.completion_estimated);return {id:id||'none',name:ts[0].assignee,total:ts.length,open:os.length,overdue:os.filter(t=>t.overdue_days>0).length,blocked:os.filter(t=>t.status==='blocked').length,urgent:os.filter(t=>['critical','high'].includes(t.priority)).length,done:ts.filter(t=>t.status==='done').length,cycle_mean:mean(ds.map(t=>t.cycle_days)),on_time_percent:ds.length?Math.round(ds.filter(t=>t.on_time).length/ds.length*100):null};}).sort((a,b)=>b.overdue-a.overdue||b.open-a.open);
  // F281: compute each date's São Paulo day once rather than scanning
  // the entire cohort for each month (up to 37 scans for a 3-year report).
  const monthCreated=new Map(),monthCompleted=new Map();
