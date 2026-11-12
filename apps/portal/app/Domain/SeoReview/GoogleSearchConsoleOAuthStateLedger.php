@@ -214,7 +214,20 @@ final class GoogleSearchConsoleOAuthStateLedger
  */
 final class GoogleSearchConsoleOAuthConsumedVerifier
 {
-    public function __construct(private readonly string $value) {}
-    public function revealForTrustedBackend(): string{return $this->value;}
-    public function __debugInfo(): array{return ['codeVerifier'=>'[REDACTED]'];}
+    private readonly \SensitiveParameterValue $secret;
+
+    public function __construct(#[\SensitiveParameter] string $verifier)
+    {
+        $this->secret=new \SensitiveParameterValue($verifier);
+    }
+
+    public function revealForTrustedBackend(): string
+    {
+        return $this->secret->getValue();
+    }
+
+    public function __debugInfo(): array
+    {
+        return ['codeVerifier'=>'[REDACTED]'];
+    }
 }
