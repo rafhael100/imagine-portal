@@ -30,3 +30,7 @@ CI: PHP 8.3/8.4 × Node 22/24, matriz existente de integração A–G. Nenhum re
 4. Implementação posterior e revisada da troca HTTPS do código OAuth, token vault, revogação, retenção, auditoria sem segredos e rollback.
 
 **NO-GO operacional** e **DRAFT**: sem merge `dev/main`, autenticação real, HTTP, OAuth de cliente, banco, deploy, DNS/301 ou custo adicional. Revisão independente AppSec/DBA/LGPD e homologação em staging são indispensáveis.
+
+## Revisão consolidada contra dev
+
+A candidata única de revisão é [Portal #421](https://github.com/rafhael100/imagine-portal/pull/421), agora base `dev/fast-track-portal-2026-11-05`. As PRs A–F são trilha incremental e **não podem ser mescladas em paralelo** com #421. O CI precisa validar o diff total (36 arquivos antes desta atualização, todos dentro da allowlist) na nova base. O prazo e estado PKCE ainda não implementam consumo de uso único por banco, autorização Google ou tenant autenticado.
