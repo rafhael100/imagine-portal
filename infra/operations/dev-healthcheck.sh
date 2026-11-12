@@ -47,6 +47,11 @@ for service in nginx docker certbot.timer; do
         record "$service" false
     fi
 done
+if [[ $(docker inspect --format '{{.State.Health.Status}}' imagine-portal-development-db-postgres-1 2>/dev/null || true) == healthy ]]; then
+    record portal_database true
+else
+    record portal_database false
+fi
 healthy=false
 if [[ $overall == 0 ]]; then healthy=true; fi
 printf '],"healthy":%s}\n' "$healthy" >> "$temporary"
