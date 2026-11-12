@@ -577,6 +577,80 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             "SELECT count(*) FROM public.portal_service_resource_claims WHERE state='candidate'")->fetchColumn());
     }
 
+
+    public function test_f310_concurrent_org_claims_cannot_adopt_the_same_source_resource():void
+    {
+        $secondOrg='44444444-4444-4444-8444-444444444444';
+        $this->admin->exec("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision)
+            VALUES('".$secondOrg."','racing-tenant','Other organization','active',1)");
+        $insert="INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code) VALUES
+            (?,?, 'imagine_sites','same-origin-concurrent-service','sites_onepage')";
+        $other=self::connect('postgres',(string)getenv('PGPASSWORD'));
+        $this->admin->beginTransaction();
+        try {
+            $a=$this->admin->prepare($insert);
+            $a->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::ORG]);
+
+            // B cannot slip a second ownership claim past A's uncommitted
+            // UNIQUE(source_system,source_resource_ref) index entry.
+            $other->beginTransaction();
+            try {
+                $other->exec("SET LOCAL lock_timeout = '250ms'");
+                $b=$other->prepare($insert);
+                try {
+                    $b->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',$secondOrg]);
+                    self::fail('Second tenant bypassed uncommitted unique claim.');
+                } catch(PDOException $error) {
+                    self::assertSame('55P03',(string)$error->getCode(),
+                        'Concurrent claim must wait for the first transaction.');
+                }
+            } finally {
+                if ($other->inTransaction()) $other->rollBack();
+            }
+            $this->admin->commit();
+
+            // Once A commits, B is refused permanently by the unique index.
+            try {
+                $other->prepare($insert)->execute([
+                    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',$secondOrg
+                ]);
+                self::fail('Committed source binding was reassigned to B.');
+            } catch(PDOException $error) {
+                self::assertSame('23505',(string)$error->getCode());
+            }
+            $q=$other->prepare("SELECT organization_id FROM public.portal_service_resource_claims
+                WHERE source_resource_ref='same-origin-concurrent-service'");
+            $q->execute();
+            self::assertSame(self::ORG,$q->fetchColumn());
+        } finally {
+            if ($this->admin->inTransaction()) $this->admin->rollBack();
+        }
+    }
+
+    public function test_f310_rollback_refuses_to_drop_populated_resource_claim_evidence():void
+    {
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,'imagine_performance','performance-candidate','performance_ai')");
+        $insert->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::ORG]);
+
+        $migration=require __DIR__.'/../../database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php';
+        try {
+            $migration->down();
+            self::fail('An automated rollback dropped existing ownership evidence.');
+        } catch(RuntimeException $e) {
+            self::assertSame(
+                'F309 rollback denied: service ownership evidence requires audited cleanup.',
+                $e->getMessage()
+            );
+        }
+        self::assertSame(1,(int)$this->admin->query(
+            'SELECT count(*) FROM public.portal_service_resource_claims')->fetchColumn());
+        $this->deniedSql('SELECT * FROM public.portal_service_resource_claims');
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
