@@ -63,6 +63,24 @@ jobs:
           sudo -E docker compose run --rm -T provision php provision.php verify > after-refusal.out
           cmp before.out after-refusal.out
           cat before.out
+      - name: Refuse overwrite of an existing restore target and preserve it
+        run: |
+          set -euo pipefail
+          target=portal_identity_f338_restore_ci
+          sudo -E docker compose exec -T --user postgres postgres \
+            createdb -U postgres --template=template0 "$target"
+          status=0
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh >/dev/null 2>&1 || status=$?
+          test "$status" -eq 65
+          sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='$target'" | grep -qx 1
+          sudo -E docker compose exec -T --user postgres postgres \
+            dropdb -U postgres "$target"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-existing-target.out
+          cmp before.out after-existing-target.out
       - name: Deliberately misgrant privileges and prove verify fails closed
         run: |
           set -euo pipefail
