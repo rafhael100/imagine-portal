@@ -9,3 +9,7 @@ portal-db-restore-probe.sh recebe um diretório COMPLETE com hashes válidos. Re
 Esta prova cobre a fundação vazia e restauração lógica no mesmo cluster, não recuperação após perda da VPS. Backup local não protege contra perda do disco; cópia externa, custódia/rotação, restauração em cluster novo e mecanismos para não regredir contadores MFA/revisões/revogações continuam necessários antes de dados reais. Depois de cadastrar identidades, o probe inicial deve falhar; planejar ensaio operacional específico sem reativar sessões.
 
 O healthcheck passa a incluir o estado healthy do contêiner PostgreSQL, além dos sete checks anteriores. Não transforma 401 da prévia em prova de login funcional.
+
+As operações sem entrada (dump, globals, SQL, createdb/dropdb) desativam explicitamente STDIN interativo do Docker Compose. Somente pg_restore que lê um arquivo mantém STDIN habilitado, sempre redirecionado do arquivo. Cada comando tem conexão limitada a cinco segundos e timeout de 180 s com SIGKILL após mais cinco segundos. Isso evita que uma rotina de cron ou terminal fique presa no encaminhamento de entrada ou após ignorar SIGTERM.
+
+A CI reproduz backup e restauração com a fundação descartável fixada na versão implantada f342703ff8440e53bade5575703813df398bacbe. Confere dois backups consecutivos, hashes/permissões, recusa de arquivo corrompido, preservação de alvo preexistente, recusa de fonte com identidade e remoção somente do alvo temporário criado pelo teste. Não publica dumps, segredos ou logs de SQL sensível.

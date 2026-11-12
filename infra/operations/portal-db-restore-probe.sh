@@ -10,8 +10,12 @@ exec 9>/run/lock/imagine-portal-restore-check.lock
 flock -n 9 || exit 75
 cd /srv/imagine/portal-development/infra/development/portal-db
 pg() {
-    timeout 180s docker compose exec -T --user 82:82 postgres sh -ec \
-        'export PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
+    timeout --kill-after=5s 180s docker compose exec -T --interactive=false --user 82:82 postgres sh -ec \
+        'export PGCONNECT_TIMEOUT=5 PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
+}
+pg_input() {
+    timeout --kill-after=5s 180s docker compose exec -T --interactive=true --user 82:82 postgres sh -ec \
+        'export PGCONNECT_TIMEOUT=5 PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
 }
 sql() {
     local database=$1 query=$2
@@ -33,7 +37,7 @@ trap cleanup EXIT
 # Existing target is never reused or deleted: createdb must succeed first.
 pg createdb -h 127.0.0.1 -U postgres --template=template0 portal_identity_restore_probe
 created=1
-pg pg_restore -h 127.0.0.1 -U postgres --dbname=portal_identity_restore_probe \
+pg_input pg_restore -h 127.0.0.1 -U postgres --dbname=portal_identity_restore_probe \
     --clean --if-exists --exit-on-error < "$backup/database.dump"
 query="SELECT encode(public.digest(marker,'sha256'),'hex') FROM public.portal_development_installation WHERE singleton AND version=1"
 source_marker=$(sql portal_identity_dev "$query")
