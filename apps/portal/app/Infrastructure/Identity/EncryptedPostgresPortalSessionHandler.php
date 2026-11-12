@@ -18,6 +18,8 @@ use Throwable;
  */
 final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInterface
 {
+    private const BINDING = "IMAGINE-PORTAL-ENVELOPE-V1\n";
+
     private bool $owned = false;
 
     public function __construct(
@@ -65,15 +67,18 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
     {
         try {
             $this->start();
-            $payload=$this->query('SELECT public.portal_browser_envelope_read(?)',[$this->digest($id)]);
+            $digest=$this->digest($id);
+            $payload=$this->query('SELECT public.portal_browser_envelope_read(?)',[$digest]);
             if ($payload === '') {
                 return '';
             }
             $plain=$this->cipher->decrypt($payload,false);
-            if (!is_string($plain)) {
-                throw new RuntimeException('Invalid session payload.');
+            $binding=self::BINDING.$digest."\n";
+            if (!is_string($plain) || strlen($plain)<strlen($binding)
+                || !hash_equals($binding,substr($plain,0,strlen($binding)))) {
+                throw new RuntimeException('Invalid session payload binding.');
             }
-            return $plain;
+            return substr($plain,strlen($binding));
         } catch (Throwable) {
             $this->rollback();
             throw new RuntimeException('Portal session storage unavailable.');
@@ -84,9 +89,10 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
     {
         try {
             $this->start();
-            $payload=$this->cipher->encrypt($data,false);
+            $digest=$this->digest($id);
+            $payload=$this->cipher->encrypt(self::BINDING.$digest."\n".$data,false);
             if (strlen($payload)>65536 || !$this->truth($this->query(
-                'SELECT public.portal_browser_envelope_write(?,?)',[$this->digest($id),$payload]))) {
+                'SELECT public.portal_browser_envelope_write(?,?)',[$digest,$payload]))) {
                 throw new RuntimeException('Session write refused.');
             }
             $this->db->commit();

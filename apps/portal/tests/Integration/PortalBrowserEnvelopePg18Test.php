@@ -139,6 +139,43 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         $handler->close();
     }
 
+    public function test_ciphertext_cannot_be_transplanted_to_a_different_session_id():void
+    {
+        $handler=$this->handler();
+        $otherId=str_repeat('B',40);
+        $handler->write(self::SID,'source-private-session');
+        $handler->write($otherId,'target-private-session');
+        $q=$this->admin->prepare('UPDATE public.portal_browser_envelopes SET payload=
+            (SELECT payload FROM public.portal_browser_envelopes WHERE id_sha256=?)
+            WHERE id_sha256=?');
+        $q->execute([hash('sha256',self::SID),hash('sha256',$otherId)]);
+        try {
+            $handler->read($otherId);
+            self::fail('Ciphertext transplanted between session identifiers was accepted.');
+        } catch(RuntimeException $error) {
+            self::assertSame('Portal session storage unavailable.',$error->getMessage());
+        }
+        self::assertFalse($this->runtime->inTransaction());
+        self::assertSame('source-private-session',$handler->read(self::SID));
+        $handler->close();
+    }
+
+    public function test_unbound_legacy_ciphertext_is_rejected_without_fallback():void
+    {
+        $legacy=$this->cipher->encrypt('unbound-private-session',false);
+        $q=$this->admin->prepare('INSERT INTO public.portal_browser_envelopes(id_sha256,payload,expires_at)
+            VALUES(?,?,clock_timestamp()+interval \'2 hours\')');
+        $q->execute([hash('sha256',self::SID),$legacy]);
+        $handler=$this->handler();
+        try {
+            $handler->read(self::SID);
+            self::fail('Legacy ciphertext without session binding was accepted.');
+        } catch(RuntimeException $error) {
+            self::assertSame('Portal session storage unavailable.',$error->getMessage());
+        }
+        self::assertFalse($this->runtime->inTransaction());
+    }
+
     public function test_corrupt_ciphertext_fails_closed_and_releases_transaction():void
     {
         $handler=$this->handler();
