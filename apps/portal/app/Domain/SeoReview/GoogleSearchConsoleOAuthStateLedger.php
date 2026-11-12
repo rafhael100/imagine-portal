@@ -15,7 +15,7 @@ use Throwable;
  */
 final class GoogleSearchConsoleOAuthStateLedger
 {
-    private readonly string $encryptionKey;
+    private readonly \SensitiveParameterValue $encryptionKey;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -24,7 +24,7 @@ final class GoogleSearchConsoleOAuthStateLedger
         if (strlen($encryptionKey)!==32 || !extension_loaded('sodium')) {
             throw new \InvalidArgumentException('GSC state ledger: invalid server configuration');
         }
-        $this->encryptionKey=$encryptionKey;
+        $this->encryptionKey=new \SensitiveParameterValue($encryptionKey);
     }
 
     public function store(mixed $serverOnly, mixed $trustedNow): bool
@@ -40,7 +40,7 @@ final class GoogleSearchConsoleOAuthStateLedger
         $aad=self::aad($hash,$tenant,$actor,$expires);
         $nonce=random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
         $sealed=sodium_crypto_aead_xchacha20poly1305_ietf_encrypt(
-            $serverOnly['codeVerifier'],$aad,$nonce,$this->encryptionKey
+            $serverOnly['codeVerifier'],$aad,$nonce,$this->encryptionKey->getValue()
         );
         $serialized='v1.'.base64_encode($nonce.$sealed);
 
@@ -148,7 +148,7 @@ final class GoogleSearchConsoleOAuthStateLedger
         $aad=self::aad((string)$row['state_hash'],(string)$row['tenant_ref'],
             (string)$row['actor_ref'],(int)$row['expires_at']);
         $plain=sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
-            $ciphertext,$aad,$nonce,$this->encryptionKey
+            $ciphertext,$aad,$nonce,$this->encryptionKey->getValue()
         );
         return is_string($plain) && self::validVerifier($plain)?$plain:null;
     }
