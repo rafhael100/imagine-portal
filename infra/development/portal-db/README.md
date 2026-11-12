@@ -90,3 +90,7 @@ A CI exige que `restore-contracts.sql` passe com a fundação sintética íntegr
 ## F351 — continuidade da chave de prova HMAC sintética
 
 Os dois ensaios de restauração deixam de verificar apenas que existe uma linha na tabela privada de chave HMAC. Agora capturam na origem um hash SHA-256 da **chave aleatória de CI** (sem expor chave bruta), exigem que esse fingerprint permaneça igual após gerar o dump e que o banco restaurado — no mesmo cluster ou no segundo contêiner independente — tenha exatamente o mesmo fingerprint. O último cheque garante que a origem também não mudou. A comparação comprova integridade de uma chave sintética durante a cópia; **não** comprova custódia externa de chaves de clientes, rotação, backup off-host nem recuperação anti-rollback.
+
+## Ensaio de coexistência F143 + F351 — PR #578 (somente CI)
+
+A candidata de integração isolada [PR #578](https://github.com/rafhael100/imagine-portal/pull/578) transplanta somente as quatro alterações de UI F143 ainda ausentes da base de autenticação/recuperação F351. Como o workflow de fundação privada tem filtro de caminhos, uma PR com mudanças apenas em UI não o executaria novamente. Esta anotação, **exclusiva da branch de ensaio**, obriga uma nova execução do teste PostgreSQL 18 no mesmo SHA combinado, além de PHP, Node, GSC e F64. O teste não conecta a interface aos papéis runtime nem libera qualquer rota; resultados aprovados não substituem revisão independente, anti-rollback ou aprovação de integração. **Sem merge/deploy.**
