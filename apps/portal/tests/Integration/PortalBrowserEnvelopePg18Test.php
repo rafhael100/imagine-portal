@@ -198,6 +198,7 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
 
     public function test_http_password_mfa_logout_use_real_sql_identity_and_sql_envelopes():void
     {
+        fwrite(STDERR,"HTTP integration: preparing fixture\n");
         $actor='11111111-1111-4111-8111-111111111111';
         $org='22222222-2222-4222-8222-222222222222';
         $this->admin->exec('TRUNCATE public.portal_auth_sessions,public.portal_membership_grants,public.portal_memberships,
@@ -216,6 +217,7 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             VALUES('33333333-3333-4333-8333-333333333333',?,?,'member','active',1)");$q->execute([$actor,$org]);
         $identity=self::connect('portal_browser_runtime',(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'));
         $adapter=new PostgresPortalBrowserAuthentication($identity,'portal_browser_lab',$proof,$key,bin2hex(random_bytes(32)));
+        fwrite(STDERR,"HTTP integration: identity adapter ready\n");
         $this->app->instance(PortalBrowserAuthentication::class,$adapter);
         config(['app.url'=>'https://portal.example.test','session.driver'=>'portal_pg_encrypted','session.encrypt'=>false,'session.lottery'=>[0,100]]);
         $this->app['session']->extend('portal_pg_encrypted',function(){
@@ -228,13 +230,16 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             Route::get('/__pg-envelope/session',[PortalBrowserAuthController::class,'current']);
             Route::post('/__pg-envelope/logout',[PortalBrowserAuthController::class,'logout']);
         });
+        fwrite(STDERR,"HTTP integration: session driver and routes ready\n");
         $cookie=null;
         $request=function(string $method,string $path,array $body=[],?string $token=null)use(&$cookie){
+            fwrite(STDERR,"HTTP integration: request ".$method." ".$path."\n");
             $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
             $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>'https://portal.example.test','REMOTE_ADDR'=>'192.0.2.10'];
             if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
                 $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
+            fwrite(STDERR,"HTTP integration: response ".$response->getStatusCode()."\n");
             foreach($response->headers->getCookies()as$c)if($c->getName()===config('session.cookie'))$cookie=$c->getValue();
             return $response;
         };
