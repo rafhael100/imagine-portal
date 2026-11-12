@@ -80,6 +80,9 @@ try{
         !Coordinator::issuedByConsumedState($cloned));
     $check($forged->safeReview()['stateConsumed']===false &&
         $cloned->safeReview()['stateConsumed']===false);
+    $check($forged->takeForTrustedBackend()===null &&
+        $cloned->takeForTrustedBackend()===null);
+
     $planner=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan();
     $credentials=[
         'clientId'=>$config['clientId'],
