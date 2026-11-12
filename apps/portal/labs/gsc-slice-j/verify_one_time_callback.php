@@ -71,6 +71,25 @@ try{
             'registeredRedirectUri'=>$config['registeredRedirectUri']
         ],$result);
     $check($tokenPlan!==null);
+    $check(Coordinator::issuedByConsumedState($result));
+    $forged=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthCallbackOutcome(
+        'CODE_CONSUMED_AWAITING_TRUSTED_TOKEN_BACKEND',$code,$verifier
+    );
+    $cloned=clone $result;
+    $check(!Coordinator::issuedByConsumedState($forged) &&
+        !Coordinator::issuedByConsumedState($cloned));
+    $planner=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan();
+    $credentials=[
+        'clientId'=>$config['clientId'],
+        'clientSecret'=>'synthetic-only-not-a-real-credential',
+        'registeredRedirectUri'=>$config['registeredRedirectUri']
+    ];
+    $check($planner->prepare($credentials,$forged)===null);
+    $check($planner->prepare($credentials,$cloned)===null);
+    $check($planner->prepare([
+        ...$credentials,'registeredRedirectUri'=>'https://evil.example/callback'
+    ],$result)===null);
+
     $post=$tokenPlan->takeForTrustedHttpsTransport();
     parse_str($post['body'],$form);
     $check($post['url']==='https://oauth2.googleapis.com/token'
