@@ -287,6 +287,66 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             rmdir($directory);
         }
     }
+
+    // F302: executable only against the disposable PostgreSQL 18 laboratory.
+    // This is a session + explicit-grant preflight, NEVER resource ownership.
+    private function permissionPreflight(?string $reference,string $organization,string $permission):bool
+    {
+        $q=$this->runtime->prepare('SELECT public.portal_browser_permission_preflight(?,CAST(? AS uuid),?)');
+        $q->execute([$reference===null?null:hash('sha256',$reference),$organization,$permission]);
+        return in_array($q->fetchColumn(),[true,1,'1','t'],true);
+    }
+
+    public function test_browser_permission_preflight_never_implies_role_or_cross_tenant_authorization():void
+    {
+        // No explicit grant means no permission even for a valid MFA session.
+        $this->admin->exec("UPDATE public.portal_memberships SET role='owner'");
+        $active=$this->active();
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.manage'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'*'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.*'));
+        self::assertFalse($this->permissionPreflight(null,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('0',64),self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->deniedSql('SELECT * FROM public.portal_membership_grants');
+        $this->deniedSql('SELECT * FROM public.portal_auth_sessions');
+        $this->deniedSql('SELECT * FROM public.portal_memberships');
+    }
+
+    public function test_grant_revocation_invalidates_existing_business_permission_preflight():void
+    {
+        $grant='55555555-5555-4555-8555-555555555555';
+        $insert=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(2,(int)$this->admin->query(
+            'SELECT membership_revision FROM public.portal_memberships'
+        )->fetchColumn(),'Explicit grant issuance must rotate membership revision.');
+        $active=$this->active();
+        self::assertTrue($this->permissionPreflight($active,self::ORG,'services.view'));
+        foreach(['services.manage','billing.view','members.manage','services.*','*'] as $ungranted){
+            self::assertFalse($this->permissionPreflight($active,self::ORG,$ungranted));
+        }
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('a',64),self::ORG,'services.view'));
+
+        $delete=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE id=?');
+        $delete->execute([$grant]);
+        self::assertSame(1,$delete->rowCount());
+        self::assertSame(3,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        // Reissue of the same grant cannot resurrect a session from a prior revision.
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(4,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertTrue($this->adapter->revoke($active));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
