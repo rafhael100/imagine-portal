@@ -11,3 +11,7 @@ O laboratório verifica as duas empresas A/B em SQL, a recusa do token antigo **
 ## F360 — atomicidade e recusa de sessões inesperadas
 
 Antes do teste positivo F359, a CI insere temporariamente uma **terceira sessão fictícia** na organização A. O mesmo SQL deve interromper a transação com erro sem revogar a sessão A, a sessão B ou seus memberships; a CI confere que as **três sessões continuam ativas em revisão 1** e que os dois vínculos continuam ativos antes de remover a sessão adicional. Só então executa a quarentena completa, verifica A/B bloqueadas e exige idempotência na segunda execução. Essa prova é deliberadamente destrutiva **apenas sobre fixtures descartáveis** e não deve ser usada como script de reparo em bancos operacionais.
+
+## F362 — isolamento direto de B e vínculo inesperado
+
+Além da prova SQL de que ambas as empresas foram revogadas, a suíte PHP agora conecta como `f21_org_b` (credencial diferente de `f21_org_a`) e exige que RLS exponha somente a sessão e o membership fictícios da empresa B, ambos revogados. Tokens HMAC sintéticos antigos **e** emitidos com as revisões pós-quarentena precisam falhar fechado também para B. A CI executa ainda um teste negativo de atomicidade com terceiro membership sem sessão: a quarentena deve recusar, preservar as duas sessões e todos os vínculos sem alteração parcial, remover a fixture adversarial e só então completar a operação esperada. Nenhuma permissão entre empresas é habilitada.
