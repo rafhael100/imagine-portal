@@ -60,6 +60,33 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         return self::connect('portal_browser_envelope_runtime',(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'));
     }
 
+    public function test_f319_session_handler_export_never_embeds_the_encrypter_key():void
+    {
+        $handler=$this->handler();
+        $dump=var_export($handler,true);
+        self::assertIsString($dump);
+        self::assertStringNotContainsString('Encrypter::__set_state',$dump);
+        self::assertStringNotContainsString('privateCiphers',$dump);
+        self::assertStringNotContainsString(base64_encode($this->key),$dump);
+        self::assertStringNotContainsString(bin2hex($this->key),$dump);
+        $printed=print_r($handler,true);
+        self::assertStringNotContainsString(base64_encode($this->key),$printed);
+        self::assertStringNotContainsString('cipher',$printed);
+
+        self::assertTrue($handler->write(self::SID,'f319-sensitive-session'));
+        self::assertSame('f319-sensitive-session',$handler->read(self::SID));
+        self::assertTrue($handler->close());
+
+        $class=EncryptedPostgresPortalSessionHandler::class;
+        $wire='O:'.strlen($class).':"'.$class.'":0:{}';
+        try {
+            unserialize($wire,['allowed_classes'=>[$class]]);
+            self::fail('A crafted handler ignored the runtime-encryption loader.');
+        } catch(RuntimeException $error) {
+            self::assertSame('Session handlers cannot be unserialized.',$error->getMessage());
+        }
+    }
+
     public function test_payload_is_encrypted_id_is_hashed_and_writes_are_committed():void
     {
         $handler=$this->handler();
