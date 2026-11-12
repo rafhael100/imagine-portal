@@ -14,7 +14,8 @@ function setup(organization='22222222-2222-4222-8222-222222222222'){
   const calls=[];const queue=[{status:401}];
   const document={querySelector:id=>elements.get(id),visibilityState:'visible',listeners:{},
     addEventListener(type,handler){this.listeners[type]=handler;}};
-  const context={document,AbortSignal,fetch:async(path,options)=>{
+  const window={listeners:{},addEventListener(type,handler){this.listeners[type]=handler;}};
+  const context={document,window,AbortSignal,fetch:async(path,options)=>{
     calls.push({path,options});
     const response=queue.shift();
     if(response instanceof Error)throw response;
@@ -23,7 +24,7 @@ function setup(organization='22222222-2222-4222-8222-222222222222'){
   }};
   vm.runInNewContext(source,context);
   const fire=async(id,event='submit')=>{elements.get('#'+id).listeners[event]({preventDefault(){}});await flush();};
-  return {elements,calls,queue,fire,document};
+  return {elements,calls,queue,fire,document,window};
 }
 test('unconfigured company never starts an authentication request',async()=>{
   const s=setup('');await flush();assert.equal(s.calls.length,0);
@@ -130,6 +131,29 @@ test('returning to a visible tab with expired session returns to password withou
   s.document.listeners.visibilitychange();
   await flush();
   assert.equal(s.elements.get('#authenticated').hidden,true);
+  assert.equal(s.elements.get('#password-form').hidden,false);
+  assert.match(s.elements.get('#status').textContent,/Sua sessão terminou/);
+});
+
+test('pageshow after back-forward restoration rechecks session but ordinary pageshow does not',async()=>{
+  const s=setup();await flush();
+  s.elements.get('#email').value='operator@example.invalid';
+  s.elements.get('#password').value='synthetic-only';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:202});
+  await s.fire('password-form');
+  s.elements.get('#code').value='123456';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:200,body:{authenticated:true}},{status:200,body:{authenticated:true}});
+  await s.fire('mfa-form');
+  assert.equal(s.elements.get('#authenticated').hidden,false);
+  const before=s.calls.length;
+  s.window.listeners.pageshow({persisted:false});
+  await flush();
+  assert.equal(s.calls.length,before);
+  s.queue.push({status:401});
+  s.window.listeners.pageshow({persisted:true});
+  assert.equal(s.elements.get('#authenticated').hidden,true);
+  await flush();
+  assert.equal(s.calls.length,before+1);
   assert.equal(s.elements.get('#password-form').hidden,false);
   assert.match(s.elements.get('#status').textContent,/Sua sessão terminou/);
 });
