@@ -1,0 +1,59 @@
+name: imagine-browser-auth-lab
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-browser-admin-only
+      POSTGRES_DB: portal_browser_lab
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    tmpfs:
+      - /var/lib/postgresql:rw,noexec,nosuid,size=512m
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U postgres -d portal_browser_lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  runner:
+    build:
+      context: ../../../..
+      dockerfile: apps/portal/infra/browser-auth-lab/Dockerfile
+    network_mode: "service:postgres"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      PORTAL_BROWSER_PG_LAB: DISPOSABLE_PG18
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: portal_browser_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-browser-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: portal_browser_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-browser-admin-only
+      PORTAL_BROWSER_RUNTIME_PASSWORD: ci-browser-runtime-only
+      PORTAL_BROWSER_ENVELOPE_PASSWORD: ci-browser-envelope-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m,mode=1777
+      - /var/www/html/storage:rw,nosuid,nodev,size=128m,mode=1777
+      - /var/www/html/bootstrap/cache:rw,nosuid,nodev,size=16m,mode=1777
+networks:
+  private:
+    internal: true
