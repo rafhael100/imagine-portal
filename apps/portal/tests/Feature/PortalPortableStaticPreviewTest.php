@@ -67,6 +67,28 @@ final class PortalPortableStaticPreviewTest extends TestCase
             self::assertStringNotContainsString('<iframe', $html);
             self::assertStringNotContainsString('http://', $html);
             self::assertStringNotContainsString('https://', $html);
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            $previous = libxml_use_internal_errors(true);
+            try {
+                self::assertTrue($dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NONET));
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            self::assertSame(1, $dom->getElementsByTagName('main')->length);
+            self::assertSame(1, $dom->getElementsByTagName('h1')->length);
+            foreach ($dom->getElementsByTagName('table') as $table) {
+                $region = $table->parentNode;
+                self::assertInstanceOf(\DOMElement::class, $region);
+                self::assertSame('region', $region->getAttribute('role'));
+                self::assertSame('0', $region->getAttribute('tabindex'));
+                $caption = $table->getElementsByTagName('caption')->item(0);
+                self::assertInstanceOf(\DOMElement::class, $caption);
+                self::assertSame(trim($caption->textContent), $region->getAttribute('aria-label'));
+                foreach ($table->getElementsByTagName('th') as $th) {
+                    self::assertSame('col', $th->getAttribute('scope'));
+                }
+            }
             preg_match_all('/href="([^"]+)"/', $html, $hrefs);
             foreach ($hrefs[1] as $href) {
                 self::assertContains($href, [...$pages, '#pi-content']);
@@ -108,6 +130,19 @@ final class PortalPortableStaticPreviewTest extends TestCase
         } catch (LogicException) {
             self::assertSame('SYNTHETIC_KEEP', file_get_contents($this->target.'/keep.txt'));
         }
+    }
+
+    public function test_unnamed_or_unfocusable_offline_table_fails_closed(): void
+    {
+        $html = '<!DOCTYPE html><html lang="pt-BR"><head><title>EXEMPLO</title></head>'
+            .'<body><main><h1>EXEMPLO</h1><div class="pi-table-wrap">'
+            .'<table><caption>Não focável</caption><thead><tr><th scope="col">Coluna</th>'
+            .'</tr></thead></table></div></main></body></html>';
+        $audit = new \ReflectionMethod(PortablePortalStaticPreview::class, 'assertOfflineOnly');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('named keyboard-focusable region');
+        $audit->invoke(new PortablePortalStaticPreview(), $html, ['index.html'], null);
     }
 
     public function test_exporter_does_not_register_http_or_customer_access_routes(): void
