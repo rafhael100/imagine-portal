@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure\Identity;
+
+use Closure;
+use Illuminate\Contracts\Encryption\Encrypter;
+use PDO;
+use RuntimeException;
+use Throwable;
+use WeakMap;
+
+/**
+ * A candidate Laravel session driver creator. It is NOT registered in config,
+ * providers, routes or bootstrap. No provider credentials are read here.
+ *
+ * SessionManager::extend() rebinds the creator's $this to SessionManager.
+ * Capture dependencies lexically: never look up a test/application object via
+ * $this from the returned callback (Manager::__call may recurse into driver()).
+ */
+final class EncryptedPostgresPortalSessionFactory
+{
+    public static function creator(
+        Closure $connect,
+        string $database,
+        Encrypter $cipher,
+        int $lockWaitMilliseconds = 2000,
+    ): Closure {
+        if ($database === '' || strlen($database) > 63 || preg_match('/\\A[a-z][a-z0-9_]*\\z/D', $database) !== 1) {
+            throw new RuntimeException('Explicit Portal session database required.');
+        }
+        if ($lockWaitMilliseconds < 100 || $lockWaitMilliseconds > 5000) {
+            throw new RuntimeException('Bounded session lock wait required.');
+        }
+
+        // F290: an envelope PDO must never belong to two live handlers. A
+        // WeakMap tracks issued connections without retaining closed PDOs.
+        // It also rejects reuse while a caller still holds the connection.
+        $issued = new WeakMap();
+
+        // Intentionally not static: Laravel binds the callback to SessionManager.
+        // The closure uses *only* captured arguments and can be rebound safely.
+        return function () use ($connect, $database, $cipher, $lockWaitMilliseconds, $issued): EncryptedPostgresPortalSessionHandler {
+            $connection = $connect();
+            if (!$connection instanceof PDO) {
+                throw new RuntimeException('Dedicated Portal session PDO required.');
+            }
+            if (isset($issued[$connection])) {
+                throw new RuntimeException('Fresh Portal session PDO required.');
+            }
+            $issued[$connection] = true;
+            try {
+                return new EncryptedPostgresPortalSessionHandler(
+                    $connection,
+                    $database,
+                    $cipher,
+                    $lockWaitMilliseconds,
+                );
+            } catch (Throwable $error) {
+                unset($issued[$connection]);
+                throw $error;
+            }
+        };
+    }
+}
