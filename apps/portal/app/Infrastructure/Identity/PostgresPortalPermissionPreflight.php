@@ -70,8 +70,15 @@ final readonly class PostgresPortalPermissionPreflight
 
     private function ready(): void
     {
-        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql'
-            || $this->db->inTransaction()) {
+        // F308: connection metadata and transaction probes are PDO calls,
+        // too. An unavailable driver may throw before the SQL try/catch.
+        try {
+            $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $inTransaction = $this->db->inTransaction();
+        } catch (Throwable) {
+            throw new RuntimeException('Portal permission preflight unavailable.');
+        }
+        if ($driver !== 'pgsql' || $inTransaction) {
             throw new RuntimeException('Dedicated autocommit Portal permission connection required.');
         }
 
