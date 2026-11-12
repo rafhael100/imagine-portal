@@ -44,24 +44,20 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     public function open(string $path, string $name): bool
     {
-        $this->trace('open');
         return true;
     }
 
     public function close(): bool
     {
-        $this->trace('close');
         $this->rollback();
         return true;
     }
 
     public function read(string $id): string|false
     {
-        $this->trace('read-enter');
         try {
             $this->start();
             $payload=$this->query('SELECT public.portal_browser_envelope_read(?)',[$this->digest($id)]);
-            $this->trace('read-query-return');
             if ($payload === '') {
                 return '';
             }
@@ -78,7 +74,6 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     public function write(string $id, string $data): bool
     {
-        $this->trace('write-enter');
         try {
             $this->start();
             $payload=$this->cipher->encrypt($data,false);
@@ -139,7 +134,6 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private function start(): void
     {
-        $this->trace('start-enter');
         if ($this->owned) {
             if (!$this->db->inTransaction()) {
                 $this->owned=false;
@@ -149,7 +143,6 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
         }
         $this->ready();
         $this->db->beginTransaction();
-        $this->trace('start-began');
         $this->owned=true;
         $this->db->exec("SET LOCAL lock_timeout = '".$this->lockWaitMilliseconds."ms'");
         $this->db->exec("SET LOCAL statement_timeout = '5s'");
@@ -158,7 +151,6 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private function ready(): void
     {
-        $this->trace('ready-enter');
         if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' || $this->db->inTransaction()) {
             throw new RuntimeException('Dedicated autocommit session connection required.');
         }
@@ -167,7 +159,6 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
           EXISTS(SELECT 1 FROM pg_auth_members WHERE member=r.oid) AS inherited
           FROM pg_roles r WHERE rolname=current_user");
         $row=$q->fetch(PDO::FETCH_ASSOC);
-        $this->trace('ready-row');
         if (!is_array($row)||$row['db']!==$this->database
             ||$row['actor']!=='portal_browser_envelope_runtime'||$row['login']!=='portal_browser_envelope_runtime') {
             throw new RuntimeException('Dedicated Portal envelope role required.');
@@ -185,24 +176,14 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private function query(string $sql,array $parameters): mixed
     {
-        $this->trace('query-enter');
         $q=$this->db->prepare($sql);
         $q->execute($parameters);
-        $this->trace('query-executed');
         return $q->fetchColumn();
     }
 
     private function truth(mixed $value): bool
     {
         return in_array($value,[true,1,'1','t'],true);
-    }
-
-    /** Diagnostic only: no IDs, SQL parameters, payloads, cookies or secrets. */
-    private function trace(string $checkpoint): void
-    {
-        if (getenv('PORTAL_BROWSER_ENVELOPE_TRACE') === '1') {
-            fwrite(STDERR, '[F287 envelope] '.$checkpoint."\n");
-        }
     }
 
     private function rollback(): void
