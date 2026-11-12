@@ -12,6 +12,8 @@ use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler;
 use App\Infrastructure\Identity\EncryptedPostgresPortalSessionFactory;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
+use App\Infrastructure\Identity\PortalBrowserSecretFile;
+use App\Infrastructure\Identity\PortalBrowserPrivateRuntime;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Route;
@@ -346,18 +348,33 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         $q->execute([$foreignOrg]);
         $q=$this->admin->prepare("INSERT INTO public.portal_memberships(id,identity_id,organization_id,role,status,membership_revision)
             VALUES('33333333-3333-4333-8333-333333333333',?,?,'member','active',1)");$q->execute([$actor,$org]);
-        $identity=self::connect('portal_browser_runtime',(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'));
-        $adapter=new PostgresPortalBrowserAuthentication($identity,'portal_browser_lab',$proof,$key,bin2hex(random_bytes(32)));
-        fwrite(STDERR,"HTTP integration: identity adapter ready\n");
+        // F325: the full HTTP password/MFA/logout flow must use the SAME
+        // validated private-file composer tested in F324, not a parallel
+        // ad hoc PDO factory. Test fixture only; never operational config.
+        $privateDirectory=sys_get_temp_dir().'/portal-http-f325-'.bin2hex(random_bytes(12));
+        mkdir($privateDirectory,0700);
+        $privateFile=$privateDirectory.'/private-auth.json';
+        $privateValues=[
+            'origin'=>'https://portal.example.test','host'=>'127.0.0.1',
+            'port'=>5432,'database'=>'portal_browser_lab',
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'proof_key'=>$proof,'totp_key'=>base64_encode($key),
+            'scope_pepper'=>bin2hex(random_bytes(32)),
+        ];
+        file_put_contents($privateFile,json_encode($privateValues,JSON_THROW_ON_ERROR));
+        chmod($privateFile,0600);
+        $runtime=new PortalBrowserPrivateRuntime(
+            PortalBrowserSecretFile::load($privateFile,'https://portal.example.test')
+        );
+        $adapter=$runtime->authentication();
+        fwrite(STDERR,"HTTP integration: private-runtime identity adapter ready\n");
         $this->app->instance(PortalBrowserAuthentication::class,$adapter);
         config(['app.url'=>'https://portal.example.test','session.driver'=>'portal_pg_encrypted','session.encrypt'=>false,'session.lottery'=>[0,100]]);
-        // The tested factory creates a fresh dedicated PostgreSQL connection
-        // on each request and avoids Manager::extend() rebind recursion.
-        $createConnection=fn():PDO=>$this->other();
-        $this->app['session']->extend('portal_pg_encrypted',
-            EncryptedPostgresPortalSessionFactory::creator(
-                $createConnection,'portal_browser_lab',$this->app['encrypter']
-            )
+        // F325: the trusted runtime creates a fresh envelope PDO per
+        // handler, with a fixed role distinct from the identity connection.
+        $this->app['session']->extend(
+            'portal_pg_encrypted',$runtime->sessionCreator($this->app['encrypter'])
         );
         Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void{
             Route::get('/__pg-envelope/csrf',[PortalBrowserAuthController::class,'csrf']);
@@ -566,7 +583,12 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
                 $request('GET','session')->assertUnauthorized();
             }
         }finally{
-            $this->app['session']->driver()->getHandler()->close();
+            try {
+                $this->app['session']->driver()->getHandler()->close();
+            } finally {
+                unlink($privateFile);
+                rmdir($privateDirectory);
+            }
         }
     }
 }
