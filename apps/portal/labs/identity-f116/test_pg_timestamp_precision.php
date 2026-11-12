@@ -5,12 +5,19 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing'
     || getenv('PORTAL_F116_PG_LAB') !== '1'
     || getenv('PGHOST') !== '127.0.0.1'
+    || getenv('PGPORT') !== '5432'
+    || strlen((string) getenv('F66_PG_ADMIN_PASSWORD')) < 12
     || getenv('PGDATABASE') !== 'portal_identity_lab') {
     throw new RuntimeException('Disposable local identity laboratory required.');
 }
 $db = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_identity_lab',
     'postgres', (string) getenv('F66_PG_ADMIN_PASSWORD'),
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+if ($db->query('SELECT current_user,current_database()')->fetch(PDO::FETCH_NUM)
+    !== ['postgres', 'portal_identity_lab']
+    || (int) $db->query("SELECT current_setting('server_version_num')::integer / 10000")->fetchColumn() !== 18) {
+    throw new RuntimeException('Disposable PostgreSQL 18 metadata required.');
+}
 $truth = static fn(mixed $v): bool => in_array($v, [true, 1, '1', 't'], true);
 $moment = '2026-01-01 00:00:00.750000+00';
 $legacy = $db->prepare('SELECT CAST(CAST(? AS timestamptz) AS timestamptz(0)) > CAST(? AS timestamptz)');
