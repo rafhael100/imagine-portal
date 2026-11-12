@@ -75,7 +75,14 @@ export function assessCandidate(m, pull, runs, comparison, lot = null) {
   }
   const latest = new Map();
   for (const run of Array.isArray(runs) ? runs : []) {
+    // GitHub may show newer PUSH runs for the same SHA and workflow name.
+    // They cannot supersede the PR-specific check, nor certify a different
+    // PR or base. Filter first, then choose the latest PR run by ID/attempt.
     if (!plainRecord(run) || run.head_sha !== c.headSha ||
+        run.event !== 'pull_request' || run.head_branch !== c.headBranch ||
+        !Array.isArray(run.pull_requests) ||
+        !run.pull_requests.some(p => p?.number === c.pullRequest &&
+          p.head?.ref === c.headBranch && p.base?.ref === c.baseBranch) ||
         typeof run.name !== 'string' || !Number.isSafeInteger(run.id)) continue;
     const old = latest.get(run.name);
     if (!old || run.id > old.id ||
@@ -114,7 +121,7 @@ export function assessCandidate(m, pull, runs, comparison, lot = null) {
       'REVIEW_CANDIDATE_ONLY',
     evidenceVerified,
     splitRequired,
-    comparisonBase: c.baseBranch,
+    comparisonBase: lot === null ? m.targetBranch : c.baseBranch,
     commitsAheadOfBase: commitsAhead,
     requiredWorkflowCount: required.length,
     workflowEvidence,
