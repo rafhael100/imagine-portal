@@ -91,7 +91,7 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         try {
             $copy=clone $handler;
             self::fail('A live Portal session handler was cloneable.');
-        } catch (\\Error $error) {
+        } catch (\Error $error) {
             self::assertNotSame('', $error->getMessage());
         }
         self::assertTrue($this->runtime->inTransaction(),'Denied clone must not roll back owner.');
