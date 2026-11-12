@@ -1,5 +1,6 @@
 // Administrative finance CSV. Use only after the admin authorization guard.
-// Iterates SQLite rows lazily: avoids allocating one array for every payment.
+// Iterates SQLite rows lazily with an explicit column allowlist: neither
+// billing provider identifiers nor other internal payment columns are loaded.
 import {safeCsvCell} from './account-export.mjs';
 import {writeOwnerExportWithinLease} from './owner-project-export.mjs';
 
@@ -15,7 +16,7 @@ function paymentColumns(p){
 
 export function *financeCsvChunks(db){
  yield '\uFEFF'+FINANCE_HEADERS.map(safeCsvCell).join(';');
- const rows=db.prepare('SELECT p.*,o.title,u.name,u.email FROM payments p JOIN orders o ON o.id=p.order_id JOIN users u ON u.id=o.user_id ORDER BY p.due_date DESC')
+ const rows=db.prepare('SELECT p.order_id,p.kind,p.status,p.value_cents,p.net_cents,p.due_date,p.paid_at,o.title,u.name,u.email FROM payments p JOIN orders o ON o.id=p.order_id JOIN users u ON u.id=o.user_id ORDER BY p.due_date DESC')
   .iterate();
  for(const payment of rows){
   yield '\r\n'+paymentColumns(payment).map(safeCsvCell).join(';');
