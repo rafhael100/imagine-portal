@@ -1,0 +1,63 @@
+name: imagine-portal-private-auth
+services:
+  application:
+    build:
+      context: ../../..
+      dockerfile: infra/development/portal-auth/Dockerfile
+    image: imagine-portal-private-auth:local
+    user: "82:82"
+    network_mode: "container:${PORTAL_DB_CONTAINER:?Existing private database container required}"
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_URL: https://portal-dev.imaginecomunica.com.br
+      PORTAL_DEVELOPMENT_AUTH_ENABLED: "true"
+      PORTAL_DEVELOPMENT_AUTH_FILE: /run/secrets/runtime.json
+      SESSION_DRIVER: portal_private_pg
+      SESSION_ENCRYPT: "false"
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    volumes:
+      - ${PORTAL_DEV_PRIVATE_DIR:?Existing private directory required}/runtime.json:/run/secrets/runtime.json:ro
+      - ${PORTAL_DEV_PRIVATE_DIR:?Existing private directory required}/app-key:/run/secrets/app-key:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=32m
+      - /var/www/html/storage:rw,nosuid,nodev,size=64m,mode=0700,uid=82,gid=82
+      - /var/www/html/bootstrap/cache:rw,nosuid,nodev,size=16m,mode=0700,uid=82,gid=82
+  gateway:
+    image: nginxinc/nginx-unprivileged:stable-alpine
+    user: "101:101"
+    environment:
+      PORTAL_DB_CONTAINER: ${PORTAL_DB_CONTAINER:?Existing private database container required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - envsubst '$$PORTAL_DB_CONTAINER' < /etc/nginx/private-auth.template > /tmp/private-auth.conf; exec nginx -c /tmp/private-auth.conf -g 'daemon off;'
+    ports:
+      - "127.0.0.1:18082:8080"
+    networks: [database_private, host_access]
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/private-auth.template:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 96m
+    cpus: 0.5
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=32m,mode=1777
+    depends_on: [application]
+networks:
+  host_access:
+    driver: bridge
+    internal: false
+  database_private:
+    external: true
+    name: ${PORTAL_DB_NETWORK:?Existing internal database network required}
