@@ -3,6 +3,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--pi-bg);color:var(--pi-ink);font:14px/1.6 Arial,Helvetica,sans-serif}
 .pi-layout{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}.pi-sidebar{background:var(--pi-nav);color:var(--pi-ink);padding:30px 22px;border-right:1px solid var(--pi-edge);display:flex;flex-direction:column;gap:18px}
 .pi-brand{display:grid;gap:10px;max-width:190px}.pi-brand img{display:block;max-width:100%;width:180px;height:auto;object-fit:contain}.pi-brand small{display:block;color:#767676;font-size:11px;letter-spacing:.04em;font-weight:500;padding-left:1px}
+.pi-nav-title{margin:14px 12px 0;color:#7a7a7a;font-size:10px;line-height:1.4;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
 .pi-sidebar nav{margin-top:18px}.pi-sidebar ul{list-style:none;padding:0;display:grid;gap:6px}.pi-sidebar li>span{display:block;padding:12px 14px;border-radius:8px;color:#565b57;font-size:12px}.pi-sidebar .pi-current{background:var(--pi-orange-soft);color:#8b4400;font-weight:700;border-left:3px solid var(--pi-orange);padding-left:11px}
 .pi-sidebar-note{font-size:11px;color:#6c716c;border-top:1px solid var(--pi-edge);padding-top:18px;margin-top:auto}
 .pi-main{max-width:1550px;width:100%;padding:32px clamp(16px,4vw,48px);margin:0 auto;min-width:0}.pi-header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:24px;background:#fff;border:1px solid var(--pi-edge);border-radius:10px;padding:20px 24px}
@@ -22,4 +23,6 @@ h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.035em;margin:4px 0}h2{font-si
 .pi-request-list{list-style:none;margin:0;padding:0;display:grid;gap:20px}.pi-request-list>li{min-width:0}
 .pi-update-history{margin-top:20px;border-top:1px solid var(--pi-edge);padding-top:16px}.pi-update-history h4{font-size:15px;margin:0 0 8px}.pi-updates{padding-left:24px}.pi-updates li{padding:10px 0 10px 8px}
 @media(max-width:1050px){.pi-record>div{grid-template-columns:minmax(0,1fr);gap:4px}}
+@media(max-width:640px){.pi-sidebar{padding:15px 16px;gap:8px}.pi-nav-title{margin:8px 0 0}.pi-sidebar nav{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;margin:5px 0 0;padding:2px 0 10px}.pi-sidebar ul{display:grid;grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:max-content;gap:6px;width:max-content}.pi-sidebar li>span{white-space:nowrap;padding:10px 12px}.pi-sidebar .pi-current{padding-left:9px}.pi-sidebar-note{margin:0;padding-top:10px;font-size:10px}}
+
 </style>
