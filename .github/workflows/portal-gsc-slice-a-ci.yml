@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-M - OAuth PostgreSQL and response scope safety
+name: Portal GSC Slices A-N - complete synthetic OAuth PostgreSQL contract
 
 on:
   pull_request:
@@ -31,6 +31,7 @@ on:
       - 'apps/portal/labs/gsc-slice-k/**'
       - 'apps/portal/labs/gsc-slice-l/**'
       - 'apps/portal/labs/gsc-slice-m/**'
+      - 'apps/portal/labs/gsc-slice-n/**'
       - 'apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
@@ -130,7 +131,7 @@ jobs:
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -429,3 +430,15 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateRetention.php
           php -l apps/portal/labs/gsc-slice-k/verify_postgres_retention.php
           php apps/portal/labs/gsc-slice-k/verify_postgres_retention.php
+      - name: Integrated PKCE, single-use callback, token candidate and retention
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_END_TO_END_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
+          php apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
