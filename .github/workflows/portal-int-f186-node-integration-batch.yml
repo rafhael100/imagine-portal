@@ -1,0 +1,66 @@
+name: Portal INT-F186 - Exact Node F163 candidate reviewer packets (NO-GO)
+
+on:
+  push:
+    branches:
+      - review/portal-int-f178-export-throttle-session-ui-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f163-session-identity-immutability-pg18-2026-11-11
+    paths:
+      - 'apps/portal/tools/integration/**'
+      - '.github/workflows/portal-int-f186-node-integration-batch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# F224: keep latest validation per review PR or branch; older jobs are
+# superseded by a newer SHA, preventing a large queue of stale candidates.
+concurrency:
+  group: portal-review-f186-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  exact-node-batch-inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PORTAL_REVIEW_BASE: node-f163
+      PORTAL_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate without persistent credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Fetch fixed F163 review base, not arbitrary refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            refs/heads/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11:refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11
+          test "$(git rev-parse HEAD)" = "$PORTAL_EXPECTED_HEAD"
+          git merge-base --is-ancestor refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11 HEAD
+      - name: Verify inventory helpers and review defaults
+        run: node --test apps/portal/tools/integration/*.test.mjs
+      - name: Generate complete file inventory and reviewer packets
+        env:
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-f186-node-review
+        run: node apps/portal/tools/integration/inventory.mjs
+      - name: Generate full per-commit independent review queue
+        env:
+          PORTAL_REVIEW_INVENTORY_DIR: ${{ runner.temp }}/portal-f186-node-review
+        run: node apps/portal/tools/integration/commit-review.mjs
+      - name: Archive limited-lifetime evidence without source or secrets
+        uses: actions/upload-artifact@v5
+        with:
+          name: portal-f186-node-review-packets
+          path: ${{ runner.temp }}/portal-f186-node-review/
+          if-no-files-found: error
+          retention-days: 3

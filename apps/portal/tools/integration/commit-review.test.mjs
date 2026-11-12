@@ -90,3 +90,23 @@ test('invalid paths, categories and commit hashes do not pass classification',()
     }],
   }),/Untrusted/);
 });
+
+test('F185: Node auth, data export and integration inventory are critical review surfaces',()=>{
+ for(const [path,category] of [
+  ['server/app.mjs','node_identity_security'],
+  ['server/account-export.mjs','node_sensitive_export'],
+  ['server/recurring-billing.mjs','node_application_runtime'],
+  ['apps/portal/tools/integration/commit-review.mjs','integration_review_tooling'],
+ ]) {
+  const c=commit('a',[path]);
+  assert.deepEqual(c.categories,[category]);
+  assert.equal(c.risk,'requires_security_or_runtime_review',path);
+  assert.equal(c.approved,false);
+  assert.equal(c.may_merge,false);
+  assert.equal(c.may_deploy,false);
+ }
+ const ui=commit('b',['account-ui.js','tests/account-download.test.mjs']);
+ assert.deepEqual(ui.categories,['automated_tests','node_presentation']);
+ assert.equal(ui.risk,'requires_standard_review');
+ assert.equal(ui.touches_tests_in_same_commit,true);
+});
