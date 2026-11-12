@@ -86,11 +86,28 @@ final class GoogleSearchConsoleOAuthTokenExchangePlan
  */
 final class GoogleSearchConsoleOAuthTokenPostRequest
 {
-    private readonly \SensitiveParameterValue $form;
+    private \SensitiveParameterValue $form;
+    private bool $transportTaken=false;
 
     public function __construct(#[\SensitiveParameter] array $form)
     {
         $this->form=new \SensitiveParameterValue($form);
+    }
+
+    /** Secrets must never be copied or serialized to logs/jobs/sessions. */
+    public function __clone(): void
+    {
+        throw new \LogicException('GSC token request cannot be cloned');
+    }
+
+    public function __serialize(): array
+    {
+        throw new \LogicException('GSC token request cannot be serialized');
+    }
+
+    public function __unserialize(array $data):void
+    {
+        throw new \LogicException('GSC token request cannot be deserialized');
     }
 
     public function safeReview(): array
@@ -115,8 +132,15 @@ final class GoogleSearchConsoleOAuthTokenPostRequest
     }
 
     /** SERVER ONLY: passing this to user responses or logs is prohibited. */
-    public function takeForTrustedHttpsTransport(): array
+    public function takeForTrustedHttpsTransport(): ?array
     {
+        if ($this->transportTaken)return null;
+        // Consume the envelope before exposing it to the trusted backend.
+        // No secondary transport payload can be produced, including after a
+        // failed HTTP request. Google authorization codes are one-use.
+        $this->transportTaken=true;
+        $fields=$this->form->getValue();
+        $this->form=new \SensitiveParameterValue([]);
         return [
             'method'=>'POST',
             'url'=>GoogleSearchConsoleOAuthTokenExchangePlan::TOKEN_ENDPOINT,
@@ -124,9 +148,7 @@ final class GoogleSearchConsoleOAuthTokenPostRequest
                 'Content-Type'=>'application/x-www-form-urlencoded',
                 'Accept'=>'application/json'
             ],
-            'body'=>http_build_query(
-                $this->form->getValue(),'','&',PHP_QUERY_RFC3986
-            ),
+            'body'=>http_build_query($fields,'','&',PHP_QUERY_RFC3986),
             'allowRedirects'=>false,
             'timeoutSeconds'=>10
         ];
