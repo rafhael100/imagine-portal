@@ -130,6 +130,45 @@ class RecoveryPreflightTests(unittest.TestCase):
         with self.assertRaises(gate.RecoveryBlocked):
             gate.inspect(self.snapshot_path, self.witness_path)
 
+    def test_ambiguous_duplicate_json_fields_are_rejected(self):
+        # Even when the last duplicated value matches the expected floor,
+        # a different parser could have read the first value.
+        duplicate = (
+            '{"organization":"org-a","instance":"synthetic-ci-1",'
+            '"generation_floor":5,"session_floor":3,'
+            '"membership_floor":7,"sequence":11,"sequence":12}'
+        )
+        self.witness_path.write_text(duplicate, encoding="utf-8")
+        self.witness_path.chmod(0o600)
+        with self.assertRaises(gate.RecoveryBlocked) as raised:
+            gate.inspect(self.snapshot_path, self.witness_path)
+        self.assertEqual("duplicate_json_key", str(raised.exception))
+
+    def test_both_evidence_files_rolled_back_is_not_a_release_proof(self):
+        # Known gap #64: a pair of equally old snapshots can agree. There is
+        # no independent signature or monotonic authority in this fixture.
+        older_snapshot = {**SNAPSHOT, "generation": 4,
+                          "session_revision": 2, "membership_revision": 6,
+                          "witnessed_sequence": 10}
+        older_witness = {**WITNESS, "generation_floor": 4,
+                         "session_floor": 2, "membership_floor": 6,
+                         "sequence": 10}
+        self.write(self.snapshot_path, older_snapshot)
+        self.write(self.witness_path, older_witness)
+        self.assertEqual(
+            "LAB_CONSISTENT_STILL_NO_SERVING",
+            gate.inspect(self.snapshot_path, self.witness_path),
+        )
+        with patch.dict(os.environ, {
+            "GITHUB_ACTIONS": "true",
+            "PORTAL_DB_DISPOSABLE_CI": "1",
+            "RUNNER_ENVIRONMENT": "github-hosted",
+        }):
+            self.assertEqual(0, gate.main([
+                "--snapshot", str(self.snapshot_path),
+                "--witness", str(self.witness_path),
+            ]))
+
     def test_cli_refuses_outside_disposable_ci(self):
         with patch.dict(os.environ, {"GITHUB_ACTIONS": "false"}):
             self.assertEqual(64, gate.main([
