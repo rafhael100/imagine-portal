@@ -1,0 +1,218 @@
+name: Portal private persistent database foundation
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-db/**'
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/database/security/portal_browser_auth.sql'
+      - 'apps/portal/database/security/portal_browser_envelopes.sql'
+      - 'apps/portal/database/migrations/**'
+      - '.github/workflows/portal-private-db-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-db-foundation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  persistent-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: imagine-portal-foundation-ci
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/development/portal-db
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare ephemeral independent credentials without outputting values
+        run: |
+          set -euo pipefail
+          sudo python3 prepare-secrets.py "$PWD/.private"
+          # Generation refuses replacement of existing secrets.
+          if sudo python3 prepare-secrets.py "$PWD/.private"; then exit 1; fi
+          sudo docker compose config --quiet
+      - name: Build private tooling and start database without published ports
+        run: |
+          set -euo pipefail
+          sudo -E docker compose build provision
+          sudo -E docker compose up -d --wait postgres
+          test "$(sudo -E docker compose port postgres 5432 2>/dev/null || true)" = ""
+          image=imagine-portal-db-provision:local
+          sudo docker run --rm --network none "$image" php -r 'foreach(["/run/secrets/runtime.json","/run/secrets/database-admin","/run/secrets/app-key","/var/www/html/.env"] as $p){if(file_exists($p)){exit(1);}}'
+      - name: Install once, verify roles and encrypted persistence, refuse reinstall
+        run: |
+          set -euo pipefail
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          sudo -E docker compose run --rm -T provision php provision.php install > installation.out
+          sudo -E docker compose run --rm -T provision php provision.php verify > before.out
+          if sudo -E docker compose run --rm -T provision php provision.php install; then exit 1; fi
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-refusal.out
+          cmp before.out after-refusal.out
+          cat before.out
+      - name: Deliberately misgrant privileges and prove verify fails closed
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT SELECT ON public.portal_identities TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE SELECT ON public.portal_identities FROM portal_browser_runtime"
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_envelope_read(text) TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_envelope_read(text) FROM portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-grant-revocation.out
+          cmp before.out after-grant-revocation.out
+      - name: Reject schema CREATE privileges and role memberships, then recover
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT CREATE ON SCHEMA public TO portal_browser_envelope_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CREATE ON SCHEMA public FROM portal_browser_envelope_runtime"
+          admin_sql "CREATE ROLE portal_f331_ci_probe NOLOGIN"
+          admin_sql "GRANT portal_f331_ci_probe TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE portal_f331_ci_probe FROM portal_browser_runtime"
+          admin_sql "DROP ROLE portal_f331_ci_probe"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-role-denials.out
+          cmp before.out after-role-denials.out
+      - name: Reject default grants on future private database tables
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT ON TABLES TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE SELECT ON TABLES FROM portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-default-grant-revocation.out
+          cmp before.out after-default-grant-revocation.out
+      - name: Refuse restored public and third-party database CONNECT grants
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT CONNECT ON DATABASE portal_identity_dev TO PUBLIC"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CONNECT ON DATABASE portal_identity_dev FROM PUBLIC"
+          admin_sql "CREATE ROLE portal_f333_ci_intruder NOLOGIN"
+          admin_sql "GRANT CONNECT ON DATABASE portal_identity_dev TO portal_f333_ci_intruder"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CONNECT ON DATABASE portal_identity_dev FROM portal_f333_ci_intruder"
+          admin_sql "DROP ROLE portal_f333_ci_intruder"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-connect-revocation.out
+          cmp before.out after-connect-revocation.out
+      - name: Refuse missing FORCE RLS or disabled row-level security
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "ALTER TABLE public.portal_service_resource_claims NO FORCE ROW LEVEL SECURITY"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER TABLE public.portal_service_resource_claims FORCE ROW LEVEL SECURITY"
+          admin_sql "ALTER TABLE public.portal_auth_sessions DISABLE ROW LEVEL SECURITY"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER TABLE public.portal_auth_sessions ENABLE ROW LEVEL SECURITY"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-rls-repair.out
+          cmp before.out after-rls-repair.out
+      - name: Reject unsafe SECURITY DEFINER settings or elevated function owner
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY INVOKER"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY DEFINER"
+          admin_sql "ALTER FUNCTION public.portal_browser_envelope_read(text) OWNER TO postgres"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_envelope_read(text) OWNER TO portal_browser_envelope_owner"
+          admin_sql "ALTER FUNCTION public.portal_browser_pending(text) SET search_path TO public"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_pending(text) SET search_path TO pg_catalog, pg_temp"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-definer-repair.out
+          cmp before.out after-definer-repair.out
+      - name: Reject public HMAC proof execution and missing identity execute
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) TO PUBLIC"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) FROM PUBLIC"
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_active(text) FROM portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_active(text) TO portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-execute-matrix-repair.out
+          cmp before.out after-execute-matrix-repair.out
+      - name: Prove the same database survives container stop and start
+        run: |
+          set -euo pipefail
+          sudo -E docker compose stop postgres
+          sudo -E docker compose up -d --wait postgres
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-restart.out
+          cmp before.out after-restart.out
+          cat after-restart.out
+      - name: Prove restore drill never overwrites existing target or runs outside CI
+        run: |
+          set -euo pipefail
+          if sudo env -u PORTAL_DB_DISPOSABLE_CI GITHUB_ACTIONS=true \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          pg() {
+            sudo -E docker compose exec -T --user 82:82 postgres sh -ec \
+              'export PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
+          }
+          target=portal_identity_f338_restore_ci
+          pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
+          if sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          test "$(pg psql -X -h 127.0.0.1 -U postgres -d portal_identity_dev \
+            -tA -v ON_ERROR_STOP=1 -c \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 1
+          pg dropdb -h 127.0.0.1 -U postgres "$target"
+      - name: Refuse restore drill when source has a session envelope but no users
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -tA -c "$1"
+          }
+          admin_sql "INSERT INTO public.portal_browser_envelopes
+            (id_sha256,payload,expires_at)
+            VALUES(repeat('a',64),'f340-synthetic-only',clock_timestamp()+interval '1 hour')" >/dev/null
+          if sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          test "$(admin_sql "SELECT count(*) FROM public.portal_browser_envelopes")" = 1
+          test "$(admin_sql "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
+          admin_sql "DELETE FROM public.portal_browser_envelopes WHERE id_sha256=repeat('a',64)" >/dev/null
+          test "$(admin_sql "SELECT count(*) FROM public.portal_browser_envelopes")" = 0
+      - name: Restore a logical backup to a new disposable database only
+        run: |
+          set -euo pipefail
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh
+      - name: Remove only this disposable CI project and its credentials
+        if: always()
+        run: |
+          sudo -E docker compose down --volumes --remove-orphans
+          sudo rm -rf -- "$PWD/.private"
