@@ -164,7 +164,7 @@ function smallLot(index = 0) {
 }
 
 test('small dev-rooted UI lots are reviewable but never approved for deployment', () => {
-  for (const i of [0, 1]) {
+  for (const i of [0, 1, 2, 3]) {
     const f = smallLot(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.evidenceVerified, true);
@@ -269,4 +269,57 @@ test('a passing run from a different PR or base cannot certify a shared SHA', ()
   f.runs[0].pull_requests = [{ number: f.lot.pullRequest,
     head: { ref: f.lot.headBranch }, base: { ref: 'main' } }];
   assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+});
+
+test('all four small lots form one parent-chained review topology', () => {
+  assert.equal(manifest.reviewLots.length, 4);
+  assert.deepEqual(manifest.reviewLots.map(l => l.pullRequest), [588, 592, 594, 595]);
+  for (let i = 0; i < manifest.reviewLots.length; i++) {
+    const f = smallLot(i);
+    const expectedBase = i === 0 ? manifest.targetBranch :
+      manifest.reviewLots[i - 1].headBranch;
+    assert.equal(f.lot.baseBranch, expectedBase);
+    assert.equal(comparisonBase(f.m, f.lot), expectedBase);
+    const verdict = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+    assert.equal(verdict.evidenceVerified, true);
+    assert.equal(verdict.splitRequired, false);
+    assert.equal(verdict.mergeApproved, false);
+    assert.equal(verdict.deployApproved, false);
+    assert.equal(verdict.customerAccessApproved, false);
+  }
+});
+
+test('retargeting visual-brand or portable-preview lots must fail closed', () => {
+  for (const change of [
+    m => { m.reviewLots[2].baseBranch = m.targetBranch; },
+    m => { m.reviewLots[3].baseBranch = m.reviewLots[1].headBranch; },
+    m => { m.reviewLots[3].headBranch = m.reviewLots[2].headBranch; },
+    m => { m.reviewLots[2].headSha = m.reviewLots[1].headSha; },
+    m => { m.reviewLots[3].pullRequest = m.reviewLots[0].pullRequest; },
+    m => { m.reviewLots.pop(); },
+  ]) {
+    const mutated = structuredClone(manifest);
+    change(mutated);
+    assert.throws(() => validateManifest(mutated), /INVALID_REVIEW_MANIFEST/);
+  }
+});
+
+test('a push-only success cannot replace a missing PR check in preview lot 595', () => {
+  const f = smallLot(3);
+  f.runs[0].event = 'push';
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, false);
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.antiRollbackApproved, false);
+});
+
+test('visual-preview lot still cannot approve merge after all checks passed', () => {
+  const f = smallLot(3);
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, true);
+  assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
+  assert.equal(result.customerAccessApproved, false);
+  assert.equal(result.antiRollbackApproved, false);
 });
