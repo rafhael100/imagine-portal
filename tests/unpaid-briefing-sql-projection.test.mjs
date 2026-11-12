@@ -36,7 +36,7 @@ test('F263: both account listing and export discard unpaid briefing at SQL bound
     get:(...p)=>statement.get(...p),
     all:(...p)=>{
      const result=statement.all(...p);
-     if(sql.includes('pr.stage AS production_stage')){
+     if(sql.includes('AS production_stage')){
       pageQueries++;
       assert.match(sql,/CASE WHEN o\.payment_status IN .* THEN b\.data ELSE NULL END AS data/);
       result.forEach(guard);
