@@ -72,6 +72,13 @@ try{
         ],$result);
     $check($tokenPlan!==null);
     $check(Coordinator::issuedByConsumedState($result));
+    $check(!Coordinator::claimTokenPlanOnce($result)); // already claimed
+    $check((new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan())
+        ->prepare([
+            'clientId'=>$config['clientId'],
+            'clientSecret'=>'synthetic-only-not-a-real-credential',
+            'registeredRedirectUri'=>$config['registeredRedirectUri']
+        ],$result)===null); // no second token exchange plan
     $forged=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthCallbackOutcome(
         'CODE_CONSUMED_AWAITING_TRUSTED_TOKEN_BACKEND',$code,$verifier
     );
@@ -147,6 +154,21 @@ try{
         $context,$now+4)!==null);
     $check($coordinator->review(['state'=>$s3,'code'=>$code],
         $context,$now+5)===null);
+
+    // Invalid server config must not burn a valid, genuinely consumed
+    // callback. Successful token planning must then be single-use.
+    $fourth=$newState();
+    $check((new Ledger($pdo,$key))->store($fourth['serverOnly'],$now));
+    $issued=$other->review([
+        'state'=>$fourth['publicAuthorization']['state'],
+        'code'=>$code
+    ],$context,$now+5);
+    $check($issued!==null && Coordinator::issuedByConsumedState($issued));
+    $check($planner->prepare([
+        ...$credentials,'registeredRedirectUri'=>'https://evil.example'
+    ],$issued)===null);
+    $check($planner->prepare($credentials,$issued)!==null);
+    $check($planner->prepare($credentials,$issued)===null);
 
     $expired=$newState();
     $check((new Ledger($pdo,$key))->store($expired['serverOnly'],$now));

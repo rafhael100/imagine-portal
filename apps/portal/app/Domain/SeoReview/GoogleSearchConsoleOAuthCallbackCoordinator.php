@@ -21,6 +21,20 @@ final class GoogleSearchConsoleOAuthCallbackCoordinator
             isset(self::$issuedOutcomes[$outcome]);
     }
 
+    /**
+     * Claim one process-local token planning capability after a successful
+     * PostgreSQL state CAS. It cannot be replayed to build more token POSTs.
+     * No actual HTTP or OAuth authorization is granted by this claim.
+     */
+    public static function claimTokenPlanOnce(
+        GoogleSearchConsoleOAuthCallbackOutcome $outcome
+    ):bool {
+        if (!self::issuedByConsumedState($outcome))return false;
+        if (self::$issuedOutcomes[$outcome]!==false)return false;
+        self::$issuedOutcomes[$outcome]=true;
+        return true;
+    }
+
     public function __construct(
         private readonly GoogleSearchConsoleOAuthStateLedger $ledger,
         private readonly GoogleSearchConsoleOAuthCallbackPolicy $policy
@@ -63,14 +77,14 @@ final class GoogleSearchConsoleOAuthCallbackCoordinator
                 $callback['code'],$verifier
             );
             self::$issuedOutcomes ??= new \WeakMap();
-            self::$issuedOutcomes[$outcome]=true;
+            self::$issuedOutcomes[$outcome]=false;
             return $outcome;
         }
         $outcome=new GoogleSearchConsoleOAuthCallbackOutcome(
             $decision['decision'],null,null
         );
         self::$issuedOutcomes ??= new \WeakMap();
-        self::$issuedOutcomes[$outcome]=true;
+        self::$issuedOutcomes[$outcome]=false;
         return $outcome;
     }
 
