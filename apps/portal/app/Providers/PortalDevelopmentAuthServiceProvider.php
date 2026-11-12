@@ -8,6 +8,10 @@ use App\Domain\Identity\Browser\PortalBrowserAuthentication;
 use App\Infrastructure\Identity\PortalBrowserPrivateRuntime;
 use App\Infrastructure\Identity\PortalBrowserSecretFile;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PortalBrowserAuthController;
+use App\Http\Middleware\EnsurePortalDevelopmentAuthEnabled;
+use App\Http\Middleware\PortalBrowserAuthGuard;
 use RuntimeException;
 
 /** Explicit development-only activation. Business authority bindings stay DENY. */
@@ -36,7 +40,16 @@ final class PortalDevelopmentAuthServiceProvider extends ServiceProvider
         $creator=$this->app->make(PortalBrowserPrivateRuntime::class)
             ->sessionCreator($this->app->make('encrypter'));
         $this->app->make('session')->extend('portal_private_pg',$creator);
-        $this->loadRoutesFrom(__DIR__.'/../../routes/development_auth.php');
+        // Register only after every explicit development prerequisite has passed.
+        Route::prefix('_development/auth')
+            ->middleware([EnsurePortalDevelopmentAuthEnabled::class,'web',PortalBrowserAuthGuard::class])
+            ->group(function():void {
+                Route::get('csrf',[PortalBrowserAuthController::class,'csrf']);
+                Route::post('password',[PortalBrowserAuthController::class,'password']);
+                Route::post('mfa',[PortalBrowserAuthController::class,'mfa']);
+                Route::get('session',[PortalBrowserAuthController::class,'current']);
+                Route::post('logout',[PortalBrowserAuthController::class,'logout']);
+            });
     }
 
     private function enabled(): bool
