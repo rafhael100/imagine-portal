@@ -53,6 +53,12 @@ empty_source_query='SELECT
 marker_query='SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1'
 source_marker=$(sql portal_identity_dev "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
+# F351: preserve the synthetic HMAC proof key itself, not merely its row count.
+# Only a one-way fingerprint of a randomly generated CI key is compared.
+proof_digest_query="SELECT encode(public.digest(secret,'sha256'),'hex')
+ FROM portal_browser_private.proof_key"
+source_proof_digest=$(sql portal_identity_dev "$proof_digest_query")
+[[ "$source_proof_digest" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
 # The disposable foundation should have precisely its ten reviewed migrations.
 migration_query="SELECT md5(string_agg(migration,',' ORDER BY migration))
  FROM public.migrations"
@@ -81,7 +87,9 @@ pg pg_restore --list < "$temporary/database.dump" > "$temporary/archive.list"
 [[ -s "$temporary/archive.list" ]] || exit 1
 # A concurrent source change invalidates the archive, before a target is created.
 [[ $(sql portal_identity_dev "$marker_query") == "$source_marker" ]] || exit 1
+[[ $(sql portal_identity_dev "$proof_digest_query") == "$source_proof_digest" ]] || exit 1
 [[ $(sql portal_identity_dev "$empty_source_query") == 0 ]] || exit 65
+[[ $(sql portal_identity_dev "$proof_digest_query") == "$source_proof_digest" ]] || exit 65
 
 # A fresh database is created explicitly. No --clean and no writes to source.
 pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
@@ -138,6 +146,7 @@ rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnam
 [[ $(sql "$target" "SELECT has_table_privilege('portal_browser_envelope_runtime',
      'public.portal_browser_envelopes','SELECT')") == f ]] || exit 1
 [[ $(sql "$target" "SELECT count(*) FROM portal_browser_private.proof_key") == 1 ]] || exit 1
+[[ $(sql "$target" "$proof_digest_query") == "$source_proof_digest" ]] || exit 1
 
 # Both runtime identities must have zero direct table privileges after restore.
 # Include schema-qualified names to avoid search_path ambiguity.
