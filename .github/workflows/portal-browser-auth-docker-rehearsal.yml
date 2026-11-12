@@ -1,0 +1,41 @@
+name: Portal browser auth - private Docker rehearsal
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/infra/browser-auth-lab/**'
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/app/Http/**'
+      - 'apps/portal/app/Domain/Identity/**'
+      - 'apps/portal/database/security/**'
+      - 'apps/portal/database/migrations/**'
+      - 'apps/portal/tests/Integration/PortalBrowser*'
+      - 'apps/portal/tests/Support/Browser*'
+      - '.github/workflows/portal-browser-auth-docker-rehearsal.yml'
+permissions:
+  contents: read
+jobs:
+  private-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Validate internal-only compose and run disposable integration
+        run: |
+          set -euo pipefail
+          docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml config --format json > /tmp/portal-browser-compose.json
+          python3 - <<'PY'
+          import json
+          c=json.load(open('/tmp/portal-browser-compose.json'))
+          assert c['networks']['private']['internal'] is True
+          assert set(c['services'])=={'postgres','runner'}
+          assert all(not s.get('ports') and not s.get('privileged') for s in c['services'].values())
+          assert c['services']['runner']['read_only'] is True
+          assert c['services']['runner']['network_mode']=='service:postgres'
+          assert all(v['type']=='tmpfs' for v in c['services']['postgres'].get('volumes',[]))
+          PY
+          docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml up --build --abort-on-container-exit --exit-code-from runner
+      - name: Always remove only this disposable rehearsal project
+        if: always()
+        run: docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml down --volumes --remove-orphans
