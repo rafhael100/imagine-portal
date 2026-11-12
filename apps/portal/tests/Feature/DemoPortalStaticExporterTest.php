@@ -222,7 +222,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         $tableCount = 0;
         foreach ($pages as $page) {
             $html = (string) file_get_contents($this->temporaryDirectory.'/'.$page);
-            $document = new \\DOMDocument('1.0', 'UTF-8');
+            $document = new \DOMDocument('1.0', 'UTF-8');
             $previous = libxml_use_internal_errors(true);
             try {
                 self::assertTrue($document->loadHTML($html, LIBXML_NONET));
@@ -230,17 +230,17 @@ final class DemoPortalStaticExporterTest extends TestCase
                 libxml_clear_errors();
                 libxml_use_internal_errors($previous);
             }
-            $xpath = new \\DOMXPath($document);
+            $xpath = new \DOMXPath($document);
             foreach ($document->getElementsByTagName('table') as $table) {
                 ++$tableCount;
                 $region = $table->parentNode;
-                self::assertInstanceOf(\\DOMElement::class, $region);
+                self::assertInstanceOf(\DOMElement::class, $region);
                 self::assertContains('pi-table-wrap',
-                    preg_split('/\\\\s+/', trim($region->getAttribute('class'))));
+                    preg_split('/\s+/', trim($region->getAttribute('class'))));
                 self::assertSame('region', $region->getAttribute('role'));
                 self::assertSame('0', $region->getAttribute('tabindex'));
                 $caption = $xpath->query('./caption', $table)?->item(0);
-                self::assertInstanceOf(\\DOMElement::class, $caption);
+                self::assertInstanceOf(\DOMElement::class, $caption);
                 self::assertSame(trim($caption->textContent), $region->getAttribute('aria-label'));
             }
         }
