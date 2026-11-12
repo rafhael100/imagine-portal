@@ -37,7 +37,13 @@ final class PortalBrowserSecretFile
         $ancestor=dirname($path);
         while(true){
             $entry=@lstat($ancestor);
-            if(!is_array($entry)||($entry['mode']&0170000)!==0040000)$fail();
+            // F337: an ancestor writable by another account without the
+            // sticky bit may be renamed/replaced even if the secret itself
+            // and the immediate parent are 0600/0700 and not symlinks.
+            // Allow root-owned /tmp-style sticky ancestors, but never a
+            // freely replaceable non-sticky component.
+            if(!is_array($entry)||($entry['mode']&0170000)!==0040000
+                ||(($entry['mode']&0022)!==0&&($entry['mode']&01000)===0))$fail();
             $next=dirname($ancestor);
             if($next===$ancestor)break;
             $ancestor=$next;
