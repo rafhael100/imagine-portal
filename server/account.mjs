@@ -2,6 +2,7 @@ import {audit,now} from './store.mjs';
 import {validEmail,verifyPassword,cleanText,publicUser} from './security.mjs';
 import validation from '../checkout-validation.js';
 import {parsePaidBriefingData} from './account-export.mjs';
+import {ACCOUNT_PROJECT_PAGE_SIZE,ACCOUNT_PROJECT_MAX_PAGE} from './account-projects.mjs';
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 // F200: Do not expose unknown persisted JSON fields through the regular API.
 const ACCOUNT_PROFILE_LIMITS={company:150,whatsapp:30,phone:30,website:250};
@@ -31,6 +32,14 @@ export function createAccount(db,fiscal){
   // Email changes in save() still perform their separate password check.
   const u=db.prepare('SELECT id,name,email,role,created_at FROM users WHERE id=?').get(user.id);
   const row=db.prepare('SELECT * FROM account_profiles WHERE user_id=?').get(user.id);
+  // F279: the legacy full-account response materializes every project in
+  // memory. Cap it at the existing 8,000-row archive window; larger
+  // accounts retain lossless paged viewing and streamed CSV/JSON exports.
+  if(!compact){
+   const count=Number(db.prepare('SELECT COUNT(*) AS n FROM orders WHERE user_id=?').get(user.id).n);
+   if(count>ACCOUNT_PROJECT_PAGE_SIZE*ACCOUNT_PROJECT_MAX_PAGE)
+    fail(413,'O arquivo de projetos é grande demais para esta visualização. Use a consulta paginada ou exporte seus projetos.');
+  }
   // F202: short profile requests need only the most recent paid
   // briefing for optional contact suggestions, not the entire archive.
   // F273: the full account view must not load private unpaid briefing
