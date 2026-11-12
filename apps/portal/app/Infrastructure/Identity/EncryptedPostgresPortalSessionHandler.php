@@ -190,14 +190,27 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private function ready(): void
     {
-        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' || $this->db->inTransaction()) {
+        // F320: metadata probes and the role query can fail on a dead PDO
+        // before normal read/write handling begins. Do not leak SQL, role
+        // or provider diagnostics during handler construction or reuse.
+        try {
+            $driver=$this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $inTransaction=$this->db->inTransaction();
+        } catch (Throwable) {
+            throw new RuntimeException('Portal session storage unavailable.');
+        }
+        if ($driver!=='pgsql' || $inTransaction) {
             throw new RuntimeException('Dedicated autocommit session connection required.');
         }
-        $q=$this->db->query("SELECT current_database() AS db,current_user AS actor,session_user AS login,
-          rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,
-          EXISTS(SELECT 1 FROM pg_auth_members WHERE member=r.oid) AS inherited
-          FROM pg_roles r WHERE rolname=current_user");
-        $row=$q->fetch(PDO::FETCH_ASSOC);
+        try {
+            $q=$this->db->query("SELECT current_database() AS db,current_user AS actor,session_user AS login,
+              rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,
+              EXISTS(SELECT 1 FROM pg_auth_members WHERE member=r.oid) AS inherited
+              FROM pg_roles r WHERE rolname=current_user");
+            $row=$q->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable) {
+            throw new RuntimeException('Portal session storage unavailable.');
+        }
         if (!is_array($row)||$row['db']!==$this->database
             ||$row['actor']!=='portal_browser_envelope_runtime'||$row['login']!=='portal_browser_envelope_runtime') {
             throw new RuntimeException('Dedicated Portal envelope role required.');
