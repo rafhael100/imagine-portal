@@ -19,7 +19,7 @@ docker compose run --rm -T provision php provision.php install
 docker compose run --rm -T provision php provision.php verify
 ```
 
-verify exige fundação sem identidades reais, confere chave/roles, abre conexões independentes de identidade e envelope e grava/lê/remove somente uma sessão aleatória de prova. Emite apenas um fingerprint de marcador aleatório não secreto, que deve permanecer igual após stop/start do contêiner. O marcador não é uma credencial. Depois do cadastro de usuários, usar verificação operacional própria; esta prova inicial intencionalmente recusa banco com contas.
+verify exige fundação sem identidades reais, confere chave/roles, abre conexões independentes de identidade e envelope e grava/lê/remove somente uma sessão aleatória de prova. A partir da F329, a verificação usa a mesma classe `PortalBrowserPrivateRuntime` da candidata Laravel: as credenciais são carregadas pelo arquivo privado validado, os dois papéis permanecem fixos, a chave AES de sessão é conferida contra TOTP/HMAC/pepper e as senhas SQL, e o verificador não cria rotas HTTP. Emite apenas um fingerprint de marcador aleatório não secreto, que deve permanecer igual após stop/start do contêiner. O marcador não é uma credencial. Depois do cadastro de usuários, usar verificação operacional própria; esta prova inicial intencionalmente recusa banco com contas.
 
 Não usar down --volumes no servidor: isso apagaria dados persistentes. Para parar, usar docker compose stop. A CI usa projeto descartável próprio e remove apenas seu volume após testar provisionamento, negativas, isolamento de portas e persistência.
 
