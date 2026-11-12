@@ -221,4 +221,15 @@ async function loadClientAccount(){const box=document.querySelector('#account-co
  const refreshSecurityHistory=bindAccountSecurityHistory('#account-security-history');
  void refreshSecurityHistory();
  const form=document.querySelector('#account-profile-form');for(const key of ['whatsapp','phone']){form.elements[key].value=CheckoutValidation.phoneMask(form.elements[key].value);form.elements[key].oninput=()=>form.elements[key].value=CheckoutValidation.phoneMask(form.elements[key].value);}form.onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const data=Object.fromEntries(new FormData(form));data.version=p.version;const r=await post('/api/account?compact=1',data);form.elements.currentPassword.value='';state.user={...state.user,...r.user};render();notify('Seu cadastro foi atualizado.');});};document.querySelector('#account-edit-fiscal').onclick=()=>fiscalCustomerDialog(state.user.id);document.querySelector('#account-open-finance').onclick=()=>{state.tab='finance';render();};document.querySelector('#account-password-form').onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const r=await post('/api/password',Object.fromEntries(new FormData(e.target)));state.csrf=r.csrf;e.target.reset();await refreshSessionSummary();await refreshSecurityHistory();notify('Senha atualizada. As outras sessões foram encerradas.');});};document.querySelector('#account-revoke-sessions-form').onsubmit=e=>{e.preventDefault();task(e.submitter,async()=>{const result=await post('/api/sessions/revoke-others',Object.fromEntries(new FormData(e.target)));e.target.reset();await refreshSessionSummary();await refreshSecurityHistory();notify(result.revoked_sessions?`${result.revoked_sessions} sessão(ões) em outros aparelhos encerrada(s).`:'Nenhuma outra sessão ativa para encerrar.');});};document.querySelector('#account-refresh').onclick=()=>loadClientAccount();
- }catch(e){if(box.isConnected)box.innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;}}
+ }catch(e){
+  if(!box.isConnected)return;
+  // F275: never display arbitrary backend error text on the account page.
+  // A corrupt saved profile needs explicit guidance and a safe retry path.
+  const unavailable=typeof e?.message==='string'&&/Dados cadastrais temporariamente indisponíveis/i.test(e.message);
+  box.innerHTML='<div class="empty" role="alert">'+(unavailable?
+   'Seus dados cadastrais estão temporariamente indisponíveis. Tente novamente mais tarde ou procure nossa equipe.':
+   'Não foi possível consultar seu cadastro agora.')+
+   ' <button class="btn secondary" type="button" data-account-retry>Tentar novamente</button></div>';
+  const retry=box.querySelector?.('[data-account-retry]');
+  if(retry)retry.onclick=()=>{retry.disabled=true;void loadClientAccount();};
+ }}
