@@ -69,11 +69,12 @@ pg pg_restore -h 127.0.0.1 -U postgres --dbname="$target" \
  '$target','CONNECT')") == f ]] || exit 1
 [[ $(sql postgres "SELECT has_database_privilege('portal_browser_envelope_runtime',
  '$target','CONNECT')") == f ]] || exit 1
+# Reject CONNECT assigned to any unknown third-party role, not only PUBLIC.
 [[ $(sql postgres "SELECT NOT EXISTS (
  SELECT 1 FROM pg_database d,
  LATERAL aclexplode(coalesce(d.datacl,acldefault('d',d.datdba))) acl
- WHERE d.datname='$target' AND acl.grantee=0
- AND acl.privilege_type='CONNECT')") == t ]] || exit 1
+ WHERE d.datname='$target' AND acl.privilege_type='CONNECT'
+ AND acl.grantee <> (SELECT oid FROM pg_roles WHERE rolname='postgres'))") == t ]] || exit 1
 
 restored_marker=$(sql "$target" "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" == "$restored_marker" ]] || exit 1
@@ -110,7 +111,8 @@ table_privileges_query="SELECT count(*)
   'public.portal_memberships','public.portal_membership_grants',
   'public.portal_organizations','public.portal_auth_attempt_buckets',
   'public.portal_browser_envelopes','public.portal_service_resource_claims',
-  'portal_browser_private.proof_key')
+  'portal_browser_private.proof_key',
+  'public.portal_development_installation')
  AND has_table_privilege(roles.role,c.oid,
      'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')"
 [[ $(sql "$target" "$table_privileges_query") == 0 ]] || exit 1
