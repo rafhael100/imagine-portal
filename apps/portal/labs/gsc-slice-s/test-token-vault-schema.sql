@@ -6,7 +6,7 @@ CREATE TABLE portal_gsc_oauth_token_candidates (
         CHECK (property_fingerprint ~ '^[0-9a-f]{64}$'),
     scope VARCHAR(128) NOT NULL
         CHECK (scope='https://www.googleapis.com/auth/webmasters.readonly'),
-    sealed_tokens TEXT NOT NULL CHECK (sealed_tokens LIKE 'v1.%'),
+    sealed_tokens TEXT NOT NULL CHECK (sealed_tokens LIKE 'v1.%' OR sealed_tokens LIKE 'v2.%'),
     issued_at BIGINT NOT NULL,
     expires_at BIGINT NOT NULL,
     revoked_at BIGINT NULL,
