@@ -169,6 +169,25 @@ jobs:
           sudo -E docker compose run --rm -T provision php provision.php verify > after-restart.out
           cmp before.out after-restart.out
           cat after-restart.out
+      - name: Prove restore drill never overwrites existing target or runs outside CI
+        run: |
+          set -euo pipefail
+          if sudo env -u PORTAL_DB_DISPOSABLE_CI GITHUB_ACTIONS=true \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          pg() {
+            sudo -E docker compose exec -T --user 82:82 postgres sh -ec \
+              'export PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
+          }
+          target=portal_identity_f338_restore_ci
+          pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
+          if sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          test "$(pg psql -X -h 127.0.0.1 -U postgres -d portal_identity_dev \
+            -tA -v ON_ERROR_STOP=1 -c \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 1
+          pg dropdb -h 127.0.0.1 -U postgres "$target"
       - name: Restore a logical backup to a new disposable database only
         run: |
           set -euo pipefail
