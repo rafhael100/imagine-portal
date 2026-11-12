@@ -16,3 +16,29 @@ test('Automação não emite preparação manual nem competências futuras; usa 
 test('Cadastro fiscal e comunicação: dono isolado, link de cobrança validado, WhatsApp preparado e e-mail idempotente',async()=>{const f=fixture();try{assert.throws(()=>f.fiscal.customer(f.other,f.client.id),{status:403});assert.throws(()=>f.fiscal.saveCustomer(f.client,f.client.id,{version:1,document:'11111111111',legal_name:'Fulano',email:'a@example.test'}),{status:400});await assert.rejects(()=>f.fiscal.collection(f.admin,'p1',{action:'preview'}),{status:409});const preview=await f.fiscal.collection(f.admin,'p2',{action:'preview'});assert.ok(preview.message.includes('R$'));assert.equal(preview.whatsapp,'85996632689');const wa=await f.fiscal.collection(f.admin,'p2',{channel:'whatsapp',requestId:randomUUID()});assert.equal(wa.status,'prepared');assert.ok(wa.url.startsWith('https://wa.me/5585996632689'));const requestId=randomUUID();await f.fiscal.collection(f.admin,'p2',{channel:'email',requestId});await f.fiscal.collection(f.admin,'p2',{channel:'email',requestId});assert.equal(f.sent.length,1);assert.equal(f.sent[0].to,'cliente@example.test');assert.equal(f.db.prepare("SELECT status FROM collection_logs WHERE channel='email'").get().status,'accepted');await assert.rejects(()=>f.fiscal.collection(f.admin,'p2',{channel:'email',requestId:randomUUID()}),{status:409});f.db.prepare("UPDATE payments SET invoice_url='https://evil.test/pay' WHERE id='p2'").run();assert.equal((await f.fiscal.collection(f.admin,'p2',{action:'preview'})).ready,false);await assert.rejects(()=>f.fiscal.collection(f.admin,'p2',{channel:'whatsapp',requestId:randomUUID()}),{status:409});}finally{f.db.close();}});
 test('Adaptador Focus usa Basic no servidor, modelos separados e trava de produção; SMTP não configurado não envia',async()=>{const calls=[],focus=createFocus({apiToken:'secret',fetchImpl:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({status:'processando_autorizacao'})};}});await focus.issue('nfsen','imagine123',{valor_servico:79.9});assert.equal(calls[0].url,'https://homologacao.focusnfe.com.br/v2/nfsen?ref=imagine123');assert.equal(calls[0].options.headers.Authorization,'Basic '+Buffer.from('secret:').toString('base64'));assert.equal(calls[0].options.redirect,'error');const live=createFocus({environment:'producao',apiToken:'secret',fetchImpl:()=>{throw Error('Não deveria chamar');}});await assert.rejects(()=>live.issue('nfse','ref',{}),{status:409});await assert.rejects(()=>createMailer({}).send({to:'a@example.test',subject:'Teste',text:'Teste'}),{status:503});});
 test('API fiscal: cliente vê só suas notas; equipe financeira opera, somente administrador configura; webhook exige segredo',async()=>{const f=fixture();let server;try{const staff=randomUUID();f.db.prepare("INSERT INTO users VALUES(?,'Financeiro','fin@example.test','unused','client','2026-10-01')").run(staff);server=createApp({db:f.db,focus:f.focus,mailer:f.mailer,focusWebhookToken:'w'.repeat(40),asaas:{configured:false,environment:'sandbox'},origin:'http://localhost',publicDir:'.'}).server;f.db.prepare("INSERT INTO staff VALUES(?,'financeiro',1)").run(staff);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;for(const [id,configAllowed,candidateStatus] of [[f.admin.id,true,200],[staff,false,200],[f.client.id,false,403]]){const raw=randomUUID();f.db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(digest(raw),id,'csrf',Date.now()+60000);const headers={cookie:'imagine_session='+raw,origin:'http://localhost','x-csrf-token':'csrf','content-type':'application/json'};assert.equal((await fetch(base+'/api/fiscal/candidates',{headers})).status,candidateStatus);const r=await fetch(base+'/api/fiscal',{headers}),d=await r.json();assert.equal(r.status,200);assert.equal(!!d.settings,configAllowed);if(!configAllowed)assert.equal((await fetch(base+'/api/fiscal/settings',{method:'POST',headers,body:'{}'})).status,403);if(id===staff){f.db.prepare("UPDATE staff SET profile='atendimento' WHERE user_id=?").run(staff);assert.equal((await fetch(base+'/api/fiscal',{headers})).status,403);}}assert.equal((await fetch(base+'/api/webhooks/focus',{method:'POST',headers:{'content-type':'application/json'},body:'{"ref":"imagine123"}'})).status,401);}finally{if(server)await new Promise(r=>server.close(r));f.db.close();}});
+
+test('F207: fiscal customer update uses optimistic revision and never mutates a foreign tenant',()=>{
+ const f=fixture();
+ try{
+  const prior=f.fiscal.customer(f.client,f.client.id);
+  const otherBefore=f.fiscal.customer(f.other,f.other.id);
+  assert.equal(prior.version,1);
+  const next=f.fiscal.saveCustomer(f.client,f.client.id,{
+   ...prior,version:prior.version,legal_name:'Cliente Exemplo Atualizado',
+  });
+  assert.equal(next.version,2);
+  assert.equal(next.legal_name,'Cliente Exemplo Atualizado');
+  assert.throws(()=>f.fiscal.saveCustomer(f.client,f.client.id,{
+   ...prior,version:1,legal_name:'Alteração atrasada',
+  }),e=>e.status===409);
+  const stored=f.fiscal.customer(f.client,f.client.id);
+  assert.equal(stored.version,2);
+  assert.equal(stored.legal_name,'Cliente Exemplo Atualizado');
+  assert.equal(f.fiscal.customer(f.other,f.other.id).version,otherBefore.version);
+  assert.deepEqual(f.fiscal.customer(f.other,f.other.id),otherBefore);
+  assert.throws(()=>f.fiscal.saveCustomer(f.other,f.client.id,{
+   ...prior,version:2,legal_name:'Tentativa de outro titular',
+  }),e=>e.status===403);
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM audit WHERE actor_id=? AND action='fiscal.customer.updated'").get(f.client.id).n,2);
+ }finally{f.db.close();}
+});

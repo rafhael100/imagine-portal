@@ -1,0 +1,50 @@
+name: Portal INT-F170 - Session summary privacy and account UI
+on:
+  push:
+    branches:
+      - review/portal-int-f170-session-summary-security-2026-11-11
+  pull_request:
+    branches:
+      - review/portal-int-f169-session-summary-security-2026-11-11
+    paths:
+      - 'server/app.mjs'
+      - 'server/team.mjs'
+      - 'account-ui.js'
+      - 'portal.js'
+      - 'tests/portal.test.mjs'
+      - '.github/workflows/portal-int-f170-own-sessions-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  own-session-summary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22','24']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify syntax and install exact lockfile
+        run: |
+          set -euo pipefail
+          node --check server/app.mjs
+          node --check server/team.mjs
+          node --check account-ui.js
+          node --check portal.js
+          npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
+          git diff --exit-code -- pnpm-lock.yaml
+      - name: Run account/session Node API regressions and full suite
+        run: |
+          set -euo pipefail
+          node --test tests/portal.test.mjs
+          npm test
