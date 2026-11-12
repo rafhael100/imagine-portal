@@ -21,7 +21,10 @@ export function createAccount(db,fiscal){
   const row=db.prepare('SELECT * FROM account_profiles WHERE user_id=?').get(user.id);
   // F202: short profile requests need only the most recent paid
   // briefing for optional contact suggestions, not the entire archive.
-  const sql=`SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,b.data,b.status
+  // F273: the full account view must not load private unpaid briefing
+  // payloads from SQLite, even when the serializer would discard them.
+  const sql=`SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,
+   CASE WHEN o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') THEN b.data ELSE NULL END AS data,b.status
    FROM orders o LEFT JOIN briefings b ON b.order_id=o.id WHERE o.user_id=?
    ${compact?`AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') AND b.data IS NOT NULL
     AND CASE WHEN json_valid(b.data) THEN
