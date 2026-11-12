@@ -235,6 +235,29 @@ jobs:
           admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_active(text) TO portal_browser_runtime"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-execute-matrix-repair.out
           cmp before.out after-execute-matrix-repair.out
+      - name: Prove restored SQL contracts fail closed on malicious function grants
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -U postgres -d portal_identity_dev -v ON_ERROR_STOP=1 \
+              -c "$1" >/dev/null
+          }
+          check_contract() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -U postgres -d portal_identity_dev -v ON_ERROR_STOP=1 \
+              < ./restore-contracts.sql >/dev/null
+          }
+          check_contract
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY INVOKER"
+          if check_contract; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY DEFINER"
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) TO PUBLIC"
+          if check_contract; then exit 1; fi
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) FROM PUBLIC"
+          check_contract
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-contract-negative.out
+          cmp before.out after-contract-negative.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
