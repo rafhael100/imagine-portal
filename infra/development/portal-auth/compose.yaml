@@ -42,7 +42,7 @@ services:
       - envsubst '$$PORTAL_DB_CONTAINER' < /etc/nginx/private-auth.template > /tmp/private-auth.conf; exec nginx -c /tmp/private-auth.conf -g 'daemon off;'
     ports:
       - "127.0.0.1:18082:8080"
-    networks: [database_private]
+    networks: [database_private, host_access]
     volumes:
       - ./nginx.conf.template:/etc/nginx/private-auth.template:ro
     read_only: true
@@ -55,6 +55,9 @@ services:
       - /tmp:rw,nosuid,nodev,size=32m,mode=1777
     depends_on: [application]
 networks:
+  host_access:
+    driver: bridge
+    internal: false
   database_private:
     external: true
     name: ${PORTAL_DB_NETWORK:?Existing internal database network required}

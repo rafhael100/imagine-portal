@@ -58,6 +58,9 @@ jobs:
           assert all(v['read_only'] for v in app['volumes'])
           assert gateway['ports'][0]['host_ip']=='127.0.0.1'
           assert len(gateway['ports'])==1 and gateway['ports'][0]['published']=='18082'
+          assert set(gateway['networks'])=={'database_private','host_access'}
+          assert c['networks']['database_private']['external'] is True
+          assert c['networks']['host_access']['internal'] is False
           assert all(s['read_only'] and s['cap_drop']==['ALL'] and not s.get('privileged') for s in c['services'].values())
           PY
           sudo -E docker compose -p imagine-portal-private-auth-ci build application
@@ -66,6 +69,7 @@ jobs:
         working-directory: infra/development/portal-auth
         run: |
           set -euo pipefail
+          sudo -E docker compose -p imagine-portal-private-auth-ci port gateway 8080 | grep -qx '127.0.0.1:18082'
           ready=0
           for attempt in $(seq 1 25); do
             if curl --silent --fail -H 'Host: portal-dev.imaginecomunica.com.br' http://127.0.0.1:18082/up >/dev/null; then ready=1; break; fi

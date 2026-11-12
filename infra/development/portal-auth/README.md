@@ -2,7 +2,7 @@
 
 Candidata de desenvolvimento, sem publicação HTTPS ou liberação de clientes. Reutiliza exclusivamente o PostgreSQL persistente já instalado; não cria nem altera banco, roles, volume ou identidades. Não executar o instalador da fundação novamente.
 
-O aplicativo compartilha o namespace de rede do contêiner PostgreSQL existente para usar 127.0.0.1:5432. O gateway se conecta à mesma rede interna e publica somente 127.0.0.1:18082. FPM e PostgreSQL não publicam portas no host. Antes de iniciar, verificar que a rede indicada possui Internal=true e que o banco está saudável. A aplicação recebe somente runtime.json e app-key; nunca database-admin. Mounts são read-only e ambos os serviços executam sem root/capabilities, com filesystem read-only e logs HTTP desativados.
+O aplicativo compartilha o namespace de rede do contêiner PostgreSQL existente para usar 127.0.0.1:5432. O gateway se conecta à mesma rede interna e a uma bridge separada de acesso ao host, publicando somente 127.0.0.1:18082. A bridge adicional é exclusiva do gateway: Docker não publica portas quando o contêiner possui somente rede internal. Aplicação e banco permanecem exclusivamente na rede interna; o gateway não recebe credenciais SQL. FPM e PostgreSQL não publicam portas no host. Antes de iniciar, verificar que a rede indicada possui Internal=true e que o banco está saudável. A aplicação recebe somente runtime.json e app-key; nunca database-admin. Mounts são read-only e ambos os serviços executam sem root/capabilities, com filesystem read-only e logs HTTP desativados.
 
 Configuração explícita no shell administrativo (sem valores de credenciais):
 ```sh
