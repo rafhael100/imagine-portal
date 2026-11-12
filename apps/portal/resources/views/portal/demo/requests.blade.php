@@ -13,6 +13,12 @@
             :columns="['Situação', 'Total fictício']"
             :rows="\App\Presentation\DemoRequestInboxStatusBoard::rows()" />
     </x-portal.panel>
+    <x-portal.panel title="Fluxo de solicitações — sete transições fictícias">
+        <p>As possíveis mudanças de estado ilustram um fluxo de revisão. Nenhum perfil aqui é uma identidade autenticada; nenhuma transição pode ser executada ou persistida.</p>
+        <x-portal.table caption="Mapa de sete transições ilustrativas — sem envio"
+            :columns="['Estado atual', 'Perfil fictício', 'Ação de exemplo', 'Próximo estado']"
+            :rows="\App\Presentation\DemoRequestWorkflowMap::rows()" />
+    </x-portal.panel>
     <x-portal.message title="Serviços independentes" message="Onepage e Landing Page são serviços independentes. Performance AI possui motor de execução separado. CRM Imagine mantém identidade, login e sessão próprios, sem SSO. Universidade Imagine é benefício de clientes elegíveis, não assinatura avulsa; nenhuma elegibilidade é concedida neste exemplo." />
     <x-portal.unavailable feature="A abertura, edição, envio e anexação de solicitações" />
 </x-portal.layout>
