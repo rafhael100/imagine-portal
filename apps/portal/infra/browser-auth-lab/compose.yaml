@@ -28,6 +28,8 @@ services:
       APP_ENV: testing
       APP_DEBUG: "false"
       PORTAL_BROWSER_PG_LAB: DISPOSABLE_PG18
+      # CI-only synthetic organization, never customer identity.
+      PORTAL_DEVELOPMENT_ORGANIZATION: '22222222-2222-4222-8222-222222222222'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: "5432"
