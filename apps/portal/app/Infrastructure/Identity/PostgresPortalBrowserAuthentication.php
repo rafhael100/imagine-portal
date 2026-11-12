@@ -21,18 +21,34 @@ use Throwable;
 final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthentication
 {
     private readonly string $dummyHash;
+    private readonly PDO $db;
+    private readonly string $database;
+
+    // F318: var_export() reveals private fields, ignoring __debugInfo().
+    // Store operational credentials only in a WeakMap entry keyed to the
+    // verified adapter instance; this is NOT a defense against arbitrary
+    // code execution or full process-memory inspection.
+    private static ?\WeakMap $privateKeys = null;
 
     public function __construct(
-        private readonly PDO $db,
-        private readonly string $database,
-        #[SensitiveParameter] private readonly string $proofKey,
-        #[SensitiveParameter] private readonly string $totpKey,
-        #[SensitiveParameter] private readonly string $scopePepper,
+        PDO $db,
+        string $database,
+        #[SensitiveParameter] string $proofKey,
+        #[SensitiveParameter] string $totpKey,
+        #[SensitiveParameter] string $scopePepper,
     ) {
         if (preg_match('/\\A[a-f0-9]{64}\\z/D', $proofKey) !== 1
             || strlen($totpKey) !== 32 || strlen($scopePepper) < 32 || strlen($scopePepper) > 128) {
             throw new RuntimeException('Portal authentication key configuration required.');
         }
+        $this->db = $db;
+        $this->database = $database;
+        self::$privateKeys ??= new \WeakMap();
+        self::$privateKeys[$this] = [
+            'proof' => $proofKey,
+            'totp' => $totpKey,
+            'scope' => $scopePepper,
+        ];
         $this->ready();
         $this->dummyHash = PortalPasswordCredential::makeHash(bin2hex(random_bytes(24)))
             ?? throw new RuntimeException('Portal password hashing unavailable.');
@@ -47,6 +63,30 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
     {
         throw new RuntimeException('Authentication adapters cannot be serialized.');
     }
+
+    public function __unserialize(array $data): void
+    {
+        throw new RuntimeException('Authentication adapters cannot be unserialized.');
+    }
+
+    public function __wakeup(): void
+    {
+        throw new RuntimeException('Authentication adapters cannot be unserialized.');
+    }
+
+    private function __clone(): void
+    {
+    }
+
+    private function privateKey(string $name): string
+    {
+        if (self::$privateKeys === null || !isset(self::$privateKeys[$this])) {
+            throw new RuntimeException('Portal authentication key configuration required.');
+        }
+        $keys = self::$privateKeys[$this];
+        return $keys[$name] ?? throw new RuntimeException('Portal authentication key configuration required.');
+    }
+
 
     public function beginPassword(string $email, #[SensitiveParameter] string $password, string $organization, string $sourceIp): ?string
     {
@@ -88,7 +128,7 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
         if ($row === null || !$this->claim('identity|' . $row['identity_id'], 'totp')) {
             return null;
         }
-        $secret = PortalTotpSecretCipher::open($row['mfa_ciphertext'], $this->totpKey);
+        $secret = PortalTotpSecretCipher::open($row['mfa_ciphertext'], $this->privateKey('totp'));
         if ($secret === null) {
             return null;
         }
@@ -132,8 +172,16 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
 
     private function ready(): void
     {
+        // F321: driver metadata/transaction probes may throw on a broken
+        // PDO before execute() can redact SQL provider diagnostics.
+        try {
+            $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $inTransaction = $this->db->inTransaction();
+        } catch (Throwable) {
+            throw new RuntimeException('Portal authentication database unavailable.');
+        }
         // Never acknowledge durable success within a caller-owned transaction.
-        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql' || $this->db->inTransaction()) {
+        if ($driver !== 'pgsql' || $inTransaction) {
             throw new RuntimeException('Dedicated autocommit PostgreSQL connection required.');
         }
         $r = $this->row("SELECT current_database() AS db,current_user AS actor,session_user AS login,
@@ -154,12 +202,12 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
     private function claim(string $scope, string $action): bool
     {
         return $this->boolean('SELECT public.portal_browser_claim_attempt(?,?)',
-            [hash_hmac('sha256','portal-browser-v1|' . $scope,$this->scopePepper),$action]);
+            [hash_hmac('sha256','portal-browser-v1|' . $scope,$this->privateKey('scope')),$action]);
     }
 
     private function proof(string $payload): string
     {
-        return hash_hmac('sha256',$payload,$this->proofKey);
+        return hash_hmac('sha256',$payload,$this->privateKey('proof'));
     }
 
     private function validReference(string $value): bool

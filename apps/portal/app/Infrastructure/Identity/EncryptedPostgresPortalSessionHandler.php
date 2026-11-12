@@ -22,16 +22,31 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private bool $owned = false;
 
+    // F319: the Laravel Encrypter includes raw key material as a private
+    // property and var_export() ignores __debugInfo(). Keep it outside
+    // session handler object properties to avoid accidental dump exposure.
+    private static ?\WeakMap $privateCiphers = null;
+
     public function __construct(
         private readonly PDO $db,
         private readonly string $database,
-        private readonly Encrypter $cipher,
+        Encrypter $cipher,
         private readonly int $lockWaitMilliseconds = 2000,
     ) {
         if ($lockWaitMilliseconds < 100 || $lockWaitMilliseconds > 5000) {
             throw new RuntimeException('Bounded session lock wait required.');
         }
         $this->ready();
+        self::$privateCiphers ??= new \WeakMap();
+        self::$privateCiphers[$this] = $cipher;
+    }
+
+    private function cipher(): Encrypter
+    {
+        if (self::$privateCiphers === null || !isset(self::$privateCiphers[$this])) {
+            throw new RuntimeException('Portal session encryption unavailable.');
+        }
+        return self::$privateCiphers[$this];
     }
 
     public function __debugInfo(): array
@@ -50,6 +65,16 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
     public function __serialize(): array
     {
         throw new RuntimeException('Session handlers cannot be serialized.');
+    }
+
+    public function __unserialize(array $data): void
+    {
+        throw new RuntimeException('Session handlers cannot be unserialized.');
+    }
+
+    public function __wakeup(): void
+    {
+        throw new RuntimeException('Session handlers cannot be unserialized.');
     }
 
     public function open(string $path, string $name): bool
@@ -72,7 +97,7 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
             if ($payload === '') {
                 return '';
             }
-            $plain=$this->cipher->decrypt($payload,false);
+            $plain=$this->cipher()->decrypt($payload,false);
             $binding=self::BINDING.$digest."\n";
             if (!is_string($plain) || strlen($plain)<strlen($binding)
                 || !hash_equals($binding,substr($plain,0,strlen($binding)))) {
@@ -90,7 +115,7 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
         try {
             $this->start();
             $digest=$this->digest($id);
-            $payload=$this->cipher->encrypt(self::BINDING.$digest."\n".$data,false);
+            $payload=$this->cipher()->encrypt(self::BINDING.$digest."\n".$data,false);
             if (strlen($payload)>65536 || !$this->truth($this->query(
                 'SELECT public.portal_browser_envelope_write(?,?)',[$digest,$payload]))) {
                 throw new RuntimeException('Session write refused.');
@@ -165,14 +190,27 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private function ready(): void
     {
-        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' || $this->db->inTransaction()) {
+        // F320: metadata probes and the role query can fail on a dead PDO
+        // before normal read/write handling begins. Do not leak SQL, role
+        // or provider diagnostics during handler construction or reuse.
+        try {
+            $driver=$this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $inTransaction=$this->db->inTransaction();
+        } catch (Throwable) {
+            throw new RuntimeException('Portal session storage unavailable.');
+        }
+        if ($driver!=='pgsql' || $inTransaction) {
             throw new RuntimeException('Dedicated autocommit session connection required.');
         }
-        $q=$this->db->query("SELECT current_database() AS db,current_user AS actor,session_user AS login,
-          rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,
-          EXISTS(SELECT 1 FROM pg_auth_members WHERE member=r.oid) AS inherited
-          FROM pg_roles r WHERE rolname=current_user");
-        $row=$q->fetch(PDO::FETCH_ASSOC);
+        try {
+            $q=$this->db->query("SELECT current_database() AS db,current_user AS actor,session_user AS login,
+              rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,
+              EXISTS(SELECT 1 FROM pg_auth_members WHERE member=r.oid) AS inherited
+              FROM pg_roles r WHERE rolname=current_user");
+            $row=$q->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable) {
+            throw new RuntimeException('Portal session storage unavailable.');
+        }
         if (!is_array($row)||$row['db']!==$this->database
             ||$row['actor']!=='portal_browser_envelope_runtime'||$row['login']!=='portal_browser_envelope_runtime') {
             throw new RuntimeException('Dedicated Portal envelope role required.');
