@@ -305,10 +305,11 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         fwrite(STDERR,"HTTP integration: session driver and routes ready\n");
         $cookie=null;
         $request=function(string $method,string $path,array $body=[],?string $token=null,
-            string $origin='https://portal.example.test',?string $fetchSite=null)use(&$cookie){
+            string $origin='https://portal.example.test',?string $fetchSite=null,
+            string $contentType='application/json')use(&$cookie){
             fwrite(STDERR,"HTTP integration: request ".$method." ".$path."\n");
             $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
-            $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>$origin,'REMOTE_ADDR'=>'192.0.2.10'];
+            $server=['CONTENT_TYPE'=>$contentType,'HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>$origin,'REMOTE_ADDR'=>'192.0.2.10'];
             if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
             if($fetchSite!==null)$server['HTTP_SEC_FETCH_SITE']=$fetchSite;
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
@@ -331,6 +332,13 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
                 'https://portal.example.test','same-site')->assertStatus(419);
             $request('POST','password',$passwordBody,$token,
                 'https://portal.example.test','cross-site')->assertStatus(419);
+            // F298: same-origin cookies and correct CSRF do not override the
+            // JSON-only, bounded-body HTTP contract.
+            $request('POST','password',$passwordBody,$token,
+                'https://portal.example.test',null,'text/plain')->assertStatus(400);
+            $oversizedPassword=$passwordBody;
+            $oversizedPassword['padding']=str_repeat('x',4096);
+            $request('POST','password',$oversizedPassword,$token)->assertStatus(400);
             self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
             // F292: a valid identity + password cannot authenticate in a
             // different active organization without a server-side membership.
@@ -381,6 +389,9 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
                 'https://portal.example.test','same-site')->assertStatus(419);
             $request('POST','mfa',['code'=>$otp],$token,
                 'https://portal.example.test','cross-site')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,
+                'https://portal.example.test',null,'text/plain')->assertStatus(400);
+            $request('POST','mfa',['code'=>$otp,'padding'=>str_repeat('x',4096)],$token)->assertStatus(400);
             self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
             $request('POST','mfa',['code'=>$otp],$token)->assertOk();
             $request('GET','session')->assertOk()->assertExactJson(['authenticated'=>true]);
