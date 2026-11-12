@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
-import {financeCsvChunks} from '../server/admin-finance-export.mjs';
+import {financeCsvChunks,streamAdminFinanceCsv,ADMIN_FINANCE_MAX_STREAM_MS} from '../server/admin-finance-export.mjs';
 import {safeCsvCell} from '../server/account-export.mjs';
 import {writeExportChunks} from '../server/owner-project-export.mjs';
 
@@ -80,4 +80,34 @@ test('F250: desconexao durante cabecalho impede consultar dados privados',async(
  assert.deepEqual(f.stats(),{queried:0,visited:0,closed:0});
  assert.equal(ended,false);
  for(const event of ['close','error','drain'])assert.equal(res.listenerCount(event),0);
+});
+
+
+test('F251: admin finance streaming deadline limits stalled SQLite cursors',async()=>{
+ assert.equal(ADMIN_FINANCE_MAX_STREAM_MS,5*60*1000);
+ const f=fakeDatabase(Array.from({length:100},(_,i)=>payment('p-'+i)));
+ const res=new EventEmitter();
+ let writes=0,ends=0,destroys=0;
+ res.write=()=>{writes++;return writes!==2;};
+ res.end=()=>{ends++;};
+ res.destroy=()=>{destroys++;res.destroyed=true;res.emit('close');};
+ await streamAdminFinanceCsv(res,f.db,25);
+ assert.equal(writes,2,'header and first payment reached the output');
+ assert.equal(ends,0,'partial CSV must never be ended normally');
+ assert.equal(destroys,1);
+ assert.deepEqual(f.stats(),{queried:1,visited:1,closed:1});
+ for(const event of ['close','drain','error'])assert.equal(res.listenerCount(event),0);
+});
+
+test('F251: normal admin finance streaming clears deadline after successful completion',async()=>{
+ const f=fakeDatabase([payment('p-1')]),res=new EventEmitter();
+ let ends=0,destroys=0;
+ res.write=()=>true;
+ res.end=()=>{ends++;};
+ res.destroy=()=>{destroys++;res.destroyed=true;res.emit('close');};
+ await streamAdminFinanceCsv(res,f.db,25);
+ assert.equal(ends,1);
+ await new Promise(resolve=>setTimeout(resolve,50));
+ assert.equal(destroys,0,'no orphan timeout may destroy a completed response');
+ assert.deepEqual(f.stats(),{queried:1,visited:1,closed:1});
 });
