@@ -91,7 +91,7 @@ jobs:
           php bin/export-portable-preview.php
           test -s storage/app/portal-demo-static/index.html
           test -s storage/app/portal-demo-static/manifest.json
-          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 9
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 11
 
       - name: Arquivar prévia HTML navegável para revisão visual (sem publicação)
         if: matrix.php == '8.3'
