@@ -84,6 +84,25 @@ jobs:
       - name: Testes Laravel sem banco ou servicos externos
         run: php artisan test --no-ansi
 
+      - name: Gerar prévia visual offline e fictícia da identidade Imagine
+        if: matrix.php == '8.3'
+        run: |
+          set -euo pipefail
+          php bin/export-portable-preview.php
+          test -s storage/app/portal-demo-static/index.html
+          test -s storage/app/portal-demo-static/manifest.json
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 9
+
+      - name: Arquivar prévia HTML navegável para revisão visual (sem publicação)
+        if: matrix.php == '8.3'
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-original-brand-offline-preview
+          path: apps/portal/storage/app/portal-demo-static/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
+
       - name: Arquivar copia de evidencia do lock versionado
         if: matrix.php == '8.3' && always()
         uses: actions/upload-artifact@v5
