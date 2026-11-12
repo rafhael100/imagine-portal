@@ -27,6 +27,17 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Refuse accidental restore execution without exact CI authorization
+        run: |
+          set -euo pipefail
+          assert_denied() {
+            local status=0
+            "$@" >/dev/null 2>&1 || status=$?
+            test "$status" -eq 64
+          }
+          assert_denied env -u GITHUB_ACTIONS -u PORTAL_DB_DISPOSABLE_CI bash ./backup-restore-smoke.sh
+          assert_denied env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=wrong-ci bash ./backup-restore-smoke.sh
+          assert_denied env GITHUB_ACTIONS=false PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci bash ./backup-restore-smoke.sh
       - name: Prepare ephemeral independent credentials without outputting values
         run: |
           set -euo pipefail
@@ -52,6 +63,47 @@ jobs:
           sudo -E docker compose run --rm -T provision php provision.php verify > after-refusal.out
           cmp before.out after-refusal.out
           cat before.out
+      - name: Refuse overwrite of an existing restore target and preserve it
+        run: |
+          set -euo pipefail
+          target=portal_identity_f338_restore_ci
+          sudo -E docker compose exec -T --user postgres postgres \
+            createdb -U postgres --template=template0 "$target"
+          status=0
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh >/dev/null 2>&1 || status=$?
+          test "$status" -eq 65
+          sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='$target'" | grep -qx 1
+          sudo -E docker compose exec -T --user postgres postgres \
+            dropdb -U postgres "$target"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-existing-target.out
+          cmp before.out after-existing-target.out
+      - name: Reject an unknown migration even with the expected row count
+        run: |
+          set -euo pipefail
+          original=2026_11_12_000017_create_portal_service_resource_claims
+          altered=2026_11_12_000017_unknown_portal_migration
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "UPDATE public.migrations SET migration='$altered' WHERE migration='$original'"
+          test "$(sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d portal_identity_dev -tAc 'SELECT count(*) FROM public.migrations')" = 10
+          status=0
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh >/dev/null 2>&1 || status=$?
+          test "$status" -eq 65
+          test "$(sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
+          admin_sql "UPDATE public.migrations SET migration='$original' WHERE migration='$altered'"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-migration-repair.out
+          cmp before.out after-migration-repair.out
       - name: Deliberately misgrant privileges and prove verify fails closed
         run: |
           set -euo pipefail
@@ -169,6 +221,12 @@ jobs:
           sudo -E docker compose run --rm -T provision php provision.php verify > after-restart.out
           cmp before.out after-restart.out
           cat after-restart.out
+      - name: Restore a logical backup to a new disposable database only
+        run: |
+          set -euo pipefail
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh
       - name: Remove only this disposable CI project and its credentials
         if: always()
         run: |
