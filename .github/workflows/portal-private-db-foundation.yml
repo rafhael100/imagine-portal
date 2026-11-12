@@ -96,6 +96,23 @@ jobs:
           admin_sql "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE SELECT ON TABLES FROM portal_browser_runtime"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-default-grant-revocation.out
           cmp before.out after-default-grant-revocation.out
+      - name: Refuse restored public and third-party database CONNECT grants
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT CONNECT ON DATABASE portal_identity_dev TO PUBLIC"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CONNECT ON DATABASE portal_identity_dev FROM PUBLIC"
+          admin_sql "CREATE ROLE portal_f333_ci_intruder NOLOGIN"
+          admin_sql "GRANT CONNECT ON DATABASE portal_identity_dev TO portal_f333_ci_intruder"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CONNECT ON DATABASE portal_identity_dev FROM portal_f333_ci_intruder"
+          admin_sql "DROP ROLE portal_f333_ci_intruder"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-connect-revocation.out
+          cmp before.out after-connect-revocation.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
