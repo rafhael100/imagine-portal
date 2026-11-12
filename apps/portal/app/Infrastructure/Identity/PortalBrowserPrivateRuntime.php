@@ -62,7 +62,7 @@ final class PortalBrowserPrivateRuntime
                 'pgsql:host=127.0.0.1;port='.$this->configuration->value('port')
                     .';dbname='.$this->configuration->value('database')
                     .';connect_timeout=3;sslmode=disable'
-                    .';options=--statement_timeout=5000 --lock_timeout=2000 --idle_in_transaction_session_timeout=30000',
+                    .";options='--statement_timeout=5000 --lock_timeout=2000 --idle_in_transaction_session_timeout=30000'",
                 $role,
                 $this->configuration->value($passwordField),
                 [
