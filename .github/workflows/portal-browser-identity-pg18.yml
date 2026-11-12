@@ -1,0 +1,100 @@
+name: Portal browser identity - PostgreSQL 18 candidate
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/app/Domain/Identity/Browser/**'
+      - 'apps/portal/app/Http/**'
+      - 'apps/portal/database/security/portal_browser_auth.sql'
+      - 'apps/portal/database/migrations/**'
+      - 'apps/portal/tests/Integration/PortalBrowserAuthenticationPg18Test.php'
+      - 'apps/portal/tests/Support/BrowserMfaRaceWorker.php'
+      - '.github/workflows/portal-browser-identity-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  postgres-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-browser-admin-only
+          POSTGRES_DB: portal_browser_lab
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_browser_lab"
+          --health-interval 5s --health-timeout 4s --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_BROWSER_PG_LAB: DISPOSABLE_PG18
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_browser_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: ci-browser-admin-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: portal_browser_lab
+      PGUSER: postgres
+      PGPASSWORD: ci-browser-admin-only
+      PORTAL_BROWSER_RUNTIME_PASSWORD: ci-browser-runtime-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium
+      - name: Locked dependencies and disposable application key
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php
+          php -l tests/Integration/PortalBrowserAuthenticationPg18Test.php
+          php -l tests/Support/BrowserMfaRaceWorker.php
+      - name: Build isolated schema and execute-only role
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000012_fence_portal_membership_revision.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000013_fence_portal_organization_revision.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction
+          psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_auth.sql
+          psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_runtime LOGIN PASSWORD 'ci-browser-runtime-only'"
+      - name: Prove persistence, least privilege, atomic MFA and real HTTP transport
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit tests/Integration/PortalBrowserAuthenticationPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
+          php artisan test --no-ansi --filter=PortalBrowserAuthTransportTest
+          php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
+          test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($r);')" -eq 1

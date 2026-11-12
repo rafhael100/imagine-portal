@@ -1,7 +1,9 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
-import {projectsCsv} from './account-export.mjs';
+import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
+import {accountProjectsPage} from './account-projects.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
 import {createFiscal} from './fiscal.mjs';
 import {createFocus} from './focus.mjs';
@@ -22,6 +24,37 @@ import {token,digest,equal,hashPassword,verifyPassword,cleanText,validEmail,vali
 import {now,audit} from './store.mjs';
 export const MAINTENANCE_CENTS=3990;
 export const MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8;
+/** F191: password verification is async; perform a second immutable-session
+ * and password-revision check atomically before touching other sessions. */
+/** F195: logout/revocation must take effect before an in-flight
+ * password change can rotate credentials or mint a fresh session. */
+export function changePasswordAtomically(db,user,newPasswordHash){
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const active=db.prepare('SELECT 1 FROM sessions WHERE user_id=? AND hash=? AND expires_at>?').get(user.id,user.hash,Date.now());
+  if(!active)throw Object.assign(Error('Sua sessão foi encerrada. Entre novamente.'),{status:409});
+  const changed=db.prepare('UPDATE users SET password_hash=? WHERE id=? AND password_hash=?').run(newPasswordHash,user.id,user.password_hash);
+  if(changed.changes!==1)throw Object.assign(Error('Sua senha já foi alterada em outra sessão. Entre novamente.'),{status:409});
+  db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);
+  db.exec('COMMIT');
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+export function revokeOtherSessionsAtomically(db,user){
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const current=db.prepare('SELECT password_hash FROM users WHERE id=?').get(user.id);
+  if(!current||current.password_hash!==user.password_hash)
+   throw Object.assign(Error('Sua senha foi alterada em outra sessão. Entre novamente.'),{status:409});
+  const active=db.prepare('SELECT 1 FROM sessions WHERE user_id=? AND hash=? AND expires_at>?').get(user.id,user.hash,Date.now());
+  if(!active)
+   throw Object.assign(Error('Sua sessão foi encerrada. Entre novamente.'),{status:409});
+  const revokedSessions=Number(db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=? AND hash<>? AND expires_at>?').get(user.id,user.hash,Date.now()).n);
+  db.prepare('DELETE FROM sessions WHERE user_id=? AND hash<>?').run(user.id,user.hash);
+  db.exec('COMMIT');
+  return revokedSessions;
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+
 export const RATE_LIMIT_PRUNE_INTERVAL_MS=5*60*1000;
 export function addDays(date,days){const value=new Date(date);value.setUTCDate(value.getUTCDate()+days);return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value)}
 const settled=new Set(['RECEIVED','CONFIRMED','RECEIVED_IN_CASH']);
@@ -49,6 +82,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // live counters. Fail closed on storage failure.
   if(time-lastRateLimitPruneAt>=RATE_LIMIT_PRUNE_INTERVAL_MS){
    run('DELETE FROM rate_limits WHERE reset_at<=?',time);
+   pruneExpiredOwnerExportLeases(db,time);
    lastRateLimitPruneAt=time;
   }
   const row=q('SELECT * FROM rate_limits WHERE key=?',key);
@@ -123,12 +157,20 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
  if(path==='/api/account/projects.csv'&&method==='GET'){
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
-  const csv=projectsCsv(accountProfile.view(user).projects);
-  res.setHeader('Content-Type','text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
-  audit(db,user.id,'account.projects_csv_exported',user.id);
-  res.writeHead(200);
-  return res.end(csv);
+  limit('account-export:'+user.id,20,3600000);
+  const columns=url.searchParams.get('columns')??'';
+  assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
+  preflightOwnerProjectExport(db,user);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   // F229/F236: stream the authorized cursor while holding only one export lease per account.
+   const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
+   audit(db,user.id,'account.projects_csv_exported',user.id);
+   res.writeHead(200);
+   return await writeExportChunks(res,chunks);
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/export'&&method==='GET'){
   // Explicitly scoped read-only self-service: profile, fiscal registration,
@@ -136,28 +178,42 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // Restrict to clients; never export staff/admin records, credentials or
   // other tenants' projects through this endpoint.
   assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
-  const account=accountProfile.view(user);
-  const data={
-   schema_version:1,
-   exported_at:new Date().toISOString(),
-   scope:'cadastro_e_projetos',
-   user:{name:account.user.name,email:account.user.email},
-   created_at:account.created_at,
-   profile:account.profile,
-   fiscal:account.fiscal,
-   projects:account.projects,
-  };
-  res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
-  audit(db,user.id,'account.data_exported',user.id);
-  return send(res,200,data);
+  limit('account-export:'+user.id,20,3600000);
+  preflightOwnerProjectExport(db,user);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   const compact=accountProfile.view(user,{compact:true});
+   const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
+   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
+   res.setHeader('Content-Type','application/json; charset=utf-8');
+   audit(db,user.id,'account.data_exported',user.id);
+   res.writeHead(200);
+   return await writeExportChunks(res,chunks);
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
- if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
- if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
+ if(path==='/api/account/projects'&&method==='GET'){
+  limit('account-projects:'+user.id,120,60000);
+  return send(res,200,accountProjectsPage(db,user,{
+   page:url.searchParams.get('page')??'1',
+   payment:url.searchParams.get('payment')??'all',
+   search:url.searchParams.get('search')??'',
+   phase:url.searchParams.get('phase')??'all',
+   sort:url.searchParams.get('sort')??'newest',
+   attention:url.searchParams.get('attention')??'all',
+  }));
+ }
+ if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));
+ if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req),{compact:url.searchParams.get('compact')==='1'}));}
  if(path==='/api/account/security-events'&&method==='GET'){
-  // Security history is owner-only: never return audit actor/resource ids,
-  // IP addresses, session tokens, or unrecognized internal audit actions.
-  const events=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT 10",user.id);
-  return send(res,200,{events});
+  // F189: bounded pagination for the authenticated account. The old response
+  // shape remains unchanged without ?page= to preserve existing consumers.
+  // Never send audit IDs, other actors, IPs, tokens or unapproved actions.
+  const pageText=url.searchParams.get('page');
+  const paged=pageText!==null;
+  assert(!paged||/^[1-9][0-9]{0,1}$/.test(pageText)&&Number(pageText)<=30,400,'Página de histórico inválida.');
+  const page=paged?Number(pageText):1;
+  const rows=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT ? OFFSET ?",user.id,paged?11:10,(page-1)*10);
+  return send(res,200,paged?{events:rows.slice(0,10),page,has_more:page<30&&rows.length>10}:{events:rows});
  }
  if(path==='/api/sessions/summary'&&method==='GET'){
   // Only aggregated counts for the authenticated current account. No
@@ -177,19 +233,11 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');
   // Keep the authenticated cookie and its CSRF token. Delete only this
   // account's other sessions, atomically and without touching other tenants.
-  db.exec('BEGIN IMMEDIATE');
-  let revokedSessions=0;
-  try{
-   // Report only active sessions of the authenticated account, excluding
-   // the current credential. Still remove stale rows atomically.
-   revokedSessions=Number(q('SELECT count(*) AS n FROM sessions WHERE user_id=? AND hash<>? AND expires_at>?',user.id,user.hash,Date.now()).n);
-   run('DELETE FROM sessions WHERE user_id=? AND hash<>?',user.id,user.hash);
-   db.exec('COMMIT');
-  }catch(error){db.exec('ROLLBACK');throw error}
+  const revokedSessions=revokeOtherSessionsAtomically(db,user);
   audit(db,user.id,'sessions.revoked_others',user.id);
   return send(res,200,{ok:true,revoked_sessions:revokedSessions,active_sessions:1,other_sessions:0,max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT});
  }
- if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');assert(data.newPassword!==data.currentPassword,400,'A nova senha deve ser diferente da atual.');const hashed=await hashPassword(data.newPassword);db.exec('BEGIN IMMEDIATE');try{const changed=run('UPDATE users SET password_hash=? WHERE id=? AND password_hash=?',hashed,user.id,user.password_hash);assert(changed.changes===1,409,'Sua senha já foi alterada em outra sessão. Entre novamente.');run('DELETE FROM sessions WHERE user_id=?',user.id);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
+ if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');assert(data.newPassword!==data.currentPassword,400,'A nova senha deve ser diferente da atual.');const hashed=await hashPassword(data.newPassword);changePasswordAtomically(db,user,hashed);audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
  if(path==='/api/orders'&&method==='GET')return send(res,200,{orders:(user.role==='admin'?list('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500'):list('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 500',user.id)).filter(o=>team.canOrder(user,o.id)).map(o=>viewOrder(o,user))});
  if(path==='/api/orders'&&method==='POST'){limit('orders:'+user.id,15,3600000);const data=await jsonBody(req),product=q('SELECT * FROM products WHERE id=?',cleanText(data.product,30));assert(product,400,'Solução inválida.');const brief=cleanText(data.brief,5000);assert(brief.length>=10,400,'Descreva seu projeto com pelo menos 10 caracteres.');const id=cleanText(data.requestId,50);assert(/^[a-f\d-]{36}$/i.test(id),400,'Identificador de pedido inválido.');const existing=q('SELECT * FROM orders WHERE id=?',id);if(existing){assert(existing.user_id===user.id,409,'Pedido já registrado.');return send(res,200,{order:viewOrder(existing,user)})}run('INSERT INTO orders(id,user_id,product_id,title,brief,price_cents,scope,delivery,terms_version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,user.id,product.id,product.title,brief,product.enabled||product.id==='site'?product.price_cents:null,product.enabled?product.scope:'',product.enabled?product.delivery:'',product.version,now(),now());if(product.id==='site'&&newSiteBilling===RECURRING_MODEL)run("UPDATE orders SET billing_model=?,scope=CASE WHEN scope='' THEN ? ELSE scope END,delivery=CASE WHEN delivery='' THEN ? ELSE delivery END WHERE id=?",RECURRING_MODEL,'Onepage responsivo com identidade visual, apresentação, serviços e contatos. Implantação: 3 pagamentos de R$ 330 na contratação, após 30 e 60 dias. Assinatura mensal obrigatória de R$ 79,90 a partir de 90 dias, independentemente da publicação. Inclui licença, hospedagem, SSL, backup e suporte técnico; alterações à parte. Domínio do cliente.','7 dias úteis após validar os materiais.',id);audit(db,user.id,'order.created',id);return send(res,201,{order:viewOrder(q('SELECT * FROM orders WHERE id=?',id),user)})}
  const materialMatch=path.match(/^\/api\/orders\/([a-f\d-]{36})\/materials\/([a-f\d-]{36})$/i);if(materialMatch){const order=own(materialMatch[1],user);if(method==='GET'||method==='HEAD')return await briefings.download(order,user,materialMatch[2],res,method);if(method==='DELETE')return send(res,200,{briefing:await exclusive(order.id,()=>briefings.remove(order,user,materialMatch[2]))});throw problem(405,'Método não permitido.');}
