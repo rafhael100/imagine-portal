@@ -37,7 +37,18 @@ cleanup() {
 trap cleanup EXIT
 
 # Refuse populated sources, preexisting targets and ambiguous cluster state.
-[[ $(sql portal_identity_dev 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 65
+# Missing identities do not imply an empty database: attempt buckets, envelopes,
+# service claims or sessions can exist independently. This is a ZERO-DATA drill.
+empty_source_query='SELECT
+ (SELECT count(*) FROM public.portal_identities) +
+ (SELECT count(*) FROM public.portal_organizations) +
+ (SELECT count(*) FROM public.portal_memberships) +
+ (SELECT count(*) FROM public.portal_membership_grants) +
+ (SELECT count(*) FROM public.portal_auth_sessions) +
+ (SELECT count(*) FROM public.portal_auth_attempt_buckets) +
+ (SELECT count(*) FROM public.portal_browser_envelopes) +
+ (SELECT count(*) FROM public.portal_service_resource_claims)'
+[[ $(sql portal_identity_dev "$empty_source_query") == 0 ]] || exit 65
 [[ $(sql portal_identity_dev "SELECT count(*) FROM pg_database WHERE datname='$target'") == 0 ]] || exit 65
 marker_query='SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1'
 source_marker=$(sql portal_identity_dev "$marker_query")
@@ -70,7 +81,7 @@ pg pg_restore --list < "$temporary/database.dump" > "$temporary/archive.list"
 [[ -s "$temporary/archive.list" ]] || exit 1
 # A concurrent source change invalidates the archive, before a target is created.
 [[ $(sql portal_identity_dev "$marker_query") == "$source_marker" ]] || exit 1
-[[ $(sql portal_identity_dev 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
+[[ $(sql portal_identity_dev "$empty_source_query") == 0 ]] || exit 65
 
 # A fresh database is created explicitly. No --clean and no writes to source.
 pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
@@ -101,7 +112,7 @@ restored_marker=$(sql "$target" "$marker_query")
 [[ $(sql "$target" 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 1
 [[ $(sql "$target" "$allowlist_query") == 0 ]] || exit 1
 [[ $(sql "$target" "$migration_query") == "$source_migrations" ]] || exit 1
-[[ $(sql "$target" 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
+[[ $(sql "$target" "$empty_source_query") == 0 ]] || exit 1
 
 rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname||'.'||c.relname IN
