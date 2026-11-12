@@ -28,7 +28,17 @@ test('F282: workload Map aggregation matches the previous full-cohort scan',()=>
     users[0],created,status==='done'?finished:created,null,null);
    if(status==='done')update.run(randomUUID(),id,assigned,'done','Concluída',finished);
   }
-  const result=buildTasksBI(db,new URLSearchParams({from:'2026-11-01',to:'2026-11-30'}),
+  let originalOrder=[];
+  const observed={prepare(sql){
+   const stmt=db.prepare(sql);
+   if(!sql.includes('FROM work_items t LEFT JOIN'))return stmt;
+   return {all(){
+    const source=stmt.all();
+    originalOrder=[...new Set(source.map(item=>item.assignee_id))];
+    return source;
+   }};
+  }};
+  const result=buildTasksBI(observed,new URLSearchParams({from:'2026-11-01',to:'2026-11-30'}),
    new Date('2026-11-27T15:00:00Z'),true);
   assert.equal(result.rows.length,48);
   const expected=[...new Set(result.rows.map(t=>t.assignee_id))].map(id=>{
@@ -44,7 +54,11 @@ test('F282: workload Map aggregation matches the previous full-cohort scan',()=>
     on_time_percent:ds.length?Math.round(ds.filter(t=>t.on_time).length/ds.length*100):null
    };
   }).sort((a,b)=>b.overdue-a.overdue||b.open-a.open);
-  assert.deepEqual(result.workload,expected,'all manager metrics and tie order remain compatible');
+  const byId=items=>[...items].sort((a,b)=>a.id.localeCompare(b.id));
+  assert.deepEqual(byId(result.workload),byId(expected),
+   'all manager metrics remain unchanged, irrespective of the post-query rows sort');
+  assert.deepEqual(result.workload.map(item=>item.id),originalOrder,
+   'stable KPI ties keep first-seen SQL cohort order');
   assert.equal(result.workload.length,3);
   assert.equal(result.workload.reduce((sum,t)=>sum+t.total,0),result.summary.total);
   assert.equal(result.workload.reduce((sum,t)=>sum+t.open,0),result.summary.open);
