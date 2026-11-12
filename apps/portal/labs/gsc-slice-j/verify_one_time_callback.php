@@ -78,6 +78,8 @@ try{
     $cloned=clone $result;
     $check(!Coordinator::issuedByConsumedState($forged) &&
         !Coordinator::issuedByConsumedState($cloned));
+    $check($forged->safeReview()['stateConsumed']===false &&
+        $cloned->safeReview()['stateConsumed']===false);
     $planner=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan();
     $credentials=[
         'clientId'=>$config['clientId'],
@@ -120,6 +122,8 @@ try{
     $cancel=$coordinator->review(['state'=>$s2,'error'=>'access_denied'],
         $context,$now+3);
     $check($cancel!==null&&
+        Coordinator::issuedByConsumedState($cancel) &&
+        $cancel->safeReview()['stateConsumed']===true &&
         $cancel->safeReview()['decision']==='CONSENT_DENIED_HOLD'&&
         $cancel->takeForTrustedBackend()===null);
     $check($other->review(['state'=>$s2,'error'=>'access_denied'],
