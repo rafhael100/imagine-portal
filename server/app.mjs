@@ -282,8 +282,14 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/admin/finance.csv'&&method==='GET'){
   // F250: send headers once, then stream the authorized SQLite cursor instead
   // of collecting all payments in memory; writer handles backpressure/close.
+  // F253: distinguish an authorized export attempt from a completed transfer.
+  // Neither event includes CSV content, payment details or session tokens.
+  audit(db,user.id,'admin.finance_csv_export_requested',user.id);
   res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});
-  return await streamAdminFinanceCsv(res,db);
+  await streamAdminFinanceCsv(res,db);
+  if(res.writableFinished===true)
+   audit(db,user.id,'admin.finance_csv_exported',user.id);
+  return;
  }
  throw problem(404,'Recurso não encontrado.');}
  assert(method==='GET'||method==='HEAD',405,'Método não permitido.');const allowed=path==='/'?'index.html':path==='/portal'||path==='/admin'?'portal.html':path.slice(1);assert(['index.html','checkout.html','contrato.html','checkout-validation.js','portal.html','portal.css','portal.js','client-orders-ui.js','client-finance-ui.js','client-care-ui.js','subscription-ui.js','account-ui.js','fiscal-ui.js','tasks-bi-ui.js','briefing-ui.js','production-ui.js','assets/logo-imagine.png'].includes(allowed),404,'Página não encontrada.');const body=await readFile(join(root,allowed));res.setHeader('Content-Security-Policy',['index.html','checkout.html','contrato.html'].includes(allowed)?"default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'":"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'})[extname(allowed)]});res.end(method==='HEAD'?undefined:body);
