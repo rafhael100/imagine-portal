@@ -24,7 +24,7 @@ http {
             fastcgi_param SERVER_PORT 443;
             fastcgi_pass ${PORTAL_DB_CONTAINER}:9000;
         }
-        location ~ ^/_development/auth/(csrf|session|login|ui\\.css|ui\\.js|logo\\.png)$ {
+        location ~ ^/_development/auth/(csrf|session|login|ui\.css|ui\.js|logo\.png)$ {
             limit_except GET { deny all; }
             include /etc/nginx/fastcgi_params;
             fastcgi_param SCRIPT_FILENAME /var/www/html/public/index.php;

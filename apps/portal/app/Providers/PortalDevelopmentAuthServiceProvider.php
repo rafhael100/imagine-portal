@@ -56,7 +56,7 @@ final class PortalDevelopmentAuthServiceProvider extends ServiceProvider
                     ]);
                 });
                 foreach(['ui.css'=>'text/css; charset=utf-8','ui.js'=>'text/javascript; charset=utf-8','logo.png'=>'image/png']as$file=>$type){
-                    Route::get($file,static fn()=>response()->file(public_path('portal-auth/'.$file),[
+                    Route::get($file,static fn()=>response()->file(resource_path('portal-auth/'.$file),[
                         'Content-Type'=>$type,'X-Content-Type-Options'=>'nosniff',
                         'Cache-Control'=>'no-store, private',
                     ]));

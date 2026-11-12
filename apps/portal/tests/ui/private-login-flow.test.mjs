@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const source=readFileSync('apps/portal/public/portal-auth/ui.js','utf8');
+const source=readFileSync('apps/portal/resources/portal-auth/ui.js','utf8');
 const flush=async()=>{for(let n=0;n<12;n++)await new Promise(setImmediate);};
 function setup(organization='22222222-2222-4222-8222-222222222222'){
   const elements=new Map();

@@ -2,7 +2,7 @@ name: Portal private login UI flow
 on:
   pull_request:
     paths:
-      - 'apps/portal/public/portal-auth/**'
+      - 'apps/portal/resources/portal-auth/**'
       - 'apps/portal/tests/ui/private-login-flow.test.mjs'
       - '.github/workflows/portal-private-login-ui.yml'
 permissions:
@@ -17,5 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node --check apps/portal/public/portal-auth/ui.js
+      - run: node --check apps/portal/resources/portal-auth/ui.js
       - run: node --test apps/portal/tests/ui/private-login-flow.test.mjs
