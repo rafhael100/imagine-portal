@@ -28,6 +28,10 @@ def request(method, path, payload=None, token=None, origin=None, cookie=None, ho
 
 def main():
     assert request("GET", "/up")[0] == 200
+    page_status, _, page = request("GET", "/_development/auth/login")
+    assert page_status == 200 and "Seu acesso está em preparação.".encode() in page
+    for asset in ("ui.css", "ui.js", "logo.png"):
+        assert request("GET", "/_development/auth/" + asset)[0] == 200
     status, headers, body = request("GET", "/_development/auth/csrf")
     assert status == 200
     token = json.loads(body)["csrf_token"]

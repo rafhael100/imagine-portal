@@ -1,0 +1,21 @@
+name: Portal private login UI flow
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/public/portal-auth/**'
+      - 'apps/portal/tests/ui/private-login-flow.test.mjs'
+      - '.github/workflows/portal-private-login-ui.yml'
+permissions:
+  contents: read
+jobs:
+  ui-flow:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --check apps/portal/public/portal-auth/ui.js
+      - run: node --test apps/portal/tests/ui/private-login-flow.test.mjs

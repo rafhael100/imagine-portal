@@ -44,6 +44,23 @@ final class PortalDevelopmentAuthServiceProvider extends ServiceProvider
         Route::prefix('_development/auth')
             ->middleware([EnsurePortalDevelopmentAuthEnabled::class,'web',PortalBrowserAuthGuard::class])
             ->group(function():void {
+                Route::get('login',function() {
+                    $organization=config('portal_development_auth.organization');
+                    $ready=is_string($organization)&&preg_match('/\\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z/D',$organization)===1;
+                    return response()->view('portal.auth.private-login',[
+                        'organization'=>$ready?$organization:'',
+                        'ready'=>$ready,
+                    ])->withHeaders([
+                        'Content-Security-Policy'=>"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+                        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+                    ]);
+                });
+                foreach(['ui.css'=>'text/css; charset=utf-8','ui.js'=>'text/javascript; charset=utf-8','logo.png'=>'image/png']as$file=>$type){
+                    Route::get($file,static fn()=>response()->file(public_path('portal-auth/'.$file),[
+                        'Content-Type'=>$type,'X-Content-Type-Options'=>'nosniff',
+                        'Cache-Control'=>'no-store, private',
+                    ]));
+                }
                 Route::get('csrf',[PortalBrowserAuthController::class,'csrf']);
                 Route::post('password',[PortalBrowserAuthController::class,'password']);
                 Route::post('mfa',[PortalBrowserAuthController::class,'mfa']);
