@@ -34,8 +34,18 @@ try{
     $check(Pkce::validRegistration([
         'clientId'=>$clientId,'registeredRedirectUri'=>$redirect
     ]));
-    $request=$planner->prepare($config,$outcome);
-    $check($request!==null);
+    // A public Outcome constructor is not evidence of successful DB
+    // consumption; token planner MUST reject it.
+    $check(!\App\Domain\SeoReview\GoogleSearchConsoleOAuthCallbackCoordinator::
+        issuedByConsumedState($outcome));
+    $check($planner->prepare($config,$outcome)===null);
+    // Unit-test the immutable form envelope independently. The positive
+    // planner path is exercised by the real PostgreSQL J/N labs.
+    $request=new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenPostRequest([
+        'client_id'=>$clientId,'client_secret'=>$secret,
+        'code'=>$code,'code_verifier'=>$verifier,
+        'redirect_uri'=>$redirect,'grant_type'=>'authorization_code'
+    ]);
     $review=$request->safeReview();
     $check($review['endpoint']==='https://oauth2.googleapis.com/token'
         &&$review['method']==='POST'
