@@ -1,0 +1,15 @@
+# Adaptador PostgreSQL de autenticação por navegador
+
+Proposta de implementação não registrada no container Laravel. O binding permanece DenyingPortalBrowserAuthentication, rotas continuam apenas /up e os gates operacionais não foram promovidos.
+
+O adaptador verifica senha Argon2id e TOTP cifrado da identidade Portal, limita tentativas por conta e por IP, e usa funções SQL com papel executor sem acesso direto às tabelas. O proprietário das funções é NOLOGIN, NOBYPASSRLS e não superuser. Políticas FORCE RLS e privilégios de coluna permitem ao proprietário apenas leitura necessária, atualização do contador MFA, inserção e revogação de sessões. Privilégio UPDATE de identificadores imutáveis de empresa/vínculo existe apenas para adquirir row locks; os gatilhos anteriores impedem sua alteração.
+
+A conta de execução SQL sozinha não pode fabricar a prova de senha/MFA: cada emissão exige HMAC sobre tipo, digest e material verificado, com chave independente da cifra TOTP e do pepper. A cópia SQL da chave fica em schema privado sem leitura pelo executor. As chaves do teste são aleatórias por fixture, não há segredo operacional versionado. A gestão/rotação real exige provisionamento revisado; o script de segurança cria o runtime NOLOGIN, sem chave inicial.
+
+Senha gera sessão pending_mfa de cinco minutos. MFA consome o contador TOTP na mesma transação que revoga a referência pendente e insere uma referência aleatória nova como sessão business de duas horas. Só SHA-256 das referências vai à tabela. Consulta revalida estado, MFA, prazo e revisões de identidade, vínculo e empresa; retirar ou mudar o acesso invalida a sessão. Logout é idempotente e só retorna depois da transação autocommit. Conexões de administrador, BYPASSRLS, papéis herdados e transações externas são recusadas.
+
+A limitação inicial é conservadora: cinco tentativas por quinze minutos em cada escopo de conta e de IP, separadas para senha e TOTP. Isso protege a prova, mas demanda revisão de disponibilidade/NAT e política de bloqueio antes de uso operacional. O material de credencial é acessível apenas pelo serviço autenticador, nunca pelo navegador; o segredo TOTP só é aberto em memória para verificação e depois apagado quando sodium está disponível.
+
+CI PostgreSQL 18/PHP 8.3 e 8.4 deve comprovar papel restrito, senha/MFA/rotação, visibilidade de revogação por outra conexão, falha após revisão, conta suspensa, limitação independente de IP, rollback integral se a inserção ativa falhar e dois processos competindo pelo mesmo TOTP. Um teste HTTP usa o adaptador SQL real com o controlador e sessões Laravel criptografadas; o banco contém apenas fixtures @example.invalid.
+
+Ainda pendentes para ativação: armazenamento operacional do envelope de sessão e locks entre requisições, composição segura das conexões e chaves, proxy/IP confiável, revisão independente SQL/AppSec/DBA, recuperação/rotação e proteção antirrollback externa. CI não é homologação operacional. Não executar o script em banco real nem registrar o adaptador em providers como efeito desta proposta.
