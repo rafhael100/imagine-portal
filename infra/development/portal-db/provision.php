@@ -101,6 +101,49 @@ try {
     if(!in_array($q->fetchColumn(),[true,1,'t','1'],true))throw new RuntimeException();
     $roles=$db->query("SELECT count(*) FROM pg_roles WHERE rolname IN ('portal_browser_owner','portal_browser_runtime','portal_browser_envelope_owner','portal_browser_envelope_runtime') AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolbypassrls) AND ((rolname IN ('portal_browser_owner','portal_browser_envelope_owner') AND NOT rolcanlogin) OR (rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime') AND rolcanlogin))")->fetchColumn();
     if((int)$roles!==4)throw new RuntimeException();
+    // F330: role attributes alone cannot prove that the runtime roles
+    // cannot read or write a protected business/auth table. Check the
+    // effective grants (including PUBLIC) for *both* runtime principals.
+    $unexpectedTablePrivileges=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM unnest(ARRAY['portal_browser_runtime','portal_browser_envelope_runtime']) AS roles(role_name)
+CROSS JOIN unnest(ARRAY[
+    'public.portal_identities',
+    'public.portal_auth_sessions',
+    'public.portal_memberships',
+    'public.portal_membership_grants',
+    'public.portal_organizations',
+    'public.portal_auth_attempt_buckets',
+    'public.portal_browser_envelopes',
+    'public.portal_service_resource_claims',
+    'portal_browser_private.proof_key',
+    'public.portal_development_installation'
+]) AS protected_tables(table_name)
+WHERE has_table_privilege(roles.role_name,protected_tables.table_name,'SELECT')
+   OR has_table_privilege(roles.role_name,protected_tables.table_name,'INSERT')
+   OR has_table_privilege(roles.role_name,protected_tables.table_name,'UPDATE')
+   OR has_table_privilege(roles.role_name,protected_tables.table_name,'DELETE')
+   OR has_table_privilege(roles.role_name,protected_tables.table_name,'TRUNCATE')
+SQL)->fetchColumn();
+    if($unexpectedTablePrivileges!==0)throw new RuntimeException();
+
+    // The two function surfaces must remain mutually exclusive. Do not
+    // accept a role if an accidental grant opens the other role's API.
+    $crossRoleExecute=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM (VALUES
+    ('portal_browser_runtime','public.portal_browser_envelope_read(text)'),
+    ('portal_browser_runtime','public.portal_browser_envelope_write(text,text)'),
+    ('portal_browser_runtime','public.portal_browser_envelope_destroy(text)'),
+    ('portal_browser_runtime','public.portal_browser_envelope_gc()'),
+    ('portal_browser_envelope_runtime','public.portal_browser_begin(text,uuid,text,text,text)'),
+    ('portal_browser_envelope_runtime','public.portal_browser_complete(text,text,bigint,text,text)'),
+    ('portal_browser_envelope_runtime','public.portal_browser_active(text)'),
+    ('portal_browser_envelope_runtime','public.portal_browser_permission_preflight(text,uuid,text)')
+) AS forbidden(role_name,function_signature)
+WHERE has_function_privilege(role_name,function_signature,'EXECUTE')
+SQL)->fetchColumn();
+    if($crossRoleExecute!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
