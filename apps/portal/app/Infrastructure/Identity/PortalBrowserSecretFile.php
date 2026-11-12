@@ -22,6 +22,17 @@ final class PortalBrowserSecretFile
             ||($before['mode']&0077)!==0||($parent['mode']&0022)!==0
             ||$before['uid']!==posix_geteuid()||$before['nlink']!==1
             ||$before['size']<1||$before['size']>8192)$fail();
+        // F315: lstat(parent) alone does not reject a symbolic link in
+        // any ancestor of that parent (e.g. /private/alias/real/secret).
+        // Never traverse an alias while accepting a local secret path.
+        $ancestor=dirname($path);
+        while(true){
+            $entry=@lstat($ancestor);
+            if(!is_array($entry)||($entry['mode']&0170000)!==0040000)$fail();
+            $next=dirname($ancestor);
+            if($next===$ancestor)break;
+            $ancestor=$next;
+        }
         $handle=@fopen($path,'rb');
         if($handle===false)$fail();
         try{
