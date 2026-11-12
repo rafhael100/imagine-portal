@@ -65,10 +65,13 @@ final readonly class LabRestoreServingGate
             if (!$before->matches($after)) {
                 return LabRestoreFenceVerdict::blocked('witness_changed_during_rehearsal');
             }
-            // Reading a witness <= backup is not evidence of anti-rollback.
-            // Require a strictly later, independent synthetic observation.
-            if ($before->sequence <= $restored->backupSequence) {
-                return LabRestoreFenceVerdict::blocked('witness_not_newer_than_backup');
+            // Comparing the witness's OWN event sequence to the primary
+            // backup sequence is invalid: those counters have unrelated
+            // origins. Require the witness to explicitly CLAIM coverage of
+            // a later PRIMARY backup generation. This is still untrusted
+            // synthetic evidence until signed and independently persisted.
+            if ($before->coveredBackupSequence <= $restored->backupSequence) {
+                return LabRestoreFenceVerdict::blocked('witness_does_not_cover_backup');
             }
             // A restored, previously valid session and membership MUST be
             // below both external revocation floors.
