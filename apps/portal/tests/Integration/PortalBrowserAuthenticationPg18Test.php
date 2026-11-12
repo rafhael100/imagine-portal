@@ -963,6 +963,28 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         });
     }
 
+    public function test_f327_session_key_cannot_be_reused_as_identity_or_envelope_role_password():void
+    {
+        foreach ([
+            'identity_password'=>str_repeat('i',32),
+            'envelope_password'=>str_repeat('e',32),
+        ] as $field=>$sharedSecret) {
+            $this->withPrivateRuntime(function ($runtime) use($field,$sharedSecret):void {
+                try {
+                    $runtime->sessionCreator(
+                        new \Illuminate\Encryption\Encrypter($sharedSecret,'AES-256-CBC')
+                    );
+                    self::fail('AES key reused as PostgreSQL role password: '.$field);
+                } catch (RuntimeException $error) {
+                    self::assertSame(
+                        'Independent Portal session encryption key required.',
+                        $error->getMessage()
+                    );
+                }
+            },[$field=>$sharedSecret]);
+        }
+    }
+
     public function test_f326_session_key_is_independent_of_totp_hmac_and_scope_pepper():void
     {
         $this->withPrivateRuntime(function ($runtime):void {
