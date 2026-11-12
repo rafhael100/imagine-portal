@@ -488,7 +488,34 @@ jobs:
             -c "DELETE FROM f24.session_fixture
                 WHERE session_id='DEMO-SESSION-EXTRA'
                 AND organization_id='org-a'" >/dev/null
-          # The exact two-session fixture is now safe to quarantine.
+          # F362: also reject an unrecognized membership with no session,
+          # without partially revoking either known tenant.
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "INSERT INTO f24.membership_fixture
+                  (organization_id,actor_id,membership_revision,mock_state,can_view_services)
+                VALUES ('org-b','DEMO-USER-EXTRA',1,'active',true)" >/dev/null
+          unexpected_status=0
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql \
+            >/dev/null 2>&1 || unexpected_status=$?
+          test "$unexpected_status" -ne 0
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.session_fixture
+                WHERE mock_state='active' AND session_revision=1")" = 2
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.membership_fixture
+                WHERE mock_state='active' AND membership_revision=1
+                  AND can_view_services")" = 3
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "DELETE FROM f24.membership_fixture
+                WHERE actor_id='DEMO-USER-EXTRA'
+                AND organization_id='org-b'" >/dev/null
+          # The exact two-session, two-membership fixture is now safe.
           docker exec -i "$F22_PG_CONTAINER" \
             psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
             < labs/service-relations-f359/quarantine-restored-fixture.sql >/dev/null
