@@ -20,6 +20,7 @@ final class PortalPrivateLoginPresentationTest extends TestCase
         self::assertStringContainsString('autocomplete="current-password"',$html);
         self::assertStringContainsString('autocomplete="one-time-code"',$html);
         self::assertStringContainsString('aria-live="polite"',$html);
+        self::assertStringContainsString('name="robots" content="noindex,nofollow,noarchive,nosnippet"',$html);
         self::assertStringContainsString('id="mfa-form" hidden',$html);
         self::assertStringNotContainsString('name="password" value=',$html);
         self::assertStringNotContainsString('localStorage',$html);
