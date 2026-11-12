@@ -1,0 +1,67 @@
+name: Portal private persistent database foundation
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-db/**'
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/database/security/portal_browser_auth.sql'
+      - 'apps/portal/database/security/portal_browser_envelopes.sql'
+      - 'apps/portal/database/migrations/**'
+      - '.github/workflows/portal-private-db-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-db-foundation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  persistent-foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: imagine-portal-foundation-ci
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/development/portal-db
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare ephemeral independent credentials without outputting values
+        run: |
+          set -euo pipefail
+          sudo python3 prepare-secrets.py "$PWD/.private"
+          # Generation refuses replacement of existing secrets.
+          if sudo python3 prepare-secrets.py "$PWD/.private"; then exit 1; fi
+          sudo docker compose config --quiet
+      - name: Build private tooling and start database without published ports
+        run: |
+          set -euo pipefail
+          sudo -E docker compose build provision
+          sudo -E docker compose up -d --wait postgres
+          test "$(sudo -E docker compose port postgres 5432 2>/dev/null || true)" = ""
+          image=imagine-portal-db-provision:local
+          sudo docker run --rm --network none "$image" php -r 'foreach(["/run/secrets/runtime.json","/run/secrets/database-admin","/run/secrets/app-key","/var/www/html/.env"] as $p){if(file_exists($p)){exit(1);}}'
+      - name: Install once, verify roles and encrypted persistence, refuse reinstall
+        run: |
+          set -euo pipefail
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          sudo -E docker compose run --rm -T provision php provision.php install > installation.out
+          sudo -E docker compose run --rm -T provision php provision.php verify > before.out
+          if sudo -E docker compose run --rm -T provision php provision.php install; then exit 1; fi
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-refusal.out
+          cmp before.out after-refusal.out
+          cat before.out
+      - name: Prove the same database survives container stop and start
+        run: |
+          set -euo pipefail
+          sudo -E docker compose stop postgres
+          sudo -E docker compose up -d --wait postgres
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-restart.out
+          cmp before.out after-restart.out
+          cat after-restart.out
+      - name: Remove only this disposable CI project and its credentials
+        if: always()
+        run: |
+          sudo -E docker compose down --volumes --remove-orphans
+          sudo rm -rf -- "$PWD/.private"

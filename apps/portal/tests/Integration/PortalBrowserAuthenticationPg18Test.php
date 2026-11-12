@@ -10,6 +10,13 @@ use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
+use App\Infrastructure\Identity\PortalBrowserSecretFile;
+use App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler;
+use Illuminate\Encryption\Encrypter;
+use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
+use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
+use App\Domain\Organizations\OrganizationId;
+use App\Domain\SiteIntake\SiteEngineSyntheticEnvelopePreview;
 use Illuminate\Support\Facades\Route;
 use PDO;
 use PDOException;
@@ -286,5 +293,833 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             foreach(glob($directory.'/*')?:[]as$file)unlink($file);
             rmdir($directory);
         }
+    }
+
+
+    public function test_permission_preflight_adapter_is_not_http_authority_and_enforces_dedicated_role():void
+    {
+        try {
+            new PostgresPortalPermissionPreflight($this->admin,'portal_browser_lab');
+            self::fail('Privileged admin connection must not become permission preflight.');
+        } catch(RuntimeException $e) {
+            self::assertSame('Dedicated Portal authentication role required.',$e->getMessage());
+        }
+        $preflight = new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertFalse($preflight->hasCandidateGrant('forged-session',self::ORG,'services.view'));
+        self::assertFalse($preflight->hasCandidateGrant(str_repeat('a',64),self::ORG,'services.*'));
+        self::assertFalse($preflight->hasCandidateGrant(str_repeat('a',64),'foreign-organization','services.view'));
+        self::assertSame(['backend'=>'Portal PostgreSQL permission preflight'],$preflight->__debugInfo());
+
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['66666666-6666-4666-8666-666666666666',self::MEMBER,'services.view']);
+        $active=$this->active();
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+        self::assertFalse($preflight->hasCandidateGrant($active,self::ORG,'billing.view'));
+        self::assertFalse($preflight->hasCandidateGrant($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->runtime->beginTransaction();
+        try {
+            try {
+                $preflight->hasCandidateGrant($active,self::ORG,'services.view');
+                self::fail('Caller-controlled transaction must never be accepted.');
+            } catch(RuntimeException $e) {
+                self::assertSame('Dedicated autocommit Portal permission connection required.',$e->getMessage());
+            }
+        } finally {
+            $this->runtime->rollBack();
+        }
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+        $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
+        self::assertFalse($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+    }
+
+    // F302: executable only against the disposable PostgreSQL 18 laboratory.
+    // This is a session + explicit-grant preflight, NEVER resource ownership.
+    private function permissionPreflight(?string $reference,string $organization,string $permission):bool
+    {
+        $q=$this->runtime->prepare('SELECT public.portal_browser_permission_preflight(?,CAST(? AS uuid),?)');
+        $q->execute([$reference===null?null:hash('sha256',$reference),$organization,$permission]);
+        return in_array($q->fetchColumn(),[true,1,'1','t'],true);
+    }
+
+    public function test_browser_permission_preflight_never_implies_role_or_cross_tenant_authorization():void
+    {
+        // No explicit grant means no permission even for a valid MFA session.
+        $this->admin->exec("UPDATE public.portal_memberships SET role='owner'");
+        $active=$this->active();
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.manage'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'*'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.*'));
+        self::assertFalse($this->permissionPreflight(null,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('0',64),self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->deniedSql('SELECT * FROM public.portal_membership_grants');
+        $this->deniedSql('SELECT * FROM public.portal_auth_sessions');
+        $this->deniedSql('SELECT * FROM public.portal_memberships');
+    }
+
+    public function test_grant_revocation_invalidates_existing_business_permission_preflight():void
+    {
+        $grant='55555555-5555-4555-8555-555555555555';
+        $insert=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(2,(int)$this->admin->query(
+            'SELECT membership_revision FROM public.portal_memberships'
+        )->fetchColumn(),'Explicit grant issuance must rotate membership revision.');
+        $active=$this->active();
+        self::assertTrue($this->permissionPreflight($active,self::ORG,'services.view'));
+        foreach(['services.manage','billing.view','members.manage','services.*','*'] as $ungranted){
+            self::assertFalse($this->permissionPreflight($active,self::ORG,$ungranted));
+        }
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('a',64),self::ORG,'services.view'));
+
+        $delete=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE id=?');
+        $delete->execute([$grant]);
+        self::assertSame(1,$delete->rowCount());
+        self::assertSame(3,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        // Reissue of the same grant cannot resurrect a session from a prior revision.
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(4,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertTrue($this->adapter->revoke($active));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+    }
+
+
+    public function test_same_identity_in_two_tenants_cannot_use_one_tenant_session_for_other_tenant_grants():void
+    {
+        $otherOrg='44444444-4444-4444-8444-444444444444';
+        $otherMember='77777777-7777-4777-8777-777777777777';
+        $org=$this->admin->prepare("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision)
+            VALUES(?,'same-actor-second-tenant','Second synthetic organization','active',1)");
+        $org->execute([$otherOrg]);
+        $member=$this->admin->prepare("INSERT INTO public.portal_memberships
+            (id,identity_id,organization_id,role,status,membership_revision)
+            VALUES(?,?,?,'owner','active',1)");
+        $member->execute([$otherMember,self::ACTOR,$otherOrg]);
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['88888888-8888-4888-8888-888888888888',self::MEMBER,'services.view']);
+        $grant->execute(['99999999-9999-4999-8999-999999999999',$otherMember,'services.view']);
+
+        $activeA=$this->active();
+        $check=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.view'),
+            'A real grant in B must not make a browser session for A usable in B.');
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.manage'));
+
+        // Revoking a grant only in B advances B's membership revision;
+        // it must not revoke A's otherwise valid MFA session.
+        $q=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE membership_id=?');
+        $q->execute([$otherMember]);
+        self::assertSame(1,$q->rowCount());
+        self::assertTrue($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.view'));
+
+        // The session is finally invalidated by revoking its own grant.
+        $q->execute([self::MEMBER]);
+        self::assertSame(1,$q->rowCount());
+        self::assertFalse($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($activeA));
+    }
+
+
+    public function test_positive_grant_preflight_cannot_unlock_resource_or_http_authorization():void
+    {
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
+        $session=$this->active();
+        $permission=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($permission->hasCandidateGrant($session,self::ORG,'services.view'),
+            'Positive PG18 preflight must actually be exercised.');
+
+        // F305: a valid password + TOTP + explicit service grant does not
+        // establish ownership of an arbitrary resource. The application's
+        // trusted membership/resource/session sources are still deny-all.
+        $authority=$this->app->make(PortalAuthorityBoundary::class);
+        $verdict=$authority->inspect(
+            $session,
+            new OrganizationId(self::ORG),
+            'unverified-synthetic-service-asset',
+            'services.view',
+            time(),
+        );
+        self::assertFalse($verdict->syntheticChecksPass);
+        self::assertFalse($verdict->canAuthorizeHttp());
+
+        $routes=array_map(static fn($route):string=>$route->uri(),
+            iterator_to_array($this->app['router']->getRoutes()));
+        self::assertSame(['up'],$routes,'There must be no live business or auth route.');
+    }
+
+
+    public function test_preflight_api_name_and_sensitive_reference_prevent_accidental_authority_use():void
+    {
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertFalse(method_exists($preflight,'allows'),
+            'A generic allows() could be mistaken for authoritative HTTP access.');
+        self::assertFalse(method_exists($preflight,'authorize'),
+            'Resource authorization must have separate ownership evidence.');
+        self::assertTrue(method_exists($preflight,'hasCandidateGrant'));
+        $method=new \ReflectionMethod(PostgresPortalPermissionPreflight::class,'hasCandidateGrant');
+        $params=$method->getParameters();
+        self::assertSame('businessReference',$params[0]->getName());
+        self::assertCount(1,$params[0]->getAttributes(\SensitiveParameter::class),
+            'Bearer reference must be redacted if a future exception creates a stack trace.');
+    }
+
+
+    public function test_permission_preflight_database_failure_exposes_no_sql_or_credentials():void
+    {
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',self::MEMBER,'services.view']);
+        $active=$this->active();
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+
+        // Kill ONLY this test's dedicated disposable PG18 runtime connection,
+        // never a production service. PG18's timeout variant waits for exit.
+        $pid=(int)$this->runtime->query('SELECT pg_backend_pid()')->fetchColumn();
+        $kill=$this->admin->prepare('SELECT pg_terminate_backend(CAST(? AS integer),1000)');
+        $kill->execute([$pid]);
+        self::assertTrue(in_array($kill->fetchColumn(),[true,1,'1','t'],true));
+
+        try {
+            $preflight->hasCandidateGrant($active,self::ORG,'services.view');
+            self::fail('A terminated connection must never return stale grant=true.');
+        } catch(RuntimeException $error) {
+            self::assertSame('Portal permission preflight unavailable.',$error->getMessage());
+            self::assertStringNotContainsString('portal_browser_runtime',$error->getMessage());
+            self::assertStringNotContainsString('pg_terminate_backend',$error->getMessage());
+        }
+    }
+
+
+    public function test_f309_service_candidate_owner_is_immutable_and_never_a_runtime_grant():void
+    {
+        // The durable ledger is a candidate only: it cannot authorize a
+        // browser/CRM/Sites request and it has no operational read policies.
+        $flags=$this->admin->query("SELECT relrowsecurity,relforcerowsecurity
+            FROM pg_class WHERE oid='public.portal_service_resource_claims'::regclass")->fetch(PDO::FETCH_ASSOC);
+        self::assertTrue(in_array($flags['relrowsecurity'],[true,'t',1,'1'],true));
+        self::assertTrue(in_array($flags['relforcerowsecurity'],[true,'t',1,'1'],true));
+        $this->deniedSql('SELECT * FROM public.portal_service_resource_claims');
+        $this->deniedSql("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','".self::ORG."',
+            'imagine_sites','synthetic-unauthorized','sites_onepage')");
+
+        $claim='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,?,?,?)");
+        $insert->execute([$claim,self::ORG,'imagine_sites','candidate-onepage','sites_onepage']);
+        self::assertSame(1,(int)$this->admin->query("SELECT security_revision
+            FROM public.portal_service_resource_claims WHERE source_resource_ref='candidate-onepage'")->fetchColumn());
+
+        // A second organization may not claim the same upstream resource.
+        $this->admin->exec("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision) VALUES
+            ('44444444-4444-4444-8444-444444444444',
+             'second-service-tenant','Second synthetic service tenant','active',1)");
+        try {
+            $insert->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                '44444444-4444-4444-8444-444444444444',
+                'imagine_sites','candidate-onepage','sites_onepage']);
+            self::fail('A source resource could be claimed by two organizations.');
+        } catch(PDOException $e) {
+            self::assertSame('23505',(string)$e->getCode());
+        }
+
+        foreach([
+            "UPDATE public.portal_service_resource_claims SET organization_id='44444444-4444-4444-8444-444444444444'",
+            "UPDATE public.portal_service_resource_claims SET source_resource_ref='adopted-site'",
+            "UPDATE public.portal_service_resource_claims SET source_system='imagine_performance'",
+            "UPDATE public.portal_service_resource_claims SET product_code='performance_ai'",
+            "UPDATE public.portal_service_resource_claims SET security_revision=9",
+        ] as $tamper) {
+            try {
+                $this->admin->exec($tamper);
+                self::fail('Claim mutation unexpectedly accepted.');
+            } catch(PDOException $e) {
+                self::assertSame('42501',(string)$e->getCode());
+            }
+        }
+
+        $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='retired'");
+        self::assertSame(2,(int)$this->admin->query(
+            'SELECT security_revision FROM public.portal_service_resource_claims')->fetchColumn());
+        try {
+            $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='candidate'");
+            self::fail('A retired service could be silently reactivated.');
+        } catch(PDOException $e) {
+            self::assertSame('42501',(string)$e->getCode());
+        }
+        try {
+            $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='verified'");
+            self::fail('A reviewer-only claim must never become verified.');
+        } catch(PDOException $e) {
+            self::assertContains((string)$e->getCode(),['23514','42501']);
+        }
+        self::assertSame(0,(int)$this->admin->query(
+            "SELECT count(*) FROM public.portal_service_resource_claims WHERE state='candidate'")->fetchColumn());
+    }
+
+
+    public function test_f310_concurrent_org_claims_cannot_adopt_the_same_source_resource():void
+    {
+        $secondOrg='44444444-4444-4444-8444-444444444444';
+        $this->admin->exec("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision)
+            VALUES('".$secondOrg."','racing-tenant','Other organization','active',1)");
+        $insert="INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code) VALUES
+            (?,?, 'imagine_sites','same-origin-concurrent-service','sites_onepage')";
+        $other=self::connect('postgres',(string)getenv('PGPASSWORD'));
+        $this->admin->beginTransaction();
+        try {
+            $a=$this->admin->prepare($insert);
+            $a->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::ORG]);
+
+            // B cannot slip a second ownership claim past A's uncommitted
+            // UNIQUE(source_system,source_resource_ref) index entry.
+            $other->beginTransaction();
+            try {
+                $other->exec("SET LOCAL lock_timeout = '250ms'");
+                $b=$other->prepare($insert);
+                try {
+                    $b->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',$secondOrg]);
+                    self::fail('Second tenant bypassed uncommitted unique claim.');
+                } catch(PDOException $error) {
+                    self::assertSame('55P03',(string)$error->getCode(),
+                        'Concurrent claim must wait for the first transaction.');
+                }
+            } finally {
+                if ($other->inTransaction()) $other->rollBack();
+            }
+            $this->admin->commit();
+
+            // Once A commits, B is refused permanently by the unique index.
+            try {
+                $other->prepare($insert)->execute([
+                    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',$secondOrg
+                ]);
+                self::fail('Committed source binding was reassigned to B.');
+            } catch(PDOException $error) {
+                self::assertSame('23505',(string)$error->getCode());
+            }
+            $q=$other->prepare("SELECT organization_id FROM public.portal_service_resource_claims
+                WHERE source_resource_ref='same-origin-concurrent-service'");
+            $q->execute();
+            self::assertSame(self::ORG,$q->fetchColumn());
+        } finally {
+            if ($this->admin->inTransaction()) $this->admin->rollBack();
+        }
+    }
+
+    public function test_f310_rollback_refuses_to_drop_populated_resource_claim_evidence():void
+    {
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,'imagine_performance','performance-candidate','performance_ai')");
+        $insert->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::ORG]);
+
+        $migration=require __DIR__.'/../../database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php';
+        try {
+            $migration->down();
+            self::fail('An automated rollback dropped existing ownership evidence.');
+        } catch(RuntimeException $e) {
+            self::assertSame(
+                'F309 rollback denied: service ownership evidence requires audited cleanup.',
+                $e->getMessage()
+            );
+        }
+        self::assertSame(1,(int)$this->admin->query(
+            'SELECT count(*) FROM public.portal_service_resource_claims')->fetchColumn());
+        $this->deniedSql('SELECT * FROM public.portal_service_resource_claims');
+    }
+
+
+    public function test_f313_synthetic_sites_mac_and_valid_grant_still_do_not_prove_service_ownership():void
+    {
+        // Three independently positive facts (MFA, explicit grant and
+        // candidate signed bytes) cannot manufacture service ownership.
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
+        $session=$this->active();
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($preflight->hasCandidateGrant($session,self::ORG,'services.view'));
+
+        $payload=json_encode([
+            'schemaVersion'=>'1',
+            'operationId'=>'OP-F313',
+            'tenantRef'=>self::ORG,
+            'orderRef'=>'ORDER-F313',
+            'contractRef'=>'CONTRACT-F313',
+            'contractRevision'=>1,
+            'productCode'=>'onepage',
+            'idempotencyKey'=>'IDEMP-F313',
+        ],JSON_THROW_ON_ERROR);
+        $envelope=SiteEngineSyntheticEnvelopePreview::compose(
+            $payload,str_repeat('s',32),'SYNTH-NONCE-F313',1700000000,1700000060
+        );
+        self::assertSame('imagine-sites',json_decode($envelope,true,16,JSON_THROW_ON_ERROR)['audience']);
+        self::assertFalse(SiteEngineSyntheticEnvelopePreview::mayRegisterOwnership());
+
+        // In particular, an execute-only authentication runtime cannot use
+        // possession of signed-looking bytes to write a service claim.
+        $this->deniedSql("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','".self::ORG."',
+            'imagine_sites','OP-F313','sites_onepage')");
+        self::assertSame(0,(int)$this->admin->query(
+            'SELECT count(*) FROM public.portal_service_resource_claims')->fetchColumn());
+
+        // Even if a DBA creates a candidate-only row in the disposable
+        // database, this is NOT an operationally verified service owner.
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,'imagine_sites','OP-F313','sites_onepage')");
+        $insert->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',self::ORG]);
+        self::assertSame('candidate',$this->admin->query(
+            'SELECT state FROM public.portal_service_resource_claims')->fetchColumn());
+        $verdict=$this->app->make(PortalAuthorityBoundary::class)->inspect(
+            $session,new OrganizationId(self::ORG),'OP-F313','services.view',time()
+        );
+        self::assertFalse($verdict->canAuthorizeHttp(),
+            'A candidate record plus grant plus synthetic HMAC cannot authorize business data.');
+    }
+
+
+    public function test_f318_authenticated_adapter_object_dumps_never_include_signing_or_scope_keys():void
+    {
+        $dump=var_export($this->adapter,true);
+        self::assertIsString($dump);
+        self::assertStringNotContainsString($this->proof,$dump);
+        self::assertStringNotContainsString($this->pepper,$dump);
+        self::assertStringNotContainsString('scopePepper',$dump);
+        self::assertStringNotContainsString('proofKey',$dump);
+
+        $debug=print_r($this->adapter,true);
+        self::assertIsString($debug);
+        self::assertStringNotContainsString($this->proof,$debug);
+        self::assertStringNotContainsString($this->pepper,$debug);
+        self::assertSame(['backend'=>'Portal PostgreSQL','keys'=>'[redacted]'],
+            $this->adapter->__debugInfo());
+
+        $class=PostgresPortalBrowserAuthentication::class;
+        $malicious='O:'.strlen($class).':"'.$class.'":0:{}';
+        try {
+            unserialize($malicious,['allowed_classes'=>[$class]]);
+            self::fail('Crafted PDO authentication object was hydrated without validation.');
+        } catch(RuntimeException $e) {
+            self::assertSame('Authentication adapters cannot be unserialized.',$e->getMessage());
+        }
+        try {
+            clone $this->adapter;
+            self::fail('Cloning could duplicate a privileged PDO adapter.');
+        } catch(\Error $e) {
+            self::assertNotSame('',$e->getMessage());
+        }
+    }
+
+
+    public function test_f322_private_file_uses_two_dedicated_pg18_roles_in_disposable_lab_only():void
+    {
+        // This proof belongs exclusively to the already isolated PG18 test.
+        // No production connector, driver registration or external host.
+        $directory=sys_get_temp_dir().'/portal-f322-'.bin2hex(random_bytes(12));
+        mkdir($directory,0700);
+        $path=$directory.'/runtime.json';
+        $values=[
+            'origin'=>'https://portal.example.test',
+            'host'=>'127.0.0.1','port'=>5432,'database'=>'portal_browser_lab',
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'proof_key'=>$this->proof,
+            'totp_key'=>base64_encode($this->key),
+            'scope_pepper'=>$this->pepper,
+        ];
+        file_put_contents($path,json_encode($values,JSON_THROW_ON_ERROR));
+        chmod($path,0600);
+        try {
+            $private=PortalBrowserSecretFile::load($path,'https://portal.example.test');
+            self::assertSame('127.0.0.1',$private->value('host'));
+            self::assertSame('portal_browser_lab',$private->value('database'));
+            $dsn='pgsql:host=127.0.0.1;port=5432;dbname=portal_browser_lab';
+            $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_EMULATE_PREPARES=>false];
+
+            $authDb=new PDO($dsn,'portal_browser_runtime',
+                $private->value('identity_password'),$options);
+            $auth=new PostgresPortalBrowserAuthentication(
+                $authDb,'portal_browser_lab',
+                $private->value('proof_key'),
+                base64_decode($private->value('totp_key'),true),
+                $private->value('scope_pepper')
+            );
+            $session=$this->active();
+            self::assertTrue($auth->isActiveBusinessSession($session),
+                'The independent authentication role must accept only active MFA sessions.');
+
+            $envelopeDb=new PDO($dsn,'portal_browser_envelope_runtime',
+                $private->value('envelope_password'),$options);
+            // F323: a browser credential file contains two independent
+            // roles, not an interchangeable shared connection capability.
+            try {
+                new EncryptedPostgresPortalSessionHandler(
+                    $authDb,'portal_browser_lab',new Encrypter(random_bytes(32),'AES-256-CBC')
+                );
+                self::fail('Identity-role PDO was accepted for encrypted envelopes.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Dedicated Portal envelope role required.',$error->getMessage());
+            }
+            try {
+                new PostgresPortalBrowserAuthentication(
+                    $envelopeDb,'portal_browser_lab',
+                    $private->value('proof_key'),
+                    base64_decode($private->value('totp_key'),true),
+                    $private->value('scope_pepper')
+                );
+                self::fail('Envelope-role PDO was accepted for identity functions.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Dedicated Portal authentication role required.',$error->getMessage());
+            }
+            $handler=new EncryptedPostgresPortalSessionHandler(
+                $envelopeDb,'portal_browser_lab',
+                new Encrypter(random_bytes(32),'AES-256-CBC')
+            );
+            $sid=strtoupper(bin2hex(random_bytes(20)));
+            self::assertTrue($handler->write($sid,'f322-private-disposable-envelope'));
+            self::assertSame('f322-private-disposable-envelope',$handler->read($sid));
+            self::assertTrue($handler->close(),'Close rolls back the read-only session lock.');
+            self::assertTrue($handler->destroy($sid),'Standalone delete must commit.');
+            self::assertFalse($envelopeDb->inTransaction());
+            self::assertSame('',$handler->read($sid));
+            self::assertTrue($handler->close());
+            self::assertTrue($auth->isActiveBusinessSession($session));
+
+            $routes=array_map(static fn($route):string=>$route->uri(),
+                iterator_to_array($this->app['router']->getRoutes()));
+            self::assertSame(['up'],$routes,
+                'No client login or business route may be enabled by this lab.');
+        } finally {
+            unlink($path);
+            rmdir($directory);
+        }
+    }
+
+    private function expectIdentityFenceRefusal(string $sql):void
+    {
+        try {
+            $this->admin->exec($sql);
+        } catch(PDOException $error) {
+            self::assertSame('42501',(string)$error->getCode());
+            return;
+        }
+        self::fail('Identity security mutation unexpectedly accepted.');
+    }
+
+    public function test_password_replacement_automatically_invalidates_active_session():void
+    {
+        $active=$this->active();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_password_replacement_invalidates_pending_mfa_evidence():void
+    {
+        $pending=$this->begin();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertNull($this->adapter->completeMfa($pending,$this->otp(),'192.0.2.1'));
+        self::assertSame('pending_mfa',$this->admin->query('SELECT status FROM public.portal_auth_sessions')->fetchColumn());
+    }
+
+    public function test_email_change_requires_reverification_and_invalidates_session():void
+    {
+        $active=$this->active();
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET email_normalized='changed@example.invalid'");
+        $this->admin->exec("UPDATE public.portal_identities SET email_normalized='changed@example.invalid',email_verified_at=NULL");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_counter_advance_preserves_session_but_backward_counter_and_revision_are_refused():void
+    {
+        $active=$this->active();
+        $this->admin->exec('UPDATE public.portal_identities SET mfa_last_used_counter=mfa_last_used_counter+1');
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertTrue($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET mfa_last_used_counter=-1');
+        $this->admin->exec('UPDATE public.portal_identities SET security_revision=3');
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET security_revision=1');
+    }
+
+    public function test_suspension_and_revocation_cannot_silently_restore_old_sessions():void
+    {
+        $active=$this->active();
+        $this->admin->exec("UPDATE public.portal_identities SET status='suspended'");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='active'");
+        $this->admin->exec("UPDATE public.portal_identities SET status='revoked'");
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='invited'");
+    }
+
+    public function test_initial_invited_enrollment_preserves_challenge_revision_until_activation():void
+    {
+        $this->admin->exec('TRUNCATE public.portal_auth_sessions,public.portal_membership_grants,public.portal_memberships,
+            public.portal_identities,public.portal_organizations CASCADE');
+        $q=$this->admin->prepare("INSERT INTO public.portal_identities(id,email_normalized,status,security_revision)
+            VALUES(?,'enrollment@example.invalid','invited',1)");
+        $q->execute([self::ACTOR]);
+        $this->admin->exec('UPDATE public.portal_identities SET email_verified_at=clock_timestamp()');
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?,mfa_secret_ciphertext=?');
+        $q->execute([PortalPasswordCredential::makeHash('synthetic-password-only'),
+            PortalTotpSecretCipher::seal(self::SECRET,$this->key)]);
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Initial enrollment must retain the consumed email challenge revision.');
+        $this->admin->exec("UPDATE public.portal_identities SET status='active',mfa_confirmed_at=clock_timestamp(),security_revision=security_revision+1");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Explicit activation increment is not incremented twice by the trigger.');
+    }
+
+    public function test_identity_binding_is_immutable_and_rollback_refuses_populated_database():void
+    {
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET id='99999999-9999-4999-8999-999999999999'");
+        $original=\Illuminate\Support\Facades\DB::getDefaultConnection();
+        config(['database.connections.identity_fence_probe'=>[
+            'driver'=>'pgsql','host'=>'127.0.0.1','port'=>'5432','database'=>'portal_browser_lab',
+            'username'=>'postgres','password'=>(string)getenv('PGPASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
+        ]]);
+        \Illuminate\Support\Facades\DB::setDefaultConnection('identity_fence_probe');
+        try {
+            $migration=require __DIR__.'/../../database/migrations/2026_11_12_000016_fence_portal_identity_revision.php';
+            try {
+                $migration->down();
+                self::fail('Security fence removed while identity rows remain.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Identity fence rollback denied: identity/session evidence requires audited cleanup.',$error->getMessage());
+            }
+        } finally {
+            \Illuminate\Support\Facades\DB::disconnect('identity_fence_probe');
+            \Illuminate\Support\Facades\DB::setDefaultConnection($original);
+        }
+    }
+
+    /** Creates only ephemeral laboratory secrets; never reads operational files. */
+    private function withPrivateRuntime(callable $test, array $overrides = []): void
+    {
+        $directory=sys_get_temp_dir().'/portal-composition-'.bin2hex(random_bytes(12));
+        mkdir($directory,0700);
+        $path=$directory.'/runtime.json';
+        $values=array_replace([
+            'origin'=>'https://portal.example.test','host'=>'127.0.0.1','port'=>5432,
+            'database'=>'portal_browser_lab',
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'proof_key'=>$this->proof,'totp_key'=>base64_encode($this->key),'scope_pepper'=>$this->pepper,
+        ],$overrides);
+        try {
+            file_put_contents($path,json_encode($values,JSON_THROW_ON_ERROR));
+            chmod($path,0600);
+            $configuration=\App\Infrastructure\Identity\PortalBrowserSecretFile::load($path,'https://portal.example.test');
+            $test(new \App\Infrastructure\Identity\PortalBrowserPrivateRuntime($configuration));
+        } finally {
+            unlink($path);rmdir($directory);
+        }
+    }
+
+    public function test_private_file_composition_authenticates_rotates_and_revokes_with_fixed_roles(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            $this->adapter=$runtime->authentication();
+            $active=$this->active();
+            $other=$runtime->authentication();
+            self::assertTrue($other->isActiveBusinessSession($active));
+            self::assertTrue($other->revoke($active));
+            self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        });
+    }
+
+    public function test_f327_session_key_cannot_be_reused_as_identity_or_envelope_role_password():void
+    {
+        foreach ([
+            'identity_password'=>str_repeat('i',32),
+            'envelope_password'=>str_repeat('e',32),
+        ] as $field=>$sharedSecret) {
+            $this->withPrivateRuntime(function ($runtime) use($field,$sharedSecret):void {
+                try {
+                    $runtime->sessionCreator(
+                        new \Illuminate\Encryption\Encrypter($sharedSecret,'AES-256-CBC')
+                    );
+                    self::fail('AES key reused as PostgreSQL role password: '.$field);
+                } catch (RuntimeException $error) {
+                    self::assertSame(
+                        'Independent Portal session encryption key required.',
+                        $error->getMessage()
+                    );
+                }
+            },[$field=>$sharedSecret]);
+        }
+    }
+
+    public function test_f326_session_key_is_independent_of_totp_hmac_and_scope_pepper():void
+    {
+        $this->withPrivateRuntime(function ($runtime):void {
+            foreach ([
+                'totp'=>$this->key,
+                'proof'=>hex2bin($this->proof),
+                'scope'=>hex2bin($this->pepper),
+            ] as $kind=>$reusedKey) {
+                self::assertIsString($reusedKey);
+                try {
+                    $runtime->sessionCreator(
+                        new \Illuminate\Encryption\Encrypter($reusedKey,'AES-256-CBC')
+                    );
+                    self::fail('F326 accepted key reuse from '.$kind.'.');
+                } catch (RuntimeException $error) {
+                    self::assertSame(
+                        'Independent Portal session encryption key required.',
+                        $error->getMessage(),
+                        $kind
+                    );
+                }
+            }
+            $fresh=new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC');
+            $creator=$runtime->sessionCreator($fresh);
+            $handler=$creator();
+            $sid=strtoupper(bin2hex(random_bytes(20)));
+            try {
+                self::assertTrue($handler->write($sid,'f326-independent-key'));
+                self::assertSame('f326-independent-key',$handler->read($sid));
+                $handler->close();
+                self::assertTrue($handler->destroy($sid));
+            } finally {
+                $handler->close();
+            }
+        });
+    }
+
+    public function test_private_composition_allocates_independent_envelope_connections(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            $cipher=new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC');
+            $creator=$runtime->sessionCreator($cipher,100);
+            $first=$creator();$second=$creator();
+            $a=bin2hex(random_bytes(20));$b=bin2hex(random_bytes(20));
+            try {
+                self::assertTrue($first->write($a,'private-a'));
+                self::assertSame('private-a',$first->read($a)); // Holds first connection transaction.
+                self::assertTrue($second->write($b,'private-b')); // Independent transaction.
+                // Identity auth remains autocommit while envelope holds a lock.
+                self::assertFalse($runtime->authentication()->isActiveBusinessSession(str_repeat('f',64)));
+                $first->close();
+                self::assertSame('private-a',$second->read($a));
+                $second->close();
+                $row=$this->admin->query("SELECT payload FROM public.portal_browser_envelopes WHERE id_sha256='".hash('sha256',$a)."'")->fetchColumn();
+                self::assertIsString($row);
+                self::assertStringNotContainsString('private-a',$row);
+            } finally {
+                $first->close();$second->close();
+                $first->destroy($a);$second->destroy($b);
+            }
+        });
+    }
+
+    public function test_f328_swapping_private_pg_role_passwords_never_swaps_role_authority():void
+    {
+        // The config schema accepts both independent passwords, but each
+        // connection must still authenticate ONLY under its hard-coded
+        // identity/envelope role. Swapping passwords must fail closed.
+        $this->withPrivateRuntime(function ($runtime):void {
+            try {
+                $runtime->authentication();
+                self::fail('Swapped envelope credential authenticated as identity role.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Private Portal authentication unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $creator=$runtime->sessionCreator(
+                new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC')
+            );
+            try {
+                $creator();
+                self::fail('Swapped identity credential opened envelope role.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Private Portal database unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+        },[
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+        ]);
+    }
+
+    public function test_wrong_private_role_credentials_fail_without_diagnostic_chain_or_secret_debug(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            ob_start();var_dump($runtime);$debug=(string)ob_get_clean();
+            self::assertStringNotContainsString($this->proof,$debug);
+            try {
+                $runtime->authentication();
+                self::fail('Wrong role password accepted.');
+            } catch (RuntimeException $error) {
+                self::assertSame('Private Portal authentication unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $creator=$runtime->sessionCreator(new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC'));
+            try {
+                $creator();
+                self::fail('Wrong envelope password accepted.');
+            } catch (RuntimeException $error) {
+                self::assertSame('Private Portal database unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $this->expectException(RuntimeException::class);
+            serialize($runtime);
+        },[
+            'identity_password'=>'synthetic-incorrect-identity-only',
+            'envelope_password'=>'synthetic-incorrect-envelope-only',
+        ]);
+    }
+
+    public function test_private_composition_refuses_remote_host_before_connection(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Private loopback Portal database required.');
+        $this->withPrivateRuntime(static function (): void {
+            self::fail('Remote database composition accepted.');
+        },['host'=>'203.0.113.1']);
+    }
+
+    public function test_private_runtime_cannot_bypass_constructor_via_serialized_object(): void
+    {
+        $class=\App\Infrastructure\Identity\PortalBrowserPrivateRuntime::class;
+        $payload='O:'.strlen($class).':"'.$class.'":0:{}';
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Private Portal runtime cannot be reconstructed.');
+        unserialize($payload);
     }
 }
