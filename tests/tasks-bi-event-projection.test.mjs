@@ -31,7 +31,7 @@ test('F271: BI classifies management events without loading their private notes'
   let checked=0;
   const wrapped={prepare(sql){
    const stmt=db.prepare(sql);
-   if(!/FROM task_updates\s+UNION ALL/.test(sql))return stmt;
+   if(!sql.includes('FROM task_updates'))return stmt;
    return {all(){
     checked++;
     assert.doesNotMatch(sql,/SELECT task_id,status,note,created_at/);
