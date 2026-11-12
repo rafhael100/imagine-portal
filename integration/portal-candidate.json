@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "repository": "rafhael100/imagine-portal",
+  "targetBranch": "dev/fast-track-portal-2026-11-05",
+  "candidate": {
+    "pullRequest": 578,
+    "headBranch": "review/portal-int-ui-pg-f351-combined-ci-2026-11-12",
+    "baseBranch": "review/portal-laravel-f350-restored-contract-negative-tests-2026-11-12",
+    "headSha": "c632178b0d19185422e8760bd5e0211eaf725131"
+  },
+  "maxCommitsPerIntegrationLot": 50,
+  "requiredWorkflows": [
+    "Testes do portal",
+    "Validacao isolada Laravel F1-01-A",
+    "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+    "Portal F132 - CRM candidate CORE-INT02 compatibility",
+    "Portal F133 - Sites candidate contract parity",
+    "Portal F22 - PHP Laravel adapter vs disposable PG18",
+    "Portal browser identity - PostgreSQL 18 candidate",
+    "Portal F64 - Private Container Homologation Smoke",
+    "Portal private persistent database foundation"
+  ],
+  "policy": {
+    "mergeApproved": false,
+    "deployApproved": false,
+    "antiRollbackResolved": false,
+    "independentAppSecDbaApproved": false,
+    "operationalRecoveryApproved": false
+  }
+}
