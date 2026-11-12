@@ -27,7 +27,9 @@ export function createAccount(db,fiscal){
  db.exec(`CREATE TABLE IF NOT EXISTS account_profiles(user_id TEXT PRIMARY KEY REFERENCES users(id),data TEXT NOT NULL DEFAULT '{}',version INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL);INSERT OR IGNORE INTO schema_version VALUES(12);`);
 
  function view(user,{compact=false}={}){
-  const u=db.prepare('SELECT * FROM users WHERE id=?').get(user.id);
+  // F277: a GET account view needs public identity, not password_hash.
+  // Email changes in save() still perform their separate password check.
+  const u=db.prepare('SELECT id,name,email,role,created_at FROM users WHERE id=?').get(user.id);
   const row=db.prepare('SELECT * FROM account_profiles WHERE user_id=?').get(user.id);
   // F202: short profile requests need only the most recent paid
   // briefing for optional contact suggestions, not the entire archive.
