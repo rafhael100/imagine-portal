@@ -22,16 +22,31 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
 
     private bool $owned = false;
 
+    // F319: the Laravel Encrypter includes raw key material as a private
+    // property and var_export() ignores __debugInfo(). Keep it outside
+    // session handler object properties to avoid accidental dump exposure.
+    private static ?\WeakMap $privateCiphers = null;
+
     public function __construct(
         private readonly PDO $db,
         private readonly string $database,
-        private readonly Encrypter $cipher,
+        Encrypter $cipher,
         private readonly int $lockWaitMilliseconds = 2000,
     ) {
         if ($lockWaitMilliseconds < 100 || $lockWaitMilliseconds > 5000) {
             throw new RuntimeException('Bounded session lock wait required.');
         }
         $this->ready();
+        self::$privateCiphers ??= new \WeakMap();
+        self::$privateCiphers[$this] = $cipher;
+    }
+
+    private function cipher(): Encrypter
+    {
+        if (self::$privateCiphers === null || !isset(self::$privateCiphers[$this])) {
+            throw new RuntimeException('Portal session encryption unavailable.');
+        }
+        return self::$privateCiphers[$this];
     }
 
     public function __debugInfo(): array
@@ -50,6 +65,16 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
     public function __serialize(): array
     {
         throw new RuntimeException('Session handlers cannot be serialized.');
+    }
+
+    public function __unserialize(array $data): void
+    {
+        throw new RuntimeException('Session handlers cannot be unserialized.');
+    }
+
+    public function __wakeup(): void
+    {
+        throw new RuntimeException('Session handlers cannot be unserialized.');
     }
 
     public function open(string $path, string $name): bool
@@ -72,7 +97,7 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
             if ($payload === '') {
                 return '';
             }
-            $plain=$this->cipher->decrypt($payload,false);
+            $plain=$this->cipher()->decrypt($payload,false);
             $binding=self::BINDING.$digest."\n";
             if (!is_string($plain) || strlen($plain)<strlen($binding)
                 || !hash_equals($binding,substr($plain,0,strlen($binding)))) {
@@ -90,7 +115,7 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
         try {
             $this->start();
             $digest=$this->digest($id);
-            $payload=$this->cipher->encrypt(self::BINDING.$digest."\n".$data,false);
+            $payload=$this->cipher()->encrypt(self::BINDING.$digest."\n".$data,false);
             if (strlen($payload)>65536 || !$this->truth($this->query(
                 'SELECT public.portal_browser_envelope_write(?,?)',[$digest,$payload]))) {
                 throw new RuntimeException('Session write refused.');
