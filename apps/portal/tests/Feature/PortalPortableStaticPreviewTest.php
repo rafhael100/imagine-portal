@@ -35,13 +35,14 @@ final class PortalPortableStaticPreviewTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_offline_bundle_contains_real_logo_and_eight_navigable_pages(): void
+    public function test_offline_bundle_contains_real_logo_and_ten_navigable_pages(): void
     {
         $exporter = new PortablePortalStaticPreview();
         $pages = $exporter->export($this->target);
         self::assertSame([
             'overview.html', 'services.html', 'available.html', 'contracts.html',
-            'modules.html', 'journey.html', 'requests.html', 'index.html',
+            'modules.html', 'journey.html', 'requests.html',
+            'help.html', 'notices.html', 'index.html',
         ], $pages);
         $manifest = json_decode((string) file_get_contents($this->target.'/manifest.json'), true, 15, JSON_THROW_ON_ERROR);
         self::assertSame('imagine-portal-visual-only-preview-v1', $manifest['schema']);
@@ -49,7 +50,7 @@ final class PortalPortableStaticPreviewTest extends TestCase
         self::assertFalse($manifest['authorizes_customer_access']);
         self::assertFalse($manifest['authorizes_payment']);
         self::assertFalse($manifest['authorizes_deployment']);
-        self::assertCount(8, $manifest['pages']);
+        self::assertCount(10, $manifest['pages']);
         self::assertSame('678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77',
             $manifest['logo_git_blob_sha1']);
 
@@ -105,6 +106,14 @@ final class PortalPortableStaticPreviewTest extends TestCase
             self::assertStringContainsString('--pi-orange:#f9941d', $html);
             self::assertStringContainsString('aria-current="page"', $html);
         }
+
+        $help = (string) file_get_contents($this->target.'/help.html');
+        $notices = (string) file_get_contents($this->target.'/notices.html');
+        self::assertStringContainsString('Central de Ajuda', $help);
+        self::assertStringContainsString('Central de Avisos', $notices);
+        self::assertStringContainsString('Nenhum aviso foi enviado', $notices);
+        self::assertStringContainsString('href="help.html"', (string) file_get_contents($this->target.'/index.html'));
+        self::assertStringContainsString('href="notices.html"', (string) file_get_contents($this->target.'/index.html'));
 
         $overview = (string) file_get_contents($this->target.'/overview.html');
         self::assertMatchesRegularExpression('/src="data:image\/png;base64,([A-Za-z0-9+\/=]+)"/', $overview);
