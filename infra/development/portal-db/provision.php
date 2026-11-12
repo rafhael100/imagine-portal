@@ -178,6 +178,27 @@ JOIN pg_roles recipient ON recipient.oid=privileges.grantee
 WHERE recipient.rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime')
 SQL)->fetchColumn();
     if($dangerousFutureGrants!==0)throw new RuntimeException();
+
+    // F333: PostgreSQL grants CONNECT to PUBLIC by default. A one-time
+    // REVOKE during bootstrap is insufficient if a later administrator
+    // restores it; explicitly check the *effective* database ACL on every
+    // verify, including the null-ACL/default case.
+    $unexpectedDatabaseConnect=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM pg_database db
+CROSS JOIN LATERAL aclexplode(COALESCE(db.datacl,acldefault('d',db.datdba))) AS access
+WHERE db.datname='portal_identity_dev'
+  AND access.privilege_type='CONNECT'
+  AND (
+    access.grantee=0
+    OR access.grantee NOT IN (
+      SELECT oid FROM pg_roles WHERE rolname IN (
+        'postgres','portal_browser_runtime','portal_browser_envelope_runtime'
+      )
+    )
+  )
+SQL)->fetchColumn();
+    if($unexpectedDatabaseConnect!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
