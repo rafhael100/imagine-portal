@@ -141,12 +141,24 @@ final class PortablePortalStaticPreview
         $links = '';
         foreach ($known as $name) {
             $label = htmlspecialchars($labels[$name], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $active = $name === $current ? ' aria-current="page"' : '';
-            $links .= '<a href="'.$name.'"'.$active.'>'.$label.'</a> ';
+            $selected = $name === $current;
+            $active = $selected ? ' aria-current="page"' : '';
+            $colors = $selected
+                ? 'background:#fff1e0;border-color:#f9941d;font-weight:700;'
+                : 'background:#fff;border-color:#e8e8e8;font-weight:500;';
+            $links .= '<a href="'.$name.'"'.$active
+                .' style="display:inline-block;flex:none;white-space:nowrap;'
+                .'padding:7px 10px;border:1px solid;border-radius:8px;'
+                .'color:#994b00;text-decoration:none;font:12px/1.5 Arial,sans-serif;'
+                .$colors.'">'.$label.'</a>';
         }
-        return '<nav aria-label="Navegação exclusivamente offline" '
-            .'style="display:flex;flex-wrap:wrap;gap:12px;padding:12px 20px;'
+        return '<nav class="pi-offline-nav" aria-label="Navegação exclusivamente offline" '
+            .'style="box-sizing:border-box;max-width:100%;width:100%;display:flex;'
+            .'flex-wrap:nowrap;align-items:center;gap:8px;overflow-x:auto;'
+            .'overscroll-behavior-x:contain;scrollbar-width:thin;padding:10px 12px;'
             .'background:#fff;border-bottom:2px solid #f9941d">'
+            .'<strong style="color:#646b65;font:700 11px Arial,sans-serif;'
+            .'white-space:nowrap;flex:none">Prévia offline</strong>'
             .$links.'</nav>';
     }
 
