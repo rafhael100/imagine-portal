@@ -380,6 +380,47 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             $cookie=$oldCookie;
             $request('GET','session')->assertUnauthorized();
             self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
+
+            // F295: independently test durable revocation when the server-side
+            // membership revision changes AFTER an authenticated session exists.
+            // The ordinary password -> TOTP -> logout path above remains intact.
+            // This synthetic seed isolates the current() cleanup behavior and
+            // must never be used as a way to issue a real browser identity.
+            $request('GET','csrf')->assertOk();
+            $staleReference=bin2hex(random_bytes(32));
+            $sql="INSERT INTO public.portal_auth_sessions
+                (id,session_sha256,identity_id,organization_id,status,session_purpose,
+                 identity_revision,membership_revision,organization_revision,
+                 issued_at,expires_at,mfa_verified_at,created_at,updated_at)
+                SELECT gen_random_uuid(),?,i.id,m.organization_id,'active','business',
+                 i.security_revision,m.membership_revision,o.security_revision,
+                 clock_timestamp()-interval '10 seconds',clock_timestamp()+interval '1 hour',
+                 clock_timestamp(),clock_timestamp(),clock_timestamp()
+                FROM public.portal_identities i
+                JOIN public.portal_memberships m ON m.identity_id=i.id
+                JOIN public.portal_organizations o ON o.id=m.organization_id
+                WHERE i.id=? AND o.id=? AND m.status='active' AND o.status='active'";
+            $seed=$this->admin->prepare($sql);
+            $seed->execute([hash('sha256',$staleReference),$actor,$org]);
+            self::assertSame(1,$seed->rowCount());
+            $session=$this->app['session']->driver();
+            $session->put('portal.browser_auth',['phase'=>'business','reference'=>$staleReference]);
+            $session->save();
+            $request('GET','session')->assertOk()->assertExactJson(['authenticated'=>true]);
+            $replayCookie=$cookie;
+            $update=$this->admin->prepare("UPDATE public.portal_memberships
+                SET membership_revision=membership_revision+1
+                WHERE identity_id=? AND organization_id=?");
+            $update->execute([$actor,$org]);
+            self::assertSame(1,$update->rowCount());
+            $request('GET','session')->assertUnauthorized();
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                WHERE status='active'")->fetchColumn(),'F295: invalid reference must be durably revoked.');
+            $staleStatus=$this->admin->prepare('SELECT status FROM public.portal_auth_sessions WHERE session_sha256=?');
+            $staleStatus->execute([hash('sha256',$staleReference)]);
+            self::assertSame('revoked',$staleStatus->fetchColumn());
+            $cookie=$replayCookie;
+            $request('GET','session')->assertUnauthorized();
         }finally{
             $this->app['session']->driver()->getHandler()->close();
         }
