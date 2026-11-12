@@ -117,6 +117,29 @@ final class PortalBrowserSecretFileTest extends TestCase
         self::assertSame($this->values['database'],$loaded->value('database'));
     }
 
+    public function test_symlink_in_any_parent_segment_is_refused():void
+    {
+        $real=$this->directory.'/real';
+        $private=$real.'/private';
+        $alias=$this->directory.'/alias';
+        mkdir($real,0700);
+        mkdir($private,0700);
+        $nested=$private.'/runtime.json';
+        file_put_contents($nested,json_encode($this->values,JSON_THROW_ON_ERROR));
+        chmod($nested,0600);
+        symlink($real,$alias);
+        try {
+            self::assertSame($this->values['database'],
+                PortalBrowserSecretFile::load($nested,'https://portal.example.test')->value('database'));
+            $this->refused($alias.'/private/runtime.json');
+        }finally{
+            unlink($alias);
+            unlink($nested);
+            rmdir($private);
+            rmdir($real);
+        }
+    }
+
     public function test_connection_components_cannot_inject_dsn_options():void
     {
         $this->values['host']='127.0.0.1;user=postgres';$this->write();$this->refused();
