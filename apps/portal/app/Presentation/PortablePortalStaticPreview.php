@@ -190,6 +190,42 @@ final class PortablePortalStaticPreview
             libxml_clear_errors();
             libxml_use_internal_errors($prior);
         }
+        if ($document->getElementsByTagName('main')->length !== 1
+            || $document->getElementsByTagName('h1')->length !== 1
+            || $document->getElementsByTagName('title')->length !== 1) {
+            throw new LogicException('Offline preview requires exactly one main, heading and title.');
+        }
+        // A keyboard user must be able to reach every wide table's labelled
+        // scrolling region. Export cannot silently ship inaccessible tables.
+        foreach ($document->getElementsByTagName('table') as $table) {
+            if (!$table instanceof DOMElement) {
+                throw new LogicException('Invalid offline table.');
+            }
+            $region = $table->parentNode;
+            $caption = $table->getElementsByTagName('caption')->item(0);
+            $headers = $table->getElementsByTagName('th');
+            $classes = $region instanceof DOMElement
+                ? (preg_split('/\\s+/', trim($region->getAttribute('class'))) ?: [])
+                : [];
+            if (!$region instanceof DOMElement
+                || !in_array('pi-table-wrap', $classes, true)
+                || $region->getAttribute('role') !== 'region'
+                || $region->getAttribute('tabindex') !== '0'
+                || !$caption instanceof DOMElement
+                || trim($caption->textContent) === ''
+                || $region->getAttribute('aria-label') !== trim($caption->textContent)
+                || $headers->length < 1) {
+                throw new LogicException('Offline table requires a named keyboard-focusable region.');
+            }
+            foreach ($headers as $header) {
+                if (!$header instanceof DOMElement
+                    || $header->getAttribute('scope') !== 'col'
+                    || trim($header->textContent) === '') {
+                    throw new LogicException('Offline table has missing column header semantics.');
+                }
+            }
+        }
+
         $images = $document->getElementsByTagName('img');
         if ($images->length !== ($expectedLogo === null ? 0 : 1)) {
             throw new LogicException('Offline preview has an unexpected image.');
