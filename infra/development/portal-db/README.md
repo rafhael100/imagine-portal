@@ -50,3 +50,7 @@ A prova verifica também que os dois papéis runtime (`portal_browser_runtime` e
 ## F342 — banco-alvo restaurado sem CONNECT público
 
 `createdb --template=template0` pode conceder CONNECT a `PUBLIC` por padrão. No laboratório descartável, imediatamente após criar o banco-alvo, a restauração revoga CONNECT público e exige que ambos os papéis runtime não possam conectar ao destino. Após `pg_restore`, confere novamente a negação dos dois papéis e a ausência de concessão explícita de CONNECT a PUBLIC na ACL do banco. O acesso administrativo do próprio laboratório é preservado para leitura de verificação e limpeza do destino. Esta restrição protege apenas o banco restaurado sintético; não configura o banco de produção nem resolve os procedimentos de emergência de um cluster novo.
+
+## F343 — lista restrita para CONNECT e proteção do marcador
+
+A verificação do banco restaurado recusa qualquer entrada `CONNECT` na ACL concedida a papéis diferentes do administrador `postgres`, inclusive `PUBLIC` ou um papel terceiro não conhecido pela aplicação. A matriz dos dois papéis runtime passa a incluir também a tabela `public.portal_development_installation`, contendo o marcador não secreto: além das nove tabelas protegidas por FORCE RLS, essa décima tabela não pode oferecer privilégios diretos aos processos da aplicação. Ainda é somente uma prova em um cluster CI sintético; a segurança contra administrador/host comprometido e a recuperação fora desse cluster exigem controles separados.
