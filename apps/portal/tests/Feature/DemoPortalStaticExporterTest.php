@@ -157,6 +157,43 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
     }
 
+    public function test_cli_reports_actual_manifest_page_count(): void
+    {
+        $originalStorage = $this->app->storagePath();
+        $testStorage = $this->temporaryDirectory.'-storage';
+        self::assertTrue(mkdir($testStorage.'/app', 0700, true));
+        $this->app->useStoragePath($testStorage);
+        $destination = storage_path('app/portal-demo-preview');
+
+        try {
+            (new DemoPortalStaticExporter())->export($destination);
+            $count = count(DemoPortalArtifactManifest::pageNames());
+            self::assertSame(11, $count);
+            // Use the real console kernel; InteractsWithConsole::artisan()
+            // depends on optional Mockery, which is absent from the pinned
+            // production-only Composer lockfile used by isolated CI.
+            $output = new \Symfony\Component\Console\Output\BufferedOutput();
+            $exitCode = \Illuminate\Support\Facades\Artisan::call('portal:demo-verify', [], $output);
+            self::assertSame(0, $exitCode);
+            self::assertStringContainsString(
+                'Verified '.$count.' synthetic HTML preview pages and local navigation. No publication or customer access.',
+                $output->fetch(),
+            );
+        } finally {
+            $this->app->useStoragePath($originalStorage);
+            foreach (glob($destination.'/*') ?: [] as $path) {
+                if (is_file($path) && !is_link($path)) {
+                    unlink($path);
+                }
+            }
+            if (is_dir($destination)) {
+                rmdir($destination);
+            }
+            rmdir($testStorage.'/app');
+            rmdir($testStorage);
+        }
+    }
+
     public function test_exact_eleven_page_bundle_contains_verifiable_local_manifest(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
@@ -328,6 +365,35 @@ final class DemoPortalStaticExporterTest extends TestCase
         file_put_contents($file, $tampered);
         $this->expectException(LogicException::class);
         (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
+    public function test_replaced_claim_is_left_untouched_by_original_exporter(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            self::markTestSkipped('Renaming an open claim marker requires Unix filesystem semantics.');
+        }
+        $claim = $this->temporaryDirectory.'.exporting';
+        $moved = $claim.'.original';
+        $this->app['view']->composer('portal.demo.delivery-review',
+            static function () use ($claim, $moved): void {
+                self::assertFileExists($claim);
+                self::assertTrue(rename($claim, $moved));
+                self::assertSame(strlen('new owner'), file_put_contents($claim, 'new owner'));
+            });
+
+        try {
+            (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+            self::assertSame('new owner', file_get_contents($claim),
+                'a predecessor must not remove or modify the replacement claim');
+            self::assertFileExists($moved);
+        } finally {
+            if (is_file($claim) && !is_link($claim)) {
+                unlink($claim);
+            }
+            if (is_file($moved) && !is_link($moved)) {
+                unlink($moved);
+            }
+        }
     }
 
     public function test_stale_or_competing_export_claim_prevents_new_output(): void
