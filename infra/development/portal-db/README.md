@@ -66,3 +66,7 @@ A F344 comparava contagem e fingerprint entre origem e destino; isoladamente iss
 ## F346 — prova negativa do manifesto na CI
 
 Após instalar a fundação de teste, a CI altera temporariamente **um nome** da tabela de migrations para outro não autorizado, preservando as dez linhas. Executa a restauração sob o projeto Docker descartável e exige recusa 65 *antes de criar o banco-alvo*; em seguida reverte a alteração e confirma que o verificador da instalação retorna exatamente o fingerprint anterior. Nada disso se destina a uma base existente na VPS ou produção.
+
+## F347 — fundação inteiramente vazia no teste de restauração
+
+O dump não pode transportar dados de sessão, envelopes, permissões, organizações ou recursos comerciais, mesmo quando a tabela de identidades está vazia. Antes e após o dump, o script exige zero linhas nas oito tabelas sintéticas pertinentes; exige zero também no alvo restaurado. A CI demonstra a recusa inserindo temporariamente um único envelope sintético sem identidade correspondente: a tentativa deve retornar código 65 e **não pode criar** banco-alvo. Remove o registro de teste e comprova o fingerprint original. Esta proteção também consta em uma frente paralela de auditoria (#563); integrar **somente uma candidata consolidada** para evitar duplicidade. Continua sem cobertura de backup de clientes reais, recuperação em cluster novo e anti-rollback.
