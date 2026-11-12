@@ -48,7 +48,7 @@ jobs:
           docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml up --build --abort-on-container-exit --exit-code-from runner
           image=$(docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml images -q runner)
           test -n "$image"
-          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --entrypoint /bin/sh "$image" -c 'test "$(id -u)" -ne 0; test ! -e .env; test ! -e .git; test ! -e bootstrap/cache/config.php; test ! -e database/private-dump.sql; echo "PASS image context: synthetic local secrets, cache and dump excluded"'
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --entrypoint /bin/sh "$image" -ec 'test "$(id -u)" -ne 0; test ! -e .env; test ! -e .git; test ! -e bootstrap/cache/config.php; test ! -e database/private-dump.sql; echo "PASS image context: synthetic local secrets, cache and dump excluded"'
       - name: Always remove only this disposable rehearsal project
         if: always()
         run: docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml down --volumes --remove-orphans
