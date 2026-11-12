@@ -52,6 +52,21 @@ jobs:
           sudo -E docker compose run --rm -T provision php provision.php verify > after-refusal.out
           cmp before.out after-refusal.out
           cat before.out
+      - name: Deliberately misgrant privileges and prove verify fails closed
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT SELECT ON public.portal_identities TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE SELECT ON public.portal_identities FROM portal_browser_runtime"
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_envelope_read(text) TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_envelope_read(text) FROM portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-grant-revocation.out
+          cmp before.out after-grant-revocation.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
