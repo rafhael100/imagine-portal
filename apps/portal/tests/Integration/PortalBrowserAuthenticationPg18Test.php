@@ -789,9 +789,11 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             $sid=strtoupper(bin2hex(random_bytes(20)));
             self::assertTrue($handler->write($sid,'f322-private-disposable-envelope'));
             self::assertSame('f322-private-disposable-envelope',$handler->read($sid));
-            self::assertTrue($handler->destroy($sid));
-            self::assertTrue($handler->close());
+            self::assertTrue($handler->close(),'Close rolls back the read-only session lock.');
+            self::assertTrue($handler->destroy($sid),'Standalone delete must commit.');
             self::assertFalse($envelopeDb->inTransaction());
+            self::assertSame('',$handler->read($sid));
+            self::assertTrue($handler->close());
             self::assertTrue($auth->isActiveBusinessSession($session));
 
             $routes=array_map(static fn($route):string=>$route->uri(),
