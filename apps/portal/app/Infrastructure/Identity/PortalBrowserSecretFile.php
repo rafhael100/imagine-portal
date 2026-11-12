@@ -63,5 +63,16 @@ final class PortalBrowserSecretFile
     }
     public function __debugInfo():array{return ['configuration'=>'[redacted]'];}
     public function __serialize():array{throw new RuntimeException('Portal secret configuration cannot be serialized.');}
+    // F314: forbidding serialization does not forbid a crafted PHP
+    // unserialize() payload from hydrating private fields without load().
+    public function __unserialize(array $data):void{
+        throw new RuntimeException('Portal secret configuration cannot be unserialized.');
+    }
+    public function __wakeup():void{
+        throw new RuntimeException('Portal secret configuration cannot be unserialized.');
+    }
+    public static function __set_state(array $properties):self{
+        throw new RuntimeException('Portal secret configuration cannot be reconstructed.');
+    }
     private function __clone():void{}
 }
