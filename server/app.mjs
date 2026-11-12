@@ -1,11 +1,16 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
+import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
+import {consumeRateLimit} from './rate-limit.mjs';
 import {createAccount} from './account.mjs';
+import {accountProjectsPage} from './account-projects.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
 import {createFiscal} from './fiscal.mjs';
 import {createFocus} from './focus.mjs';
 import {createMailer} from './mail.mjs';
-import {buildTasksBI,tasksBICsv} from './tasks-bi.mjs';
+import {buildTasksBI,tasksBICsvChunks} from './tasks-bi.mjs';
+import {streamAdminFinanceCsv} from './admin-finance-export.mjs';
 import {buildOverview} from './overview.mjs';
 import {createOrderOps} from './order-ops.mjs';
 import {clientDirectory} from './clients.mjs';
@@ -20,6 +25,39 @@ import {join,resolve,extname} from 'node:path';
 import {token,digest,equal,hashPassword,verifyPassword,cleanText,validEmail,validDocument,safeAsaasUrl,publicUser} from './security.mjs';
 import {now,audit} from './store.mjs';
 export const MAINTENANCE_CENTS=3990;
+export const MAX_ACTIVE_SESSIONS_PER_ACCOUNT=8;
+/** F191: password verification is async; perform a second immutable-session
+ * and password-revision check atomically before touching other sessions. */
+/** F195: logout/revocation must take effect before an in-flight
+ * password change can rotate credentials or mint a fresh session. */
+export function changePasswordAtomically(db,user,newPasswordHash){
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const active=db.prepare('SELECT 1 FROM sessions WHERE user_id=? AND hash=? AND expires_at>?').get(user.id,user.hash,Date.now());
+  if(!active)throw Object.assign(Error('Sua sessão foi encerrada. Entre novamente.'),{status:409});
+  const changed=db.prepare('UPDATE users SET password_hash=? WHERE id=? AND password_hash=?').run(newPasswordHash,user.id,user.password_hash);
+  if(changed.changes!==1)throw Object.assign(Error('Sua senha já foi alterada em outra sessão. Entre novamente.'),{status:409});
+  db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);
+  db.exec('COMMIT');
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+export function revokeOtherSessionsAtomically(db,user){
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const current=db.prepare('SELECT password_hash FROM users WHERE id=?').get(user.id);
+  if(!current||current.password_hash!==user.password_hash)
+   throw Object.assign(Error('Sua senha foi alterada em outra sessão. Entre novamente.'),{status:409});
+  const active=db.prepare('SELECT 1 FROM sessions WHERE user_id=? AND hash=? AND expires_at>?').get(user.id,user.hash,Date.now());
+  if(!active)
+   throw Object.assign(Error('Sua sessão foi encerrada. Entre novamente.'),{status:409});
+  const revokedSessions=Number(db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=? AND hash<>? AND expires_at>?').get(user.id,user.hash,Date.now()).n);
+  db.prepare('DELETE FROM sessions WHERE user_id=? AND hash<>?').run(user.id,user.hash);
+  db.exec('COMMIT');
+  return revokedSessions;
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+
+export const RATE_LIMIT_PRUNE_INTERVAL_MS=5*60*1000;
 export function addDays(date,days){const value=new Date(date);value.setUTCDate(value.getUTCDate()+days);return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value)}
 const settled=new Set(['RECEIVED','CONFIRMED','RECEIVED_IN_CASH']);
 const phases=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
@@ -27,16 +65,50 @@ function problem(status,message){return Object.assign(new Error(message),{status
 function assert(condition,status,message){if(!condition)throw problem(status,message)}
 const cents=value=>Math.round(Number(value)*100);
 export function createApp({db,asaas,publicDir,origin,production=false,sellerName='',sellerDocument='',webhookToken='',clock=()=>new Date(),uploadDir=null,focus=createFocus(),mailer=createMailer(),focusWebhookToken='',billingTokenKey='',newSiteBilling=RECURRING_MODEL,trustProxy=false}){
- const root=resolve(publicDir),locks=new Set();let processing=false;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
+ const root=resolve(publicDir),locks=new Set();let processing=false,lastRateLimitPruneAt=0;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
  const accountProfile=createAccount(db,fiscal);
  const q=(sql,...args)=>db.prepare(sql).get(...args),list=(sql,...args)=>db.prepare(sql).all(...args),run=(sql,...args)=>db.prepare(sql).run(...args);
  db.exec("UPDATE orders SET billing_state='uncertain' WHERE billing_state='creating'; UPDATE maintenance SET status='uncertain' WHERE status='creating';");
  const ready=()=>asaas.configured&&(!production||Boolean(sellerName&&sellerDocument&&webhookToken.length>=32));
  const recurring=createRecurringBilling({db,asaas,fiscal,clock,origin,ready,tokenKey:billingTokenKey,exclusive});
- function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
- function limit(key,max=20,window=900000){const row=q('SELECT * FROM rate_limits WHERE key=?',key),time=Date.now();if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);else{assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');run('UPDATE rate_limits SET count=count+1 WHERE key=?',key)}}
+ // The local reverse proxy must append the verified TCP peer as the LAST
+ // X-Forwarded-For entry (or overwrite the header). Never trust the first
+ // entry: clients can prepend arbitrary IPs before a correctly appending
+ // proxy. With APP_TRUST_PROXY=false, ignore forwarded headers completely.
+ function remoteIp(req){const direct=req.socket.remoteAddress||'127.0.0.1';if(trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(direct)){const forwarded=String(req.headers['x-forwarded-for']||'').split(',').at(-1).trim();if(isIP(forwarded))return forwarded;}return direct.replace(/^::ffff:/,'');}
+ function limit(key,max=20,window=900000){
+  const time=Date.now();
+  // Distinct login emails and IPs create distinct bucket keys. Without
+  // cleanup, expired rows accumulate forever in the SQLite legacy Portal.
+  // Bound collection work to once per five minutes per process, then preserve
+  // live counters. Fail closed on storage failure.
+  if(time-lastRateLimitPruneAt>=RATE_LIMIT_PRUNE_INTERVAL_MS){
+   run('DELETE FROM rate_limits WHERE reset_at<=?',time);
+   pruneExpiredOwnerExportLeases(db,time);
+   lastRateLimitPruneAt=time;
+  }
+  // F259: atomic UPSERT across workers; a separate read/update could lose
+  // increments and admit more requests than the quota when requests race.
+  assert(consumeRateLimit(db,key,max,window,time),429,'Muitas tentativas. Aguarde alguns minutos.');
+ }
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
- function session(res,user){const raw=token(),csrf=token();run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,Date.now()+12*3600000);res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);return {user:publicUser(team.decorate(user)),csrf}}
+ function session(res,user){
+  const raw=token(),csrf=token(),time=Date.now(),expiresAt=time+12*3600000;
+  // Keep the SQLite legacy Portal bounded until the independent Portal
+  // PostgreSQL session issuer is reviewed. Every mutation is atomic, so a
+  // failed insert cannot revoke valid logins or expose an unusable cookie.
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   run('DELETE FROM sessions WHERE expires_at<=?',time);
+   // Reserve one slot for the freshly issued credential. Existing sessions
+   // are ranked per user, never globally; another customer's token is safe.
+   run('DELETE FROM sessions WHERE user_id=? AND hash IN (SELECT hash FROM sessions WHERE user_id=? ORDER BY expires_at DESC,hash DESC LIMIT -1 OFFSET ?)',user.id,user.id,MAX_ACTIVE_SESSIONS_PER_ACCOUNT-1);
+   run('INSERT INTO sessions VALUES(?,?,?,?)',digest(raw),user.id,csrf,expiresAt);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  res.setHeader('Set-Cookie',`imagine_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${production?'; Secure':''}`);
+  return {user:publicUser(team.decorate(user)),csrf};
+ }
  function own(id,user){const order=q('SELECT * FROM orders WHERE id=?',id);assert(order&&team.canOrder(user,id)&&(user.role==='admin'||order.user_id===user.id),404,'Pedido não encontrado.');return order}
  function viewOrder(order,user){const result=orderView(order,user);result.complaints=orderOps.complaints(order.id);if(user.staff_profile&&user.staff_profile!=='financeiro'){result.payments=[];result.price_cents=null;result.invoice_url=null;result.maintenance=null;result.subscription_action=null;result.billing_terms=null;result.billing_schedule=[];result.billing_card=null;result.scope='Consulte a administração para condições comerciais.';}return result;}
  function orderView(order,user){return {...order,billing_terms:recurring.terms(order),billing_schedule:order.billing_model===RECURRING_MODEL?recurring.publicState(order.id).schedule:[],billing_card:recurring.cardSummary(order.id),subscription_action:subscriptionGuidance(order,q('SELECT * FROM maintenance WHERE order_id=?',order.id),list('SELECT * FROM payments WHERE order_id=?',order.id),{billingReady:recurring.enabled(),now:clock(),alerts:recurring.publicState(order.id).alerts,processing:!!q("SELECT id FROM billing_operations WHERE order_id=? AND state IN ('processing','uncertain')",order.id)}),production:order.product_id==='site'?productionFlow.view(order.id):null,customer_id:undefined,briefing_summary:order.product_id==='site'?briefings.summary(order.id,user.staff_profile!=='financeiro'&&(user.role==='admin'||settled.has(order.payment_status))):null,maintenance:q('SELECT order_id,checkout_url,subscription_id,status,first_due,next_due,cancel_requested_at,canceled_at FROM maintenance WHERE order_id=?',order.id)||null,messages:list('SELECT m.id,m.body,m.created_at,u.name,u.role FROM messages m JOIN users u ON u.id=m.user_id WHERE m.order_id=? ORDER BY m.id',order.id),payments:list('SELECT * FROM payments WHERE order_id=? ORDER BY due_date DESC',order.id),client:user.role==='admin'?q('SELECT name,email FROM users WHERE id=?',order.user_id):undefined}}
@@ -63,7 +135,11 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/webhooks/focus'&&method==='POST'){assert(focusWebhookToken.length>=32&&equal(req.headers['x-focus-token'],focusWebhookToken),401,'Webhook fiscal não autorizado.');const body=await jsonBody(req);assert(typeof body.ref==='string'&&/^[A-Za-z0-9]{1,100}$/.test(body.ref),400,'Referência inválida.');await fiscal.hook(body);return send(res,200,{received:true});}
  if(path==='/health'&&method==='GET')return send(res,200,{ok:true});
  if(path==='/api/webhooks/asaas'&&method==='POST'){assert(webhookToken.length>=32&&equal(req.headers['asaas-access-token'],webhookToken),401,'Webhook não autorizado.');const body=await jsonBody(req);assert(typeof body.id==='string'&&body.id.length<=200&&typeof body.event==='string'&&body.event.length<=100,400,'Evento inválido.');const entity=body.payment||body.subscription||body.checkout;assert(entity&&typeof entity.id==='string'&&entity.id.length<=200,400,'Recurso inválido.');const context=body.checkout?{reference:cleanText(entity.externalReference,200),customer:cleanText(entity.customer,100),value_cents:Array.isArray(entity.items)?entity.items.reduce((sum,item)=>sum+cents(item.value)*Number(item.quantity),0):null,cycle:entity.subscription?.cycle,first_due:entity.subscription?.nextDueDate}:{};run('INSERT OR IGNORE INTO events(id,type,resource_id,context,created_at) VALUES(?,?,?,?,?)',body.id,body.event,entity.id,JSON.stringify(context),now());send(res,200,{received:true});return}
- if(path.startsWith('/api/')){const user=findSession(req);if(!['GET','HEAD'].includes(method)){assert(req.headers.origin===origin,403,'Origem não autorizada.');if(user)assert(equal(req.headers['x-csrf-token'],user.csrf),403,'Sessão inválida. Atualize a página.')}const ip=req.socket.remoteAddress||'local';
+ if(path.startsWith('/api/')){const user=findSession(req);if(!['GET','HEAD'].includes(method)){assert(req.headers.origin===origin,403,'Origem não autorizada.');if(user)assert(equal(req.headers['x-csrf-token'],user.csrf),403,'Sessão inválida. Atualize a página.')}// Auth and signup rate limits must use the same explicitly trusted
+ // reverse-proxy identity as checkout; otherwise every customer behind a
+ // local proxy consumes one shared lockout bucket. APP_TRUST_PROXY=false
+ // ignores client-controlled forwarding headers entirely.
+ const ip=remoteIp(req);
  if(path==='/api/config'&&method==='GET')return send(res,200,{environment:asaas.environment,billingReady:newSiteBilling===RECURRING_MODEL?recurring.enabled():ready(),recurringReady:recurring.enabled(),products:list('SELECT * FROM products'),seller:{name:sellerName,document:sellerDocument},maintenance:{price_cents:7990,first_charge_after_days:90,cycle:'MONTHLY',optional:false,includes_changes:false}});
  if(path==='/api/session'&&method==='GET')return send(res,200,user?{user:publicUser(user),csrf:user.csrf}:{user:null});
  if(path==='/api/register'&&method==='POST'){limit('register:'+ip,8,3600000);const data=await jsonBody(req),email=cleanText(data.email,254).toLowerCase(),name=cleanText(data.name,120);assert(validEmail(email)&&name.length>=2,400,'Informe nome e e-mail válidos.');assert(!q('SELECT id FROM users WHERE email=?',email),409,'Não foi possível criar a conta com este e-mail.');const hashed=await hashPassword(data.password),id=randomUUID();try{run("INSERT INTO users VALUES(?,?,?,?,'client',?)",id,name,email,hashed,now())}catch{throw problem(409,'Não foi possível criar a conta com este e-mail.')}audit(db,id,'account.created',id);return send(res,201,session(res,q('SELECT * FROM users WHERE id=?',id)))}
@@ -78,9 +154,97 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  const fiscalAction=path.match(/^\/api\/fiscal\/([a-f\d-]{36})\/(preview|issue|sync|cancel)$/i);if(fiscalAction&&method==='POST'){const body=await jsonBody(req);return send(res,200,{result:await fiscal.act(user,fiscalAction[1],fiscalAction[2],{reason:body.reason,confirmed:body.confirmed})});}
  const collection=path.match(/^\/api\/finance\/collection\/([^/]+)$/);if(collection&&method==='POST'){limit('collection:'+user.id,40);return send(res,200,await fiscal.collection(user,decodeURIComponent(collection[1]),await jsonBody(req)));}
  if(path==='/api/logout'&&method==='POST'){run('DELETE FROM sessions WHERE hash=?',user.hash);res.setHeader('Set-Cookie',`imagine_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${production?'; Secure':''}`);return send(res,200,{ok:true})}
- if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user));
- if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req)));}
- if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');const hashed=await hashPassword(data.newPassword);db.exec('BEGIN IMMEDIATE');try{run('UPDATE users SET password_hash=? WHERE id=?',hashed,user.id);run('DELETE FROM sessions WHERE user_id=?',user.id);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
+ if(path==='/api/account/projects.csv'&&method==='GET'){
+  assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  limit('account-export:'+user.id,20,3600000);
+  const columns=url.searchParams.get('columns')??'';
+  assert(columns===''||columns==='stage',400,'Formato de planilha inválido.');
+  preflightOwnerProjectExport(db,user);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   // F229/F236: stream the authorized cursor while holding only one export lease per account.
+   const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
+   // F245: record the request even if the connection drops. Only the
+   // real HTTP finish event can make this a completed export in history.
+   audit(db,user.id,'account.projects_csv_export_requested',user.id);
+   res.writeHead(200);
+   await writeOwnerExportWithinLease(res,chunks);
+   if(res.writableFinished===true)
+    audit(db,user.id,'account.projects_csv_exported',user.id);
+   return;
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
+ }
+ if(path==='/api/account/export'&&method==='GET'){
+  // Explicitly scoped read-only self-service: profile, fiscal registration,
+  // and permitted project details. Not a full contractual/billing export.
+  // Restrict to clients; never export staff/admin records, credentials or
+  // other tenants' projects through this endpoint.
+  assert(user.role==='client'&&!user.staff_profile,403,'Exportação exclusiva do cliente.');
+  limit('account-export:'+user.id,20,3600000);
+  preflightOwnerProjectExport(db,user);
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   const compact=accountProfile.view(user,{compact:true});
+   const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
+   res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
+   res.setHeader('Content-Type','application/json; charset=utf-8');
+   audit(db,user.id,'account.data_export_requested',user.id);
+   res.writeHead(200);
+   await writeOwnerExportWithinLease(res,chunks);
+   if(res.writableFinished===true)
+    audit(db,user.id,'account.data_exported',user.id);
+   return;
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
+ }
+ if(path==='/api/account/projects'&&method==='GET'){
+  limit('account-projects:'+user.id,120,60000);
+  return send(res,200,accountProjectsPage(db,user,{
+   page:url.searchParams.get('page')??'1',
+   payment:url.searchParams.get('payment')??'all',
+   search:url.searchParams.get('search')??'',
+   phase:url.searchParams.get('phase')??'all',
+   sort:url.searchParams.get('sort')??'newest',
+   attention:url.searchParams.get('attention')??'all',
+  }));
+ }
+ if(path==='/api/account'&&method==='GET')return send(res,200,accountProfile.view(user,{compact:url.searchParams.get('compact')==='1'}));
+ if(path==='/api/account'&&method==='POST'){limit('profile:'+user.id,20);return send(res,200,await accountProfile.save(user,await jsonBody(req),{compact:url.searchParams.get('compact')==='1'}));}
+ if(path==='/api/account/security-events'&&method==='GET'){
+  // F189: bounded pagination for the authenticated account. The old response
+  // shape remains unchanged without ?page= to preserve existing consumers.
+  // Never send audit IDs, other actors, IPs, tokens or unapproved actions.
+  const pageText=url.searchParams.get('page');
+  const paged=pageText!==null;
+  assert(!paged||/^[1-9][0-9]{0,1}$/.test(pageText)&&Number(pageText)<=30,400,'Página de histórico inválida.');
+  const page=paged?Number(pageText):1;
+  const rows=list("SELECT action,created_at FROM audit WHERE actor_id=? AND action IN ('account.created','password.changed','sessions.revoked_others','account.email.changed','account.data_exported','account.projects_csv_exported') ORDER BY id DESC LIMIT ? OFFSET ?",user.id,paged?11:10,(page-1)*10);
+  return send(res,200,paged?{events:rows.slice(0,10),page,has_more:page<30&&rows.length>10}:{events:rows});
+ }
+ if(path==='/api/sessions/summary'&&method==='GET'){
+  // Only aggregated counts for the authenticated current account. No
+  // bearer tokens, raw session hashes, device IDs, IP addresses or other
+  // users' session metadata can ever reach this response.
+  const row=q('SELECT count(*) AS active FROM sessions WHERE user_id=? AND expires_at>?',user.id,Date.now());
+  const active=Number(row?.active||0);
+  return send(res,200,{
+   active_sessions:active,
+   other_sessions:Math.max(0,active-1),
+   max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT,
+  });
+ }
+ if(path==='/api/sessions/revoke-others'&&method==='POST'){
+  limit('sessions-revoke:'+user.id,5,3600000);
+  const data=await jsonBody(req);
+  assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');
+  // Keep the authenticated cookie and its CSRF token. Delete only this
+  // account's other sessions, atomically and without touching other tenants.
+  const revokedSessions=revokeOtherSessionsAtomically(db,user);
+  audit(db,user.id,'sessions.revoked_others',user.id);
+  return send(res,200,{ok:true,revoked_sessions:revokedSessions,active_sessions:1,other_sessions:0,max_active_sessions:MAX_ACTIVE_SESSIONS_PER_ACCOUNT});
+ }
+ if(path==='/api/password'&&method==='POST'){limit('password:'+user.id,5);const data=await jsonBody(req);assert(await verifyPassword(data.currentPassword,user.password_hash),400,'Senha atual inválida.');assert(data.newPassword!==data.currentPassword,400,'A nova senha deve ser diferente da atual.');const hashed=await hashPassword(data.newPassword);changePasswordAtomically(db,user,hashed);audit(db,user.id,'password.changed',user.id);return send(res,200,session(res,user))}
  if(path==='/api/orders'&&method==='GET')return send(res,200,{orders:(user.role==='admin'?list('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500'):list('SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 500',user.id)).filter(o=>team.canOrder(user,o.id)).map(o=>viewOrder(o,user))});
  if(path==='/api/orders'&&method==='POST'){limit('orders:'+user.id,15,3600000);const data=await jsonBody(req),product=q('SELECT * FROM products WHERE id=?',cleanText(data.product,30));assert(product,400,'Solução inválida.');const brief=cleanText(data.brief,5000);assert(brief.length>=10,400,'Descreva seu projeto com pelo menos 10 caracteres.');const id=cleanText(data.requestId,50);assert(/^[a-f\d-]{36}$/i.test(id),400,'Identificador de pedido inválido.');const existing=q('SELECT * FROM orders WHERE id=?',id);if(existing){assert(existing.user_id===user.id,409,'Pedido já registrado.');return send(res,200,{order:viewOrder(existing,user)})}run('INSERT INTO orders(id,user_id,product_id,title,brief,price_cents,scope,delivery,terms_version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,user.id,product.id,product.title,brief,product.enabled||product.id==='site'?product.price_cents:null,product.enabled?product.scope:'',product.enabled?product.delivery:'',product.version,now(),now());if(product.id==='site'&&newSiteBilling===RECURRING_MODEL)run("UPDATE orders SET billing_model=?,scope=CASE WHEN scope='' THEN ? ELSE scope END,delivery=CASE WHEN delivery='' THEN ? ELSE delivery END WHERE id=?",RECURRING_MODEL,'Onepage responsivo com identidade visual, apresentação, serviços e contatos. Implantação: 3 pagamentos de R$ 330 na contratação, após 30 e 60 dias. Assinatura mensal obrigatória de R$ 79,90 a partir de 90 dias, independentemente da publicação. Inclui licença, hospedagem, SSL, backup e suporte técnico; alterações à parte. Domínio do cliente.','7 dias úteis após validar os materiais.',id);audit(db,user.id,'order.created',id);return send(res,201,{order:viewOrder(q('SELECT * FROM orders WHERE id=?',id),user)})}
  const materialMatch=path.match(/^\/api\/orders\/([a-f\d-]{36})\/materials\/([a-f\d-]{36})$/i);if(materialMatch){const order=own(materialMatch[1],user);if(method==='GET'||method==='HEAD')return await briefings.download(order,user,materialMatch[2],res,method);if(method==='DELETE')return send(res,200,{briefing:await exclusive(order.id,()=>briefings.remove(order,user,materialMatch[2]))});throw problem(405,'Método não permitido.');}
@@ -108,12 +272,49 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/admin/overview'&&method==='GET'){assert(!user.staff_profile,403,'Resumo gerencial exclusivo da administração.');return send(res,200,buildOverview(db,clock()));}
  if(path==='/api/admin/orders'&&method==='GET')return send(res,200,orderOps.directory(user,team.canOrder));
  if(method==='GET'&&(path==='/api/admin/clients'||/^\/api\/admin\/clients\/[a-f\d-]{36}$/i.test(path))){assert(!user.staff_profile||user.staff_profile==='atendimento',403,'Acesso não permitido.');const id=path.split('/')[4]||null;const clients=clientDirectory(db,{id,financial:!user.staff_profile});if(id)assert(clients.length,404,'Cliente não encontrado.');return send(res,200,{clients,financial:!user.staff_profile});}
- if(['/api/admin/tasks-bi','/api/admin/tasks-bi.csv'].includes(path)&&method==='GET'){assert(!user.staff_profile,403,'BI de atividades exclusivo da administração.');const csv=path.endsWith('.csv'),data=buildTasksBI(db,url.searchParams,clock(),csv);if(!csv)return send(res,200,data);res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="atividades-imagine.csv"'});return res.end(tasksBICsv(data));}
+ if(['/api/admin/tasks-bi','/api/admin/tasks-bi.csv'].includes(path)&&method==='GET'){
+  assert(!user.staff_profile,403,'BI de atividades exclusivo da administração.');
+  if(!path.endsWith('.csv')){
+   // F258: protect the high-cost BI aggregation from unlimited refreshes.
+   limit('admin-bi-json:'+user.id,120,60000);
+   return send(res,200,buildTasksBI(db,url.searchParams,clock(),false));
+  }
+  // F256: one administrative CSV per user, even across Node workers sharing SQLite.
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   limit('admin-csv:'+user.id,20,3600000);
+   const data=buildTasksBI(db,url.searchParams,clock(),true);
+   // F260: register an authorized request separately from HTTP finish.
+   audit(db,user.id,'admin.tasks_csv_export_requested',user.id);
+   res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="atividades-imagine.csv"'});
+   await writeOwnerExportWithinLease(res,tasksBICsvChunks(data),5*60*1000);
+   if(res.writableFinished===true)
+    audit(db,user.id,'admin.tasks_csv_exported',user.id);
+   return;
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
+ }
  if(path==='/api/admin/bi'&&method==='GET'){assert(!user.staff_profile,403,'BI disponível somente para a administração.');return send(res,200,buildBI(db,url.searchParams,clock()));}
  if(path==='/api/admin/dashboard'&&method==='GET'&&user.staff_profile)return send(res,200,{metrics:user.staff_profile==='financeiro'?metrics():{received:0,confirmed:0,pending:0,overdue:0,eventsPending:0},clients:user.staff_profile==='atendimento'?list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) LIMIT 500"):[],events:[],audit:[]});
  if(path==='/api/admin/dashboard'&&method==='GET')return send(res,200,{metrics:metrics(),clients:list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) ORDER BY created_at DESC LIMIT 500"),events:list('SELECT * FROM events WHERE done=0 ORDER BY created_at DESC LIMIT 30'),audit:list('SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 40')});
  if(path==='/api/admin/products'&&method==='POST'){const data=await jsonBody(req),p=q('SELECT * FROM products WHERE id=?',cleanText(data.id,30));assert(p,400,'Solução inválida.');const scope=cleanText(data.scope,10000),delivery=cleanText(data.delivery,500),price=data.price_cents===null?null:Number(data.price_cents);assert(price===null||Number.isSafeInteger(price)&&price>0&&price<=100000000,400,'Valor inválido.');assert(p.id!=='site'||price===99000,400,'O Site Onepage deve manter o preço aprovado de R$ 990,00.');assert(!data.enabled||scope.length>=20&&delivery&&price,400,'Para vender, preencha escopo, prazo e valor.');run('UPDATE products SET price_cents=?,scope=?,delivery=?,enabled=?,version=version+1 WHERE id=?',price,scope,delivery,data.enabled?1:0,p.id);audit(db,user.id,'product.updated',p.id);return send(res,200,{ok:true})}
- if(path==='/api/admin/finance.csv'&&method==='GET'){const rows=list('SELECT p.*,o.title,u.name,u.email FROM payments p JOIN orders o ON o.id=p.order_id JOIN users u ON u.id=o.user_id ORDER BY p.due_date DESC');const csvCell=value=>'"'+String(value??'').replace(/^[=+@\-\t\r]/,"' $&").replaceAll('"','""')+'"';res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});return res.end('\uFEFF'+[['Pedido','Cliente','Email','Serviço','Tipo','Status','Valor bruto BRL','Valor líquido BRL','Vencimento','Pagamento'],...rows.map(p=>[p.order_id,p.name,p.email,p.title,p.kind,p.status,(p.value_cents/100).toFixed(2),p.net_cents===null?'':(p.net_cents/100).toFixed(2),p.due_date,p.paid_at])].map(row=>row.map(csvCell).join(';')).join('\r\n'))}
+ if(path==='/api/admin/finance.csv'&&method==='GET'){
+  // F254: shared hourly limit covers both administrative CSV endpoints.
+  // Apply it before any financial cursor, HTTP headers or audit entry.
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   limit('admin-csv:'+user.id,20,3600000);
+   // F250: send headers once, then stream the authorized SQLite cursor instead
+  // of collecting all payments in memory; writer handles backpressure/close.
+  // F253: distinguish an authorized export attempt from a completed transfer.
+  // Neither event includes CSV content, payment details or session tokens.
+  audit(db,user.id,'admin.finance_csv_export_requested',user.id);
+  res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});
+  await streamAdminFinanceCsv(res,db);
+   if(res.writableFinished===true)
+    audit(db,user.id,'admin.finance_csv_exported',user.id);
+   return;
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
+ }
  throw problem(404,'Recurso não encontrado.');}
  assert(method==='GET'||method==='HEAD',405,'Método não permitido.');const allowed=path==='/'?'index.html':path==='/portal'||path==='/admin'?'portal.html':path.slice(1);assert(['index.html','checkout.html','contrato.html','checkout-validation.js','portal.html','portal.css','portal.js','client-orders-ui.js','client-finance-ui.js','client-care-ui.js','subscription-ui.js','account-ui.js','fiscal-ui.js','tasks-bi-ui.js','briefing-ui.js','production-ui.js','assets/logo-imagine.png'].includes(allowed),404,'Página não encontrada.');const body=await readFile(join(root,allowed));res.setHeader('Content-Security-Policy',['index.html','checkout.html','contrato.html'].includes(allowed)?"default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'":"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'})[extname(allowed)]});res.end(method==='HEAD'?undefined:body);
  }catch(error){if(!res.headersSent)send(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir. Tente novamente ou fale com a equipe.'});else res.end();}});

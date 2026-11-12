@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classify, parseNameStatusZ, buildReport, markdownReport, reviewPackets,
-  requireCandidateHead,
+  requireCandidateHead, selectReviewBase,
 } from './inventory.mjs';
 
 test('NUL diff parser handles ordinary, deletion and rename records without shell interpretation', () => {
@@ -96,4 +96,44 @@ test('candidate SHA guard rejects a synthetic PR merge checkout even if it is a 
   for (const invalid of ['', 'not-a-sha', 'A'.repeat(40), 'a'.repeat(39)]) {
     assert.throws(() => requireCandidateHead(invalid, trueHead));
   }
+});
+
+test('F185: Node.js/SQLite operational files are precisely partitioned for independent reviewers', () => {
+ const samples = {
+  'server/app.mjs':'node_identity_security',
+  'server/account.mjs':'node_identity_security',
+  'server/store.mjs':'node_identity_security',
+  'server/team.mjs':'node_identity_security',
+  'server/security.mjs':'node_identity_security',
+  'server/account-export.mjs':'node_sensitive_export',
+  'server/asaas.mjs':'node_application_runtime',
+  'server/fiscal.mjs':'node_application_runtime',
+  'tests/account-export.test.mjs':'automated_tests',
+  'portal.js':'node_presentation',
+  'account-ui.js':'node_presentation',
+  'client-care-ui.js':'node_presentation',
+  'portal.html':'node_presentation',
+  'apps/portal/tools/integration/inventory.mjs':'integration_review_tooling',
+  'package.json':'other',
+ };
+ for(const [path, expected] of Object.entries(samples)) {
+  assert.equal(classify(path),expected,path);
+ }
+ const records=parseNameStatusZ(Object.keys(samples).flatMap(path=>['M',path]).join('\0')+'\0');
+ const report=buildReport({base:'dev',head:'candidate',mergeBase:'shared',leftRight:'0\t20',records});
+ const packets=reviewPackets(report);
+ assert.equal(Object.values(packets).reduce((n,v)=>n+(v.match(/^\- M /gm)||[]).length,0),records.length);
+ for(const category of Object.values(samples))assert.ok(packets[category]);
+ assert.equal(report.decision.may_merge,false);
+});
+
+test('F186: focused Node security batch uses only pinned F163 review base',()=>{
+ const legacy=selectReviewBase();
+ const node=selectReviewBase('node-f163');
+ assert.equal(legacy,'refs/remotes/origin/dev/fast-track-portal-2026-11-05');
+ assert.equal(node,'refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11');
+ for(const value of ['main','HEAD','dev','node-latest','../hidden','refs/remotes/origin/main']){
+  assert.throws(()=>selectReviewBase(value),/Unsupported inventory base selector/);
+ }
+ assert.notEqual(node,legacy);
 });
