@@ -31,6 +31,7 @@ final class PortalBrowserAuthTransportTest extends TestCase
             'session.driver' => 'file',
             'session.files' => $this->directory,
             'session.encrypt' => true,
+            'portal_development_auth.organization' => self::ORG,
         ]);
         $this->app['session']->forgetDrivers();
         Route::middleware(['web', PortalBrowserAuthGuard::class])->group(function (): void {
@@ -126,6 +127,25 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $this->request('POST', 'password', $this->credentials(), $token, ['HTTP_ORIGIN' => 'https://crm.example.test'])->assertStatus(419);
         $this->request('POST', 'password', $this->credentials(), $token, ['HTTP_SEC_FETCH_SITE' => 'same-site'])->assertStatus(419);
         self::assertSame(0, $adapter->passwordCalls);
+    }
+
+    public function test_private_password_authentication_requires_exact_server_tenant_configuration(): void
+    {
+        $adapter = $this->adapter();
+        $csrf = $this->csrf();
+        $this->request('POST', 'password', $this->credentials([
+            'organization' => '33333333-3333-4333-8333-333333333333',
+        ]), $csrf)->assertUnauthorized()->assertExactJson(['error' => 'authentication_failed']);
+        self::assertSame(0, $adapter->passwordCalls, 'Foreign organization must not reach the identity adapter.');
+
+        config(['portal_development_auth.organization' => null]);
+        $this->request('POST', 'password', $this->credentials(), $csrf)
+            ->assertUnauthorized()->assertExactJson(['error' => 'authentication_failed']);
+        self::assertSame(0, $adapter->passwordCalls, 'Unconfigured gateway must not authenticate.');
+
+        config(['portal_development_auth.organization' => self::ORG]);
+        $this->request('POST', 'password', $this->credentials(), $csrf)->assertStatus(202);
+        self::assertSame(1, $adapter->passwordCalls);
     }
 
     public function test_https_host_payload_and_caller_supplied_authority_are_rejected(): void
