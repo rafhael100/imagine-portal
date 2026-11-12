@@ -904,4 +904,13 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             self::fail('Remote database composition accepted.');
         },['host'=>'203.0.113.1']);
     }
+
+    public function test_private_runtime_cannot_bypass_constructor_via_serialized_object(): void
+    {
+        $class=\App\Infrastructure\Identity\PortalBrowserPrivateRuntime::class;
+        $payload='O:'.strlen($class).':"'.$class.'":0:{}';
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Private Portal runtime cannot be reconstructed.');
+        unserialize($payload);
+    }
 }

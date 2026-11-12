@@ -9,3 +9,5 @@ A chave de criptografia Laravel deve vir da configuração confiável da aplica�
 Os testes de integração usam arquivo temporário 0600 em diretório 0700 e segredos descartáveis: senha/MFA/revogação entre conexões; conexões de envelope independentes durante lock ativo e autenticação simultânea; erros de ambas as senhas sem cadeia diagnóstica; recusa de host remoto antes de conexão. As mesmas provas rodam no laboratório PostgreSQL 18 e no Docker privado existente.
 
 Próximos requisitos operacionais: confirmar a candidata final integrada, revisão AppSec/DBA/LGPD, provisionar banco/papéis/chaves privados, configurar proxy confiável e cookies HTTPS, ensaiar recuperação sem retroceder revisões/contador MFA e então habilitar rotas em homologação. Esta composição não satisfaz nem declara essas aprovações.
+
+Esta candidata também incorpora F314/F315 (#520/#522): bloqueio de reconstrução do leitor por unserialize e recusa de symlinks em todos os ancestrais. O runtime recusa os mesmos caminhos de reconstrução. Não integrar os incrementos cumulativos duas vezes.

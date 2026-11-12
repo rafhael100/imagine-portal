@@ -86,5 +86,20 @@ final class PortalBrowserPrivateRuntime
         throw new RuntimeException('Private Portal runtime cannot be serialized.');
     }
 
+    public function __unserialize(array $data): void
+    {
+        throw new RuntimeException('Private Portal runtime cannot be reconstructed.');
+    }
+
+    public function __wakeup(): void
+    {
+        throw new RuntimeException('Private Portal runtime cannot be reconstructed.');
+    }
+
+    public static function __set_state(array $data): self
+    {
+        throw new RuntimeException('Private Portal runtime cannot be reconstructed.');
+    }
+
     private function __clone(): void {}
 }

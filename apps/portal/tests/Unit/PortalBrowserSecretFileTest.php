@@ -76,6 +76,70 @@ final class PortalBrowserSecretFileTest extends TestCase
         file_put_contents($this->path,'{invalid-json');$this->refused();
         unset($this->values['proof_key']);$this->write();$this->refused();
     }
+    public function test_crafted_php_object_cannot_skip_private_file_validation():void
+    {
+        // A hand-crafted object stream would hydrate even a private
+        // constructor unless __unserialize explicitly rejects it.
+        $type=PortalBrowserSecretFile::class;
+        $wire='O:'.strlen($type).':"'.$type.'":0:{}';
+        try {
+            unserialize($wire,['allowed_classes'=>[$type]]);
+            self::fail('Crafted object bypassed secure file loading.');
+        } catch(RuntimeException $error) {
+            self::assertSame(
+                'Portal secret configuration cannot be unserialized.',
+                $error->getMessage()
+            );
+        }
+    }
+
+    public function test_export_reconstruction_and_wakeup_are_explicitly_denied():void
+    {
+        $loaded=PortalBrowserSecretFile::load($this->path,'https://portal.example.test');
+        try {
+            $loaded->__wakeup();
+            self::fail('Deserialization wakeup bypassed the loader.');
+        } catch(RuntimeException $error) {
+            self::assertSame(
+                'Portal secret configuration cannot be unserialized.',
+                $error->getMessage()
+            );
+        }
+        try {
+            PortalBrowserSecretFile::__set_state(['values'=>$this->values]);
+            self::fail('Exported object was reconstructed.');
+        } catch(RuntimeException $error) {
+            self::assertSame(
+                'Portal secret configuration cannot be reconstructed.',
+                $error->getMessage()
+            );
+        }
+        self::assertSame($this->values['database'],$loaded->value('database'));
+    }
+
+    public function test_symlink_in_any_parent_segment_is_refused():void
+    {
+        $real=$this->directory.'/real';
+        $private=$real.'/private';
+        $alias=$this->directory.'/alias';
+        mkdir($real,0700);
+        mkdir($private,0700);
+        $nested=$private.'/runtime.json';
+        file_put_contents($nested,json_encode($this->values,JSON_THROW_ON_ERROR));
+        chmod($nested,0600);
+        symlink($real,$alias);
+        try {
+            self::assertSame($this->values['database'],
+                PortalBrowserSecretFile::load($nested,'https://portal.example.test')->value('database'));
+            $this->refused($alias.'/private/runtime.json');
+        }finally{
+            unlink($alias);
+            unlink($nested);
+            rmdir($private);
+            rmdir($real);
+        }
+    }
+
     public function test_connection_components_cannot_inject_dsn_options():void
     {
         $this->values['host']='127.0.0.1;user=postgres';$this->write();$this->refused();
