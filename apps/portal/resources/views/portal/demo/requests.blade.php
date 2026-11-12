@@ -19,6 +19,13 @@
             :columns="['Estado atual', 'Perfil fictício', 'Ação de exemplo', 'Próximo estado']"
             :rows="\App\Presentation\DemoRequestWorkflowMap::rows()" />
     </x-portal.panel>
+    <x-portal.panel title="Onepage e Landing Page — revisão editorial fictícia">
+        <p>Briefings e propostas de texto são exemplos locais. Uma aprovação simulada não representa aceite assinado, contratação ou autorização de publicar um site.</p>
+        <x-portal.table caption="Conteúdos ilustrativos de Sites Imagine — sem aprovação real"
+            :columns="['Referência', 'Produto', 'Título fictício', 'Versões de exemplo', 'Revisão editorial']"
+            :rows="\App\Presentation\DemoSitesEditorialPreview::rows()" />
+        <p>Alterar briefing ou conteúdo exige nova revisão da versão. Esta tela não coleta dados, cobra nem publica.</p>
+    </x-portal.panel>
     <x-portal.message title="Serviços independentes" message="Onepage e Landing Page são serviços independentes. Performance AI possui motor de execução separado. CRM Imagine mantém identidade, login e sessão próprios, sem SSO. Universidade Imagine é benefício de clientes elegíveis, não assinatura avulsa; nenhuma elegibilidade é concedida neste exemplo." />
     <x-portal.unavailable feature="A abertura, edição, envio e anexação de solicitações" />
 </x-portal.layout>
