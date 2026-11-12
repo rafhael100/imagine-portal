@@ -141,3 +141,63 @@ test('manifest cannot silently target production or a mutable branch instead of 
     assert.throws(() => validateManifest(m), /INVALID_REVIEW_MANIFEST/);
   }
 });
+
+function smallLot(index = 0) {
+  const f = fixture();
+  const lot = f.m.reviewLots[index];
+  f.pr.number = lot.pullRequest;
+  f.pr.head.ref = lot.headBranch;
+  f.pr.head.sha = lot.headSha;
+  f.pr.base.ref = lot.baseBranch;
+  f.runs = lot.requiredWorkflows.map((name, i) => ({
+    id: 1000 + i, run_attempt: 1, name, event: 'pull_request',
+    head_sha: lot.headSha, status: 'completed', conclusion: 'success',
+  }));
+  f.comparison.ahead_by = 2 + index * 4;
+  return { ...f, lot };
+}
+
+test('small dev-rooted UI lots are reviewable but never approved for deployment', () => {
+  for (const i of [0, 1]) {
+    const f = smallLot(i);
+    const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+    assert.equal(result.evidenceVerified, true);
+    assert.equal(result.splitRequired, false);
+    assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+    assert.equal(result.mergeApproved, false);
+    assert.equal(result.deployApproved, false);
+    assert.equal(printableDecision(result).workflowsPassed, 2);
+  }
+});
+
+test('a failed test or changed SHA blocks only its own pilot evidence', () => {
+  const f = smallLot();
+  f.runs[1].conclusion = 'failure';
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+  f.runs[1].conclusion = 'success';
+  f.pr.head.sha = 'a'.repeat(40);
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+});
+
+test('unexpected large pilot must be split even if its checks are green', () => {
+  const f = smallLot(1);
+  f.comparison.ahead_by = 21;
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, true);
+  assert.equal(result.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
+  assert.equal(result.deployApproved, false);
+});
+
+test('reviewLots cannot be redefined to main or a missing workflow list', () => {
+  for (const mutate of [
+    m => { m.reviewLots[0].baseBranch = 'main'; },
+    m => { m.reviewLots[0].headSha = 'dev'; },
+    m => { m.reviewLots[1].maxCommits = 1000; },
+    m => { m.reviewLots[0].requiredWorkflows = []; },
+    m => { m.reviewLots[1].pullRequest = m.reviewLots[0].pullRequest; },
+  ]) {
+    const m = structuredClone(manifest);
+    mutate(m);
+    assert.throws(() => validateManifest(m), /INVALID_REVIEW_MANIFEST/);
+  }
+});
