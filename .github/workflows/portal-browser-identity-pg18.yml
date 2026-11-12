@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           vendor/bin/phpunit tests/Integration/PortalBrowserAuthenticationPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
-          vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
+          timeout 35s vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --debug --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           php artisan test --no-ansi --filter=PortalBrowserAuthTransportTest
           php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
           test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($r);')" -eq 1
