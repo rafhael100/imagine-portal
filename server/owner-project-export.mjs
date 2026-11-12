@@ -91,6 +91,10 @@ export async function writeExportChunks(res,chunks){
  res.on('close',onDisconnect);
  res.on('error',onResponseError);
  try{
+  // F246: a response can close before the writer starts. A for..of loop
+  // pulls its first SQLite cursor row before entering the loop body, so
+  // reject an already-closed transport before opening that cursor at all.
+  if(disconnected||res.destroyed||res.closed||res.writableEnded||res.writableFinished)return;
   for(const chunk of chunks){
    if(disconnected||res.destroyed||res.writableEnded)return;
    const writable=res.write(chunk);
