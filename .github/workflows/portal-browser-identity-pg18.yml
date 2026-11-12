@@ -6,6 +6,9 @@ on:
       - 'apps/portal/app/Domain/Identity/Browser/**'
       - 'apps/portal/app/Http/**'
       - 'apps/portal/database/security/portal_browser_auth.sql'
+      - 'apps/portal/database/security/portal_browser_envelopes.sql'
+      - 'apps/portal/tests/Integration/PortalBrowserEnvelopePg18Test.php'
+      - 'apps/portal/tests/Support/BrowserEnvelopeRaceWorker.php'
       - 'apps/portal/database/migrations/**'
       - 'apps/portal/tests/Integration/PortalBrowserAuthenticationPg18Test.php'
       - 'apps/portal/tests/Support/BrowserMfaRaceWorker.php'
@@ -48,6 +51,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: ci-browser-admin-only
       PORTAL_BROWSER_RUNTIME_PASSWORD: ci-browser-runtime-only
+      PORTAL_BROWSER_ENVELOPE_PASSWORD: ci-browser-envelope-only
       SESSION_DRIVER: array
       CACHE_STORE: array
       QUEUE_CONNECTION: sync
@@ -78,6 +82,9 @@ jobs:
           php -l app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php
           php -l tests/Integration/PortalBrowserAuthenticationPg18Test.php
           php -l tests/Support/BrowserMfaRaceWorker.php
+          php -l app/Infrastructure/Identity/EncryptedPostgresPortalSessionHandler.php
+          php -l tests/Integration/PortalBrowserEnvelopePg18Test.php
+          php -l tests/Support/BrowserEnvelopeRaceWorker.php
       - name: Build isolated schema and execute-only role
         run: |
           set -euo pipefail
@@ -91,10 +98,13 @@ jobs:
           php artisan migrate --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_auth.sql
           psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_runtime LOGIN PASSWORD 'ci-browser-runtime-only'"
+          psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_envelopes.sql
+          psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_envelope_runtime LOGIN PASSWORD 'ci-browser-envelope-only'"
       - name: Prove persistence, least privilege, atomic MFA and real HTTP transport
         run: |
           set -euo pipefail
           vendor/bin/phpunit tests/Integration/PortalBrowserAuthenticationPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
+          vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           php artisan test --no-ansi --filter=PortalBrowserAuthTransportTest
           php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
           test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($r);')" -eq 1
