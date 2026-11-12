@@ -9,7 +9,16 @@ use SensitiveParameter;
 /** Candidate secret-file reader. Does not connect, register drivers or enable routes. */
 final class PortalBrowserSecretFile
 {
-    private function __construct(#[SensitiveParameter] private readonly array $values) {}
+    // F316: var_export() bypasses __debugInfo() and prints object properties.
+    // Keep secret bytes outside the instance so ordinary object dumps and
+    // exports never reveal them. WeakMap drops values when the object dies.
+    private static ?\WeakMap $privateValues = null;
+
+    private function __construct(#[SensitiveParameter] array $values)
+    {
+        self::$privateValues ??= new \WeakMap();
+        self::$privateValues[$this] = $values;
+    }
 
     public static function load(string $path,string $expectedOrigin):self
     {
@@ -69,8 +78,14 @@ final class PortalBrowserSecretFile
 
     public function value(string $key):string|int
     {
-        if(!array_key_exists($key,$this->values))throw new RuntimeException('Unknown Portal configuration field.');
-        return $this->values[$key];
+        if(self::$privateValues === null || !isset(self::$privateValues[$this])){
+            throw new RuntimeException('Private Portal authentication configuration required.');
+        }
+        $values=self::$privateValues[$this];
+        if(!array_key_exists($key,$values)){
+            throw new RuntimeException('Unknown Portal configuration field.');
+        }
+        return $values[$key];
     }
     public function __debugInfo():array{return ['configuration'=>'[redacted]'];}
     public function __serialize():array{throw new RuntimeException('Portal secret configuration cannot be serialized.');}

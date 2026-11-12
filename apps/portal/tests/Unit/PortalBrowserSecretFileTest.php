@@ -140,6 +140,28 @@ final class PortalBrowserSecretFileTest extends TestCase
         }
     }
 
+    public function test_var_export_print_r_and_json_encoding_never_contain_private_values():void
+    {
+        $v=PortalBrowserSecretFile::load($this->path,'https://portal.example.test');
+        foreach([var_export($v,true),print_r($v,true),json_encode($v,JSON_THROW_ON_ERROR)] as $dump){
+            self::assertIsString($dump);
+            foreach(['identity_password','envelope_password','proof_key','totp_key','scope_pepper'] as $name){
+                self::assertStringNotContainsString($this->values[$name],$dump,
+                    'F316 secret value appeared in an ordinary object dump: '.$name);
+                self::assertStringNotContainsString("'".$name."'",$dump);
+            }
+        }
+        self::assertSame($this->values['identity_password'],$v->value('identity_password'));
+        self::assertSame($this->values['proof_key'],$v->value('proof_key'));
+        $forged=(new \ReflectionClass(PortalBrowserSecretFile::class))->newInstanceWithoutConstructor();
+        try{
+            $forged->value('proof_key');
+            self::fail('A non-loader object accessed the secret registry.');
+        }catch(RuntimeException $error){
+            self::assertSame('Private Portal authentication configuration required.',$error->getMessage());
+        }
+    }
+
     public function test_connection_components_cannot_inject_dsn_options():void
     {
         $this->values['host']='127.0.0.1;user=postgres';$this->write();$this->refused();
