@@ -216,17 +216,22 @@ END;
 $fn$;
 
 DO $roles$
-DECLARE f record;
+DECLARE signature text;
 BEGIN
- FOR f IN SELECT p.oid::regprocedure AS signature,p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
- WHERE n.nspname='public' AND p.proname IN (
- 'portal_browser_proof_ok','portal_browser_claim_attempt','portal_browser_material','portal_browser_begin',
- 'portal_browser_pending','portal_browser_complete','portal_browser_active','portal_browser_revoke')
+ FOREACH signature IN ARRAY ARRAY[
+ 'public.portal_browser_proof_ok(text,text)',
+ 'public.portal_browser_claim_attempt(text,text)',
+ 'public.portal_browser_material(text,uuid)',
+ 'public.portal_browser_begin(text,uuid,text,text,text)',
+ 'public.portal_browser_pending(text)',
+ 'public.portal_browser_complete(text,text,bigint,text,text)',
+ 'public.portal_browser_active(text)',
+ 'public.portal_browser_revoke(text,text)']
  LOOP
- EXECUTE format('ALTER FUNCTION %s OWNER TO portal_browser_owner',f.signature);
- EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature);
- IF f.proname<>'portal_browser_proof_ok' THEN
- EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO portal_browser_runtime',f.signature);
+ EXECUTE format('ALTER FUNCTION %s OWNER TO portal_browser_owner',signature);
+ EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',signature);
+ IF signature<>'public.portal_browser_proof_ok(text,text)' THEN
+ EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO portal_browser_runtime',signature);
  END IF;
  END LOOP;
 END;
