@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-E - isolated offline integration
+name: Portal GSC Slices A-F - isolated offline integration
 
 on:
   pull_request:
@@ -23,6 +23,7 @@ on:
       - 'apps/portal/labs/gsc-slice-c/**'
       - 'apps/portal/labs/gsc-slice-d/**'
       - 'apps/portal/labs/gsc-slice-e/**'
+      - 'apps/portal/labs/gsc-slice-f/**'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
       - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
@@ -65,6 +66,13 @@ jobs:
           ref: fdae08985e89b9bd1323e42d1d64678ddc69e446
           path: .qa/seo-f79
           persist-credentials: false
+      - name: Checkout pinned SEO-F88 original-source handoff
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 56d7fa79904903f9af0c88646a59c0fa07546594
+          path: .qa/seo-f88
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
@@ -85,6 +93,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           test "$(git -C .qa/seo-rc32 rev-parse HEAD)" = f46b65aaef9b10e32d02e415907cd916a43b548e
           test "$(git -C .qa/seo-f79 rev-parse HEAD)" = fdae08985e89b9bd1323e42d1d64678ddc69e446
+          test "$(git -C .qa/seo-f88 rev-parse HEAD)" = 56d7fa79904903f9af0c88646a59c0fa07546594
           test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)"
           git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
           git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > changes.zlist
@@ -105,7 +114,7 @@ jobs:
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -206,6 +215,33 @@ jobs:
           set -euo pipefail
           node --check apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
           node apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
+      - name: GSC Slice F F88 original-source handoff checked across Node and PHP
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_F88_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-slice-f/emit_f88_original_handoff.mjs
+          php -l apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete redacted; do
+            node apps/portal/labs/gsc-slice-f/emit_f88_original_handoff.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php "$fixture" "$scenario"
+          done
+          node --input-type=module - "$fixture" <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path=process.argv[2];
+          const payload=JSON.parse(readFileSync(path,'utf8'));
+          payload.customerDisplayAuthorized=true;
+          writeFileSync(path,JSON.stringify(payload));
+          NODE
+          if php apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php "$fixture" redacted; then
+            echo 'GSC Slice F: forged customer grant was accepted' >&2
+            exit 1
+          fi
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
