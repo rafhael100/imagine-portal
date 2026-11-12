@@ -34,10 +34,10 @@ return new class extends Migration
             $table->char('email_sha256', 64);
             $table->unsignedBigInteger('identity_revision');
             $table->string('status', 16)->default('pending');
-            $table->timestampTz('issued_at');
-            $table->timestampTz('expires_at');
-            $table->timestampTz('consumed_at')->nullable();
-            $table->timestampTz('revoked_at')->nullable();
+            $table->timestampTz('issued_at', 6);
+            $table->timestampTz('expires_at', 6);
+            $table->timestampTz('consumed_at', 6)->nullable();
+            $table->timestampTz('revoked_at', 6)->nullable();
             $table->timestampsTz();
             $table->index(
                 ['identity_id', 'status', 'expires_at'],

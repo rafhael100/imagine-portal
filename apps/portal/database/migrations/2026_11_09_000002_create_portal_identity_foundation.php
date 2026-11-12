@@ -31,9 +31,9 @@ return new class extends Migration
             $table->string('email_normalized', 254)->unique();
             $table->string('password_hash', 255)->nullable();
             $table->string('status', 16)->default('invited');
-            $table->timestampTz('email_verified_at')->nullable();
+            $table->timestampTz('email_verified_at', 6)->nullable();
             $table->text('mfa_secret_ciphertext')->nullable();
-            $table->timestampTz('mfa_confirmed_at')->nullable();
+            $table->timestampTz('mfa_confirmed_at', 6)->nullable();
             $table->unsignedBigInteger('security_revision')->default(1);
             $table->timestampsTz();
         });
@@ -76,10 +76,10 @@ return new class extends Migration
             $table->string('status', 16)->default('pending_mfa');
             $table->unsignedBigInteger('identity_revision');
             $table->unsignedBigInteger('membership_revision');
-            $table->timestampTz('mfa_verified_at')->nullable();
-            $table->timestampTz('issued_at');
-            $table->timestampTz('expires_at');
-            $table->timestampTz('revoked_at')->nullable();
+            $table->timestampTz('mfa_verified_at', 6)->nullable();
+            $table->timestampTz('issued_at', 6);
+            $table->timestampTz('expires_at', 6);
+            $table->timestampTz('revoked_at', 6)->nullable();
             $table->timestampsTz();
             $table->foreign(['identity_id', 'organization_id'], 'portal_auth_session_membership_fk')
                 ->references(['identity_id', 'organization_id'])
