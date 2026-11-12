@@ -332,6 +332,34 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             // A denied login rotates the anonymous session and CSRF token;
             // use its new token for the legitimate organization's login.
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            // F293: a legitimate password creates only a pending MFA session.
+            // Revoking then restoring its membership MUST NOT revive it: the
+            // revision changed while the user had not yet completed MFA.
+            $request('POST','password',$passwordBody,$token)->assertStatus(202);
+            $q=$this->admin->prepare("UPDATE public.portal_memberships
+                SET status='revoked',membership_revision=membership_revision+1
+                WHERE identity_id=? AND organization_id=?");
+            $q->execute([$actor,$org]);
+            self::assertSame(1,$q->rowCount());
+            $q=$this->admin->prepare("UPDATE public.portal_memberships SET status='active'
+                WHERE identity_id=? AND organization_id=?");
+            $q->execute([$actor,$org]);
+            self::assertSame(1,$q->rowCount());
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
+            $hmac=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);
+            $offset=ord($hmac[19])&15;$n=unpack('N',substr($hmac,$offset,4))[1]&0x7fffffff;
+            $otp=str_pad((string)($n%1000000),6,'0',STR_PAD_LEFT);
+            $counterBefore=(int)$this->admin->query('SELECT mfa_last_used_counter
+                FROM public.portal_identities')->fetchColumn();
+            $request('POST','mfa',['code'=>$otp],$token)->assertUnauthorized();
+            self::assertSame($counterBefore,(int)$this->admin->query('SELECT mfa_last_used_counter
+                FROM public.portal_identities')->fetchColumn(),'Denied pending MFA must not consume TOTP.');
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                WHERE status='active'")->fetchColumn());
+            // The new password request revokes the stale pending reference,
+            // starts a fresh one at the current membership revision, and
+            // rotates the anonymous session/cookie.
             $request('POST','password',$passwordBody,$token)->assertStatus(202);
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
             $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
