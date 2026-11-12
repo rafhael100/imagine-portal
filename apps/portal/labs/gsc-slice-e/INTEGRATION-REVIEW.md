@@ -1,43 +1,47 @@
-# Portal Imagine SEO — candidata consolidada A–O (DRAFT/NO-GO)
+# Imagine Portal × SEO — Candidata consolidada A–T (revisão)
 
-**Candidata única de revisão:** [PR #460](https://github.com/rafhael100/imagine-portal/pull/460), base `dev/fast-track-portal-2026-11-05`. Antes desta atualização documental, a comparação total mostrava **99 commits, 63 arquivos e zero atrás**. Sem merge dev/main ou deploy. A antiga PR extensa [#394](https://github.com/rafhael100/imagine-portal/pull/394) **não** compõe a candidata.
+**Candidata única para revisão:** [PR #505](https://github.com/rafhael100/imagine-portal/pull/505), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **125 commits / 82 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
 
-## Entregas verificáveis
-
-| Lote | PR histórica | Entrega |
+| Lote | PR incremental | Entrega |
 | --- | --- | --- |
-| A | [#398](https://github.com/rafhael100/imagine-portal/pull/398) | Contrato offline SEO RC32/F74 → PHP e HTML estático |
-| B | [#399](https://github.com/rafhael100/imagine-portal/pull/399) | Tendências de sobreposição com supressão de métricas |
-| C | [#400](https://github.com/rafhael100/imagine-portal/pull/400) | Planejamento de propriedades/paginação sem rede |
-| D | [#403](https://github.com/rafhael100/imagine-portal/pull/403) | Classificação segura de resposta HTTP, status e Retry-After |
-| E | [#408](https://github.com/rafhael100/imagine-portal/pull/408) | Paridade do modelo privado SEO-F79 com HTML PHP |
-| F | [#416](https://github.com/rafhael100/imagine-portal/pull/416) | Handoff de exportações originais SEO-F88 → PHP com flags negativas |
-| G | [#421](https://github.com/rafhael100/imagine-portal/pull/421) | PKCE S256, state aleatório de 600s, callback HTTPS estrito |
-| H | [#439](https://github.com/rafhael100/imagine-portal/pull/439) | Classificação de callback OAuth sem expor código ou ampliar scope |
-| I | [#446](https://github.com/rafhael100/imagine-portal/pull/446) | State/verifier cifrado AEAD no PostgreSQL e consumo atômico de uso único |
-| J | [#447](https://github.com/rafhael100/imagine-portal/pull/447) | Coordenador que liga callback à consulta e consumo da state |
-| K | [#449](https://github.com/rafhael100/imagine-portal/pull/449) | Purga limitada de estados vencidos/consumidos e proteção da chave |
-| L | [#453](https://github.com/rafhael100/imagine-portal/pull/453) | Requisição fixa de troca OAuth com code+PKCE, sem enviar HTTP |
-| M | [#455](https://github.com/rafhael100/imagine-portal/pull/455) | Parser estrito de resposta/token candidato com scope readonly |
-| N | [#457](https://github.com/rafhael100/imagine-portal/pull/457) | Prova integrada PKCE→PostgreSQL→callback→request→resposta simulada |
-| O | [#460](https://github.com/rafhael100/imagine-portal/pull/460) | Registro PostgreSQL de permissão por empresa, operador e propriedade exata |
+| A | [#398](https://github.com/rafhael100/imagine-portal/pull/398) | Contrato SEO RC32 para PHP/HTML offline |
+| B | [#399](https://github.com/rafhael100/imagine-portal/pull/399) | Tendências com supressão de métricas |
+| C | [#400](https://github.com/rafhael100/imagine-portal/pull/400) | Propriedades e paginação sintética |
+| D | [#403](https://github.com/rafhael100/imagine-portal/pull/403) | Erros/retry do provedor, sem HTTP |
+| E | [#408](https://github.com/rafhael100/imagine-portal/pull/408) | Paridade de privacidade SEO-F79 |
+| F | [#416](https://github.com/rafhael100/imagine-portal/pull/416) | Handoff original SEO-F88 → PHP |
+| G | [#421](https://github.com/rafhael100/imagine-portal/pull/421) | PKCE S256, callback HTTPS e state |
+| H | [#439](https://github.com/rafhael100/imagine-portal/pull/439) | Classificação de callback e erros OAuth |
+| I | [#446](https://github.com/rafhael100/imagine-portal/pull/446) | State/verificador XChaCha20/PG de uso único |
+| J | [#447](https://github.com/rafhael100/imagine-portal/pull/447) | Coordenador callback e consumo atômico |
+| K | [#449](https://github.com/rafhael100/imagine-portal/pull/449) | Retenção de states e chave protegida |
+| L | [#453](https://github.com/rafhael100/imagine-portal/pull/453) | Requisição de token com PKCE, sem HTTP |
+| M | [#455](https://github.com/rafhael100/imagine-portal/pull/455) | Parser estrito de token e scope readonly |
+| N | [#457](https://github.com/rafhael100/imagine-portal/pull/457) | Teste integrado do fluxo OAuth sintético |
+| O | [#460](https://github.com/rafhael100/imagine-portal/pull/460) | Grant por empresa/ator/propriedade exata |
+| P | [#495](https://github.com/rafhael100/imagine-portal/pull/495) | Revogação exata ou limitada de grants |
+| Q | [#497](https://github.com/rafhael100/imagine-portal/pull/497) | Auditoria de eventos sem payloads pessoais |
+| R | [#500](https://github.com/rafhael100/imagine-portal/pull/500) | Revogação + auditoria em mesma transação |
+| S | [#503](https://github.com/rafhael100/imagine-portal/pull/503) | Vault AEAD de *candidatos* a token por tenant |
+| T | [#505](https://github.com/rafhael100/imagine-portal/pull/505) | Remoção controlada de candidatos vencidos/revogados |
 
-**NÃO mesclar A–N separadamente ou em paralelo com #460**, para evitar merges duplicados. As PRs pequenas são trilha de revisão de cada incremento, e #460 é o diff único para futura análise.
+**Não mesclar as PRs A–S separadamente ou em paralelo com #505.** Elas preservam a trilha de commits e testes de cada entrega; #505 contém o diff único para eventual revisão de integração.
 
-## Evidência automatizada e limites
+## Limites de código e testes
 
-- GitHub Actions com PHP **8.3/8.4** × Node **22/24**; versão SEO RC32 `f46b65aaef9b10e32d02e415907cd916a43b548e`, F79 `fdae08985e89b9bd1323e42d1d64678ddc69e446` e F88 `56d7fa79904903f9af0c88646a59c0fa07546594`, fixados por SHA.
-- Job **PostgreSQL 16 descartável** para migrações de revisão (up/down), AEAD XChaCha20-Poly1305, consumo atômico, anti-replay, retenção, código PKCE, parser de token e fingerprint de grants por tenant/ator.
-- A allowlist de diff do CI aceita somente os contratos GSC, laboratórios, dois arquivos de migration explicitamente nomeados, HTML estático e workflow. O limite total de caminhos é 70, sem rotas, controllers, arquivos de credenciais, serviços de produção ou deploy.
-- Os dados, domínios, CPF, códigos e tokens utilizados em laboratórios são **sintéticos**. O token exchange foi somente **planejado**: nenhuma requisição HTTPS ao Google foi realizada. Resultados não indicam acesso a clientes ou propriedade Google verificada.
-- **Duas migrations foram adicionadas mas não aplicadas fora do PostgreSQL descartável de CI:** `2026_11_12_000001_create_portal_gsc_oauth_states.php` e `2026_11_12_000002_create_portal_gsc_property_grants.php`. Requerem revisão DBA antes de adoção em staging/produção.
+A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, quatro migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 95 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
 
-## Bloqueios reais antes de operação
+- Node 22/24 × PHP 8.3/8.4; hashes SEO RC32 `f46b65aaef9b10e32d02e415907cd916a43b548e`, F79 `fdae08985e89b9bd1323e42d1d64678ddc69e446` e F88 `56d7fa79904903f9af0c88646a59c0fa07546594` fixados na CI.
+- PostgreSQL 16 **descartável** testa migrations para state, grants, auditoria e candidatos de token; PKCE/state com expiração e consumo único, AEAD, grant isolado/revogado, auditoria atômica, segredo criptografado e expurgo.
+- Migrations adicionadas **somente para revisão:** `2026_11_12_000001_create_portal_gsc_oauth_states.php`, `000002_create_portal_gsc_property_grants.php`, `000003_create_portal_gsc_security_events.php` e `000004_create_portal_gsc_oauth_token_candidates.php`. Não aplicadas em bancos de cliente, staging ou produção.
+- O código de vault só armazena candidatos **sintéticos** nos testes. Nenhuma conta Google, token real, cliente, acesso de produção, chamada HTTP, redirect DNS/301 ou cobrança foi ativado.
 
-1. Autenticação de usuários Portal, MFA/RBAC e membership multiempresa **confiáveis**, sem aceitar empresa/ator declarados pelo cliente como prova.
-2. Configuração Google Cloud válida (client ID/secret e callback **registrado exatamente**), consentimento e prova de acesso à propriedade GSC. Um registro SQL de grant ou fingerprint não prova propriedade atual.
-3. Cliente HTTPS auditado com origem fixa, TLS, limite de tempo, política de erro/quotas e anti-SSRF, seguido de verificação de escopo e proveniência do token.
-4. Vault de client secrets e refresh tokens com rotação, revogação, controle de chaves e logs sem segredos; política LGPD de retenção/expurgo e isolamento de tabelas por papéis.
-5. Testes de ponta a ponta em **staging autenticado**, revisão independente AppSec/DBA/LGPD/SEO, ensaio de rollback e autorização específica de release.
+## Bloqueios externos reais
 
-Todo código novo permanece **DRAFT/NO-GO**. CI verde comprova apenas os contratos e integrações sintéticos descritos acima. Não houve merge em `dev/main`, publicação, DNS/301, chamada real ao Google, cobrança ou alteração de produção.
+1. Backend autenticado do Portal, **MFA/RBAC**, membership e isolamento de empresa/operador, com evidência servidor; aceitar strings do cliente não comprova identidade.
+2. OAuth registrado no Google Cloud com callback exato; cliente HTTPS de origem fixa, TLS, sem redirecionamentos e com quotas, logs seguros e tratamento de erros.
+3. **Comprovação atual de acesso Google** à propriedade exata; um fingerprint ou registro PostgreSQL não é permissão real.
+4. Cofre real de chaves com versionamento/rotação, política de retenção LGPD e revogação remota de refresh token.
+5. Revisão independente AppSec/DBA/LGPD/SEO, testes de staging autenticado, migrações/rollback ensaiados e autorização de liberação.
+
+**DRAFT/NO-GO.** CI verde atesta testes de componentes e comportamento sintético, não uma integração Google operacional. Nenhum merge em dev/main ou deploy autorizado.
