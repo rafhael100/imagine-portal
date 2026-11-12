@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Domain\Organizations\OrganizationId;
 use App\Domain\RestoreSafety\LabExternalWitnessFloor;
+use App\Domain\RestoreSafety\LabExternalWitnessReader;
 use App\Domain\RestoreSafety\LabQuarantineEvidence;
 use App\Domain\RestoreSafety\LabRestoreFenceVerdict;
 use App\Domain\RestoreSafety\LabRestoreServingGate;
@@ -177,6 +178,82 @@ final class LabRestoreServingGateTest extends TestCase
                 self::addToAssertionCount(1);
             }
         }
+    }
+
+    public function test_reader_disappears_mid_recovery_without_falling_back_to_old_floor(): void
+    {
+        $reader = new class($this->witness()) implements LabExternalWitnessReader {
+            private int $reads = 0;
+            public function __construct(private LabExternalWitnessFloor $floor) {}
+            public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
+            {
+                return ++$this->reads === 1 ? $this->floor : null;
+            }
+        };
+        $result = (new LabRestoreServingGate())->inspectFromReader(
+            $this->snapshot(), $reader, $this->evidence()
+        );
+        self::assertSame('external_witness_unavailable', $result->reason);
+        self::assertFalse($result->syntheticChecksPassed);
+        self::assertFalse($result->canReleaseProductionServing());
+    }
+
+    public function test_reader_exceptions_and_no_provider_fail_closed_without_leaking_details(): void
+    {
+        $reader = new class implements LabExternalWitnessReader {
+            public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
+            {
+                throw new \RuntimeException('secret org-b / witness credentials');
+            }
+        };
+        $gate = new LabRestoreServingGate();
+        $out = $gate->inspectFromReader($this->snapshot(), $reader, $this->evidence());
+        self::assertSame('external_witness_unavailable', $out->reason);
+        self::assertStringNotContainsString('org-b', $out->reason);
+        self::assertFalse($out->canAuthorizeHttp());
+        self::assertSame('missing_restore_evidence',
+            $gate->inspectFromReader($this->snapshot(), null, $this->evidence())->reason);
+    }
+
+    public function test_revocation_between_witness_reads_is_not_silently_accepted(): void
+    {
+        $reader = new class($this->witness(), $this->witness(sequence: 6)) implements LabExternalWitnessReader {
+            private int $count = 0;
+            public function __construct(
+                private LabExternalWitnessFloor $first,
+                private LabExternalWitnessFloor $second,
+            ) {}
+            public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
+            {
+                return ++$this->count === 1 ? $this->first : $this->second;
+            }
+        };
+        $result = (new LabRestoreServingGate())->inspectFromReader(
+            $this->snapshot(), $reader, $this->evidence()
+        );
+        self::assertSame('witness_changed_during_rehearsal', $result->reason);
+        self::assertFalse($result->syntheticChecksPassed);
+    }
+
+    public function test_two_stable_reads_still_produce_only_a_synthetic_candidate(): void
+    {
+        $reader = new class($this->witness()) implements LabExternalWitnessReader {
+            public int $reads = 0;
+            public function __construct(private LabExternalWitnessFloor $floor) {}
+            public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
+            {
+                $this->reads++;
+                return $this->floor;
+            }
+        };
+        $result = (new LabRestoreServingGate())->inspectFromReader(
+            $this->snapshot(), $reader, $this->evidence()
+        );
+        self::assertSame(2, $reader->reads);
+        self::assertTrue($result->syntheticChecksPassed);
+        self::assertFalse($result->canReleaseProductionServing());
+        self::assertFalse($result->canAuthorizeHttp());
+        self::assertFalse($result->canReissueCustomerSessions());
     }
 
     public function test_forged_quarantine_flags_are_never_customer_authority(): void
