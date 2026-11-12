@@ -29,21 +29,21 @@
   },
   "reviewLots": [
     {
-      "pullRequest": 580,
-      "headBranch": "review/portal-ui-browser-headers-dev-pilot-2026-11-12",
+      "pullRequest": 588,
+      "headBranch": "review/portal-ui-overview-cumulative-dev-2026-11-12",
       "baseBranch": "dev/fast-track-portal-2026-11-05",
-      "headSha": "41dd7a338c00c5eca8e057caa4c74982334ee337",
-      "maxCommits": 20,
+      "headSha": "735606ed00dcb669daf0ee8e72552c632ee05402",
+      "maxCommits": 50,
       "requiredWorkflows": [
         "Testes do portal",
         "Validacao isolada Laravel F1-01-A"
       ]
     },
     {
-      "pullRequest": 581,
-      "headBranch": "review/portal-ui-contracts-dev-pilot-2026-11-12",
-      "baseBranch": "dev/fast-track-portal-2026-11-05",
-      "headSha": "c33f4cdfd262d783cb6d2ccc1ba3df652aa5be5e",
+      "pullRequest": 592,
+      "headBranch": "review/portal-ui-sites-editorial-on-overview-2026-11-12",
+      "baseBranch": "review/portal-ui-overview-cumulative-dev-2026-11-12",
+      "headSha": "559521d3dc384e686b186bffe706cf49f1fa3328",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
