@@ -224,6 +224,38 @@ AND relations.relrowsecurity
 AND relations.relforcerowsecurity
 SQL)->fetchColumn();
     if($rlsProtectedTables!==9)throw new RuntimeException();
+
+    // F335: grant checks and RLS can pass even after the implementation
+    // of a SECURITY DEFINER function is re-owned by an administrator or
+    // its pinned search_path / row_security contract is removed.
+    $unsafeDefinerFunctions=(int)$db->query(<<<'SQL'
+SELECT count(*) FROM (VALUES
+ ('public.portal_browser_proof_ok(text,text)','portal_browser_owner'),
+ ('public.portal_browser_claim_attempt(text,text)','portal_browser_owner'),
+ ('public.portal_browser_material(text,uuid)','portal_browser_owner'),
+ ('public.portal_browser_begin(text,uuid,text,text,text)','portal_browser_owner'),
+ ('public.portal_browser_pending(text)','portal_browser_owner'),
+ ('public.portal_browser_complete(text,text,bigint,text,text)','portal_browser_owner'),
+ ('public.portal_browser_active(text)','portal_browser_owner'),
+ ('public.portal_browser_permission_preflight(text,uuid,text)','portal_browser_owner'),
+ ('public.portal_browser_revoke(text,text)','portal_browser_owner'),
+ ('public.portal_browser_envelope_read(text)','portal_browser_envelope_owner'),
+ ('public.portal_browser_envelope_write(text,text)','portal_browser_envelope_owner'),
+ ('public.portal_browser_envelope_destroy(text)','portal_browser_envelope_owner'),
+ ('public.portal_browser_envelope_gc()','portal_browser_envelope_owner')
+) AS expected(signature,owner_name)
+LEFT JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)
+WHERE p.oid IS NULL
+   OR NOT p.prosecdef
+   OR pg_get_userbyid(p.proowner)<>expected.owner_name
+   OR NOT ('row_security=on'=ANY(p.proconfig))
+   OR NOT EXISTS (
+       SELECT 1 FROM unnest(p.proconfig) AS settings(setting)
+       WHERE regexp_replace(settings.setting,'[[:space:]]','','g')
+             ='search_path=pg_catalog,pg_temp'
+   )
+SQL)->fetchColumn();
+    if($unsafeDefinerFunctions!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
