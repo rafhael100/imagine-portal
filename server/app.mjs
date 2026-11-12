@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
-import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks,safeCsvCell} from './account-export.mjs';
-import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
+import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -9,6 +9,7 @@ import {createFiscal} from './fiscal.mjs';
 import {createFocus} from './focus.mjs';
 import {createMailer} from './mail.mjs';
 import {buildTasksBI,tasksBICsv} from './tasks-bi.mjs';
+import {financeCsvChunks} from './admin-finance-export.mjs';
 import {buildOverview} from './overview.mjs';
 import {createOrderOps} from './order-ops.mjs';
 import {clientDirectory} from './clients.mjs';
@@ -278,7 +279,12 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/admin/dashboard'&&method==='GET'&&user.staff_profile)return send(res,200,{metrics:user.staff_profile==='financeiro'?metrics():{received:0,confirmed:0,pending:0,overdue:0,eventsPending:0},clients:user.staff_profile==='atendimento'?list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) LIMIT 500"):[],events:[],audit:[]});
  if(path==='/api/admin/dashboard'&&method==='GET')return send(res,200,{metrics:metrics(),clients:list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) ORDER BY created_at DESC LIMIT 500"),events:list('SELECT * FROM events WHERE done=0 ORDER BY created_at DESC LIMIT 30'),audit:list('SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 40')});
  if(path==='/api/admin/products'&&method==='POST'){const data=await jsonBody(req),p=q('SELECT * FROM products WHERE id=?',cleanText(data.id,30));assert(p,400,'Solução inválida.');const scope=cleanText(data.scope,10000),delivery=cleanText(data.delivery,500),price=data.price_cents===null?null:Number(data.price_cents);assert(price===null||Number.isSafeInteger(price)&&price>0&&price<=100000000,400,'Valor inválido.');assert(p.id!=='site'||price===99000,400,'O Site Onepage deve manter o preço aprovado de R$ 990,00.');assert(!data.enabled||scope.length>=20&&delivery&&price,400,'Para vender, preencha escopo, prazo e valor.');run('UPDATE products SET price_cents=?,scope=?,delivery=?,enabled=?,version=version+1 WHERE id=?',price,scope,delivery,data.enabled?1:0,p.id);audit(db,user.id,'product.updated',p.id);return send(res,200,{ok:true})}
- if(path==='/api/admin/finance.csv'&&method==='GET'){const rows=list('SELECT p.*,o.title,u.name,u.email FROM payments p JOIN orders o ON o.id=p.order_id JOIN users u ON u.id=o.user_id ORDER BY p.due_date DESC');const csvCell=safeCsvCell;res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});return res.end('\uFEFF'+[['Pedido','Cliente','Email','Serviço','Tipo','Status','Valor bruto BRL','Valor líquido BRL','Vencimento','Pagamento'],...rows.map(p=>[p.order_id,p.name,p.email,p.title,p.kind,p.status,(p.value_cents/100).toFixed(2),p.net_cents===null?'':(p.net_cents/100).toFixed(2),p.due_date,p.paid_at])].map(row=>row.map(csvCell).join(';')).join('\r\n'))}
+ if(path==='/api/admin/finance.csv'&&method==='GET'){
+  // F250: send headers once, then stream the authorized SQLite cursor instead
+  // of collecting all payments in memory; writer handles backpressure/close.
+  res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});
+  return await writeExportChunks(res,financeCsvChunks(db));
+ }
  throw problem(404,'Recurso não encontrado.');}
  assert(method==='GET'||method==='HEAD',405,'Método não permitido.');const allowed=path==='/'?'index.html':path==='/portal'||path==='/admin'?'portal.html':path.slice(1);assert(['index.html','checkout.html','contrato.html','checkout-validation.js','portal.html','portal.css','portal.js','client-orders-ui.js','client-finance-ui.js','client-care-ui.js','subscription-ui.js','account-ui.js','fiscal-ui.js','tasks-bi-ui.js','briefing-ui.js','production-ui.js','assets/logo-imagine.png'].includes(allowed),404,'Página não encontrada.');const body=await readFile(join(root,allowed));res.setHeader('Content-Security-Policy',['index.html','checkout.html','contrato.html'].includes(allowed)?"default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'":"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'})[extname(allowed)]});res.end(method==='HEAD'?undefined:body);
  }catch(error){if(!res.headersSent)send(res,error.status||500,{error:error.status?error.message:'Não foi possível concluir. Tente novamente ou fale com a equipe.'});else res.end();}});
