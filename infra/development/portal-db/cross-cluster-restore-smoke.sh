@@ -62,10 +62,28 @@ source_pg pg_restore --list < "$temporary/source.dump" > "$temporary/archive.lis
 [[ $(source_sql "$empty_query") == 0 && $(source_sql "$marker_query") == "$source_marker" ]] || exit 65
 [[ $(source_sql "$proof_digest_query") == "$source_proof_digest" ]] || exit 65
 
+# Separate clusters must not share an administrative credential, even in CI.
+# The source admin secret is never copied into the recovered container.
+target_admin="$temporary/recovery-admin"
+openssl rand -hex 48 > "$target_admin"
+[[ -s "$target_admin" ]] || exit 1
+[[ ! -e "$PWD/.private/recovery-admin" ]] || exit 65
+if cmp -s -- "$PWD/.private/database-admin" "$target_admin"; then
+    printf 'Independent restore administrator password required.\\n' >&2
+    exit 1
+fi
+# Official postgres:18-alpine starts as root and drops to its own postgres UID.
+# Resolve that UID from the exact image instead of guessing from the source.
+postgres_uid=$(docker run --rm --network none --entrypoint id postgres:18-alpine -u postgres)
+[[ "$postgres_uid" =~ ^[0-9]{1,5}$ ]] || exit 1
+chown "$postgres_uid:$postgres_uid" "$target_admin"
+chmod 0400 "$target_admin"
+[[ $(stat -c '%a' "$target_admin") == 400 ]] || exit 1
+
 # New Docker container, independent cluster/volume, no network/host ports.
-# Use the *synthetic CI-only* secret file as an initdb password, never a literal CLI password.
+# Only the different, disposable target secret is mounted into it.
 container_id=$(docker run --detach --network none --memory 1g --cpus 1 \
-    --mount "type=bind,source=$PWD/.private/database-admin,target=/run/secrets/database-admin,readonly" \
+    --mount "type=bind,source=$target_admin,target=/run/secrets/database-admin,readonly" \
     --env POSTGRES_DB="$target" --env POSTGRES_USER=postgres \
     --env POSTGRES_PASSWORD_FILE=/run/secrets/database-admin \
     --env POSTGRES_INITDB_ARGS='--auth-host=scram-sha-256' \
