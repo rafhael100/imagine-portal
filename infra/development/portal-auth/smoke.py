@@ -2,6 +2,8 @@
 """Local private-gateway smoke. Never print token, cookies or response payload."""
 import http.client
 import json
+import os
+import sys
 
 HOST = "portal-dev.imaginecomunica.com.br"
 
@@ -44,10 +46,27 @@ def main():
     assert request("GET", "/login")[0] == 404
     assert request("GET", "/.env")[0] == 404
     assert request("GET", "/_development/auth/password")[0] == 403
+    if len(sys.argv) == 3 and sys.argv[1] == "--save":
+        descriptor = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w") as handle:
+            json.dump({"token": token, "cookie": cookie}, handle)
     print("PASS private gateway: health, CSRF, host-only secure cookie, unauthenticated/invalid/external-origin refusals and route allowlist")
 
 if __name__ == "__main__":
     try:
-        main()
+        if len(sys.argv) == 3 and sys.argv[1] == "--resume":
+            with open(sys.argv[2]) as handle:
+                previous = json.load(handle)
+            try:
+                credentials = {"email": "absent@example.invalid", "password": "synthetic-invalid-only",
+                               "organization": "22222222-2222-4222-8222-222222222222"}
+                assert request("POST", "/_development/auth/password", credentials, previous["token"],
+                               "https://" + HOST, previous["cookie"])[0] == 401
+                print("PASS encrypted cookie/session and CSRF retained across application restart")
+            finally:
+                os.unlink(sys.argv[2])
+        else:
+            assert len(sys.argv) == 1 or (len(sys.argv) == 3 and sys.argv[1] == "--save")
+            main()
     except Exception:
         raise SystemExit("Private Portal gateway smoke failed; sensitive response details suppressed.")

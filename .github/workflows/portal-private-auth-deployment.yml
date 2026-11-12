@@ -41,6 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           sudo -E python3 preflight.py
+          if sudo -E env PORTAL_DB_NETWORK=bridge python3 preflight.py; then exit 1; fi
+          sudo chmod 0644 "$PORTAL_DEV_PRIVATE_DIR/runtime.json"
+          if sudo -E python3 preflight.py; then exit 1; fi
+          sudo chmod 0600 "$PORTAL_DEV_PRIVATE_DIR/runtime.json"
+          sudo -E python3 preflight.py
           sudo -E docker compose -p imagine-portal-private-auth-ci config --format json > /tmp/private-auth-compose.json
           python3 - <<'PY'
           import json
@@ -67,15 +72,17 @@ jobs:
             sleep 2
           done
           test "$ready" = 1
-          python3 smoke.py
+          python3 smoke.py --save /tmp/portal-auth-probe.json
           sudo -E docker compose -p imagine-portal-private-auth-ci exec -T --interactive=false application php -r 'if(file_exists("/run/secrets/database-admin")||file_exists(".env")||is_dir("app/Labs")){exit(1);} echo "PASS runtime excludes administrator credentials and labs\\n";'
           sudo -E docker compose -p imagine-portal-private-auth-ci restart application
           ready=0
           for attempt in $(seq 1 25); do
-            if python3 smoke.py; then ready=1; break; fi
+            if curl --silent --fail -H 'Host: portal-dev.imaginecomunica.com.br' http://127.0.0.1:18082/up >/dev/null; then ready=1; break; fi
             sleep 2
           done
           test "$ready" = 1
+          python3 smoke.py --resume /tmp/portal-auth-probe.json
+          python3 smoke.py
           test "$(sudo docker compose -p imagine-portal-auth-db-ci -f ../portal-db/compose.yaml port postgres 5432 2>/dev/null || true)" = ""
       - name: Remove only this runner's disposable rehearsal
         if: always()
