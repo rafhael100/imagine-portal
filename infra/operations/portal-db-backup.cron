@@ -1,0 +1,4 @@
+# VPS timezone UTC: 03:35 UTC = 00:35 America/Sao_Paulo.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+35 3 * * * root /usr/local/sbin/imagine-portal-db-backup </dev/null >/dev/null 2>&1
