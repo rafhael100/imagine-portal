@@ -87,3 +87,27 @@ test('F249: exact MIME accepts capitalization and charset parameters',async()=>{
   assert.equal(h.state.revoked.length,1,mime);
  }
 });
+
+
+test('F252: concurrent CSV/JSON clicks issue only one request until download settles',async()=>{
+ let release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const h=harness(gate);
+ const first=h.download('csv');
+ await assert.rejects(h.download('json'),/Aguarde a conclusão/);
+ assert.equal(h.state.requests.length,1,'second click must not create a network request');
+ release({ok:true,headers:{get:()=> 'text/csv; charset=utf-8'},blob:async()=>new Blob(['CSV'])});
+ await first;
+ assert.equal(h.state.clicks,1);
+ await h.download('csv');
+ assert.equal(h.state.requests.length,2,'a finished download allows a new request');
+ assert.equal(h.state.clicks,2);
+});
+
+test('F252: failed downloads release single-flight guard for retry',async()=>{
+ const h=harness({ok:false,status:429,json:async()=>({error:'Muitas exportações, tente depois.'})});
+ await assert.rejects(h.download('json'),/Muitas exportações/);
+ await assert.rejects(h.download('json'),/Muitas exportações/);
+ assert.equal(h.state.requests.length,2);
+ assert.equal(h.state.clicks,0);
+});
