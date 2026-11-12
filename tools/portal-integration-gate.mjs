@@ -146,10 +146,12 @@ export async function fetchEvidence(m, token) {
   const comparison = await githubGet(root + '/compare/' +
     encodeURIComponent(m.targetBranch) + '...' +
     m.candidate.headSha, token);
-  if (pr.paginated || runs.paginated || comparison.paginated ||
+  if (pr.paginated || runs.paginated ||
       !Array.isArray(runs.data?.workflow_runs) ||
       runs.data.total_count > runs.data.workflow_runs.length) {
-    // Do not silently accept the first 100 runs or a truncated response.
+    // Never silently accept the first 100 workflow runs. GitHub's
+    // comparison commit/file listing MAY be paginated; its aggregate
+    // ahead_by and behind_by values are the only fields consumed.
     throw new Error('INCOMPLETE_GITHUB_EVIDENCE');
   }
   return { pull: pr.data, runs: runs.data.workflow_runs, comparison: comparison.data };
