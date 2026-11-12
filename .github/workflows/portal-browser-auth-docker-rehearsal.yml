@@ -2,6 +2,11 @@ name: Portal browser auth - private Docker rehearsal
 on:
   pull_request:
     paths:
+      - 'apps/portal/app/Providers/PortalDevelopmentAuthServiceProvider.php'
+      - 'apps/portal/bootstrap/providers.php'
+      - 'apps/portal/config/portal_development_auth.php'
+      - 'apps/portal/config/session.php'
+      - 'apps/portal/tests/Feature/PortalDevelopmentAuthActivationTest.php'
       - 'apps/portal/infra/browser-auth-lab/**'
       - 'apps/portal/app/Infrastructure/Identity/**'
       - 'apps/portal/app/Http/**'

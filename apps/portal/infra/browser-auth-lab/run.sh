@@ -33,6 +33,7 @@ vendor/bin/phpunit tests/Integration/PortalBrowserAuthenticationPg18Test.php --n
 timeout 45s vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --no-progress --cache-directory=/tmp/phpunit-envelope --fail-on-risky --fail-on-warning --fail-on-skipped
 vendor/bin/phpunit tests/Feature/PortalBrowserAuthTransportTest.php --no-progress --cache-directory=/tmp/phpunit-http --fail-on-risky --fail-on-warning --fail-on-skipped
 vendor/bin/phpunit tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php --no-progress --cache-directory=/tmp/phpunit-bindings --fail-on-risky --fail-on-warning --fail-on-skipped
+vendor/bin/phpunit tests/Feature/PortalDevelopmentAuthActivationTest.php --no-progress --cache-directory=/tmp/phpunit-activation --fail-on-risky --fail-on-warning --fail-on-skipped
 php artisan route:list --json | php -r '
 $routes=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR);
 if(count($routes)!==1||$routes[0]["uri"]!=="up"){exit(1);}
