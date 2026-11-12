@@ -388,6 +388,47 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
     }
 
+
+    public function test_same_identity_in_two_tenants_cannot_use_one_tenant_session_for_other_tenant_grants():void
+    {
+        $otherOrg='44444444-4444-4444-8444-444444444444';
+        $otherMember='77777777-7777-4777-8777-777777777777';
+        $org=$this->admin->prepare("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision)
+            VALUES(?,'same-actor-second-tenant','Second synthetic organization','active',1)");
+        $org->execute([$otherOrg]);
+        $member=$this->admin->prepare("INSERT INTO public.portal_memberships
+            (id,identity_id,organization_id,role,status,membership_revision)
+            VALUES(?,?,?,'owner','active',1)");
+        $member->execute([$otherMember,self::ACTOR,$otherOrg]);
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['88888888-8888-4888-8888-888888888888',self::MEMBER,'services.view']);
+        $grant->execute(['99999999-9999-4999-8999-999999999999',$otherMember,'services.view']);
+
+        $activeA=$this->active();
+        $check=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'),
+            'A real grant in B must not make a browser session for A usable in B.');
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.manage'));
+
+        // Revoking a grant only in B advances B's membership revision;
+        // it must not revoke A's otherwise valid MFA session.
+        $q=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE membership_id=?');
+        $q->execute([$otherMember]);
+        self::assertSame(1,$q->rowCount());
+        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'));
+
+        // The session is finally invalidated by revoking its own grant.
+        $q->execute([self::MEMBER]);
+        self::assertSame(1,$q->rowCount());
+        self::assertFalse($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($activeA));
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
