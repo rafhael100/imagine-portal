@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  manifestUrl, validateManifest, assessCandidate, printableDecision,
+  manifestUrl, validateManifest, assessCandidate, printableDecision, comparisonBase,
 } from './portal-integration-gate.mjs';
 
 const manifest = validateManifest(JSON.parse(readFileSync(manifestUrl, 'utf8')));
@@ -238,4 +238,11 @@ test('second lot is limited by the incremental 20-commit comparison not cumulati
   assert.equal(result.commitsAheadOfBase, 21);
   assert.equal(result.comparisonBase, f.lot.baseBranch);
   assert.equal(result.antiRollbackApproved, false);
+});
+
+test('stacked candidate always compares to dev, while second lot uses parent', () => {
+  assert.equal(comparisonBase(manifest), manifest.targetBranch);
+  assert.notEqual(comparisonBase(manifest), manifest.candidate.baseBranch);
+  assert.equal(comparisonBase(manifest, manifest.reviewLots[0]), manifest.targetBranch);
+  assert.equal(comparisonBase(manifest, manifest.reviewLots[1]), manifest.reviewLots[0].headBranch);
 });
