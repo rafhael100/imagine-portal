@@ -39,12 +39,18 @@ trap cleanup EXIT
 # Refuse populated sources, preexisting targets and ambiguous cluster state.
 [[ $(sql portal_identity_dev 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 65
 [[ $(sql portal_identity_dev "SELECT count(*) FROM pg_database WHERE datname='$target'") == 0 ]] || exit 65
+marker_query='SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1'
+source_marker=$(sql portal_identity_dev "$marker_query")
+[[ ${#source_marker} == 64 && "$source_marker" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
 
 pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev \
     > "$temporary/database.dump"
 [[ -s "$temporary/database.dump" ]] || exit 1
 pg pg_restore --list < "$temporary/database.dump" > "$temporary/archive.list"
 [[ -s "$temporary/archive.list" ]] || exit 1
+# A concurrent source change invalidates the archive, before a target is created.
+[[ $(sql portal_identity_dev "$marker_query") == "$source_marker" ]] || exit 1
+[[ $(sql portal_identity_dev 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
 
 # A fresh database is created explicitly. No --clean and no writes to source.
 pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
@@ -52,8 +58,6 @@ created=1
 pg pg_restore -h 127.0.0.1 -U postgres --dbname="$target" \
     --exit-on-error < "$temporary/database.dump"
 
-marker_query='SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1'
-source_marker=$(sql portal_identity_dev "$marker_query")
 restored_marker=$(sql "$target" "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" == "$restored_marker" ]] || exit 1
 [[ $(sql "$target" 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
