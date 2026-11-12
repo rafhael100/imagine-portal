@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-T - encrypted OAuth candidate retention
+name: Portal GSC Slices A-U - versioned AEAD key rotation and OAuth candidate controls
 
 on:
   pull_request:
@@ -38,6 +38,7 @@ on:
       - 'apps/portal/labs/gsc-slice-r/**'
       - 'apps/portal/labs/gsc-slice-s/**'
       - 'apps/portal/labs/gsc-slice-t/**'
+      - 'apps/portal/labs/gsc-slice-u/**'
       - 'apps/portal/database/migrations/2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php'
       - 'apps/portal/database/migrations/2026_11_12_000003_create_portal_gsc_security_events.php'
       - 'apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php'
@@ -149,7 +150,7 @@ jobs:
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n","gsc-slice-o","gsc-slice-p","gsc-slice-q","gsc-slice-r","gsc-slice-s","gsc-slice-t"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n","gsc-slice-o","gsc-slice-p","gsc-slice-q","gsc-slice-r","gsc-slice-s","gsc-slice-t","gsc-slice-u"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -158,7 +159,7 @@ jobs:
                 labs.has(pieces[3])&&pieces[4].length>0;
             };
             const consolidated=process.env.BASE_REF==="dev/fast-track-portal-2026-11-05";
-            const maxPaths=consolidated?95:12;
+            const maxPaths=consolidated?100:12;
             const minPaths=consolidated?20:1;
             if(files.length<minPaths||files.length>maxPaths||files.some(p=>!allow(p))){
               console.error("GSC review slice: unexpected modified paths");process.exit(1);
@@ -547,3 +548,16 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleTokenCandidateRetention.php
           php -l apps/portal/labs/gsc-slice-t/verify_token_retention.php
           php apps/portal/labs/gsc-slice-t/verify_token_retention.php
+      - name: Dual-key versioned AEAD rotation of synthetic OAuth candidates
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_KEY_ROTATION_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleEncryptedTokenVault.php
+          php -l apps/portal/labs/gsc-slice-u/verify_token_key_rotation.php
+          php apps/portal/labs/gsc-slice-u/verify_token_key_rotation.php
