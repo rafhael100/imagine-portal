@@ -118,6 +118,8 @@ final class GoogleSearchConsoleOAuthCallbackOutcome
     /** SERVER ONLY. Never include this object or its secrets in JSON/logs. */
     public function takeForTrustedBackend(): ?array
     {
+        if(!GoogleSearchConsoleOAuthCallbackCoordinator::issuedByConsumedState($this))
+            return null;
         return $this->code===null || $this->verifier===null ? null : [
             'code'=>$this->code->getValue(),
             'codeVerifier'=>$this->verifier->getValue()
