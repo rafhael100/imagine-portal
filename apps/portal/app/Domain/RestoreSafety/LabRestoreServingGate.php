@@ -15,6 +15,32 @@ use Throwable;
  */
 final readonly class LabRestoreServingGate
 {
+    public function inspectFromReader(
+        ?LabRestoreSnapshot $restored,
+        ?LabExternalWitnessReader $reader,
+        ?LabQuarantineEvidence $evidence,
+    ): LabRestoreFenceVerdict {
+        if ($restored === null || $reader === null || $evidence === null) {
+            return LabRestoreFenceVerdict::blocked('missing_restore_evidence');
+        }
+        try {
+            // Independent observations are mandatory. No cached fallback
+            // when the witness is unavailable between two evaluations.
+            $before = $reader->observe($restored->organization);
+            if ($before === null) {
+                return LabRestoreFenceVerdict::blocked('external_witness_unavailable');
+            }
+            $after = $reader->observe($restored->organization);
+            if ($after === null) {
+                return LabRestoreFenceVerdict::blocked('external_witness_unavailable');
+            }
+            return $this->inspect($restored, $before, $after, $evidence);
+        } catch (Throwable) {
+            // A provider error never converts an offline demo to an allow.
+            return LabRestoreFenceVerdict::blocked('external_witness_unavailable');
+        }
+    }
+
     public function inspect(
         ?LabRestoreSnapshot $restored,
         ?LabExternalWitnessFloor $before,
