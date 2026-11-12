@@ -65,8 +65,8 @@
       "pullRequest": 595,
       "headBranch": "review/portal-portable-visual-preview-2026-11-12",
       "baseBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
-      "headSha": "0aa7bc09e76f6f1380587eb29e835ac5f2a81663",
-      "maxCommits": 20,
+      "headSha": "8163ab6bc471563926fae930f0cea409573a9c39",
+      "maxCommits": 25,
       "requiredWorkflows": [
         "Testes do portal",
         "Validacao isolada Laravel F1-01-A"
