@@ -30,7 +30,7 @@ final class VerifyDemoPortalPreview extends Command
             return self::FAILURE;
         }
 
-        $this->info('Verified nine synthetic HTML preview pages and local navigation. No publication or customer access.');
+        $this->info('Verified '.count(DemoPortalArtifactManifest::pageNames()).' synthetic HTML preview pages and local navigation. No publication or customer access.');
         return self::SUCCESS;
     }
 }

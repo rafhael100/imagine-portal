@@ -206,10 +206,18 @@ final class DemoPortalStaticExporter
             throw $error;
         }
         } finally {
+            // F248: exclusive creation establishes ownership of one inode, not
+            // a permanent right to unlink whichever file later occupies this
+            // pathname. A local operator could replace a stale-looking claim
+            // during rendering. Never remove a successor's reservation.
+            $owned = fstat($claimHandle);
             fclose($claimHandle);
-            // The claim only belongs to this caller because x+b is
-            // exclusive; no lock stealing or recovery is attempted.
-            if (is_file($claimFile) && !is_link($claimFile)) {
+            clearstatcache(true, $claimFile);
+            $current = @lstat($claimFile);
+            if (is_array($owned) && is_array($current)
+                && $owned['dev'] === $current['dev']
+                && $owned['ino'] === $current['ino']
+                && is_file($claimFile) && !is_link($claimFile)) {
                 @unlink($claimFile);
             }
         }
