@@ -34,7 +34,7 @@ final class PortalDemoBrowserPolicyTest extends TestCase
         foreach ([
             "default-src 'none'",
             "style-src 'unsafe-inline'",
-            "img-src data:",
+            "img-src 'self' data:",
             "font-src 'none'",
             "connect-src 'none'",
             "form-action 'none'",
@@ -44,6 +44,7 @@ final class PortalDemoBrowserPolicyTest extends TestCase
             self::assertStringContainsString($required, $html);
         }
 
+        self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
         self::assertStringNotContainsString('<script', $html);
         self::assertStringNotContainsString('<form', $html);
         self::assertStringContainsString('href="#pi-content"', $html);

@@ -94,9 +94,10 @@ final class PortalRequestsPresentationTest extends TestCase
         ] as $text) {
             self::assertStringContainsString($text, $html);
         }
-        foreach (['<form', '<button', '<input', '<script', '<iframe', 'action=', 'src=', 'https://', 'http://'] as $forbidden) {
+        foreach (['<form', '<button', '<input', '<script', '<iframe', 'action=', 'https://', 'http://'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $html);
         }
+        self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
         preg_match_all('/href="([^"]*)"/', $html, $links);
         self::assertSame(['#pi-content'], $links[1]);
     }
