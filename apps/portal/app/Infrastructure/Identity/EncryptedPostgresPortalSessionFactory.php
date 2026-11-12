@@ -8,6 +8,8 @@ use Closure;
 use Illuminate\Contracts\Encryption\Encrypter;
 use PDO;
 use RuntimeException;
+use Throwable;
+use WeakMap;
 
 /**
  * A candidate Laravel session driver creator. It is NOT registered in config,
@@ -35,7 +37,7 @@ final class EncryptedPostgresPortalSessionFactory
         // F290: an envelope PDO must never belong to two live handlers. A
         // WeakMap tracks issued connections without retaining closed PDOs.
         // It also rejects reuse while a caller still holds the connection.
-        $issued = new \\WeakMap();
+        $issued = new WeakMap();
 
         // Intentionally not static: Laravel binds the callback to SessionManager.
         // The closure uses *only* captured arguments and can be rebound safely.
@@ -55,7 +57,7 @@ final class EncryptedPostgresPortalSessionFactory
                     $cipher,
                     $lockWaitMilliseconds,
                 );
-            } catch (\\Throwable $error) {
+            } catch (Throwable $error) {
                 unset($issued[$connection]);
                 throw $error;
             }
