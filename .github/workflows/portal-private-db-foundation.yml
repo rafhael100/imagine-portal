@@ -40,7 +40,7 @@ jobs:
           sudo -E docker compose build provision
           sudo -E docker compose up -d --wait postgres
           test "$(sudo -E docker compose port postgres 5432 2>/dev/null || true)" = ""
-          image="$(sudo -E docker compose images -q provision)"
+          image=imagine-portal-db-provision:local
           sudo docker run --rm --network none "$image" php -r 'foreach(["/run/secrets/runtime.json","/run/secrets/database-admin","/run/secrets/app-key","/var/www/html/.env"] as $p){if(file_exists($p)){exit(1);}}'
       - name: Install once, verify roles and encrypted persistence, refuse reinstall
         run: |
