@@ -782,6 +782,27 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
 
             $envelopeDb=new PDO($dsn,'portal_browser_envelope_runtime',
                 $private->value('envelope_password'),$options);
+            // F323: a browser credential file contains two independent
+            // roles, not an interchangeable shared connection capability.
+            try {
+                new EncryptedPostgresPortalSessionHandler(
+                    $authDb,'portal_browser_lab',new Encrypter(random_bytes(32),'AES-256-CBC')
+                );
+                self::fail('Identity-role PDO was accepted for encrypted envelopes.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Dedicated Portal envelope role required.',$error->getMessage());
+            }
+            try {
+                new PostgresPortalBrowserAuthentication(
+                    $envelopeDb,'portal_browser_lab',
+                    $private->value('proof_key'),
+                    base64_decode($private->value('totp_key'),true),
+                    $private->value('scope_pepper')
+                );
+                self::fail('Envelope-role PDO was accepted for identity functions.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Dedicated Portal authentication role required.',$error->getMessage());
+            }
             $handler=new EncryptedPostgresPortalSessionHandler(
                 $envelopeDb,'portal_browser_lab',
                 new Encrypter(random_bytes(32),'AES-256-CBC')
