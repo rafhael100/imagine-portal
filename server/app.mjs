@@ -284,8 +284,13 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   try{
    limit('admin-csv:'+user.id,20,3600000);
    const data=buildTasksBI(db,url.searchParams,clock(),true);
+   // F260: register an authorized request separately from HTTP finish.
+   audit(db,user.id,'admin.tasks_csv_export_requested',user.id);
    res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="atividades-imagine.csv"'});
-   return await writeOwnerExportWithinLease(res,tasksBICsvChunks(data),5*60*1000);
+   await writeOwnerExportWithinLease(res,tasksBICsvChunks(data),5*60*1000);
+   if(res.writableFinished===true)
+    audit(db,user.id,'admin.tasks_csv_exported',user.id);
+   return;
   }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/admin/bi'&&method==='GET'){assert(!user.staff_profile,403,'BI disponível somente para a administração.');return send(res,200,buildBI(db,url.searchParams,clock()));}
