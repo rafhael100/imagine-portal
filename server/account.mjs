@@ -1,7 +1,7 @@
 import {audit,now} from './store.mjs';
 import {validEmail,verifyPassword,cleanText,publicUser} from './security.mjs';
 import validation from '../checkout-validation.js';
-import {publicProjectData} from './account-export.mjs';
+import {parsePaidBriefingData} from './account-export.mjs';
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 // F200: Do not expose unknown persisted JSON fields through the regular API.
 const ACCOUNT_PROFILE_LIMITS={company:150,whatsapp:30,phone:30,website:250};
@@ -31,7 +31,7 @@ export function createAccount(db,fiscal){
   const projects=db.prepare(sql).all(user.id).map(o=>({
    ...o,
    data:['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(o.payment_status)?
-    publicProjectData(JSON.parse(o.data||'{}')):{},
+    parsePaidBriefingData(o.data):{},
   }));
   const response={
    user:publicUser(u),created_at:u.created_at,
