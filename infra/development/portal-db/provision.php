@@ -144,6 +144,27 @@ FROM (VALUES
 WHERE has_function_privilege(role_name,function_signature,'EXECUTE')
 SQL)->fetchColumn();
     if($crossRoleExecute!==0)throw new RuntimeException();
+
+    // F331: roles with NOINHERIT may nevertheless have SET ROLE privilege
+    // when a future administrator accidentally grants membership. Refuse
+    // *any* membership, and all DDL/USAGE escape hatches independently of
+    // table grants, not merely the role attribute flags.
+    $runtimeMemberOfRole=(int)$db->query(<<<'SQL'
+SELECT count(*) FROM pg_auth_members a
+JOIN pg_roles r ON r.oid=a.member
+WHERE r.rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime')
+SQL)->fetchColumn();
+    if($runtimeMemberOfRole!==0)throw new RuntimeException();
+
+    $dangerousSchemaOrDatabaseGrants=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM unnest(ARRAY['portal_browser_runtime','portal_browser_envelope_runtime']) AS roles(role_name)
+WHERE has_schema_privilege(roles.role_name,'public','CREATE')
+   OR has_schema_privilege(roles.role_name,'portal_browser_private','USAGE')
+   OR has_schema_privilege(roles.role_name,'portal_browser_private','CREATE')
+   OR has_database_privilege(roles.role_name,'portal_identity_dev','CREATE')
+SQL)->fetchColumn();
+    if($dangerousSchemaOrDatabaseGrants!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
