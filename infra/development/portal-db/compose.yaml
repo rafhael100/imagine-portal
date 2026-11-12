@@ -1,0 +1,57 @@
+name: imagine-portal-development-db
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: portal_identity_dev
+      POSTGRES_PASSWORD_FILE: /run/secrets/database-admin
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - data:/var/lib/postgresql
+      - ./.private/database-admin:/run/secrets/database-admin:ro
+    networks: [private]
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d portal_identity_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  provision:
+    profiles: [tools]
+    build:
+      context: ../../..
+      dockerfile: infra/development/portal-db/Dockerfile
+    user: "82:82"
+    network_mode: service:postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_URL: https://portal-dev.imaginecomunica.com.br
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    volumes:
+      - ./.private/database-admin:/run/secrets/database-admin:ro
+      - ./.private/runtime.json:/run/secrets/runtime.json:ro
+      - ./.private/app-key:/run/secrets/app-key:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+      - /var/www/html/storage:rw,nosuid,nodev,size=64m,mode=0700,uid=82,gid=82
+      - /var/www/html/bootstrap/cache:rw,nosuid,nodev,size=16m,mode=0700,uid=82,gid=82
+    command: ["php", "provision.php", "verify"]
+volumes:
+  data:
+networks:
+  private:
+    internal: true

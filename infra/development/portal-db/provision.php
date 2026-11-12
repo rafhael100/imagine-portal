@@ -1,0 +1,125 @@
+<?php
+
+declare(strict_types=1);
+
+// Private development bootstrap, never a web route or customer account issuer.
+try {
+    require __DIR__.'/vendor/autoload.php';
+    $mode=$argv[1]??'';
+    if (!in_array($mode,['install','verify'],true)) throw new RuntimeException();
+    $config=\App\Infrastructure\Identity\PortalBrowserSecretFile::load(
+        '/run/secrets/runtime.json','https://portal-dev.imaginecomunica.com.br'
+    );
+    if ($config->value('host')!=='127.0.0.1'||$config->value('port')!==5432
+        ||$config->value('database')!=='portal_identity_dev') throw new RuntimeException();
+    $read=static function(string $path):string {
+        clearstatcache(true,$path);
+        $s=lstat($path);
+        if (!is_array($s)||($s['mode']&0170000)!==0100000||($s['mode']&0077)!==0
+            ||$s['uid']!==posix_geteuid()||$s['nlink']!==1||$s['size']<1||$s['size']>256)
+            throw new RuntimeException();
+        $h=fopen($path,'rb');
+        if($h===false)throw new RuntimeException();
+        try {
+            $opened=fstat($h);
+            if($opened['ino']!==$s['ino']||$opened['dev']!==$s['dev'])throw new RuntimeException();
+            $value=stream_get_contents($h,257);
+        } finally {fclose($h);}
+        if(!is_string($value)||strlen($value)>256)throw new RuntimeException();
+        return $value;
+    };
+    $admin=$read('/run/secrets/database-admin');
+    $key=$read('/run/secrets/app-key');
+    if(preg_match('/\A[a-f0-9]{64}\z/D',$admin)!==1
+        ||!str_starts_with($key,'base64:')||strlen(base64_decode(substr($key,7),true)?:'')!==32)
+        throw new RuntimeException();
+    $dsn="pgsql:host=127.0.0.1;port=5432;dbname=portal_identity_dev;connect_timeout=3;sslmode=disable;options='--statement_timeout=30000 --lock_timeout=3000'";
+    $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false,PDO::ATTR_PERSISTENT=>false];
+    $db=new PDO($dsn,'postgres',$admin,$options);
+    $identity=$db->query("SELECT current_database() db,current_user actor,session_user login,current_setting('server_version_num')::int/10000 version")->fetch(PDO::FETCH_ASSOC);
+    if($identity['db']!=='portal_identity_dev'||$identity['actor']!=='postgres'||$identity['login']!=='postgres'
+        ||(int)$identity['version']!==18)throw new RuntimeException();
+    $app=require __DIR__.'/bootstrap/app.php';
+    $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    $app['config']->set('app.key',$key);
+    $app['config']->set('logging.default','null');
+    $app['config']->set('database.default','pgsql');
+    $app['config']->set('database.connections.pgsql',[
+        'driver'=>'pgsql','host'=>'127.0.0.1','port'=>5432,'database'=>'portal_identity_dev',
+        'username'=>'postgres','password'=>$admin,'charset'=>'utf8','prefix'=>'',
+        'search_path'=>'public','sslmode'=>'disable',
+    ]);
+    \Illuminate\Support\Facades\DB::purge('pgsql');
+    if($mode==='install'){
+        // Never run migrations into a populated or partially installed database.
+        $tables=(int)$db->query("SELECT count(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema')")->fetchColumn();
+        $roles=(int)$db->query("SELECT count(*) FROM pg_roles WHERE rolname LIKE 'portal_browser_%'")->fetchColumn();
+        if($tables!==0||$roles!==0)throw new RuntimeException();
+        $migrations=[
+            '2026_11_09_000002_create_portal_identity_foundation.php',
+            '2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php',
+            '2026_11_10_000004_add_org_revision_to_portal_sessions.php',
+            '2026_11_10_000005_create_portal_auth_throttle_buckets.php',
+            '2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php',
+            '2026_11_11_000012_fence_portal_membership_revision.php',
+            '2026_11_11_000013_fence_portal_organization_revision.php',
+            '2026_11_11_000014_guard_portal_session_issuance.php',
+            '2026_11_12_000016_fence_portal_identity_revision.php',
+            '2026_11_12_000017_create_portal_service_resource_claims.php',
+        ];
+        foreach($migrations as$migration){
+            if(\Illuminate\Support\Facades\Artisan::call('migrate',[
+                '--path'=>'database/migrations/'.$migration,'--force'=>true,'--no-interaction'=>true,
+            ])!==0)throw new RuntimeException();
+        }
+        foreach(['portal_browser_auth.sql','portal_browser_envelopes.sql']as$file){
+            $sql=file_get_contents(__DIR__.'/database/security/'.$file);
+            if(!is_string($sql))throw new RuntimeException();
+            $db->exec($sql);
+        }
+        $db->beginTransaction();
+        foreach(['portal_browser_runtime'=>'identity_password','portal_browser_envelope_runtime'=>'envelope_password']as$role=>$field)
+            $db->exec('ALTER ROLE '.$role.' LOGIN PASSWORD '.$db->quote($config->value($field)));
+        $q=$db->prepare('INSERT INTO portal_browser_private.proof_key(secret) VALUES(?)');
+        $q->execute([$config->value('proof_key')]);
+        $db->exec('REVOKE CONNECT ON DATABASE portal_identity_dev FROM PUBLIC');
+        $db->exec('GRANT CONNECT ON DATABASE portal_identity_dev TO portal_browser_runtime,portal_browser_envelope_runtime');
+        $db->exec('REVOKE CREATE ON SCHEMA public FROM PUBLIC');
+        $db->exec("CREATE TABLE public.portal_development_installation (singleton boolean PRIMARY KEY CHECK(singleton), version integer NOT NULL, marker text NOT NULL)");
+        $q=$db->prepare('INSERT INTO public.portal_development_installation VALUES(true,1,?)');
+        $q->execute([bin2hex(random_bytes(32))]);
+        $db->exec('REVOKE ALL ON public.portal_development_installation FROM PUBLIC');
+        $db->commit();
+    }
+    $marker=$db->query('SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1')->fetchColumn();
+    if(!is_string($marker)||strlen($marker)!==64)throw new RuntimeException();
+    // Foundation verification is intentionally before real identity enrollment.
+    foreach(['portal_identities','portal_auth_sessions','portal_memberships','portal_organizations']as$table)
+        if((int)$db->query('SELECT count(*) FROM public.'.$table)->fetchColumn()!==0)throw new RuntimeException();
+    $q=$db->prepare('SELECT secret=? FROM portal_browser_private.proof_key');
+    $q->execute([$config->value('proof_key')]);
+    if(!in_array($q->fetchColumn(),[true,1,'t','1'],true))throw new RuntimeException();
+    $roles=$db->query("SELECT count(*) FROM pg_roles WHERE rolname IN ('portal_browser_owner','portal_browser_runtime','portal_browser_envelope_owner','portal_browser_envelope_runtime') AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolbypassrls) AND ((rolname IN ('portal_browser_owner','portal_browser_envelope_owner') AND NOT rolcanlogin) OR (rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime') AND rolcanlogin))")->fetchColumn();
+    if((int)$roles!==4)throw new RuntimeException();
+    $auth=new \App\Infrastructure\Identity\PostgresPortalBrowserAuthentication(
+        new PDO($dsn,'portal_browser_runtime',$config->value('identity_password'),$options),
+        'portal_identity_dev',$config->value('proof_key'),base64_decode($config->value('totp_key'),true),$config->value('scope_pepper')
+    );
+    if($auth->isActiveBusinessSession(bin2hex(random_bytes(32))))throw new RuntimeException();
+    $handler=new \App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler(
+        new PDO($dsn,'portal_browser_envelope_runtime',$config->value('envelope_password'),$options),
+        'portal_identity_dev',new \Illuminate\Encryption\Encrypter(base64_decode(substr($key,7),true),'AES-256-CBC')
+    );
+    $id=bin2hex(random_bytes(20));
+    try{
+        if(!$handler->write($id,'private-development-storage-probe')||$handler->read($id)!=='private-development-storage-probe')
+            throw new RuntimeException();
+        $handler->close();
+        if(!$handler->destroy($id))throw new RuntimeException();
+    }finally{$handler->close();}
+    // Only a random non-secret installation marker fingerprint is emitted.
+    echo 'PASS private Portal database v1 fingerprint='.hash('sha256',$marker)."\n";
+} catch (Throwable) {
+    fwrite(STDERR,"Private Portal database provisioning failed; no credentials emitted.\n");
+    exit(1);
+}
