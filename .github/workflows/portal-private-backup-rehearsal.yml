@@ -32,9 +32,10 @@ jobs:
           set -euo pipefail
           bash -n infra/operations/portal-db-backup.sh
           bash -n infra/operations/portal-db-restore-probe.sh
-          sudo install -d -m 0700 /srv/imagine/portal-development
+          sudo install -d -m 0755 /srv/imagine/portal-development
           sudo cp -a foundation/. /srv/imagine/portal-development/
           sudo chown -R root:root /srv/imagine/portal-development
+          sudo chmod 0755 /srv/imagine/portal-development
           sudo -E python3 /srv/imagine/portal-development/infra/development/portal-db/prepare-secrets.py /srv/imagine/portal-development/infra/development/portal-db/.private
           sudo install -m 0700 infra/operations/portal-db-backup.sh /usr/local/sbin/imagine-portal-db-backup
           sudo install -m 0700 infra/operations/portal-db-restore-probe.sh /usr/local/sbin/imagine-portal-db-restore-probe
