@@ -20,10 +20,477 @@ function fakeAsaas(){const customers=[],payments=[],subscriptions=[],checkouts=[
  findPayments:async ref=>payments.filter(p=>p.externalReference===ref),createPayment:async d=>{const p={...d,id:'pay_'+randomUUID(),status:'PENDING',invoiceUrl:'https://sandbox.asaas.com/i/test'};payments.push(p);return p},getPayment:async id=>{const p=payments.find(p=>p.id===id);if(!p)throw Error('Not found');return p},
  createCheckout:async data=>{const c={...data,id:randomUUID(),status:'ACTIVE'};checkouts.push(c);return c},checkoutUrl:id=>'https://sandbox.asaas.com/checkoutSession/show?id='+id,
  cancelCheckout:async id=>{const c=checkouts.find(c=>c.id===id);if(c)c.status='CANCELED';return {}},listSubscriptions:async customer=>subscriptions.filter(s=>s.customer===customer),getSubscription:async id=>subscriptions.find(s=>s.id===id),subscriptionPayments:async id=>payments.filter(p=>p.subscription===id&&!p.deleted),cancelSubscription:async id=>{const s=subscriptions.find(s=>s.id===id);s.deleted=true;for(const p of payments)if(p.subscription===id&&['PENDING','OVERDUE'].includes(p.status))p.deleted=true;return {deleted:true}}}}
-async function fixture(t){const uploadDir=await mkdtemp(join(tmpdir(),'imagine-upload-test-'));const db=openStore(':memory:'),gateway=fakeAsaas(),origin='http://127.0.0.1:4173',secret='a'.repeat(40);const app=createApp({newSiteBilling:'legacy',db,asaas:gateway,publicDir,origin,webhookToken:secret,clock:()=>fixed,uploadDir});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;const clients=[];async function client(name='Cliente',role='client'){const email=randomUUID()+'@example.test',password='uma-senha-de-teste-longa';if(role==='admin')db.prepare("INSERT INTO users VALUES(?,?,?,?,'admin',?)").run(randomUUID(),name,email,await hashPassword(password),now());const c={cookie:'',csrf:'',user:null};c.call=async(path,data,method)=>{const r=await fetch(url+path,{method:method||(data===undefined?'GET':'POST'),headers:{Origin:origin,'Content-Type':'application/json',Cookie:c.cookie,'X-CSRF-Token':c.csrf},body:data===undefined?undefined:JSON.stringify(data)});let body;const content=await r.text();try{body=JSON.parse(content)}catch{body=content}const cookie=r.headers.get('set-cookie');if(cookie)c.cookie=cookie.split(';')[0];if(body.csrf)c.csrf=body.csrf;if(body.user)c.user=body.user;return {status:r.status,body,headers:r.headers}};const result=await c.call(role==='admin'?'/api/login':'/api/register',{name,email,password});assert.ok([200,201].includes(result.status));clients.push(c);return c}t.after(async()=>{await new Promise(r=>app.server.close(r));db.close();assert.ok(basename(uploadDir).startsWith('imagine-upload-test-'));await rm(uploadDir,{recursive:true,force:true})});return {...app,db,gateway,client,url,origin,secret,uploadDir}}
+async function fixture(t,{trustProxy=false}={}){const uploadDir=await mkdtemp(join(tmpdir(),'imagine-upload-test-'));const db=openStore(':memory:'),gateway=fakeAsaas(),origin='http://127.0.0.1:4173',secret='a'.repeat(40);const app=createApp({newSiteBilling:'legacy',db,asaas:gateway,publicDir,origin,webhookToken:secret,clock:()=>fixed,uploadDir,trustProxy});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+app.server.address().port;const clients=[];async function client(name='Cliente',role='client'){const email=randomUUID()+'@example.test',password='uma-senha-de-teste-longa';if(role==='admin')db.prepare("INSERT INTO users VALUES(?,?,?,?,'admin',?)").run(randomUUID(),name,email,await hashPassword(password),now());const c={cookie:'',csrf:'',user:null};c.call=async(path,data,method)=>{const r=await fetch(url+path,{method:method||(data===undefined?'GET':'POST'),headers:{Origin:origin,'Content-Type':'application/json',Cookie:c.cookie,'X-CSRF-Token':c.csrf},body:data===undefined?undefined:JSON.stringify(data)});let body;const content=await r.text();try{body=JSON.parse(content)}catch{body=content}const cookie=r.headers.get('set-cookie');if(cookie)c.cookie=cookie.split(';')[0];if(body.csrf)c.csrf=body.csrf;if(body.user)c.user=body.user;return {status:r.status,body,headers:r.headers}};const result=await c.call(role==='admin'?'/api/login':'/api/register',{name,email,password});assert.ok([200,201].includes(result.status));clients.push(c);return c}t.after(async()=>{await new Promise(r=>app.server.close(r));db.close();assert.ok(basename(uploadDir).startsWith('imagine-upload-test-'));await rm(uploadDir,{recursive:true,force:true})});return {...app,db,gateway,client,url,origin,secret,uploadDir}}
 function enableSite(db){db.prepare("UPDATE products SET enabled=1,scope=?,delivery=? WHERE id='site'").run('Site Onepage responsivo, com seções combinadas, contato e uma rodada de revisão.','Prazo de 15 dias úteis após recebimento do conteúdo.');}
 async function order(c,product='site'){const result=await c.call('/api/orders',{product,brief:'Precisamos de um site para a nossa empresa.',requestId:randomUUID()});assert.equal(result.status,201);return result.body.order}
 async function pay(c,o,extra={}){return c.call('/api/orders/'+o.id+'/checkout',{cpfCnpj:'52998224725',accepted:true,termsVersion:o.terms_version,...extra})}
+test('Sessões legadas são limitadas por conta sem revogar outros clientes ou preservar entradas vencidas',async t=>{
+ const f=await fixture(t),ana=await f.client('Ana'),bia=await f.client('Bia');
+ const initial=ana.cookie,userId=ana.user.id,otherId=bia.user.id;
+ // Existing cookie is deliberately older. The newest login must never be
+ // discarded when a user reaches the cap, even during a burst of requests.
+ f.db.prepare('UPDATE sessions SET expires_at=? WHERE user_id=?').run(Date.now()+3600000,userId);
+ f.db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run('f'.repeat(64),otherId,'csrf-expired',Date.now()-1000);
+ const password='uma-senha-de-teste-longa';
+ for(let i=0;i<10;i++){
+  const result=await ana.call('/api/login',{email:ana.user.email,password});
+  assert.equal(result.status,200);
+  assert.ok(result.body.csrf);
+ }
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(userId).n,8);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(otherId).n,1);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE hash=?').get('f'.repeat(64)).n,0);
+ const stale=await fetch(f.url+'/api/session',{headers:{Cookie:initial}});
+ assert.equal((await stale.json()).user,null);
+ assert.equal((await ana.call('/api/session')).body.user.id,userId);
+ assert.equal((await bia.call('/api/session')).body.user.id,otherId);
+});
+
+test('Troca de senha segue revogando todas as sessões antigas após a limitação por usuário',async t=>{
+ const f=await fixture(t),user=await f.client('Conta');
+ const original=user.cookie,old='uma-senha-de-teste-longa',next='uma-nova-senha-mais-longa';
+ assert.equal((await user.call('/api/login',{email:user.user.email,password:old})).status,200);
+ const previous=user.cookie;
+ assert.equal((await user.call('/api/password',{currentPassword:old,newPassword:next})).status,200);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(user.user.id).n,1);
+ for(const cookie of [original,previous]){
+  const response=await fetch(f.url+'/api/session',{headers:{Cookie:cookie}});
+  assert.equal((await response.json()).user,null);
+ }
+ assert.equal((await user.call('/api/session')).body.user.id,user.user.id);
+ assert.equal((await user.call('/api/login',{email:user.user.email,password:old})).status,401);
+ assert.equal((await user.call('/api/login',{email:user.user.email,password:next})).status,200);
+});
+
+test('Rate limit distingue IPs atrás de proxy explicitamente confiável sem punir clientes diferentes',async t=>{
+ const f=await fixture(t,{trustProxy:true});
+ const request=ip=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':ip},
+  body:JSON.stringify({}),
+ });
+ // Invalid signup is rejected before hashing a password but still counts
+ // toward the IP's real 8-per-hour rate limit.
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.11')).status,400);
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.12')).status,400);
+ assert.equal((await request('198.51.100.11')).status,429);
+ assert.equal((await request('198.51.100.12')).status,429);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%' ORDER BY key").all();
+ assert.deepEqual(buckets.map(row=>row.count),[8,8]);
+ assert.deepEqual(buckets.map(row=>row.key),
+  ['register:198.51.100.11','register:198.51.100.12']);
+});
+
+test('Proxy local que acrescenta XFF bloqueia spoofing do IP mais à esquerda',async t=>{
+ const f=await fixture(t,{trustProxy:true});
+ const request=forwarded=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':forwarded},
+  body:JSON.stringify({}),
+ });
+ // Deliberate threat model: an untrusted client forges the first part of
+ // the chain. The local proxy appends its verified peer as the LAST part.
+ // The server must use the last value for the rate-limit identity.
+ for(let i=0;i<8;i++){
+  assert.equal((await request('198.51.100.'+(i+10)+', 203.0.113.40')).status,400);
+ }
+ assert.equal((await request('198.51.100.250, 203.0.113.40')).status,429);
+ assert.equal((await request('198.51.100.250, 203.0.113.41')).status,400);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%' ORDER BY key").all();
+ assert.deepEqual(buckets.map(row=>row.key),['register:203.0.113.40','register:203.0.113.41']);
+ assert.deepEqual(buckets.map(row=>row.count),[8,1]);
+});
+
+test('Sem confiança de proxy, X-Forwarded-For manipulado nunca reseta o limite de cadastro',async t=>{
+ const f=await fixture(t,{trustProxy:false});
+ const request=ip=>fetch(f.url+'/api/register',{
+  method:'POST',
+  headers:{Origin:f.origin,'Content-Type':'application/json','X-Forwarded-For':ip},
+  body:JSON.stringify({}),
+ });
+ for(let i=0;i<8;i++)assert.equal((await request('198.51.100.'+(i+10))).status,400);
+ assert.equal((await request('203.0.113.201')).status,429);
+ const buckets=f.db.prepare("SELECT key,count FROM rate_limits WHERE key LIKE 'register:%'").all();
+ assert.equal(buckets.length,1);
+ assert.equal(buckets[0].count,8);
+ assert.ok(['register:127.0.0.1','register:::1'].includes(buckets[0].key));
+});
+
+test('Buckets de rate limit vencidos são eliminados sem resetar quotas ativas',async t=>{
+ const f=await fixture(t);
+ const expired=Date.now()-1000,active=Date.now()+3600000;
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('login-email:expired-1',15,expired);
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('register:expired-2',8,expired);
+ f.db.prepare('INSERT INTO rate_limits VALUES(?,?,?)').run('login-email:still-active',3,active);
+ const request=()=>fetch(f.url+'/api/register',{
+  method:'POST',headers:{Origin:f.origin,'Content-Type':'application/json'},
+  body:JSON.stringify({}),
+ });
+ assert.equal((await request()).status,400);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM rate_limits WHERE key LIKE '%expired-%'").get().n,0);
+ const preserved=f.db.prepare('SELECT count,reset_at FROM rate_limits WHERE key=?').get('login-email:still-active');
+ assert.equal(preserved.count,3);
+ assert.equal(preserved.reset_at,active);
+ for(let i=0;i<7;i++)assert.equal((await request()).status,400);
+ assert.equal((await request()).status,429);
+ const counters=f.db.prepare("SELECT count FROM rate_limits WHERE key LIKE 'register:%'").all();
+ assert.deepEqual(counters.map(row=>row.count),[8]);
+});
+
+test('A conta encerra apenas outras sessões após senha atual e CSRF, sem afetar outro cliente',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa',oldCookie=a.cookie;
+ assert.equal((await a.call('/api/login',{email:a.user.email,password})).status,200);
+ const latestCookie=a.cookie;
+ assert.notEqual(latestCookie,oldCookie);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,2);
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:'senha-incorreta'})).status,400);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,2);
+ const correctCsrf=a.csrf;a.csrf='csrf-adulterado';
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,403);
+ a.csrf=correctCsrf;
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,1);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(b.user.id).n,1);
+ const stale=await fetch(f.url+'/api/session',{headers:{Cookie:oldCookie}});
+ assert.equal((await stale.json()).user,null);
+ assert.equal((await a.call('/api/session')).body.user.id,a.user.id);
+ assert.equal((await b.call('/api/session')).body.user.id,b.user.id);
+ assert.ok(f.db.prepare("SELECT id FROM audit WHERE actor_id=? AND action='sessions.revoked_others'").get(a.user.id));
+});
+
+test('Membro da equipe pode encerrar outras sessões próprias, sem obter privilégio de clientes',async t=>{
+ const f=await fixture(t),staff=await f.client('Atendimento','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ const password='uma-senha-de-teste-longa';
+ assert.equal((await staff.call('/api/login',{email:staff.user.email,password})).status,200);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(staff.user.id).n,2);
+ assert.equal((await staff.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(staff.user.id).n,1);
+ assert.equal((await staff.call('/api/admin/finance.csv')).status,403);
+});
+
+test('Resumo de sessões mostra apenas contagem da própria conta e atualiza após revogação',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa';
+ const first=await a.call('/api/sessions/summary');
+ assert.equal(first.status,200);
+ assert.deepEqual(first.body,{active_sessions:1,other_sessions:0,max_active_sessions:8});
+ assert.equal((await a.call('/api/login',{email:a.user.email,password})).status,200);
+ const summary=(await a.call('/api/sessions/summary')).body;
+ assert.deepEqual(summary,{active_sessions:2,other_sessions:1,max_active_sessions:8});
+ assert.deepEqual((await b.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ assert.equal(JSON.stringify(summary).includes('hash'),false);
+ assert.equal(JSON.stringify(summary).includes('csrf'),false);
+ assert.equal(JSON.stringify(summary).includes(a.user.id),false);
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ assert.deepEqual((await a.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ const anonymous=await fetch(f.url+'/api/sessions/summary');
+ assert.equal(anonymous.status,401);
+});
+
+test('F170: resumo de sessões ignora expiradas, isola equipe e não permite cache',async t=>{
+ const f=await fixture(t),a=await f.client('Cliente A'),b=await f.client('Cliente B');
+ const password='uma-senha-de-teste-longa';
+ assert.equal((await a.call('/api/login',{email:a.user.email,password})).status,200);
+ // Expirar a sessão anterior sem encerrar o cookie recém-emitido.
+ f.db.prepare('UPDATE sessions SET expires_at=? WHERE hash=(SELECT hash FROM sessions WHERE user_id=? ORDER BY expires_at ASC LIMIT 1)')
+  .run(Date.now()-1000,a.user.id);
+ // A sessão corrente continua válida mesmo que um registro antigo esteja vencido.
+ // A contagem não pode incluir registros expirados nem os de outro cliente.
+ const response=await a.call('/api/sessions/summary');
+ assert.equal(response.status,200);
+ assert.equal(response.body.active_sessions,1);
+ assert.equal(response.body.other_sessions,response.body.active_sessions-1);
+ assert.deepEqual(Object.keys(response.body).sort(),['active_sessions','max_active_sessions','other_sessions']);
+ assert.deepEqual((await b.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ const raw=await fetch(f.url+'/api/sessions/summary',{headers:{Cookie:a.cookie}});
+ assert.match(raw.headers.get('cache-control')||'',/no-store/);
+ assert.equal(raw.headers.get('x-content-type-options'),'nosniff');
+ const staff=await f.client('Equipe','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ assert.deepEqual((await staff.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+});
+
+test('F171: recibo de revogação informa sessões próprias ativas, nunca contas de terceiros',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa';
+ assert.equal((await a.call('/api/login',{email:a.user.email,password})).status,200);
+ const first=await a.call('/api/sessions/revoke-others',{currentPassword:password});
+ assert.equal(first.status,200);
+ assert.deepEqual(first.body,{ok:true,revoked_sessions:1,active_sessions:1,other_sessions:0,max_active_sessions:8});
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,1);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(b.user.id).n,1);
+ assert.deepEqual((await a.call('/api/sessions/summary')).body,
+  {active_sessions:1,other_sessions:0,max_active_sessions:8});
+ const repeated=await a.call('/api/sessions/revoke-others',{currentPassword:password});
+ assert.equal(repeated.status,200);
+ assert.equal(repeated.body.revoked_sessions,0);
+ assert.equal((await b.call('/api/sessions/summary')).body.active_sessions,1);
+ assert.equal(Object.keys(repeated.body).some(k=>/hash|csrf|token|email|ip/.test(k)),false);
+});
+
+test('F172: histórico de segurança é próprio, limitado e não expõe dados de auditoria interna',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const password='uma-senha-de-teste-longa';
+ f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)')
+  .run(a.user.id,'billing.token_failed','segredo-interno',new Date().toISOString());
+ assert.equal((await a.call('/api/sessions/revoke-others',{currentPassword:password})).status,200);
+ const own=await a.call('/api/account/security-events');
+ assert.equal(own.status,200);
+ assert.equal(own.body.events.length,2);
+ assert.deepEqual(own.body.events.map(e=>e.action),['sessions.revoked_others','account.created']);
+ assert.ok(own.body.events.every(e=>Object.keys(e).sort().join(',')==='action,created_at'));
+ assert.equal(JSON.stringify(own.body).includes(a.user.id),false);
+ assert.equal(JSON.stringify(own.body).includes('segredo-interno'),false);
+ assert.deepEqual((await b.call('/api/account/security-events')).body.events.map(e=>e.action),['account.created']);
+ const response=await fetch(f.url+'/api/account/security-events');
+ assert.equal(response.status,401);
+ assert.match(response.headers.get('cache-control')||'',/no-store/);
+ const staff=await f.client('Atendimento','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ const staffHistory=await staff.call('/api/account/security-events');
+ assert.equal(staffHistory.status,200);
+ assert.deepEqual(staffHistory.body,{events:[]});
+ assert.equal((await staff.call('/api/admin/finance.csv')).status,403);
+});
+
+test('F189: historico de seguranca paginado preserva isolamento e o formato antigo',async t=>{
+ const f=await fixture(t),ana=await f.client('Ana'),bia=await f.client('Bia');
+ const stmt=f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)');
+ const anaId=ana.user.id,biaId=bia.user.id;
+ for(let i=0;i<24;i++)stmt.run(anaId,'password.changed','internal-'+i,'2026-11-11T10:00:00Z');
+ for(let i=0;i<8;i++)stmt.run(biaId,'password.changed','other-user-'+i,'2026-11-11T11:00:00Z');
+ stmt.run(anaId,'payment.creditcard.secret','unapproved-action','2026-11-11T12:00:00Z');
+ const legacy=await ana.call('/api/account/security-events');
+ assert.equal(legacy.status,200);
+ assert.equal(legacy.body.events.length,10);
+ assert.deepEqual(Object.keys(legacy.body),['events']);
+ const pages=[];
+ for(let page=1;page<=3;page++){
+  const result=await ana.call('/api/account/security-events?page='+page);
+  assert.equal(result.status,200);
+  assert.equal(result.body.page,page);
+  assert.equal(result.body.events.length,page===3?5:10);
+  assert.equal(result.body.has_more,page!==3);
+  assert.ok(result.body.events.every(e=>Object.keys(e).sort().join(',')==='action,created_at'));
+  pages.push(result.body.events);
+ }
+ const second=await bia.call('/api/account/security-events?page=1');
+ assert.equal(second.status,200);assert.equal(second.body.events.length,9);
+ assert.equal(second.body.has_more,false);
+ for(const invalid of ['0','-1','1.1','01','31','NaN','999999']){
+  assert.equal((await ana.call('/api/account/security-events?page='+invalid)).status,400);
+ }
+ const full=JSON.stringify(pages);
+ for(const secret of ['internal-0','other-user','unapproved-action',anaId,biaId]){
+  assert.equal(full.includes(secret),false,secret);
+ }
+ assert.equal((await fetch(f.url+'/api/account/security-events?page=1')).status,401);
+});
+
+test('F198: ultima pagina autorizada nao promete acesso a eventos fora do limite',async t=>{
+ const f=await fixture(t),owner=await f.client('Responsável');
+ const stmt=f.db.prepare('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)');
+ for(let i=0;i<310;i++)stmt.run(owner.user.id,'password.changed','internal','2026-11-11T10:00:00Z');
+ const last=await owner.call('/api/account/security-events?page=30');
+ assert.equal(last.status,200);
+ assert.equal(last.body.page,30);
+ assert.equal(last.body.events.length,10);
+ assert.equal(last.body.has_more,false);
+ assert.equal((await owner.call('/api/account/security-events?page=31')).status,400);
+});
+
+test('F173: reutilizar senha atual é rejeitado sem invalidar sessões; troca válida permanece auditada',async t=>{
+ const f=await fixture(t),a=await f.client('Ana');
+ const old='uma-senha-de-teste-longa',next='outra-senha-forte-12345';
+ const oldCookie=a.cookie;
+ assert.equal((await a.call('/api/login',{email:a.user.email,password:old})).status,200);
+ const currentCookie=a.cookie;
+ const same=await a.call('/api/password',{currentPassword:old,newPassword:old});
+ assert.equal(same.status,400);
+ assert.equal(a.cookie,currentCookie);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,2);
+ assert.equal((await a.call('/api/session')).body.user.id,a.user.id);
+ assert.deepEqual((await a.call('/api/account/security-events')).body.events.map(e=>e.action),['account.created']);
+ const changed=await a.call('/api/password',{currentPassword:old,newPassword:next});
+ assert.equal(changed.status,200);
+ assert.notEqual(a.cookie,currentCookie);
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,1);
+ assert.deepEqual((await a.call('/api/account/security-events')).body.events.map(e=>e.action),
+  ['password.changed','account.created']);
+ const stale=await fetch(f.url+'/api/session',{headers:{Cookie:oldCookie}});
+ assert.equal((await stale.json()).user,null);
+ assert.equal((await a.call('/api/login',{email:a.user.email,password:old})).status,401);
+});
+
+test('F174: duas ou mais alterações simultâneas não podem reabrir credenciais revogadas',async t=>{
+ const f=await fixture(t),a=await f.client('Ana');
+ const old='uma-senha-de-teste-longa',cookie=a.cookie;
+ const candidates=['nova-senha-concorrente-a','nova-senha-concorrente-b','nova-senha-concorrente-c'];
+ const headers={Origin:'http://127.0.0.1:4173','Content-Type':'application/json',Cookie:cookie,'X-CSRF-Token':a.csrf};
+ const outcomes=await Promise.all(candidates.map(async newPassword=>{
+  const r=await fetch(f.url+'/api/password',{method:'POST',headers,body:JSON.stringify({currentPassword:old,newPassword})});
+  return {newPassword,status:r.status};
+ }));
+ const successful=outcomes.filter(r=>r.status===200);
+ assert.equal(successful.length,1,JSON.stringify(outcomes));
+ assert.ok(outcomes.filter(r=>r.status!==200).every(r=>[401,409].includes(r.status)));
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions WHERE user_id=?').get(a.user.id).n,1);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM audit WHERE actor_id=? AND action='password.changed'").get(a.user.id).n,1);
+ assert.equal((await a.call('/api/login',{email:a.user.email,password:old})).status,401);
+ assert.equal((await a.call('/api/login',{email:a.user.email,password:successful[0].newPassword})).status,200);
+ assert.equal((await a.call('/api/account/security-events')).body.events[0].action,'password.changed');
+});
+
+test('F176: exportação do cadastro e dos projetos pertence exclusivamente ao cliente autenticado',async t=>{
+ const f=await fixture(t),a=await f.client('Cliente A'),b=await f.client('Cliente B');
+ const ownUserId=a.user.id;
+ const first=await order(a),other=await order(b);
+ f.db.prepare('INSERT INTO account_profiles(user_id,data,version,updated_at) VALUES(?,?,1,?)')
+  .run(ownUserId,JSON.stringify({company:'Empresa A',api_secret:'NEVER_EXPORT_ME'}),new Date().toISOString());
+ const own=await a.call('/api/account/export');
+ assert.equal(own.status,200);
+ assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-cadastro-projetos.json"/);
+ assert.match(own.headers.get('cache-control')||'',/no-store/);
+ assert.equal(own.body.schema_version,1);
+ assert.equal(own.body.scope,'cadastro_e_projetos');
+ assert.equal(own.body.profile.company,'Empresa A');
+ assert.equal(JSON.stringify(own.body).includes('NEVER_EXPORT_ME'),false);
+ assert.equal(own.body.user.email,a.user.email);
+ assert.equal(own.body.projects.some(p=>p.id===first.id),true);
+ assert.equal(own.body.projects.some(p=>p.id===other.id),false);
+ assert.equal(own.body.projects.every(p=>!p.data?.password_hash),true);
+ assert.equal(JSON.stringify(own.body).includes(b.user.email),false);
+ for(const forbidden of ['password_hash','csrf','imagine_session','token_key']){
+  assert.equal(JSON.stringify(own.body).includes(forbidden),false,forbidden);
+ }
+ const otherExport=await b.call('/api/account/export');
+ assert.equal(otherExport.status,200);
+ assert.equal(otherExport.body.projects.some(p=>p.id===other.id),true);
+ assert.equal(otherExport.body.projects.some(p=>p.id===first.id),false);
+ const anonymous=await fetch(f.url+'/api/account/export');
+ assert.equal(anonymous.status,401);
+ const staff=await f.client('Equipe','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ assert.equal((await staff.call('/api/account/export')).status,403);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM audit WHERE actor_id=? AND action='account.data_exported'").get(ownUserId).n,1);
+});
+
+test('F177: CSV de projetos é isolado, seguro contra fórmulas e registrado na atividade da conta',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const first=await order(a),second=await order(b);
+ const title='=HYPERLINK("https://example.test","abrir")';
+ f.db.prepare('UPDATE orders SET title=? WHERE id=?').run(title,first.id);
+ const own=await a.call('/api/account/projects.csv');
+ const enriched=await a.call('/api/account/projects.csv?columns=stage');
+ assert.equal(enriched.status,200);
+ assert.ok(enriched.body.includes('"Etapa do projeto"'));
+ assert.ok(enriched.body.includes('"solicitado"'));
+ assert.equal((await a.call('/api/account/projects.csv?columns=unknown')).status,400);
+ assert.equal(own.status,200);
+ assert.match(own.headers.get('content-type')||'',/text\/csv/);
+ assert.match(own.headers.get('content-disposition')||'',/attachment; filename="imagine-projetos.csv"/);
+ assert.match(own.headers.get('cache-control')||'',/no-store/);
+ // fetch().text() intentionally consumes UTF-8 BOM; the serializer unit test checks raw BOM.
+ assert.ok(own.body.startsWith('"ID";"Projeto";'));
+ assert.ok(own.body.includes('"\'=HYPERLINK(""https://example.test"",""abrir"")"'));
+ assert.ok(own.body.includes(first.id));
+ assert.equal(own.body.includes(second.id),false);
+ const other=await b.call('/api/account/projects.csv');
+ assert.equal(other.status,200);
+ assert.ok(other.body.includes(second.id));
+ assert.equal(other.body.includes(first.id),false);
+ assert.equal((await a.call('/api/account/security-events')).body.events[0].action,'account.projects_csv_exported');
+ assert.equal((await fetch(f.url+'/api/account/projects.csv')).status,401);
+ const staff=await f.client('Equipe','admin');
+ f.db.prepare('INSERT INTO staff(user_id,profile,active) VALUES(?,?,1)').run(staff.user.id,'atendimento');
+ assert.equal((await staff.call('/api/account/projects.csv')).status,403);
+});
+
+test('F178: quota compartilhada limita exportações sem afetar clientes diferentes',async t=>{
+ const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia');
+ const ownerId=a.user.id;
+ for(let i=0;i<20;i++){
+  const route=i%2?'/api/account/projects.csv':'/api/account/export';
+  const result=await a.call(route);
+  assert.equal(result.status,200,route+' #'+i);
+ }
+ const blocked=await a.call('/api/account/export');
+ assert.equal(blocked.status,429);
+ assert.equal((await a.call('/api/account/projects.csv')).status,429);
+ assert.equal((await b.call('/api/account/export')).status,200);
+ assert.equal(f.db.prepare("SELECT count(*) AS n FROM audit WHERE actor_id=? AND action IN ('account.data_exported','account.projects_csv_exported')").get(ownerId).n,20);
+ const otherHistory=await b.call('/api/account/security-events');
+ assert.equal(otherHistory.body.events[0].action,'account.data_exported');
+ assert.equal(otherHistory.body.events.some(e=>e.action==='account.projects_csv_exported'),false);
+});
+
+test('F245: successful exports are audited as requested and completed exactly once',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),id=owner.user.id;
+ const requests=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action LIKE 'account.%_export_requested' ORDER BY id");
+ const completed=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action IN ('account.data_exported','account.projects_csv_exported') ORDER BY id");
+ assert.equal((await owner.call('/api/account/projects.csv')).status,200);
+ assert.equal((await owner.call('/api/account/export')).status,200);
+ assert.deepEqual(requests.all(id).map(row=>row.action),[
+  'account.projects_csv_export_requested','account.data_export_requested',
+ ]);
+ assert.deepEqual(completed.all(id).map(row=>row.action),[
+  'account.projects_csv_exported','account.data_exported',
+ ]);
+ const history=await owner.call('/api/account/security-events');
+ assert.equal(history.status,200);
+ assert.equal(history.body.events.some(row=>row.action.endsWith('_export_requested')),false,
+  'attempt events are internal and must not crowd the security timeline');
+ assert.equal(history.body.events[0].action,'account.data_exported');
+ const anon=await fetch(f.url+'/api/account/export');
+ assert.equal(anon.status,401);
+ assert.equal(requests.all(id).length,2,'unauthorized calls do not count as export attempts');
+});
+
+test('F245: aborting an HTTP download records only the attempt, never completion',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),id=owner.user.id;
+ let interrupted=0;
+ const forceDisconnect=(req,res)=>{
+  if(!['/api/account/projects.csv','/api/account/export'].includes(req.url))return;
+  const write=res.write;
+  let closed=false;
+  res.write=function(...args){
+   const result=write.apply(this,args);
+   if(!closed){
+    closed=true;interrupted++;
+    this.destroy();
+   }
+   return result;
+  };
+ };
+ f.server.prependListener('request',forceDisconnect);
+ t.after(()=>f.server.off('request',forceDisconnect));
+ for(const path of ['/api/account/projects.csv','/api/account/export']){
+  try{
+   const reply=await fetch(f.url+path,{headers:{Cookie:owner.cookie,Origin:f.origin}});
+   await reply.text();
+  }catch{
+   // The deliberately destroyed transport must not generate a valid export.
+  }
+ }
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(interrupted,2,'both downloads reached the intentionally broken transport');
+ const requested=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action IN ('account.projects_csv_export_requested','account.data_export_requested') ORDER BY id").all(id);
+ const completed=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action IN ('account.projects_csv_exported','account.data_exported')").all(id);
+ assert.deepEqual(requested.map(row=>row.action),[
+  'account.projects_csv_export_requested','account.data_export_requested',
+ ]);
+ assert.deepEqual(completed,[],'partial transfers are not successful exports');
+ assert.equal(f.db.prepare('SELECT count(*) AS n FROM account_export_leases WHERE user_id=?').get(id).n,0);
+ const activity=await owner.call('/api/account/security-events');
+ assert.equal(activity.body.events.some(e=>e.action.endsWith('_export_requested')||e.action.endsWith('_exported')),false);
+});
+
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
 test('Preço vem do servidor; repetir checkout não duplica cobrança; proposta fica imutável',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c);const first=await pay(c,o,{price:1,price_cents:1});assert.equal(first.status,200);assert.equal(f.gateway.payments.length,1);assert.equal(f.gateway.payments[0].value,990);assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1);assert.equal((await admin.call('/api/orders/'+o.id+'/proposal',{price_cents:1,scope:'Escopo adulterado depois de aceito.',delivery:'1 dia'})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM payments').get().n,1);assert.equal((await c.call('/api/orders/'+o.id)).body.order.payment_status,'PENDING')});
 test('Timeout após cobrança criada exige conciliação e não permite cobrança duplicada',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),o=await order(c),create=f.gateway.createPayment;f.gateway.createPayment=async data=>{await create(data);throw Object.assign(Error('Timeout de teste'),{uncertain:true,status:502})};assert.equal((await pay(c,o)).status,502);assert.equal((await pay(c,o)).status,409);assert.equal(f.gateway.payments.length,1);assert.equal((await c.call('/api/orders/'+o.id+'/sync',{})).status,200);assert.equal((await c.call('/api/orders/'+o.id)).body.order.billing_state,'ready');assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1)});
@@ -77,4 +544,297 @@ test('Jornada bloqueia ações sem pagamento, após estorno e fora dos limites d
  assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:false})).status,400);
  f.db.prepare("UPDATE orders SET payment_status='REFUNDED' WHERE id=?").run(po.id);
  assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:true})).status,409);
+});
+
+
+test('F200: account and fiscal APIs whitelist persisted profile, fiscal and paid briefing fields',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outro cliente'),id=owner.user.id;
+ f.db.prepare('INSERT INTO account_profiles(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({company:'Minha empresa',whatsapp:'11999999999',phone:{token:'PROFILE_NESTED_SECRET'},website:'https://site.example',internal_oauth_token:'PROFILE_PRIVATE_SECRET',version:777}),6,now());
+ f.db.prepare('INSERT INTO fiscal_customers(user_id,data,version,updated_at) VALUES(?,?,?,?)')
+  .run(id,JSON.stringify({legal_name:'Minha empresa Ltda',document:'52998224725',email:'financeiro@example.test',whatsapp:{token:'FISCAL_NESTED_SECRET'},internal_bank_token:'FISCAL_PRIVATE_SECRET',version:999}),4,now());
+ const project=await order(owner);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id=?").run(project.id);
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(order_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at')
+  .run(project.id,JSON.stringify({company_name:'Empresa autorizada',domain:'empresa.test',notes:'Notas permitidas',internal_secret:'BRIEF_PRIVATE_SECRET',api_key:{secret:'BRIEF_NESTED_SECRET'},services:['ARRAY_NOT_FOR_CLIENT']}),now());
+ const own=await owner.call('/api/account');
+ assert.equal(own.status,200);
+ assert.equal(own.body.profile.version,6);
+ assert.equal(own.body.profile.company,'Minha empresa');
+ assert.equal(own.body.profile.phone,'');
+ assert.equal(own.body.profile.internal_oauth_token,undefined);
+ assert.equal(own.body.fiscal.version,4);
+ assert.equal(own.body.fiscal.legal_name,'Minha empresa Ltda');
+ assert.equal(own.body.fiscal.whatsapp,'');
+ assert.equal(own.body.fiscal.internal_bank_token,undefined);
+ assert.equal(own.body.projects[0].data.company_name,'Empresa autorizada');
+ assert.equal(own.body.projects[0].data.notes,'Notas permitidas');
+ assert.equal(own.body.projects[0].data.internal_secret,undefined);
+ assert.equal(own.body.projects[0].data.api_key,undefined);
+ assert.equal(own.body.projects[0].data.services,undefined);
+ const fiscal=await owner.call('/api/fiscal/customers/'+id);
+ assert.equal(fiscal.status,200);
+ assert.equal(fiscal.body.customer.version,4);
+ assert.equal(fiscal.body.customer.internal_bank_token,undefined);
+ assert.equal((await other.call('/api/fiscal/customers/'+id)).status,403);
+ assert.equal((await other.call('/api/account')).body.projects.length,0);
+ const blob=JSON.stringify(own)+JSON.stringify(fiscal.body);
+ for(const secret of ['PROFILE_PRIVATE_SECRET','PROFILE_NESTED_SECRET','FISCAL_PRIVATE_SECRET','FISCAL_NESTED_SECRET','BRIEF_PRIVATE_SECRET','BRIEF_NESTED_SECRET','ARRAY_NOT_FOR_CLIENT'])
+  assert.equal(blob.includes(secret),false,secret);
+});
+
+test('F201: bounded own-project endpoint paginates, filters and conceals unpaid materials',async t=>{
+ const f=await fixture(t),owner=await f.client('Arquivo do cliente'),other=await f.client('Outro cliente');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paidNames=new Set([3,6,9,12,15,18,21]);
+ const ids=[];
+ for(let i=1;i<=21;i++){
+  const id=randomUUID(),when='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  ids.push(id);
+  insert.run(id,owner.user.id,'Site '+String(i).padStart(2,'0'),paidNames.has(i)?'RECEIVED':'PENDING',when,when);
+  if(i===21||i===19){
+   f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)')
+    .run(id,JSON.stringify({company_name:'Empresa SECRETA'+i+(i===21?' Café São João':''),domain:'dominio-'+i+'.test',internal_token:'NEVER_BRIEF_TOKEN'}),when);
+  }
+ }
+ const otherId=randomUUID();
+ insert.run(otherId,other.user.id,'OTHER_PRIVATE_ORDER','PENDING','2026-11-12','2026-11-12');
+ const first=await owner.call('/api/account/projects');
+ assert.equal(first.status,200);assert.equal(first.body.total,21);assert.equal(first.body.pages,3);
+ assert.equal(first.body.page_size,8);assert.equal(first.body.projects.length,8);
+ assert.equal(first.body.projects[0].title,'Site 21');assert.equal(first.body.has_more,true);
+ assert.equal(first.body.projects[0].data.company_name,'Empresa SECRETA21 Café São João');
+ assert.equal(first.body.projects[0].data.internal_token,undefined);
+ assert.equal(first.body.projects[2].title,'Site 19');
+ assert.deepEqual(first.body.projects[2].data,{});
+ const third=await owner.call('/api/account/projects?page=3');
+ assert.equal(third.status,200);assert.equal(third.body.projects.length,5);assert.equal(third.body.has_more,false);
+ const paid=await owner.call('/api/account/projects?payment=paid');
+ assert.equal(paid.body.total,7);
+ assert.ok(paid.body.projects.every(p=>p.payment_status==='RECEIVED'));
+ f.db.prepare('UPDATE orders SET phase=? WHERE id=?').run('entregue',ids[20]);
+ const delivered=await owner.call('/api/account/projects?phase=entregue');
+ assert.equal(delivered.status,200);
+ assert.equal(delivered.body.total,1);
+ assert.equal(delivered.body.projects[0].id,ids[20]);
+ assert.equal(delivered.body.projects[0].phase,'entregue');
+ const older=await owner.call('/api/account/projects?sort=oldest');
+ assert.equal(older.status,200);
+ assert.equal(older.body.projects[0].id,ids[0]);
+ assert.equal(older.body.projects[0].title,'Site 01');
+ const combined=await owner.call('/api/account/projects?sort=oldest&payment=paid&phase=entregue');
+ assert.equal(combined.body.total,1);
+ assert.equal(combined.body.projects[0].id,ids[20]);
+ const invalidPhase=await owner.call('/api/account/projects?phase=untrusted');
+ assert.equal(invalidPhase.status,400);
+ const invalidSort=await owner.call('/api/account/projects?sort=sql');
+ assert.equal(invalidSort.status,400);
+ const pending=await owner.call('/api/account/projects?payment=other');
+ assert.equal(pending.body.total,14);
+ assert.ok(pending.body.projects.every(p=>p.payment_status==='PENDING'));
+ const name=await owner.call('/api/account/projects?search=site%2021');
+ assert.equal(name.body.total,1);assert.equal(name.body.projects[0].id,ids[20]);
+ const accents=await owner.call('/api/account/projects?search=CAFE%20SAO');
+ assert.equal(accents.body.total,1);
+ assert.equal(accents.body.projects[0].id,ids[20]);
+ const domain=await owner.call('/api/account/projects?search=dominio-21.test');
+ assert.equal(domain.body.total,1);
+ const hidden=await owner.call('/api/account/projects?search=SECRETA19');
+ assert.equal(hidden.body.total,0);
+ const wildcard=await owner.call('/api/account/projects?search=%25');
+ assert.equal(wildcard.body.total,0);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,preview_url,updated_at) VALUES(?,'production',65,'2026-11-30','https://secret.example.internal/preview','2026-11-11')").run(ids[20]);
+ f.db.prepare("INSERT INTO productions(order_id,stage,progress,due_date,updated_at) VALUES(?,'published',100,'2026-11-20','2026-11-11')").run(otherId);
+ const production=await owner.call('/api/account/projects?phase=entregue');
+ assert.deepEqual(production.body.projects[0].production,{stage:'production',progress:65,due_date:'2026-11-30'});
+ assert.ok(!JSON.stringify(production.body).includes('secret.example.internal'));
+ assert.equal(production.body.projects[0].product_id,undefined);
+ const unpaidProject=await owner.call('/api/account/projects?search=site%2019');
+ assert.equal(unpaidProject.body.projects[0].production,null);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id=?").run(otherId);
+ f.db.prepare("UPDATE productions SET stage='published',live_url='https://site-publicado.example.test/' WHERE order_id=?").run(otherId);
+ const otherPublished=await other.call('/api/account/projects');
+ assert.equal(otherPublished.body.projects[0].production.live_url,'https://site-publicado.example.test/');
+ assert.equal(JSON.stringify(first.body).includes('site-publicado.example.test'),false);
+
+ f.db.prepare("UPDATE productions SET stage='review',progress=100 WHERE order_id=?").run(ids[20]);
+ const reviewOnly=await owner.call('/api/account/projects?attention=review');
+ assert.equal(reviewOnly.status,200);
+ assert.equal(reviewOnly.body.total,1);
+ assert.equal(reviewOnly.body.projects[0].id,ids[20]);
+ assert.equal(reviewOnly.body.projects[0].production.stage,'review');
+ assert.equal((await other.call('/api/account/projects?attention=review')).body.total,0);
+ assert.equal((await owner.call('/api/account/projects?attention=invalid')).status,400);
+ const otherPage=await other.call('/api/account/projects');
+ assert.equal(otherPage.body.total,1);assert.equal(otherPage.body.projects[0].id,otherId);
+ const empty=await owner.call('/api/account/projects?page=4');
+ assert.equal(empty.body.total,21);assert.equal(empty.body.projects.length,0);
+ for(const params of ['page=0','page=1001','page=-1','page=01','page=x','payment=alll','search='+('x'.repeat(121))]){
+  assert.equal((await owner.call('/api/account/projects?'+params)).status,400,params);
+ }
+ assert.equal((await fetch(f.url+'/api/account/projects')).status,401);
+ const staff=await f.client('Colaborador','admin');
+ assert.equal((await staff.call('/api/account/projects')).status,403);
+ assert.equal(JSON.stringify(first.body).includes('NEVER_BRIEF_TOKEN'),false);
+ assert.equal(JSON.stringify(first.body).includes('OTHER_PRIVATE_ORDER'),false);
+});
+
+test('F202: compact account view retains full project count and latest authorized paid briefing',async t=>{
+ const f=await fixture(t),owner=await f.client('Responsável'),foreign=await f.client('Outro cliente');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const paid=randomUUID(),pending=randomUUID(),foreignId=randomUUID();
+ stmt.run(paid,owner.user.id,'Projeto pago','RECEIVED','2026-11-10','2026-11-10');
+ stmt.run(pending,owner.user.id,'Projeto mais recente','PENDING','2026-11-11','2026-11-11');
+ stmt.run(foreignId,foreign.user.id,'Projeto estrangeiro','RECEIVED','2026-11-12','2026-11-12');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(paid,JSON.stringify({company_name:'Minha marca',domain:'marca.test',internal_key:'PRIVATE_INTERNAL'}),'2026-11-10');
+ f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)').run(foreignId,JSON.stringify({company_name:'Outra marca',domain:'another.test'}),'2026-11-12');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,2);
+ assert.equal(compact.body.projects.length,1);
+ assert.equal(compact.body.projects[0].id,paid);
+ assert.equal(compact.body.projects[0].data.company_name,'Minha marca');
+ assert.equal(compact.body.projects[0].data.internal_key,undefined);
+ const regular=await owner.call('/api/account');
+ assert.equal(regular.status,200);
+ assert.equal(regular.body.projects.length,2);
+ assert.equal(regular.body.projects_total,undefined);
+ assert.equal((await foreign.call('/api/account?compact=1')).body.projects_total,1);
+ assert.equal(JSON.stringify(compact.body).includes('Outra marca'),false);
+ assert.equal(JSON.stringify(compact.body).includes('PRIVATE_INTERNAL'),false);
+});
+
+test('F205: compact fallback skips blank latest paid briefings and uses the latest real company suggestion',async t=>{
+ const f=await fixture(t),owner=await f.client('Marca');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?)");
+ const oldId=randomUUID(),blankId=randomUUID(),pendingId=randomUUID();
+ insert.run(oldId,owner.user.id,'Site antigo','RECEIVED','2026-11-09','2026-11-09');
+ insert.run(blankId,owner.user.id,'Site novo pago','RECEIVED','2026-11-10','2026-11-10');
+ insert.run(pendingId,owner.user.id,'Site pendente','PENDING','2026-11-11','2026-11-11');
+ const insertBrief=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)');
+ insertBrief.run(oldId,JSON.stringify({company_name:'Empresa histórica',whatsapp:'11999999999'}),'2026-11-09');
+ insertBrief.run(blankId,JSON.stringify({company_name:'',domain:'novo.test'}),'2026-11-10');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);assert.equal(compact.body.projects_total,3);
+ assert.equal(compact.body.projects.length,1);assert.equal(compact.body.projects[0].id,oldId);
+ assert.equal(compact.body.projects[0].data.company_name,'Empresa histórica');
+ const all=await owner.call('/api/account');
+ assert.equal(all.body.projects.length,3);
+ assert.equal(all.body.projects[0].id,pendingId);
+});
+
+test('F206: saving own account in compact mode does not return the full archive',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),foreign=await f.client('Outro');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','','PENDING',?,?)");
+ for(let i=0;i<15;i++){
+  const stamp='2026-11-11T10:'+String(i).padStart(2,'0')+':00Z';
+  insert.run(randomUUID(),owner.user.id,'Projeto '+i,stamp,stamp);
+ }
+ const initial=(await owner.call('/api/account?compact=1')).body;
+ assert.equal(initial.projects_total,15);
+ const payload={version:0,name:'Cliente atualizado',email:owner.user.email,
+  company:'Minha empresa',whatsapp:'',phone:'',website:''};
+ const updated=await owner.call('/api/account?compact=1',payload);
+ assert.equal(updated.status,200);
+ assert.equal(updated.body.profile.version,1);
+ assert.equal(updated.body.user.name,'Cliente atualizado');
+ assert.equal(updated.body.projects_total,15);
+ assert.equal(updated.body.projects.length,0);
+ const next=await owner.call('/api/account');
+ assert.equal(next.body.projects.length,15);
+ assert.equal(next.body.profile.company,'Minha empresa');
+ assert.equal((await foreign.call('/api/account')).body.projects.length,0);
+});
+
+test('F211: bounded project search quota prevents expensive repeated reads without cross-tenant denial',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),other=await f.client('Outro');
+ const route='/api/account/projects?search=test';
+ for(let i=0;i<120;i++){
+  const response=await owner.call(route);
+  assert.equal(response.status,200,'request '+i);
+ }
+ const blocked=await owner.call(route);
+ assert.equal(blocked.status,429);
+ assert.match(blocked.body.error,/Muitas tentativas/);
+ assert.equal((await other.call(route)).status,200);
+ const key='account-projects:'+owner.user.id;
+ f.db.prepare('UPDATE rate_limits SET reset_at=? WHERE key=?').run(Date.now()-5000,key);
+ assert.equal((await owner.call(route)).status,200);
+});
+
+test('F215: compact account summary reflects only the authenticated owner phase totals',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outra pessoa');
+ const stmt=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,phase,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,'PENDING','2026-11-11','2026-11-11')");
+ for(const [i,phase]of ['solicitado','desenvolvimento','desenvolvimento','entregue'].entries())
+  stmt.run(randomUUID(),owner.user.id,'Projeto '+i,phase);
+ stmt.run(randomUUID(),other.user.id,'Outro projeto','revisao');
+ const compact=await owner.call('/api/account?compact=1');
+ assert.equal(compact.status,200);
+ assert.equal(compact.body.projects_total,4);
+ assert.deepEqual(compact.body.project_summary,{
+  solicitado:1,planejamento:0,desenvolvimento:2,revisao:0,entregue:1,
+ });
+ assert.equal((await other.call('/api/account?compact=1')).body.project_summary.revisao,1);
+ const original=await owner.call('/api/account');
+ assert.equal(original.body.projects_total,undefined);
+ assert.equal(original.body.project_summary,undefined);
+});
+
+test('F232: invalid JSON in a paid own briefing fails before HTTP response, never sends partial export',async t=>{
+ const f=await fixture(t),owner=await f.client('Titular'),other=await f.client('Outro');
+ const first=await order(owner),foreign=await order(other);
+ f.db.prepare("UPDATE orders SET payment_status='RECEIVED' WHERE id IN (?,?)").run(first.id,foreign.id);
+ const upsert=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?) ON CONFLICT(order_id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at');
+ upsert.run(first.id,'{JSON inválido','2026-11-11');
+ upsert.run(foreign.id,JSON.stringify({company_name:'Outro titular'}),'2026-11-11');
+ for(const uri of ['/api/account/export','/api/account/projects.csv','/api/account/projects.csv?columns=stage']){
+  const response=await owner.call(uri);
+  assert.equal(response.status,503,uri);
+  assert.equal(response.body.error,'Dados de projeto temporariamente indisponíveis para exportação.');
+ }
+ const validOther=await other.call('/api/account/export');
+ assert.equal(validOther.status,200);
+ assert.equal(validOther.body.projects.length,1);
+ upsert.run(first.id,JSON.stringify({company_name:'Cliente',internal_secret:'NEVER_LEAK'}),'2026-11-11');
+ const restored=await owner.call('/api/account/export');
+ assert.equal(restored.status,200);
+ assert.equal(restored.body.projects[0].data.company_name,'Cliente');
+ assert.equal(JSON.stringify(restored.body).includes('NEVER_LEAK'),false);
+});
+
+test('F233: 240-project CSV/JSON round trip is complete, isolated and schema-compatible',async t=>{
+ const f=await fixture(t),owner=await f.client('Exportador'),other=await f.client('Outra empresa');
+ const insert=f.db.prepare("INSERT INTO orders(id,user_id,product_id,title,brief,scope,delivery,phase,payment_status,created_at,updated_at) VALUES(?,?,'site',?,'','','',?,?,?,?)");
+ const brief=f.db.prepare('INSERT INTO briefings(order_id,data,updated_at) VALUES(?,?,?)');
+ const projects=[];
+ for(let i=0;i<240;i++){
+  const id=randomUUID(),paid=i%3===0,stamp='2026-11-11T08:00:00Z',title='Site do cliente '+String(i).padStart(3,'0');
+  projects.push({id,title,paid});
+  insert.run(id,owner.user.id,title,paid?'entregue':'solicitado',paid?'RECEIVED':'PENDING',stamp,stamp);
+  brief.run(id,JSON.stringify({company_name:paid?'Empresa permitida '+i:'Empresa ainda não paga '+i,
+   internal_secret:'PRIVATE_BULK_EXPORT_TOKEN'}),stamp);
+ }
+ const foreignId=randomUUID();
+ insert.run(foreignId,other.user.id,'PROJETO EXCLUSIVO DO OUTRO TITULAR','entregue','RECEIVED','2026-11-11','2026-11-11');
+ const ownJson=await owner.call('/api/account/export');
+ assert.equal(ownJson.status,200);
+ assert.equal(ownJson.body.schema_version,1);
+ assert.equal(ownJson.body.projects.length,240);
+ assert.deepEqual(new Set(ownJson.body.projects.map(p=>p.id)),new Set(projects.map(p=>p.id)));
+ assert.equal(ownJson.body.projects.filter(p=>p.data?.company_name).length,80);
+ assert.equal(ownJson.body.projects.filter(p=>p.phase==='entregue').length,80);
+ assert.equal(ownJson.body.projects.some(p=>p.id===foreignId),false);
+ assert.equal(JSON.stringify(ownJson.body).includes('PRIVATE_BULK_EXPORT_TOKEN'),false);
+ const legacy=await owner.call('/api/account/projects.csv');
+ assert.equal(legacy.status,200);
+ const staged=await owner.call('/api/account/projects.csv?columns=stage');
+ assert.equal(staged.status,200);
+ assert.equal(legacy.body.split('\r\n').filter(Boolean).length,241);
+ assert.equal(staged.body.split('\r\n').filter(Boolean).length,241);
+ assert.equal(legacy.body.includes('Etapa do projeto'),false);
+ assert.equal(staged.body.includes('Etapa do projeto'),true);
+ assert.equal(staged.body.includes('"entregue"'),true);
+ assert.equal(staged.body.includes('PRIVATE_BULK_EXPORT_TOKEN'),false);
+ assert.equal(staged.body.includes('PROJETO EXCLUSIVO DO OUTRO TITULAR'),false);
+ assert.equal((await other.call('/api/account/export')).body.projects.length,1);
+ assert.equal((await other.call('/api/account/projects.csv')).body.includes(projects[0].id),false);
 });

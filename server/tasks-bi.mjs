@@ -1,3 +1,4 @@
+import {safeCsvCell} from './account-export.mjs';
 const day=v=>v?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v.length===10?v+'T12:00:00Z':v)):'';
 const days=(a,b)=>Math.max(0,(new Date(b)-new Date(a))/86400000);
 const valid=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
@@ -35,4 +36,14 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const clean=t=>{const {instructions,checklist,source_key,...r}=t;return r;};
  return {filters,options,today,generated_at:clock.toISOString(),summary,statuses:breakdown('status'),priorities:breakdown('priority'),kinds:breakdown('kind'),workload,months,aging,risks:risks.map(clean),page,pages:Math.ceil(rows.length/40)||1,page_size:40,rows:(exportAll?rows:rows.slice((page-1)*40,page*40)).map(clean),quality:{source:'Banco completo do portal',scope:'Situação atual da coorte filtrada; gráficos mensais usam as datas de criação e conclusão dentro do período.',completion:'Conclusões sem evento explícito usam data aproximada e ficam fora das médias e do indicador de pontualidade. Pontualidade compara com o prazo atual, não com o prazo original.',limits:'Tempo de ciclo em dias corridos; não representa horas trabalhadas. Alterações de prazo contam somente edições registradas no histórico de gestão. Não há histórico diário de backlog nem apontamento de horas.'}};
 }
-export function tasksBICsv(data){const cell=v=>'"'+String(v??'').replace(/^[=+@\-\t\r]/,"' $&").replaceAll('"','""')+'"';return '\uFEFF'+[['ID','Atividade','Tipo','Cliente','Pedido','Responsável','Situação','Prioridade','Criação','Prazo atual','Conclusão','Conclusão aproximada','Dias em atraso','Idade dias','Ciclo dias corridos','No prazo atual','Arquivada','Último registro'],...data.rows.map(t=>[t.id,t.title,t.kind,t.client,t.order_title,t.assignee,t.status,t.priority,t.created_at,t.due_date,t.completed_at,t.completion_estimated?'Sim':'Não',t.overdue_days,t.age_days,t.cycle_days,t.on_time===null?'':t.on_time?'Sim':'Não',t.archived_at?'Sim':'Não',t.note])].map(r=>r.map(cell).join(';')).join('\r\n');}
+// F255: preserve the existing BOM/semicolon/CRLF contract while yielding one
+// output fragment at a time. The BI snapshot is already authorized and built
+// before the HTTP response starts; no second giant CSV string is allocated.
+const TASKS_CSV_HEADERS=['ID','Atividade','Tipo','Cliente','Pedido','Responsável','Situação','Prioridade','Criação','Prazo atual','Conclusão','Conclusão aproximada','Dias em atraso','Idade dias','Ciclo dias corridos','No prazo atual','Arquivada','Último registro'];
+function tasksCsvValues(t){return [t.id,t.title,t.kind,t.client,t.order_title,t.assignee,t.status,t.priority,t.created_at,t.due_date,t.completed_at,t.completion_estimated?'Sim':'Não',t.overdue_days,t.age_days,t.cycle_days,t.on_time===null?'':t.on_time?'Sim':'Não',t.archived_at?'Sim':'Não',t.note];}
+export function *tasksBICsvChunks(data){
+ yield '\uFEFF'+TASKS_CSV_HEADERS.map(safeCsvCell).join(';');
+ for(const row of data.rows)yield '\r\n'+tasksCsvValues(row).map(safeCsvCell).join(';');
+}
+// Keep the public serializer used by existing CLI/unit consumers unchanged.
+export function tasksBICsv(data){return [...tasksBICsvChunks(data)].join('');}
