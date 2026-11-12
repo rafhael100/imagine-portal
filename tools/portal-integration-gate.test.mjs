@@ -323,3 +323,20 @@ test('visual-preview lot still cannot approve merge after all checks passed', ()
   assert.equal(result.customerAccessApproved, false);
   assert.equal(result.antiRollbackApproved, false);
 });
+
+test('final visual-browser lot allows at most 25 committed steps, never auto-releases', () => {
+  const f = smallLot(3);
+  assert.equal(f.lot.pullRequest, 595);
+  assert.equal(f.lot.maxCommits, 25);
+  f.comparison.ahead_by = 25;
+  const exact = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(exact.evidenceVerified, true);
+  assert.equal(exact.splitRequired, false);
+  assert.equal(exact.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(exact.mergeApproved, false);
+  assert.equal(exact.deployApproved, false);
+  f.comparison.ahead_by = 26;
+  const oversized = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(oversized.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
+  assert.equal(oversized.deployApproved, false);
+});
