@@ -34,17 +34,14 @@ try{
     foreach($tables as $table) {
         $owner->exec("GRANT SELECT,INSERT,UPDATE,DELETE ON {$table}
             TO gsc_rls_probe");
-        $stmt=$owner->prepare('SELECT c.relrowsecurity,c.relforcerowsecurity
-            FROM pg_class AS c
-            WHERE c.oid=:table_name::regclass');
-        // Direct fixed-name server catalog lookup.
+        // Confirm the migration enabled and FORCED RLS on all four tables.
         $stmt=$owner->prepare("SELECT relrowsecurity,relforcerowsecurity
             FROM pg_class WHERE oid=to_regclass(:table_name)");
         $stmt->execute(['table_name'=>$table]);
         $flags=$stmt->fetch(PDO::FETCH_ASSOC);
         $check(is_array($flags) &&
-            $flags['relrowsecurity']===true &&
-            $flags['relforcerowsecurity']===true);
+            in_array($flags['relrowsecurity'],[true,'t','1',1],true) &&
+            in_array($flags['relforcerowsecurity'],[true,'t','1',1],true));
     }
     $now=1790000000;
     $scope='https://www.googleapis.com/auth/webmasters.readonly';
