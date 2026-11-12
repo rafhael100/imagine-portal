@@ -42,3 +42,7 @@ O workflow testa antes de criar segredos que o script retorne código 64 quando 
 ## F340 — recusa de sobrescrita comprovada na CI
 
 O workflow cria um banco-alvo descartável de mesmo nome **antes** de chamar a restauração. O script deve recusar a operação com código 65, o banco preexistente deve continuar presente e o fingerprint da origem deve permanecer igual. Só o próprio workflow, no projeto Docker descartável, remove explicitamente esse banco de teste depois da verificação. Isso comprova o bloqueio de destino já existente, mas não cobre autorização para recuperação fora da CI nem restauração em cluster novo.
+
+## F341 — matriz de privilégios após restauração
+
+A prova verifica também que os dois papéis runtime (`portal_browser_runtime` e `portal_browser_envelope_runtime`) não herdam **nenhum** privilégio direto de tabela (SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER) nas nove tabelas sensíveis protegidas com RLS. A validação ocorre **no banco-alvo restaurado**, não apenas na origem; a checagem de nove tabelas com ENABLE+FORCE RLS permanece obrigatória. Não substitui auditoria DBA independente nem testes de cópia externa.
