@@ -506,6 +506,77 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         }
     }
 
+
+    public function test_f309_service_candidate_owner_is_immutable_and_never_a_runtime_grant():void
+    {
+        // The durable ledger is a candidate only: it cannot authorize a
+        // browser/CRM/Sites request and it has no operational read policies.
+        $flags=$this->admin->query("SELECT relrowsecurity,relforcerowsecurity
+            FROM pg_class WHERE oid='public.portal_service_resource_claims'::regclass")->fetch(PDO::FETCH_ASSOC);
+        self::assertTrue(in_array($flags['relrowsecurity'],[true,'t',1,'1'],true));
+        self::assertTrue(in_array($flags['relforcerowsecurity'],[true,'t',1,'1'],true));
+        $this->deniedSql('SELECT * FROM public.portal_service_resource_claims');
+        $this->deniedSql("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','".self::ORG."',
+            'imagine_sites','synthetic-unauthorized','sites_onepage')");
+
+        $claim='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,?,?,?)");
+        $insert->execute([$claim,self::ORG,'imagine_sites','candidate-onepage','sites_onepage']);
+        self::assertSame(1,(int)$this->admin->query("SELECT security_revision
+            FROM public.portal_service_resource_claims WHERE source_resource_ref='candidate-onepage'")->fetchColumn());
+
+        // A second organization may not claim the same upstream resource.
+        $this->admin->exec("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision) VALUES
+            ('44444444-4444-4444-8444-444444444444',
+             'second-service-tenant','Second synthetic service tenant','active',1)");
+        try {
+            $insert->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                '44444444-4444-4444-8444-444444444444',
+                'imagine_sites','candidate-onepage','sites_onepage']);
+            self::fail('A source resource could be claimed by two organizations.');
+        } catch(PDOException $e) {
+            self::assertSame('23505',(string)$e->getCode());
+        }
+
+        foreach([
+            "UPDATE public.portal_service_resource_claims SET organization_id='44444444-4444-4444-8444-444444444444'",
+            "UPDATE public.portal_service_resource_claims SET source_resource_ref='adopted-site'",
+            "UPDATE public.portal_service_resource_claims SET source_system='imagine_performance'",
+            "UPDATE public.portal_service_resource_claims SET product_code='performance_ai'",
+            "UPDATE public.portal_service_resource_claims SET security_revision=9",
+        ] as $tamper) {
+            try {
+                $this->admin->exec($tamper);
+                self::fail('Claim mutation unexpectedly accepted.');
+            } catch(PDOException $e) {
+                self::assertSame('42501',(string)$e->getCode());
+            }
+        }
+
+        $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='retired'");
+        self::assertSame(2,(int)$this->admin->query(
+            'SELECT security_revision FROM public.portal_service_resource_claims')->fetchColumn());
+        try {
+            $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='candidate'");
+            self::fail('A retired service could be silently reactivated.');
+        } catch(PDOException $e) {
+            self::assertSame('42501',(string)$e->getCode());
+        }
+        try {
+            $this->admin->exec("UPDATE public.portal_service_resource_claims SET state='verified'");
+            self::fail('A reviewer-only claim must never become verified.');
+        } catch(PDOException $e) {
+            self::assertContains((string)$e->getCode(),['23514','42501']);
+        }
+        self::assertSame(0,(int)$this->admin->query(
+            "SELECT count(*) FROM public.portal_service_resource_claims WHERE state='candidate'")->fetchColumn());
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
