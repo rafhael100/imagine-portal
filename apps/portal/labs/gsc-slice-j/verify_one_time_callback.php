@@ -4,6 +4,7 @@ require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleOAuthP
 require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackPolicy.php';
 require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateLedger.php';
 require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackCoordinator.php';
+require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php';
 
 use App\Domain\SeoReview\GoogleSearchConsoleOAuthPreflight as Pkce;
 use App\Domain\SeoReview\GoogleSearchConsoleOAuthCallbackPolicy as Policy;
@@ -63,6 +64,20 @@ try{
         &&$public['customerDisplayAuthorized']===false
         &&$public['publicationAuthorized']===false
         &&$public['releaseStatus']==='HOLD_EXTERNAL_AUTHENTICATED_BACKEND');
+    $tokenPlan=(new \App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan())
+        ->prepare([
+            'clientId'=>$config['clientId'],
+            'clientSecret'=>'synthetic-only-not-a-real-credential',
+            'registeredRedirectUri'=>$config['registeredRedirectUri']
+        ],$result);
+    $check($tokenPlan!==null);
+    $post=$tokenPlan->takeForTrustedHttpsTransport();
+    parse_str($post['body'],$form);
+    $check($post['url']==='https://oauth2.googleapis.com/token'
+        &&$form['code']===$code
+        &&$form['code_verifier']===$verifier
+        &&$form['grant_type']==='authorization_code'
+        &&$tokenPlan->safeReview()['networkPerformed']===false);
     $backend=$result->takeForTrustedBackend();
     $check(is_array($backend)&&$backend['code']===$code
         &&$backend['codeVerifier']===$verifier);
