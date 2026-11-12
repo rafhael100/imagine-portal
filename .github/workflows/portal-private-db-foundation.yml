@@ -146,6 +146,21 @@ jobs:
           admin_sql "ALTER FUNCTION public.portal_browser_pending(text) SET search_path TO pg_catalog, pg_temp"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-definer-repair.out
           cmp before.out after-definer-repair.out
+      - name: Reject public HMAC proof execution and missing identity execute
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) TO PUBLIC"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_proof_ok(text,text) FROM PUBLIC"
+          admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_active(text) FROM portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "GRANT EXECUTE ON FUNCTION public.portal_browser_active(text) TO portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-execute-matrix-repair.out
+          cmp before.out after-execute-matrix-repair.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail

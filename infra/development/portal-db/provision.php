@@ -256,6 +256,35 @@ WHERE p.oid IS NULL
    )
 SQL)->fetchColumn();
     if($unsafeDefinerFunctions!==0)throw new RuntimeException();
+
+    // F336: inspect the entire EXECUTE matrix, not only the four cross
+    // role samples from F330. In particular proof_ok is intentionally
+    // private to its SECURITY DEFINER caller, never exposed to either
+    // runtime role or PUBLIC as a direct HMAC oracle.
+    $incorrectExecutionGrants=(int)$db->query(<<<'SQL'
+SELECT count(*) FROM (VALUES
+ ('public.portal_browser_proof_ok(text,text)',false,false),
+ ('public.portal_browser_claim_attempt(text,text)',true,false),
+ ('public.portal_browser_material(text,uuid)',true,false),
+ ('public.portal_browser_begin(text,uuid,text,text,text)',true,false),
+ ('public.portal_browser_pending(text)',true,false),
+ ('public.portal_browser_complete(text,text,bigint,text,text)',true,false),
+ ('public.portal_browser_active(text)',true,false),
+ ('public.portal_browser_permission_preflight(text,uuid,text)',true,false),
+ ('public.portal_browser_revoke(text,text)',true,false),
+ ('public.portal_browser_envelope_read(text)',false,true),
+ ('public.portal_browser_envelope_write(text,text)',false,true),
+ ('public.portal_browser_envelope_destroy(text)',false,true),
+ ('public.portal_browser_envelope_gc()',false,true)
+) AS expected(signature,identity_can_execute,envelope_can_execute)
+WHERE has_function_privilege(
+    'portal_browser_runtime',expected.signature,'EXECUTE'
+  ) IS DISTINCT FROM expected.identity_can_execute
+   OR has_function_privilege(
+    'portal_browser_envelope_runtime',expected.signature,'EXECUTE'
+  ) IS DISTINCT FROM expected.envelope_can_execute
+SQL)->fetchColumn();
+    if($incorrectExecutionGrants!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
