@@ -30,11 +30,15 @@ export function validateManifest(m) {
       new Set(m.requiredWorkflows).size !== m.requiredWorkflows.length ||
       !m.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160) ||
       !Array.isArray(m.reviewLots) || m.reviewLots.length !== 2 ||
+      // Only one approved review topology is permitted: one dev-rooted lot
+      // followed by a deduplicated increment based EXACTLY on that lot.
+      m.reviewLots[0]?.baseBranch !== m.targetBranch ||
+      m.reviewLots[1]?.baseBranch !== m.reviewLots[0]?.headBranch ||
       new Set(m.reviewLots.map(l => l?.pullRequest)).size !== m.reviewLots.length ||
       m.reviewLots.some(l => !plainRecord(l) ||
         !Number.isSafeInteger(l.pullRequest) || l.pullRequest < 1 ||
         typeof l.headBranch !== 'string' || !l.headBranch.startsWith('review/') ||
-        l.baseBranch !== m.targetBranch ||
+        ![m.targetBranch,m.reviewLots[0]?.headBranch].includes(l.baseBranch) ||
         !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
         !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 50 ||
         !Array.isArray(l.requiredWorkflows) || l.requiredWorkflows.length !== 2 ||
@@ -110,7 +114,8 @@ export function assessCandidate(m, pull, runs, comparison, lot = null) {
       'REVIEW_CANDIDATE_ONLY',
     evidenceVerified,
     splitRequired,
-    commitsAheadOfDev: commitsAhead,
+    comparisonBase: c.baseBranch,
+    commitsAheadOfBase: commitsAhead,
     requiredWorkflowCount: required.length,
     workflowEvidence,
     errors,
@@ -158,7 +163,7 @@ export async function fetchEvidence(m, token, lot = null) {
   const runs = await githubGet(root + '/actions/runs?head_sha=' +
     candidate.headSha + '&per_page=100', token);
   const comparison = await githubGet(root + '/compare/' +
-    encodeURIComponent(m.targetBranch) + '...' +
+    encodeURIComponent(candidate.baseBranch ?? m.targetBranch) + '...' +
     candidate.headSha, token);
   if (pr.paginated || runs.paginated ||
       !Array.isArray(runs.data?.workflow_runs) ||
