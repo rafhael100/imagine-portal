@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-L - OAuth PKCE PostgreSQL and token request planning
+name: Portal GSC Slices A-M - OAuth PostgreSQL and response scope safety
 
 on:
   pull_request:
@@ -30,6 +30,7 @@ on:
       - 'apps/portal/labs/gsc-slice-j/**'
       - 'apps/portal/labs/gsc-slice-k/**'
       - 'apps/portal/labs/gsc-slice-l/**'
+      - 'apps/portal/labs/gsc-slice-m/**'
       - 'apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
@@ -124,11 +125,12 @@ jobs:
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackCoordinator.php",
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateRetention.php",
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php",
               "apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php",
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -137,7 +139,7 @@ jobs:
                 labs.has(pieces[3])&&pieces[4].length>0;
             };
             const consolidated=process.env.BASE_REF==="dev/fast-track-portal-2026-11-05";
-            const maxPaths=consolidated?65:12;
+            const maxPaths=consolidated?70:12;
             const minPaths=consolidated?20:1;
             if(files.length<minPaths||files.length>maxPaths||files.some(p=>!allow(p))){
               console.error("GSC review slice: unexpected modified paths");process.exit(1);
@@ -286,6 +288,16 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php
           php -l apps/portal/labs/gsc-slice-l/verify_token_plan.php
           php apps/portal/labs/gsc-slice-l/verify_token_plan.php
+      - name: GSC Slice M deny non-readonly token scope and secret response leaks
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TOKEN_RESPONSE_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php
+          php -l apps/portal/labs/gsc-slice-m/verify_token_response.php
+          php apps/portal/labs/gsc-slice-m/verify_token_response.php
       - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
         shell: bash
         env:
