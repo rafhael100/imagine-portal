@@ -4,8 +4,28 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const BASE = 'refs/remotes/origin/dev/fast-track-portal-2026-11-05';
+const NODE_BASE = 'refs/remotes/origin/review/portal-int-f163-session-identity-immutability-pg18-2026-11-11';
+
+// Only fixed, reviewed comparison targets. No arbitrary user-supplied ref
+// may influence an integration inventory or lead to a false NO-GO summary.
+export function selectReviewBase(selector='') {
+  if(selector==='')return BASE;
+  if(selector==='node-f163')return NODE_BASE;
+  throw new Error('Unsupported inventory base selector.');
+}
+
 
 export function classify(path) {
+  // Legacy Node/SQLite Portal has operational auth and billing surfaces too.
+  // They must never fall into the generic "other" review bucket.
+  if (/^server\/(?:app|account|security|store|team)\.mjs$/.test(path)) return 'node_identity_security';
+  if (path === 'server/account-export.mjs') return 'node_sensitive_export';
+  if (path.startsWith('server/') && /\.mjs$/.test(path)) return 'node_application_runtime';
+  if (path.startsWith('tests/') && /\.test\.[cm]?js$/.test(path)) return 'automated_tests';
+  if (/^(?:portal|account-ui|briefing-ui|production-ui|fiscal-ui|tasks-bi-ui|subscription-ui|client-[\w-]+-ui)\.js$/.test(path)
+      || /^(?:portal|index)\.html$/.test(path)
+      || /^(?:portal|style)\.css$/.test(path)) return 'node_presentation';
+  if (path.startsWith('apps/portal/tools/integration/')) return 'integration_review_tooling';
   if (path.startsWith('apps/portal/database/migrations/')) return 'database_migration';
   if (/^apps\/portal\/(app|routes|bootstrap)\//.test(path)
       && /(Identity|Authorization|PortalAccess|CommercialDeliveryReview|Sessions?|Permissions?|Auth|Guard)/i.test(path)) {
@@ -131,11 +151,18 @@ export function reviewPackets(report) {
   const accepted = new Set([
     'database_migration', 'identity_security', 'domain',
     'ci_workflow', 'presentation', 'application_runtime',
+    'node_identity_security', 'node_sensitive_export', 'node_application_runtime',
+    'node_presentation', 'integration_review_tooling',
     'isolated_lab', 'automated_tests', 'documentation', 'other',
   ]);
   const instructions = {
     database_migration: 'Revisar compatibilidade, backup, rollback e RLS no PostgreSQL descartável antes de staging.',
     identity_security: 'Requer parecer AppSec/DBA independente: origem de sessão, MFA, permissões, tenant e revogação.',
+    node_identity_security: 'Revisão AppSec independente do Portal Node: sessões, cookies, rate limits, perfis, transações e isolamento por cliente.',
+    node_sensitive_export: 'Revisão de privacidade/LGPD: whitelist de campos, CSV injection, quotas, retenção e portabilidade limitada.',
+    node_application_runtime: 'Auditar cobrança, fiscal, briefing e acesso Node/SQLite, incluindo default-deny e dados pessoais.',
+    node_presentation: 'Verificar navegador, escape HTML, botões, autorização no servidor e vazamento de dados no DOM.',
+    integration_review_tooling: 'Conferir exatidão do inventário Git, HEAD real, arquivos omitidos e ausência de autorização ou merge implícito.',
     domain: 'Conferir regras de negócio aprovadas, transições e decisões sem autorização operacional implícita.',
     ci_workflow: 'Confirmar ações somente de leitura, dependências fixadas, CI real e nenhuma etapa de deploy.',
     presentation: 'Verificar dados fictícios, acessibilidade, noindex, CSP, sem rotas/ações reais.',
@@ -200,13 +227,18 @@ function main() {
     git(['rev-parse', 'HEAD']),
     process.env.PORTAL_EXPECTED_HEAD ?? '',
   );
-  const mergeBase = git(['merge-base', BASE, 'HEAD']);
-  const leftRight = git(['rev-list','--left-right','--count',BASE+'...HEAD']);
+  const base = selectReviewBase(process.env.PORTAL_REVIEW_BASE ?? '');
+  const mergeBase = git(['merge-base', base, 'HEAD']);
+  // A focused candidate must be an actual descendant of the pinned review
+  // base. A divergent graph is not a safe "clean" integration batch.
+  if(base === NODE_BASE && mergeBase !== git(['rev-parse',NODE_BASE]))
+    throw new Error('Node account candidate is not descended from F163.');
+  const leftRight = git(['rev-list','--left-right','--count',base+'...HEAD']);
   const records = parseNameStatusZ(
     gitZ(['diff','--name-status','-z','--find-renames',mergeBase,'HEAD'])
   );
   const report = buildReport({
-    base: BASE, head, mergeBase, leftRight, records,
+    base, head, mergeBase, leftRight, records,
   });
   mkdirSync(outputDir, { recursive: true, mode: 0o700 });
   writeFileSync(join(outputDir,'inventory.json'), JSON.stringify(report,null,2)+'\n',{mode:0o600});

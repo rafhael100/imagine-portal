@@ -5,3 +5,171 @@ A área do cliente reúne dados de acesso, responsável, empresa, telefones, sit
 Acesso: GET/POST /api/account usam a sessão atual, sem parâmetro de outro usuário. Versões de cadastro evitam sobrescrever edições concorrentes. Telefones, e-mail e URL são validados. Trocar o e-mail de acesso exige a senha atual e encerra as outras sessões; o e-mail fiscal é independente. Alterar senha usa a rotina existente, revogando outras sessões.
 
 Dados fiscais usam o mesmo cadastro canônico das notas, editável pelo botão específico. O histórico por projeto é somente leitura nesta área e leva ao briefing correspondente. Materiais bloqueados após estorno não são reexpostos pela conta. Nenhum número completo ou CVV de cartão é exibido ou salvo nessa área.
+
+## Arquivo de projetos e busca (F188/F192)
+A tela de cliente filtra por nome, domínio, empresa ou identificador e por situação
+de pagamento. A navegação exibe até oito projetos por página, sem alterar a
+autorização da API: os projetos carregados pertencem exclusivamente à sessão
+atual. A interface lista o código de pagamento em português com fallback neutro.
+Filtros e paginação são uma visualização local, não uma consulta de terceiros
+nem uma alteração de dados financeiros.
+
+## Exportação e portabilidade limitada (F176–F183/F187)
+Clientes podem baixar duas representações dos seus dados:
+- JSON `GET /api/account/export`: cadastro, dados fiscais e campos autorizados
+  de briefings/projetos, com versão de contrato e instante de extração.
+- CSV `GET /api/account/projects.csv`: identificador, título, criação, situação
+  de pagamento, empresa e domínio, em ponto e vírgula e UTF-8 BOM.
+
+Esses downloads **não são exportação total de dados pessoais, contratos,
+mensagens, extratos ou faturas**. Não devem ser anunciados como resposta
+integral a solicitação LGPD. Dados internos, senhas, tokens e dados de
+outros titulares não são incluídos. O CSV impede interpretação de valores
+que comecem como fórmulas, inclusive após certos caracteres invisíveis.
+Ambas as rotas exigem sessão de cliente, têm `Cache-Control: no-store`,
+auditam a ação e dividem o limite de 20 exportações por hora por conta.
+A interface informa erros 401/429 e não baixa respostas de erro como arquivo.
+Sessão expirada leva de volta ao login.
+
+## Segurança e registros da própria conta (F169–F191)
+O painel apresenta somente contagens de sessões do titular (nunca cookies
+ou identificadores de dispositivos), revogação autenticada das demais
+sessões e histórico de ações reconhecidas. A consulta original
+`GET /api/account/security-events` mantém os dez últimos eventos.
+`GET /api/account/security-events?page=N` admite páginas de 1 a 30,
+dez eventos por página e resposta `{events,page,has_more}`. A interface
+permite consultar atividades anteriores sem expor o identificador interno
+do log, IP, identificador de outro usuário ou dados de sessão.
+
+Alteração de senha e e-mail e revogação de outras sessões revalidam
+a situação do usuário e da sessão no ponto de gravação, mesmo quando
+uma verificação de senha assíncrona começou antes de outra alteração.
+Testes sintéticos verificam isolamento e cenários concorrentes.
+
+## Estado de integração
+Este conjunto segue na PR consolidada #392, de revisão, sem merge e sem
+deploy. A aprovação automatizada dos testes não substitui revisão
+independente AppSec/LGPD, homologação visual, plano de rollback ou
+aprovação específica do gate de integração (issue #341).
+
+## Integridade de ordenação e concorrência (F194–F196)
+O banco possui índices idempotentes em `orders(user_id,created_at DESC,id DESC)`,
+sessões por usuário, auditoria por titular e expiração de limites. Empates
+de data de criação são desempatos pelo ID do projeto, mantendo a ordem da
+listagem estável para o mesmo conjunto de registros.
+
+As rotinas de alteração de senha e revogação de outras sessões revalidam
+a existência da sessão atual dentro de uma transação SQLite **após**
+as derivações/verificações assíncronas de senha. Se houver logout,
+revogação ou alteração concorrente da credencial, respondem com conflito
+e não recriam acesso nem revogam sessões de outra pessoa. Os testes
+de corrida usam dados exclusivamente sintéticos.
+
+## Carregamento paginado da área do cliente (F201–F206)
+
+A interface usa `GET /api/account?compact=1` para carregar somente cadastro,
+dados fiscais, total de projetos e **um briefing pago com empresa informada**
+que sirva de sugestão de contato. Não transfere todos os projetos ao abrir
+a tela. Ao salvar, usa `POST /api/account?compact=1` e preserva a validação
+otimista de versão, sem retornar o histórico inteiro na resposta.
+
+`GET /api/account/projects?page=N&payment=all|paid|other&search=...` lista
+**8 projetos por página** do usuário autenticado, com contagem e indicação
+`has_more`. A página fica limitada a 1–1000 e a busca a 120 caracteres;
+termos são tratados literalmente (sem curingas SQL), com comparação
+insensível a maiúsculas e diacríticos em português. Nome e domínio de
+briefings só participam da busca quando o pagamento está confirmado.
+A interface descarta respostas assíncronas antigas, dá opção de tentar
+novamente após falha e nunca usa identificador de outro titular.
+
+As rotas antigas `GET /api/account` e `POST /api/account`, sem o parâmetro
+`compact`, mantêm a representação integral por compatibilidade. As exportações
+JSON/CSV permanecem integrais e separadas da paginação da interface.
+
+## Arquivos com volume excepcional (F210)
+
+A navegação dinâmica admite até 1000 páginas de oito registros (8000 projetos)
+por busca/filtro. Caso o total filtrado ultrapasse esse teto, a API indica
+`limited: true`, encerra `has_more` no último resultado permitido e a tela
+informa que a exportação completa continua disponível. Não há tentativa de
+consultar páginas inválidas nem truncagem silenciosa do CSV/JSON.
+
+## Limite antiabuso das consultas paginadas (F211)
+
+Para reduzir pesquisas repetitivas custosas e preservar outros usuários,
+`GET /api/account/projects` limita cada conta a 120 consultas por janela
+de 60 segundos. A quota é independente por titular e separada das
+exportações (20/hora). A interface informa quando é preciso aguardar e
+não recomenda tentativas automáticas contínuas.
+
+## Situação operacional e ordem dos projetos (F213)
+
+O arquivo paginado aceita `phase=all|solicitado|planejamento|desenvolvimento|revisao|entregue` e `sort=newest|oldest`. Os valores são explicitamente permitidos; tentativas com valores desconhecidos recebem erro 400. Os filtros de etapa, pagamento, busca e ordenação são aplicados no SQL **antes** da paginação de oito registros. A tela apresenta as etapas em português e mantém o comportamento anterior quando os parâmetros são omitidos.
+
+## Resumo das etapas (F215)
+
+A consulta compacta retorna `project_summary`, com contagem de projetos nas etapas solicitado, planejamento, desenvolvimento, revisão e entregue, agregada somente pelo identificador da sessão autenticada. A interface exibe o resumo sem abrir ou revelar projetos de outra empresa; a API legada permanece sem novas informações obrigatórias.
+
+## Planilha com etapas opcionais (F216)
+
+O contrato legado `GET /api/account/projects.csv` mantém seis colunas. A interface de cliente passa a baixar `GET /api/account/projects.csv?columns=stage`, que acrescenta a coluna final **Etapa do projeto**. A exportação JSON inclui o campo opcional `phase` por projeto, preservando a versão de contrato legada; os dados continuam isolados por titular e protegidos contra fórmulas CSV.
+
+## Acompanhamento da produção de sites (F218)
+
+Nos projetos do tipo **site** com pagamento confirmado, a API paginada apresenta apenas `production.stage`, `production.progress` (0–100) e a data prevista `production.due_date`. A consulta é filtrada pelo titular; projetos não pagos, projetos sem registro de produção e produtos diferentes de site não recebem dados de produção. A interface apresenta etapa legível, progresso e previsão, sem expor URL de prévia privada, identificadores de equipe ou comentários internos. O acompanhamento não constitui promessa contratual nem libera a publicação.
+
+## Projetos aguardando a revisão do cliente (F220)
+
+A interface oferece o filtro `attention=review`, que retorna somente sites **pagos** do próprio titular cuja produção esteja efetivamente em `stage=review`, prontos para uma ação de aprovação ou ajuste. O resumo compacto acrescenta `requires_review`, contado no servidor com a mesma restrição de usuário/pagamento; o cartão exibe o acesso direto ao fluxo do pedido para revisar a prévia. Nenhuma aprovação ou publicação ocorre automaticamente.
+
+## Acessibilidade de consulta e restauração de filtros (F221)
+
+O controle **Limpar filtros** restaura texto, pagamento, etapa, ordenação e revisões pendentes para seus padrões, reiniciando na primeira página. Durante requisições assíncronas, a lista informa `aria-busy`, removido ao receber resposta ou erro. A navegação pelo teclado mantém indicação visível de foco.
+
+### Compatibilidade com instalação inicial (F222)
+
+O resumo de revisões pendentes retorna zero se a tabela opcional de produção ainda não foi inicializada. Não força migração de produção em consultas de cadastro nem impede operações de perfil em bancos de testes ou instalações legadas que ainda não possuem essa tabela.
+
+### Eficiência do filtro por etapa (F223)
+
+O índice idempotente `orders(user_id,phase,created_at DESC,id DESC)` garante que os filtros por titular e fase possam usar consultas limitadas de forma estável, com a ordenação de projetos mais recentes. O teste de plano de consulta SQLite exige o uso desse índice sem dados de clientes reais. O índice aumenta o espaço em disco e deverá ser avaliado pelo DBA na revisão de integração.
+
+### GitHub Actions em desenvolvimento contínuo (F224)
+
+Os testes Node, os contratos sintéticos OAuth/GSC e os inventários F144/F186 usam controle de concorrência por PR/branch, cancelando validações obsoletas do **mesmo** grupo quando um commit mais novo chega. Isso reduz filas e consumo desnecessário dos runners, mas nenhum cancelamento equivale a aprovação. A liberação só pode considerar o último SHA exato e deve confirmar todos os testes exigidos após congelar a candidata.
+
+## Acesso ao site publicado (F226)
+
+Quando um site estiver comprovadamente em etapa de **publicação** e ainda estiver pago, a API da conta pode apresentar o link público `production.live_url` após validação de URL HTTPS, sem credenciais nem destinos internos. A interface inclui **Abrir site publicado**, com `rel=noopener noreferrer`. Prévia privada, ambientes internos e outros clientes não aparecem nesta relação; o recurso não substitui a publicação controlada nem cria domínios.
+
+### Exportação CSV sem carregar o arquivo inteiro (F229)
+
+A exportação CSV do titular agora usa um cursor SQLite e gera uma linha por vez, mantendo o mesmo contrato de campos, BOM UTF-8, separadores e proteção contra fórmulas. O envio HTTP respeita backpressure, desconexões e o limite compartilhado de exportações. A consulta obriga `WHERE o.user_id=?` e só inclui dados permitidos em pedidos pagos. O endpoint JSON permanece integral até a conclusão de sua migração específica.
+
+### JSON incremental da própria conta (F230)
+
+A mesma consulta restrita por titular e o mesmo controle de dados autorizados da exportação CSV alimentam agora o download JSON. O documento preserva `schema_version: 1`, `scope: cadastro_e_projetos`, perfil, fiscal e lista integral de projetos, mas é escrito em fragmentos sem manter a lista de todos os projetos na memória. A operação continua autenticada, limitada por quota e auditada.
+
+### Consistência antes de iniciar download (F232)
+
+Antes de enviar o cabeçalho HTTP de sucesso, ambos os downloads verificam que os dados JSON de briefings **pagos do próprio titular** podem ser interpretados. Em caso de corrupção, retornam erro 503 sem transmitir arquivo parcial como se fosse válido; um problema na conta de outra pessoa não bloqueia a consulta. A verificação não altera dados e não revela material de clientes em logs.
+
+### Falhas de rede durante transferências (F234)
+
+Uma conexão interrompida cancela o cursor da exportação em vez de continuar lendo os dados da conta ou tentar concluir um arquivo incompleto. Se ocorrer erro depois do início da resposta HTTP, o transporte é encerrado abruptamente para evitar comunicar sucesso com conteúdo truncado. O protocolo de exportação mantém os mesmos campos e regras de autenticação.
+
+### Índice utilizado nos downloads incrementais (F235)
+
+Teste de `EXPLAIN QUERY PLAN` confirma que a consulta do cursor de exportação por titular utiliza o índice existente `idx_orders_user_created` e faz `JOIN` com o briefing pelo identificador do pedido. Não é criada cópia integral da tabela nem um índice desnecessário no banco de clientes.
+
+### Uma exportação ativa por conta (F236)
+
+CSV e JSON compartilham um lease transacional SQLite por titular. Uma segunda exportação simultânea recebe HTTP 409 com aviso, sem consumir memória ou iniciar outro cursor. Outro cliente não é afetado. O lease é liberado no bloco `finally` após sucesso, erro ou desconexão, com expiração defensiva de 15 minutos para recuperar de falhas do processo. A operação é apenas documental/testada em ambiente sintético até revisão DBA de concorrência e persistência.
+
+### Limpeza de leases abandonados (F237)
+
+O mesmo ciclo de coleta de quotas (a cada cinco minutos por processo) remove leases de exportação vencidos pelo índice `idx_account_export_leases_expires`, sem remover transferências ainda válidas. Testes sintéticos cobrem expiração por falha de worker e isolamento da exportação ativa de outro titular.
+
+### Evitar CI duplicada para push e PR da mesma branch (F239)
+
+As verificações Node.js, OAuth/GSC e inventários F144/F186 agora identificam a concorrência por `github.head_ref || github.ref_name`, fazendo com que `push` e `pull_request` do mesmo ramo compartilhem o grupo. Execuções antigas dessa branch são canceladas, em vez de permanecerem duplicadas na fila. Uma execução cancelada não é sinal verde; a verificação do SHA final continua obrigatória. Verificações de branches distintas continuam independentes.
