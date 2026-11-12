@@ -11,6 +11,8 @@ use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
 use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
+use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
+use App\Domain\Organizations\OrganizationId;
 use Illuminate\Support\Facades\Route;
 use PDO;
 use PDOException;
@@ -427,6 +429,37 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertSame(1,$q->rowCount());
         self::assertFalse($check->allows($activeA,self::ORG,'services.view'));
         self::assertFalse($this->adapter->isActiveBusinessSession($activeA));
+    }
+
+
+    public function test_positive_grant_preflight_cannot_unlock_resource_or_http_authorization():void
+    {
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
+        $session=$this->active();
+        $permission=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($permission->allows($session,self::ORG,'services.view'),
+            'Positive PG18 preflight must actually be exercised.');
+
+        // F305: a valid password + TOTP + explicit service grant does not
+        // establish ownership of an arbitrary resource. The application's
+        // trusted membership/resource/session sources are still deny-all.
+        $authority=$this->app->make(PortalAuthorityBoundary::class);
+        $verdict=$authority->inspect(
+            $session,
+            new OrganizationId(self::ORG),
+            'unverified-synthetic-service-asset',
+            'services.view',
+            time(),
+        );
+        self::assertFalse($verdict->syntheticChecksPass);
+        self::assertFalse($verdict->canAuthorizeHttp());
+
+        $routes=array_map(static fn($route):string=>$route->uri(),
+            iterator_to_array($this->app['router']->getRoutes()));
+        self::assertSame(['up'],$routes,'There must be no live business or auth route.');
     }
 
     private function expectIdentityFenceRefusal(string $sql):void
