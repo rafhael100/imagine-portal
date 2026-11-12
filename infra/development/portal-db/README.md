@@ -62,3 +62,7 @@ O laboratório recusa uma origem que não possua exatamente as dez migrations pr
 ## F345 — lista exata de migrations autorizadas
 
 A F344 comparava contagem e fingerprint entre origem e destino; isoladamente isso não impediria que a origem trouxesse dez **nomes inesperados**. O gate F345 exige que cada nome pertença ao conjunto fechado das dez migrations explicitamente instaladas em `provision.php`, tanto antes do dump quanto depois da restauração. Em conjunto com a contagem exata, isso comprova igualdade do conjunto de nomes conhecido, não a integridade criptográfica do conteúdo dos scripts ou de dados de negócio.
+
+## F346 — prova negativa do manifesto na CI
+
+Após instalar a fundação de teste, a CI altera temporariamente **um nome** da tabela de migrations para outro não autorizado, preservando as dez linhas. Executa a restauração sob o projeto Docker descartável e exige recusa 65 *antes de criar o banco-alvo*; em seguida reverte a alteração e confirma que o verificador da instalação retorna exatamente o fingerprint anterior. Nada disso se destina a uma base existente na VPS ou produção.
