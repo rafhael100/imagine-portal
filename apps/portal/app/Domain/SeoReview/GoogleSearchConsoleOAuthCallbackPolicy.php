@@ -77,7 +77,7 @@ final class GoogleSearchConsoleOAuthCallbackPolicy
             'decision'=>$decision,
             // A successful code receipt is NOT proof of a used-once state,
             // of the current authenticated Portal session, or of Google scope.
-            'requiresAtomicStateConsumption'=>$hasCode,
+            'requiresAtomicStateConsumption'=>true,
             'canExchangeTokens'=>false,
             'oauthVerified'=>false,
             'customerDisplayAuthorized'=>false,
