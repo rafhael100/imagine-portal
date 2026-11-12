@@ -54,3 +54,7 @@ A prova verifica também que os dois papéis runtime (`portal_browser_runtime` e
 ## F343 — lista restrita para CONNECT e proteção do marcador
 
 A verificação do banco restaurado recusa qualquer entrada `CONNECT` na ACL concedida a papéis diferentes do administrador `postgres`, inclusive `PUBLIC` ou um papel terceiro não conhecido pela aplicação. A matriz dos dois papéis runtime passa a incluir também a tabela `public.portal_development_installation`, contendo o marcador não secreto: além das nove tabelas protegidas por FORCE RLS, essa décima tabela não pode oferecer privilégios diretos aos processos da aplicação. Ainda é somente uma prova em um cluster CI sintético; a segurança contra administrador/host comprometido e a recuperação fora desse cluster exigem controles separados.
+
+## F344 — manifesto de migrations após restauração
+
+O laboratório recusa uma origem que não possua exatamente as dez migrations previstas no provisionador. Calcula um fingerprint MD5 **apenas dos nomes ordenados** das migrations (não dos dados ou arquivos de aplicação) e confirma que o banco restaurado conserva a mesma lista e contagem. A verificação não substitui inspeção de integridade do SQL, das tabelas ou dos dados nem uma política de migração para produção; ela detecta somente diferenças do manifesto que seria esperado no laboratório sintético.

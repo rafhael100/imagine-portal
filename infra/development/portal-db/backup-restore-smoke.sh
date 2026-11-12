@@ -42,6 +42,12 @@ trap cleanup EXIT
 marker_query='SELECT marker FROM public.portal_development_installation WHERE singleton AND version=1'
 source_marker=$(sql portal_identity_dev "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
+# The disposable foundation should have precisely its ten reviewed migrations.
+migration_query="SELECT md5(string_agg(migration,',' ORDER BY migration))
+ FROM public.migrations"
+[[ $(sql portal_identity_dev 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 65
+source_migrations=$(sql portal_identity_dev "$migration_query")
+[[ "$source_migrations" =~ ^[[:xdigit:]]{32}$ ]] || exit 65
 
 pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev \
     > "$temporary/database.dump"
@@ -78,6 +84,8 @@ pg pg_restore -h 127.0.0.1 -U postgres --dbname="$target" \
 
 restored_marker=$(sql "$target" "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" == "$restored_marker" ]] || exit 1
+[[ $(sql "$target" 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 1
+[[ $(sql "$target" "$migration_query") == "$source_migrations" ]] || exit 1
 [[ $(sql "$target" 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
 
 rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
