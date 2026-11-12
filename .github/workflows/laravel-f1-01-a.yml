@@ -130,6 +130,7 @@ jobs:
           assert report["manifest_integrity_verified"] is True
           assert report["screens"] == 70 and report["pages"] == 10
           assert report["mobile_menu_checks"] == 9
+          assert report["offline_navigation_checks"] == 10
           assert report["keyboard_table_checks"] == 6
           assert report["authorizes_production"] is False
           PY
