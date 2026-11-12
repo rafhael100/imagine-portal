@@ -274,7 +274,18 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/admin/overview'&&method==='GET'){assert(!user.staff_profile,403,'Resumo gerencial exclusivo da administração.');return send(res,200,buildOverview(db,clock()));}
  if(path==='/api/admin/orders'&&method==='GET')return send(res,200,orderOps.directory(user,team.canOrder));
  if(method==='GET'&&(path==='/api/admin/clients'||/^\/api\/admin\/clients\/[a-f\d-]{36}$/i.test(path))){assert(!user.staff_profile||user.staff_profile==='atendimento',403,'Acesso não permitido.');const id=path.split('/')[4]||null;const clients=clientDirectory(db,{id,financial:!user.staff_profile});if(id)assert(clients.length,404,'Cliente não encontrado.');return send(res,200,{clients,financial:!user.staff_profile});}
- if(['/api/admin/tasks-bi','/api/admin/tasks-bi.csv'].includes(path)&&method==='GET'){assert(!user.staff_profile,403,'BI de atividades exclusivo da administração.');const csv=path.endsWith('.csv');if(csv)limit('admin-csv:'+user.id,20,3600000);const data=buildTasksBI(db,url.searchParams,clock(),csv);if(!csv)return send(res,200,data);res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="atividades-imagine.csv"'});return await writeOwnerExportWithinLease(res,tasksBICsvChunks(data),5*60*1000);}
+ if(['/api/admin/tasks-bi','/api/admin/tasks-bi.csv'].includes(path)&&method==='GET'){
+  assert(!user.staff_profile,403,'BI de atividades exclusivo da administração.');
+  if(!path.endsWith('.csv'))return send(res,200,buildTasksBI(db,url.searchParams,clock(),false));
+  // F256: one administrative CSV per user, even across Node workers sharing SQLite.
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   limit('admin-csv:'+user.id,20,3600000);
+   const data=buildTasksBI(db,url.searchParams,clock(),true);
+   res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="atividades-imagine.csv"'});
+   return await writeOwnerExportWithinLease(res,tasksBICsvChunks(data),5*60*1000);
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
+ }
  if(path==='/api/admin/bi'&&method==='GET'){assert(!user.staff_profile,403,'BI disponível somente para a administração.');return send(res,200,buildBI(db,url.searchParams,clock()));}
  if(path==='/api/admin/dashboard'&&method==='GET'&&user.staff_profile)return send(res,200,{metrics:user.staff_profile==='financeiro'?metrics():{received:0,confirmed:0,pending:0,overdue:0,eventsPending:0},clients:user.staff_profile==='atendimento'?list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) LIMIT 500"):[],events:[],audit:[]});
  if(path==='/api/admin/dashboard'&&method==='GET')return send(res,200,{metrics:metrics(),clients:list("SELECT id,name,email,created_at FROM users WHERE role='client' AND id NOT IN (SELECT user_id FROM staff) ORDER BY created_at DESC LIMIT 500"),events:list('SELECT * FROM events WHERE done=0 ORDER BY created_at DESC LIMIT 30'),audit:list('SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 40')});
@@ -282,17 +293,20 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(path==='/api/admin/finance.csv'&&method==='GET'){
   // F254: shared hourly limit covers both administrative CSV endpoints.
   // Apply it before any financial cursor, HTTP headers or audit entry.
-  limit('admin-csv:'+user.id,20,3600000);
-  // F250: send headers once, then stream the authorized SQLite cursor instead
+  const lease=acquireOwnerExportLease(db,user.id);
+  try{
+   limit('admin-csv:'+user.id,20,3600000);
+   // F250: send headers once, then stream the authorized SQLite cursor instead
   // of collecting all payments in memory; writer handles backpressure/close.
   // F253: distinguish an authorized export attempt from a completed transfer.
   // Neither event includes CSV content, payment details or session tokens.
   audit(db,user.id,'admin.finance_csv_export_requested',user.id);
   res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});
   await streamAdminFinanceCsv(res,db);
-  if(res.writableFinished===true)
-   audit(db,user.id,'admin.finance_csv_exported',user.id);
-  return;
+   if(res.writableFinished===true)
+    audit(db,user.id,'admin.finance_csv_exported',user.id);
+   return;
+  }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  throw problem(404,'Recurso não encontrado.');}
  assert(method==='GET'||method==='HEAD',405,'Método não permitido.');const allowed=path==='/'?'index.html':path==='/portal'||path==='/admin'?'portal.html':path.slice(1);assert(['index.html','checkout.html','contrato.html','checkout-validation.js','portal.html','portal.css','portal.js','client-orders-ui.js','client-finance-ui.js','client-care-ui.js','subscription-ui.js','account-ui.js','fiscal-ui.js','tasks-bi-ui.js','briefing-ui.js','production-ui.js','assets/logo-imagine.png'].includes(allowed),404,'Página não encontrada.');const body=await readFile(join(root,allowed));res.setHeader('Content-Security-Policy',['index.html','checkout.html','contrato.html'].includes(allowed)?"default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'":"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'})[extname(allowed)]});res.end(method==='HEAD'?undefined:body);
