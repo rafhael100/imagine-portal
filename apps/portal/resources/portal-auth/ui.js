@@ -84,6 +84,7 @@
     // Invalidate the presentation before any network call. An uncertain logout
     // MUST NOT leave an old "authenticated" claim visible.
     state('locked');
+    message('Confirmando a saída…');
     password.value='';code.value='';
     try {
       const response = await call('logout',{});
@@ -95,9 +96,10 @@
   });
   // On returning to the tab, an old success screen must be revalidated
   // against the server; it never grants access to business resources.
-  document.addEventListener('visibilitychange', () => {
+  const revalidateVisibleSession = () => {
     if (busy || phase !== 'authenticated' || document.visibilityState === 'hidden') return;
     state('locked');
+    message('Conferindo sua sessão…');
     perform(async () => {
       try {
         const response = await call('session');
@@ -110,6 +112,11 @@
       } catch { /* Remain locked on network or parsing errors. */ }
       message('Não foi possível verificar a sessão. Atualize a página para tentar novamente.',true);
     });
+  };
+  document.addEventListener('visibilitychange', revalidateVisibleSession);
+  // Restored back/forward-cache pages may not emit a visibilitychange event.
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) revalidateVisibleSession();
   });
   document.querySelector('#back').addEventListener('click',leave);
   document.querySelector('#logout').addEventListener('click',leave);
