@@ -1,5 +1,11 @@
 import {safeCsvCell} from './account-export.mjs';
-const day=v=>v?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v.length===10?v+'T12:00:00Z':v)):'';
+// F285: one immutable formatter per Node module instead of allocating an
+// Intl.DateTimeFormat for every task date and completion in BI reports.
+const saoPauloDayFormatter=new Intl.DateTimeFormat('en-CA',{
+ timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'
+});
+export const saoPauloDay=v=>v?saoPauloDayFormatter.format(new Date(v.length===10?v+'T12:00:00Z':v)):'';
+const day=saoPauloDay;
 const days=(a,b)=>Math.max(0,(new Date(b)-new Date(a))/86400000);
 const valid=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
 const mean=a=>a.length?Math.round(a.reduce((s,n)=>s+n,0)/a.length*10)/10:null;
