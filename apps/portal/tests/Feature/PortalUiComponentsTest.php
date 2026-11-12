@@ -33,7 +33,8 @@ final class PortalUiComponentsTest extends TestCase
             self::assertStringNotContainsString('<form', $html);
             self::assertStringNotContainsString('<script', $html);
             self::assertStringNotContainsString('<iframe', $html);
-            self::assertStringNotContainsString('src=', $html);
+            self::assertSame(1, substr_count($html, '<img '));
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
             preg_match_all('/href="([^"]*)"/', $html, $links);
             self::assertSame(['#pi-content'], $links[1]);
         }
@@ -59,7 +60,10 @@ final class PortalUiComponentsTest extends TestCase
         foreach ($templates as $template) {
             $html = Blade::render($template, compact('attack'));
             self::assertStringContainsString(e($attack), $html);
-            self::assertStringNotContainsString('<img', $html);
+            // Only the full demo layout may contain the fixed first-party logo.
+            $allowedLogoCount = str_contains($template, '<x-portal.layout') ? 1 : 0;
+            self::assertSame($allowedLogoCount, substr_count($html, '<img '));
+            self::assertSame($allowedLogoCount, substr_count($html, 'src="/assets/logo-imagine.png"'));
             self::assertStringNotContainsString($attack, $html);
         }
     }

@@ -2,6 +2,7 @@
 @php($activeSection = \App\Presentation\ClientSection::tryFrom($current))
 <aside class="pi-sidebar">
     <x-portal.brand />
+    <p class="pi-nav-title">Seu espaço Imagine</p>
     <nav aria-label="Seções ilustrativas do Portal">
         <ul>
             @foreach (\App\Presentation\ClientSection::cases() as $section)

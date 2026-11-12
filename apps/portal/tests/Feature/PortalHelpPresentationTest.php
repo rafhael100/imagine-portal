@@ -90,9 +90,11 @@ final class PortalHelpPresentationTest extends TestCase
         foreach ([...array_column($sectionsBefore, 'value'), 'help'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('<main id="pi-content"', $html);
-            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'src=', 'action=', 'http://', 'https://'] as $forbidden) {
+            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'action=', 'http://', 'https://'] as $forbidden) {
                 self::assertStringNotContainsString($forbidden, $html);
             }
+            self::assertSame(1, substr_count($html, '<img '));
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
             $xpath = $this->navigation($html);
             $labels = array_map(
                 fn ($node) => trim($node->textContent),
