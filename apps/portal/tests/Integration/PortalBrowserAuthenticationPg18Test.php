@@ -806,4 +806,111 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         }
     }
 
+
+    /** Creates only ephemeral laboratory secrets; never reads operational files. */
+    private function withPrivateRuntime(callable $test, array $overrides = []): void
+    {
+        $directory=sys_get_temp_dir().'/portal-composition-'.bin2hex(random_bytes(12));
+        mkdir($directory,0700);
+        $path=$directory.'/runtime.json';
+        $values=array_replace([
+            'origin'=>'https://portal.example.test','host'=>'127.0.0.1','port'=>5432,
+            'database'=>'portal_browser_lab',
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'proof_key'=>$this->proof,'totp_key'=>base64_encode($this->key),'scope_pepper'=>$this->pepper,
+        ],$overrides);
+        try {
+            file_put_contents($path,json_encode($values,JSON_THROW_ON_ERROR));
+            chmod($path,0600);
+            $configuration=\App\Infrastructure\Identity\PortalBrowserSecretFile::load($path,'https://portal.example.test');
+            $test(new \App\Infrastructure\Identity\PortalBrowserPrivateRuntime($configuration));
+        } finally {
+            unlink($path);rmdir($directory);
+        }
+    }
+
+    public function test_private_file_composition_authenticates_rotates_and_revokes_with_fixed_roles(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            $this->adapter=$runtime->authentication();
+            $active=$this->active();
+            $other=$runtime->authentication();
+            self::assertTrue($other->isActiveBusinessSession($active));
+            self::assertTrue($other->revoke($active));
+            self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        });
+    }
+
+    public function test_private_composition_allocates_independent_envelope_connections(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            $cipher=new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC');
+            $creator=$runtime->sessionCreator($cipher,100);
+            $first=$creator();$second=$creator();
+            $a=bin2hex(random_bytes(20));$b=bin2hex(random_bytes(20));
+            try {
+                self::assertTrue($first->write($a,'private-a'));
+                self::assertSame('private-a',$first->read($a)); // Holds first connection transaction.
+                self::assertTrue($second->write($b,'private-b')); // Independent transaction.
+                // Identity auth remains autocommit while envelope holds a lock.
+                self::assertFalse($runtime->authentication()->isActiveBusinessSession(str_repeat('f',64)));
+                $first->close();
+                self::assertSame('private-a',$second->read($a));
+                $second->close();
+                $row=$this->admin->query("SELECT payload FROM public.portal_browser_envelopes WHERE id_sha256='".hash('sha256',$a)."'")->fetchColumn();
+                self::assertIsString($row);
+                self::assertStringNotContainsString('private-a',$row);
+            } finally {
+                $first->close();$second->close();
+                $first->destroy($a);$second->destroy($b);
+            }
+        });
+    }
+
+    public function test_wrong_private_role_credentials_fail_without_diagnostic_chain_or_secret_debug(): void
+    {
+        $this->withPrivateRuntime(function ($runtime): void {
+            ob_start();var_dump($runtime);$debug=(string)ob_get_clean();
+            self::assertStringNotContainsString($this->proof,$debug);
+            try {
+                $runtime->authentication();
+                self::fail('Wrong role password accepted.');
+            } catch (RuntimeException $error) {
+                self::assertSame('Private Portal authentication unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $creator=$runtime->sessionCreator(new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC'));
+            try {
+                $creator();
+                self::fail('Wrong envelope password accepted.');
+            } catch (RuntimeException $error) {
+                self::assertSame('Private Portal database unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $this->expectException(RuntimeException::class);
+            serialize($runtime);
+        },[
+            'identity_password'=>'synthetic-incorrect-identity-only',
+            'envelope_password'=>'synthetic-incorrect-envelope-only',
+        ]);
+    }
+
+    public function test_private_composition_refuses_remote_host_before_connection(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Private loopback Portal database required.');
+        $this->withPrivateRuntime(static function (): void {
+            self::fail('Remote database composition accepted.');
+        },['host'=>'203.0.113.1']);
+    }
+
+    public function test_private_runtime_cannot_bypass_constructor_via_serialized_object(): void
+    {
+        $class=\App\Infrastructure\Identity\PortalBrowserPrivateRuntime::class;
+        $payload='O:'.strlen($class).':"'.$class.'":0:{}';
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Private Portal runtime cannot be reconstructed.');
+        unserialize($payload);
+    }
 }

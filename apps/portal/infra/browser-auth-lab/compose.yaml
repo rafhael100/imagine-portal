@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ci-browser-admin-only
       POSTGRES_DB: portal_browser_lab
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     tmpfs:
       - /var/lib/postgresql:rw,noexec,nosuid,size=512m
     networks:
