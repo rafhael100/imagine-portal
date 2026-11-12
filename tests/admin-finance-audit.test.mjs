@@ -17,7 +17,9 @@ async function fixture(t){
  await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));
  t.after(async()=>{await new Promise(resolve=>app.server.close(resolve));db.close();});
  const base='http://127.0.0.1:'+app.server.address().port;
- const history=()=>db.prepare("SELECT action,resource_id FROM audit WHERE actor_id=? AND action LIKE 'admin.finance_csv_export_%' ORDER BY id").all(admin);
+ // node:sqlite returns null-prototype row objects; normalize for strict tests.
+ const history=()=>db.prepare("SELECT action,resource_id FROM audit WHERE actor_id=? AND action LIKE 'admin.finance_csv_export_%' ORDER BY id")
+  .all(admin).map(({action,resource_id})=>({action,resource_id}));
  return {app,db,admin,token,base,history};
 }
 
