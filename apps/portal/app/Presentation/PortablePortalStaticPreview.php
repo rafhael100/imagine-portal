@@ -205,7 +205,7 @@ final class PortablePortalStaticPreview
             $caption = $table->getElementsByTagName('caption')->item(0);
             $headers = $table->getElementsByTagName('th');
             $classes = $region instanceof DOMElement
-                ? (preg_split('/\\s+/', trim($region->getAttribute('class'))) ?: [])
+                ? (preg_split('/\s+/', trim($region->getAttribute('class'))) ?: [])
                 : [];
             if (!$region instanceof DOMElement
                 || !in_array('pi-table-wrap', $classes, true)
