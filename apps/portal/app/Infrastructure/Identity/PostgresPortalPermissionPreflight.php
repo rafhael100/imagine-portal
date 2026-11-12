@@ -6,6 +6,7 @@ namespace App\Infrastructure\Identity;
 
 use PDO;
 use RuntimeException;
+use SensitiveParameter;
 use Throwable;
 
 /**
@@ -43,7 +44,11 @@ final readonly class PostgresPortalPermissionPreflight
         throw new RuntimeException('Permission preflight cannot be serialized.');
     }
 
-    public function allows(string $businessReference, string $organization, string $permission): bool
+    /** 
+     * True is NOT resource authorization. The named grant was observed for a
+     * valid session in this moment only; it cannot be reused as an HTTP gate.
+     */
+    public function hasCandidateGrant(#[SensitiveParameter] string $businessReference, string $organization, string $permission): bool
     {
         // Reject caller-provided IDs and wildcards before sending any SQL.
         if (preg_match('/\\A[a-f0-9]{64}\\z/D', $businessReference) !== 1
