@@ -1,0 +1,87 @@
+name: Portal private auth gateway - disposable deployment rehearsal
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-auth/**'
+      - 'apps/portal/app/Providers/PortalDevelopmentAuthServiceProvider.php'
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/app/Http/**'
+      - 'apps/portal/bootstrap/**'
+      - 'apps/portal/config/**'
+      - '.github/workflows/portal-private-auth-deployment.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-private-auth-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  private-gateway:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare disposable private foundation only on this CI runner
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          private_dir="$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$private_dir"
+          sudo docker compose -p imagine-portal-auth-db-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-auth-db-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-auth-db-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+          db_container="$(sudo docker compose -p imagine-portal-auth-db-ci -f infra/development/portal-db/compose.yaml ps -q postgres)"
+          db_name="$(sudo docker inspect "$db_container" --format '{{.Name}}')"
+          echo "PORTAL_DB_CONTAINER=${db_name#/}" >> "$GITHUB_ENV"
+          echo "PORTAL_DB_NETWORK=imagine-portal-auth-db-ci_private" >> "$GITHUB_ENV"
+          echo "PORTAL_DEV_PRIVATE_DIR=$private_dir" >> "$GITHUB_ENV"
+      - name: Refuse unsafe topology and build restricted application
+        working-directory: infra/development/portal-auth
+        run: |
+          set -euo pipefail
+          sudo -E python3 preflight.py
+          sudo -E docker compose -p imagine-portal-private-auth-ci config --format json > /tmp/private-auth-compose.json
+          python3 - <<'PY'
+          import json
+          c=json.load(open('/tmp/private-auth-compose.json'))
+          assert set(c['services'])=={'application','gateway'}
+          app=c['services']['application']; gateway=c['services']['gateway']
+          assert app['network_mode'].startswith('container:')
+          assert not app.get('ports')
+          assert {v['target'] for v in app['volumes']}=={'/run/secrets/runtime.json','/run/secrets/app-key'}
+          assert all(v['read_only'] for v in app['volumes'])
+          assert gateway['ports'][0]['host_ip']=='127.0.0.1'
+          assert len(gateway['ports'])==1 and gateway['ports'][0]['published']=='18082'
+          assert all(s['read_only'] and s['cap_drop']==['ALL'] and not s.get('privileged') for s in c['services'].values())
+          PY
+          sudo -E docker compose -p imagine-portal-private-auth-ci build application
+          sudo -E docker compose -p imagine-portal-private-auth-ci up -d
+      - name: Prove private HTTP requests and retained application key
+        working-directory: infra/development/portal-auth
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 25); do
+            if curl --silent --fail -H 'Host: portal-dev.imaginecomunica.com.br' http://127.0.0.1:18082/up >/dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          python3 smoke.py
+          sudo -E docker compose -p imagine-portal-private-auth-ci exec -T --interactive=false application php -r 'if(file_exists("/run/secrets/database-admin")||file_exists(".env")||is_dir("app/Labs")){exit(1);} echo "PASS runtime excludes administrator credentials and labs\\n";'
+          sudo -E docker compose -p imagine-portal-private-auth-ci restart application
+          ready=0
+          for attempt in $(seq 1 25); do
+            if python3 smoke.py; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" = 1
+          test "$(sudo docker compose -p imagine-portal-auth-db-ci -f ../portal-db/compose.yaml port postgres 5432 2>/dev/null || true)" = ""
+      - name: Remove only this runner's disposable rehearsal
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          if test -n "${PORTAL_DB_CONTAINER:-}"; then
+            sudo -E docker compose -p imagine-portal-private-auth-ci -f infra/development/portal-auth/compose.yaml down --remove-orphans
+          fi
+          sudo docker compose -p imagine-portal-auth-db-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
