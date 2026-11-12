@@ -8,7 +8,9 @@ export function safePublishedSiteUrl(value){
  try{
   const u=new URL(value);
   const host=u.hostname.toLowerCase();
-  if(u.protocol!=='https:'||u.username||u.password||!host.includes('.')||isIP(host)||/(?:^localhost$|\.localhost$|\.local$|\.internal$)/.test(host))return null;
+  // F280: DNS names ending in a root dot (localhost., foo.internal.)
+  // bypass suffix checks unless explicitly refused before URL rendering.
+  if(u.protocol!=='https:'||u.username||u.password||host.endsWith('.')||!host.includes('.')||isIP(host)||/(?:^localhost$|\.localhost$|\.local$|\.internal$)/.test(host))return null;
   return u.href;
  }catch{return null;}
 }
