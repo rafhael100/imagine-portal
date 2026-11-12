@@ -10,6 +10,9 @@ use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
+use App\Infrastructure\Identity\PortalBrowserSecretFile;
+use App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler;
+use Illuminate\Encryption\Encrypter;
 use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\Organizations\OrganizationId;
@@ -735,6 +738,69 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             self::fail('Cloning could duplicate a privileged PDO adapter.');
         } catch(\Error $e) {
             self::assertNotSame('',$e->getMessage());
+        }
+    }
+
+
+    public function test_f322_private_file_uses_two_dedicated_pg18_roles_in_disposable_lab_only():void
+    {
+        // This proof belongs exclusively to the already isolated PG18 test.
+        // No production connector, driver registration or external host.
+        $directory=sys_get_temp_dir().'/portal-f322-'.bin2hex(random_bytes(12));
+        mkdir($directory,0700);
+        $path=$directory.'/runtime.json';
+        $values=[
+            'origin'=>'https://portal.example.test',
+            'host'=>'127.0.0.1','port'=>5432,'database'=>'portal_browser_lab',
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'proof_key'=>$this->proof,
+            'totp_key'=>base64_encode($this->key),
+            'scope_pepper'=>$this->pepper,
+        ];
+        file_put_contents($path,json_encode($values,JSON_THROW_ON_ERROR));
+        chmod($path,0600);
+        try {
+            $private=PortalBrowserSecretFile::load($path,'https://portal.example.test');
+            self::assertSame('127.0.0.1',$private->value('host'));
+            self::assertSame('portal_browser_lab',$private->value('database'));
+            $dsn='pgsql:host=127.0.0.1;port=5432;dbname=portal_browser_lab';
+            $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_EMULATE_PREPARES=>false];
+
+            $authDb=new PDO($dsn,'portal_browser_runtime',
+                $private->value('identity_password'),$options);
+            $auth=new PostgresPortalBrowserAuthentication(
+                $authDb,'portal_browser_lab',
+                $private->value('proof_key'),
+                base64_decode($private->value('totp_key'),true),
+                $private->value('scope_pepper')
+            );
+            $session=$this->active();
+            self::assertTrue($auth->isActiveBusinessSession($session),
+                'The independent authentication role must accept only active MFA sessions.');
+
+            $envelopeDb=new PDO($dsn,'portal_browser_envelope_runtime',
+                $private->value('envelope_password'),$options);
+            $handler=new EncryptedPostgresPortalSessionHandler(
+                $envelopeDb,'portal_browser_lab',
+                new Encrypter(random_bytes(32),'AES-256-CBC')
+            );
+            $sid=strtoupper(bin2hex(random_bytes(20)));
+            self::assertTrue($handler->write($sid,'f322-private-disposable-envelope'));
+            self::assertSame('f322-private-disposable-envelope',$handler->read($sid));
+            self::assertTrue($handler->destroy($sid));
+            self::assertTrue($handler->close());
+            self::assertFalse($envelopeDb->inTransaction());
+            self::assertTrue($auth->isActiveBusinessSession($session));
+
+            $routes=array_map(static fn($route):string=>$route->uri(),
+                iterator_to_array($this->app['router']->getRoutes()));
+            self::assertSame(['up'],$routes,
+                'No client login or business route may be enabled by this lab.');
+        } finally {
+            unlink($path);
+            rmdir($directory);
         }
     }
 
