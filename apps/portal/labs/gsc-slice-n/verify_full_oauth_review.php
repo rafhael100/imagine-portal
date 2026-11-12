@@ -74,6 +74,8 @@ try{
     $request=$exchange->prepare($credentials,$outcome);
     $check($request!==null);
     $http=$request->takeForTrustedHttpsTransport();
+    $check(is_array($http));
+    $check($request->takeForTrustedHttpsTransport()===null);
     parse_str($http['body'],$form);
     $check($http['method']==='POST'&&
         $http['url']==='https://oauth2.googleapis.com/token'&&

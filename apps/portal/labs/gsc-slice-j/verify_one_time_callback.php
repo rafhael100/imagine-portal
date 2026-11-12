@@ -103,6 +103,8 @@ try{
     ],$result)===null);
 
     $post=$tokenPlan->takeForTrustedHttpsTransport();
+    $check(is_array($post));
+    $check($tokenPlan->takeForTrustedHttpsTransport()===null);
     parse_str($post['body'],$form);
     $check($post['url']==='https://oauth2.googleapis.com/token'
         &&$form['code']===$code
