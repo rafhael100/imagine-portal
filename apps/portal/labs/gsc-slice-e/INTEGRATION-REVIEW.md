@@ -1,6 +1,6 @@
-# Imagine Portal × SEO — Candidata consolidada A–U (revisão)
+# Imagine Portal × SEO — Candidata consolidada A–V (revisão)
 
-**Candidata única para revisão:** [PR #509](https://github.com/rafhael100/imagine-portal/pull/509), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **132 commits / 84 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
+**Candidata única para revisão:** [PR #511](https://github.com/rafhael100/imagine-portal/pull/511), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **138 commits / 87 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
 
 | Lote | PR incremental | Entrega |
 | --- | --- | --- |
@@ -25,12 +25,13 @@
 | S | [#503](https://github.com/rafhael100/imagine-portal/pull/503) | Vault AEAD de *candidatos* a token por tenant |
 | T | [#505](https://github.com/rafhael100/imagine-portal/pull/505) | Remoção controlada de candidatos vencidos/revogados |
 | U | [#509](https://github.com/rafhael100/imagine-portal/pull/509) | Rotação AEAD de chave v1→v2 com dois segredos e CAS no PostgreSQL |
+| V | [#511](https://github.com/rafhael100/imagine-portal/pull/511) | Policies PostgreSQL RLS padrão-negado por empresa nas quatro tabelas GSC |
 
-**Não mesclar as PRs A–T separadamente ou em paralelo com #509.** Elas preservam a trilha de commits e testes de cada entrega; #509 contém o diff único para eventual revisão de integração.
+**Não mesclar as PRs A–U separadamente ou em paralelo com #511.** Elas preservam a trilha de commits e testes de cada entrega; #511 contém o diff único para eventual revisão de integração.
 
 ## Limites de código e testes
 
-A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, quatro migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 100 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
+A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, cinco migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 105 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
 
 - Node 22/24 × PHP 8.3/8.4; hashes SEO RC32 `f46b65aaef9b10e32d02e415907cd916a43b548e`, F79 `fdae08985e89b9bd1323e42d1d64678ddc69e446` e F88 `56d7fa79904903f9af0c88646a59c0fa07546594` fixados na CI.
 - PostgreSQL 16 **descartável** testa migrations para state, grants, auditoria e candidatos de token; PKCE/state com expiração e consumo único, AEAD, grant isolado/revogado, auditoria atômica, segredo criptografado e expurgo.
@@ -46,3 +47,7 @@ A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, rende
 5. Revisão independente AppSec/DBA/LGPD/SEO, testes de staging autenticado, migrações/rollback ensaiados e autorização de liberação.
 
 **DRAFT/NO-GO.** CI verde atesta testes de componentes e comportamento sintético, não uma integração Google operacional. Nenhum merge em dev/main ou deploy autorizado.
+
+## Camada de isolamento RLS — ainda exige identidade confiável
+
+O Lote V acrescenta a migration `2026_11_12_000005_enable_portal_gsc_tenant_rls.php` para ativar **ROW LEVEL SECURITY obrigatório** nas quatro tabelas GSC, com escopo `tenant_ref = current_setting('app.tenant_ref', true)`. O CI comprova isolamento com usuário PostgreSQL não proprietário e sem BYPASSRLS; `SET LOCAL` é reiniciado ao fim da transação. **Não é autenticação:** a variável de sessão pode ser definida por SQL; cabe ao futuro backend autenticado (MFA/RBAC, memberships e papel de banco não privilegiado) fornecê-la de maneira confiável. A migration é só de revisão, não aplicada a bancos reais.
