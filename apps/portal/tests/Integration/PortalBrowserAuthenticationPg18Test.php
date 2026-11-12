@@ -287,4 +287,105 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             rmdir($directory);
         }
     }
+    private function expectIdentityFenceRefusal(string $sql):void
+    {
+        try {
+            $this->admin->exec($sql);
+        } catch(PDOException $error) {
+            self::assertSame('42501',(string)$error->getCode());
+            return;
+        }
+        self::fail('Identity security mutation unexpectedly accepted.');
+    }
+
+    public function test_password_replacement_automatically_invalidates_active_session():void
+    {
+        $active=$this->active();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_password_replacement_invalidates_pending_mfa_evidence():void
+    {
+        $pending=$this->begin();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertNull($this->adapter->completeMfa($pending,$this->otp(),'192.0.2.1'));
+        self::assertSame('pending_mfa',$this->admin->query('SELECT status FROM public.portal_auth_sessions')->fetchColumn());
+    }
+
+    public function test_email_change_requires_reverification_and_invalidates_session():void
+    {
+        $active=$this->active();
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET email_normalized='changed@example.invalid'");
+        $this->admin->exec("UPDATE public.portal_identities SET email_normalized='changed@example.invalid',email_verified_at=NULL");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_counter_advance_preserves_session_but_backward_counter_and_revision_are_refused():void
+    {
+        $active=$this->active();
+        $this->admin->exec('UPDATE public.portal_identities SET mfa_last_used_counter=mfa_last_used_counter+1');
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertTrue($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET mfa_last_used_counter=-1');
+        $this->admin->exec('UPDATE public.portal_identities SET security_revision=3');
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET security_revision=1');
+    }
+
+    public function test_suspension_and_revocation_cannot_silently_restore_old_sessions():void
+    {
+        $active=$this->active();
+        $this->admin->exec("UPDATE public.portal_identities SET status='suspended'");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='active'");
+        $this->admin->exec("UPDATE public.portal_identities SET status='revoked'");
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='invited'");
+    }
+
+    public function test_initial_invited_enrollment_preserves_challenge_revision_until_activation():void
+    {
+        $this->admin->exec('TRUNCATE public.portal_auth_sessions,public.portal_membership_grants,public.portal_memberships,
+            public.portal_identities,public.portal_organizations CASCADE');
+        $q=$this->admin->prepare("INSERT INTO public.portal_identities(id,email_normalized,status,security_revision)
+            VALUES(?,'enrollment@example.invalid','invited',1)");
+        $q->execute([self::ACTOR]);
+        $this->admin->exec('UPDATE public.portal_identities SET email_verified_at=clock_timestamp()');
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?,mfa_secret_ciphertext=?');
+        $q->execute([PortalPasswordCredential::makeHash('synthetic-password-only'),
+            PortalTotpSecretCipher::seal(self::SECRET,$this->key)]);
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Initial enrollment must retain the consumed email challenge revision.');
+        $this->admin->exec("UPDATE public.portal_identities SET status='active',mfa_confirmed_at=clock_timestamp(),security_revision=security_revision+1");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Explicit activation increment is not incremented twice by the trigger.');
+    }
+
+    public function test_identity_binding_is_immutable_and_rollback_refuses_populated_database():void
+    {
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET id='99999999-9999-4999-8999-999999999999'");
+        $original=\Illuminate\Support\Facades\DB::getDefaultConnection();
+        config(['database.connections.identity_fence_probe'=>[
+            'driver'=>'pgsql','host'=>'127.0.0.1','port'=>'5432','database'=>'portal_browser_lab',
+            'username'=>'postgres','password'=>(string)getenv('PGPASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
+        ]]);
+        \Illuminate\Support\Facades\DB::setDefaultConnection('identity_fence_probe');
+        try {
+            $migration=require __DIR__.'/../../database/migrations/2026_11_12_000016_fence_portal_identity_revision.php';
+            try {
+                $migration->down();
+                self::fail('Security fence removed while identity rows remain.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Identity fence rollback denied: identity/session evidence requires audited cleanup.',$error->getMessage());
+            }
+        } finally {
+            \Illuminate\Support\Facades\DB::disconnect('identity_fence_probe');
+            \Illuminate\Support\Facades\DB::setDefaultConnection($original);
+        }
+    }
+
 }
