@@ -44,7 +44,8 @@ export function preflightOwnerProjectExport(db,user){
 export function *iterateOwnerExportProjects(db,user){
  if(user?.role!=='client'||user.staff_profile||typeof user.id!=='string')
   throw Object.assign(Error('Exportação exclusiva do titular.'),{status:403});
- const cursor=db.prepare(`SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,b.data,b.status
+ // F263: avoid loading raw unpaid briefing payloads before our projection.
+ const cursor=db.prepare(`SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,CASE WHEN o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH') THEN b.data ELSE NULL END AS data,b.status
   FROM orders o LEFT JOIN briefings b ON b.order_id=o.id
   WHERE o.user_id=? ORDER BY o.created_at DESC,o.id DESC`).iterate(user.id);
  for(const row of cursor){
