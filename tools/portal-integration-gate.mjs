@@ -29,16 +29,20 @@ export function validateManifest(m) {
       m.requiredWorkflows.length !== 9 ||
       new Set(m.requiredWorkflows).size !== m.requiredWorkflows.length ||
       !m.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160) ||
-      !Array.isArray(m.reviewLots) || m.reviewLots.length !== 2 ||
-      // Only one approved review topology is permitted: one dev-rooted lot
-      // followed by a deduplicated increment based EXACTLY on that lot.
+      !Array.isArray(m.reviewLots) || m.reviewLots.length !== 4 ||
+      // Exact, immutable 4-stage review topology: first rooted in dev,
+      // each following delta based ONLY on its immediately previous PR.
+      // No skipping a stage, reusing a head, or retargeting to main/dev.
       m.reviewLots[0]?.baseBranch !== m.targetBranch ||
-      m.reviewLots[1]?.baseBranch !== m.reviewLots[0]?.headBranch ||
+      m.reviewLots.some((lot, index) => index > 0 &&
+        lot?.baseBranch !== m.reviewLots[index - 1]?.headBranch) ||
       new Set(m.reviewLots.map(l => l?.pullRequest)).size !== m.reviewLots.length ||
+      new Set(m.reviewLots.map(l => l?.headBranch)).size !== m.reviewLots.length ||
+      new Set(m.reviewLots.map(l => l?.headSha)).size !== m.reviewLots.length ||
       m.reviewLots.some(l => !plainRecord(l) ||
         !Number.isSafeInteger(l.pullRequest) || l.pullRequest < 1 ||
         typeof l.headBranch !== 'string' || !l.headBranch.startsWith('review/') ||
-        ![m.targetBranch,m.reviewLots[0]?.headBranch].includes(l.baseBranch) ||
+        typeof l.baseBranch !== 'string' || l.baseBranch.length < 3 ||
         !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
         !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 50 ||
         !Array.isArray(l.requiredWorkflows) || l.requiredWorkflows.length !== 2 ||
