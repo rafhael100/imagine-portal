@@ -53,6 +53,36 @@ try {
         $tenant,$actor,$property,$candidate,$now));
     $check(!$vault->storeSyntheticCandidate(
         $tenant,$actor,$property,$candidate,$now));
+
+    // A syntactically plausible real/provider token must NEVER pass the
+    // review-only synthetic storage API, even during testing.
+    $nonSynthetic=$parser->inspect(200,json_encode([
+        ...$body,
+        'access_token'=>'opaque-provider-like-access-value-not-a-test-marker',
+        'refresh_token'=>'opaque-provider-like-refresh-value-not-a-test-marker'
+    ],JSON_THROW_ON_ERROR),$now);
+    $check($nonSynthetic!==null);
+    $unusedProperty=str_repeat('d',64);
+    $check(!$vault->storeSyntheticCandidate(
+        $tenant,$actor,$unusedProperty,$nonSynthetic,$now));
+    // Explicit negative production and missing-lab tests.
+    putenv('APP_ENV=production');
+    $check(!$vault->storeSyntheticCandidate(
+        $tenant,$actor,$unusedProperty,$candidate,$now));
+    $check($vault->inspectSyntheticCandidate(
+        $tenant,$actor,$property,$now+1)===null);
+    $check(!$vault->revokeSyntheticCandidate(
+        $tenant,$actor,$property,$now+1));
+    putenv('APP_ENV=testing');
+    putenv('PORTAL_GSC_TOKEN_VAULT_LAB');
+    $check(!$vault->storeSyntheticCandidate(
+        $tenant,$actor,$unusedProperty,$candidate,$now));
+    $check($vault->inspectSyntheticCandidate(
+        $tenant,$actor,$property,$now+1)===null);
+    putenv('PORTAL_GSC_TOKEN_VAULT_LAB=1');
+    $check($vault->inspectSyntheticCandidate(
+        $tenant,$actor,$property,$now+1)!==null);
+
     $cipher=(string)$pdo->query('SELECT sealed_tokens FROM
         portal_gsc_oauth_token_candidates LIMIT 1')->fetchColumn();
     $check(str_starts_with($cipher,'v1.') &&
