@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleTenantScopedTransaction.php';
+use App\Domain\SeoReview\GoogleSearchConsoleTenantScopedTransaction as ScopedTx;
+
 /**
  * Executes AFTER Laravel migrations in a disposable PostgreSQL CI service.
  * Proves real default-deny RLS with a non-owner, non-BYPASSRLS DB role.
@@ -113,6 +116,65 @@ try{
         $probe->commit();
         foreach($tables as $table)$check($count($probe,$table)===0);
     }
+
+    // Runtime wrapper applies tenant scope only inside a verified transaction.
+    $scoped=new ScopedTx($probe);
+    $check(!ScopedTx::authorizesPortalMembership() &&
+        !ScopedTx::authorizesGoogleHttp() &&
+        !ScopedTx::authorizesCustomerDisplay());
+    foreach(['tenant-one','tenant-two'] as $tenant) {
+        $seen=$scoped->run([
+            'tenantRef'=>$tenant,'actorRef'=>'operator-123'
+        ],static function(PDO $db) use ($tables):array {
+            $counts=[];
+            foreach($tables as $table) {
+                $counts[$table]=(int)$db->query(
+                    "SELECT COUNT(*) FROM {$table}"
+                )->fetchColumn();
+            }
+            return $counts;
+        });
+        $check(is_array($seen)&&count($seen)===4 &&
+            !in_array(0,$seen,true));
+        foreach($tables as $table)$check($count($probe,$table)===0);
+    }
+    foreach([
+        ['tenantRef'=>'tenant-one','actorRef'=>'bad actor'],
+        ['tenantRef'=>'tenant-one;SET local app.tenant_ref=tenant-two',
+         'actorRef'=>'operator-123'],
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123',
+         'untrusted'=>true],
+        ['tenantRef'=>'tenant-two'],
+    ] as $invalid){
+        $check($scoped->run($invalid,static fn(PDO $db)=>true)===null);
+    }
+    $check($scoped->run(
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123'],
+        static function(PDO $db):bool {
+            throw new RuntimeException('synthetic failure');
+        }
+    )===null);
+    $check(!$probe->inTransaction());
+    $probe->beginTransaction();
+    $check($scoped->run(
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123'],
+        static fn(PDO $db)=>true
+    )===null); // no nesting or leaked tenant scope
+    $probe->rollBack();
+    $check($scoped->run(
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123'],
+        static function(PDO $db):bool {
+            $db->exec("UPDATE portal_gsc_security_events
+                SET tenant_ref='tenant-two' WHERE tenant_ref='tenant-one'");
+            return true;
+        }
+    )===null);
+    foreach($tables as $table)$check($count($probe,$table)===0);
+    // Tests must reject an administrative DB identity.
+    $check((new ScopedTx($owner))->run(
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123'],
+        static fn(PDO $db)=>true
+    )===null);
 
     // A malicious UPDATE cannot move a row into a different tenant.
     $probe->beginTransaction();
