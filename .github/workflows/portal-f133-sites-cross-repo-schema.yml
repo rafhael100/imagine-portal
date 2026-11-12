@@ -1,4 +1,5 @@
-name: Portal F133 - Real Imagine Sites CreateProject schema parity
+# Candidate-only cross-repository regression with immutable review SHA; no release authorization.
+name: Portal F133 - Sites candidate contract parity
 on:
   push:
     branches:
@@ -29,11 +30,11 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Checkout immutable Sites contract source
+      - name: Checkout reviewed Sites candidate (unmerged, CI only)
         uses: actions/checkout@v5
         with:
           repository: rafhael100/imagine-sites
-          ref: ed6cf956fb62c3b9496fcd026afd0c1fa66adf61
+          ref: 0848256a8795b96f0d5dd66264858189287aca86
           path: sites-source
           persist-credentials: false
       - name: Pin both repos and prevent test imports into runtime
@@ -41,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git -C sites-source rev-parse HEAD)" = ed6cf956fb62c3b9496fcd026afd0c1fa66adf61
+          test "$(git -C sites-source rev-parse HEAD)" = 0848256a8795b96f0d5dd66264858189287aca86
           test -f sites-source/contracts/portal-sites/v1/create-project.schema.json
           test -f apps/portal/labs/sites-intake-f55/create-project.schema.snapshot.json
           if grep -R -E 'sites-intake-f133|sites-source|PORTAL_F133_SITES_CROSS_REPO_LAB' \
