@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__,2).'/app/Domain/SeoReview/GoogleSearchConsoleTenantScopedTransaction.php';
 use App\Domain\SeoReview\GoogleSearchConsoleTenantScopedTransaction as ScopedTx;
+$root=dirname(__DIR__,2).'/app/Domain/SeoReview/';
+foreach([
+    'GoogleSearchConsoleOAuthPreflight.php',
+    'GoogleSearchConsolePropertyIdentifier.php',
+    'GoogleSearchConsoleRecordedPropertyGrant.php',
+    'GoogleSearchConsolePropertyGrantRevocation.php',
+    'GoogleSearchConsoleSecurityEventAudit.php',
+    'GoogleSearchConsoleTenantGrantGateway.php'
+] as $file)require_once $root.$file;
+use App\Domain\SeoReview\GoogleSearchConsoleTenantGrantGateway as GrantGateway;
 
 /**
  * Executes AFTER Laravel migrations in a disposable PostgreSQL CI service.
@@ -51,7 +61,8 @@ try{
 
     $add=static function(string $tenant,string $ch)
         use($owner,$now,$scope):void{
-        $hash=str_repeat($ch,64);
+        $hash=hash('sha256',$tenant==='tenant-one'
+            ?'sc-domain:example.com':'sc-domain:example.net');
         $eid=str_repeat($ch,32);
         $owner->prepare('INSERT INTO portal_gsc_oauth_states
             (state_hash,tenant_ref,actor_ref,sealed_verifier,issued_at,expires_at)
@@ -199,6 +210,48 @@ try{
     }catch(PDOException) {
         $probe->rollBack();
     }
+    // AA: actual internal grant operations must run UNDER the RLS wrapper,
+    // never by directly querying a pooled connection with stale tenant GUC.
+    $gateway=new GrantGateway($probe);
+    $ctxOne=['tenantRef'=>'tenant-one','actorRef'=>'operator-123'];
+    $ctxTwo=['tenantRef'=>'tenant-two','actorRef'=>'operator-123'];
+    $siteOne='sc-domain:example.com';
+    $siteTwo='sc-domain:example.net';
+    $check(!GrantGateway::authorizesPortalMembership() &&
+        !GrantGateway::authorizesGoogleHttp() &&
+        !GrantGateway::authorizesCustomerDisplay());
+    $grantOne=$gateway->inspectRecordedGrant($ctxOne,$siteOne,$now);
+    $check(is_array($grantOne) &&
+        $grantOne['recordedGrantFresh']===true &&
+        $grantOne['propertyAuthorizationVerified']===false &&
+        $grantOne['customerDisplayAuthorized']===false);
+    $check($gateway->inspectRecordedGrant($ctxTwo,$siteOne,$now)===null);
+    $check($gateway->inspectRecordedGrant($ctxOne,$siteTwo,$now)===null);
+    $check($gateway->inspectRecordedGrant(
+        ['tenantRef'=>'tenant-one','actorRef'=>'not-member'],
+        $siteOne,$now
+    )===null);
+    $check($gateway->inspectRecordedGrant(
+        ['tenantRef'=>'tenant-one','actorRef'=>'operator-123','admin'=>true],
+        $siteOne,$now
+    )===null);
+    $check(!$gateway->revokeRecordedGrantWithAudit($ctxTwo,$siteOne,$now));
+    $check($gateway->revokeRecordedGrantWithAudit($ctxOne,$siteOne,$now));
+    $check(!$gateway->revokeRecordedGrantWithAudit($ctxOne,$siteOne,$now));
+    $check($gateway->inspectRecordedGrant($ctxOne,$siteOne,$now)===null);
+    $eventsOne=$scoped->run($ctxOne,static function(PDO $db):int {
+        return (int)$db->query(
+            "SELECT COUNT(*) FROM portal_gsc_security_events"
+        )->fetchColumn();
+    });
+    $check($eventsOne===2); // initial event plus exactly one revocation
+    // Audit INSERT failure MUST roll back tenant-two grant mutation.
+    $owner->exec('REVOKE INSERT ON portal_gsc_security_events FROM gsc_rls_probe');
+    $check(!$gateway->revokeRecordedGrantWithAudit($ctxTwo,$siteTwo,$now));
+    $check($gateway->inspectRecordedGrant($ctxTwo,$siteTwo,$now)!==null);
+    $owner->exec('GRANT INSERT ON portal_gsc_security_events TO gsc_rls_probe');
+    $check($gateway->revokeRecordedGrantWithAudit($ctxTwo,$siteTwo,$now));
+    $check($gateway->inspectRecordedGrant($ctxTwo,$siteTwo,$now)===null);
     foreach($tables as $table)$check($count($probe,$table)===0);
 }catch(Throwable){
     fwrite(STDERR,"GSC Slice V: tenant RLS enforcement refused\n");
