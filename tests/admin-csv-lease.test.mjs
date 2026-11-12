@@ -27,7 +27,7 @@ test('F256: finance and tasks CSV share one SQLite lease per administrator',asyn
    assert.equal(blocked.status,409,'another admin export already owns the lease');
    assert.equal((await request(path,2)).status,403,'a normal client cannot export admin data');
   }
-  assert.equal(db.prepare("SELECT count(*) n FROM rate_limits WHERE key=?").get('admin-csv:'+owner),undefined,
+  assert.equal(db.prepare("SELECT count(*) n FROM rate_limits WHERE key=?").get('admin-csv:'+owner).n,0,
    'concurrency conflicts do not consume the hourly CSV quota');
   assert.equal(db.prepare("SELECT count(*) n FROM audit WHERE actor_id=? AND action='admin.finance_csv_export_requested'").get(owner).n,0);
   const allowed=await request('/api/admin/finance.csv',1);
