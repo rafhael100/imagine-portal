@@ -16,4 +16,17 @@
   --imagine-radius-card: 9px;
   --imagine-sidebar-width: 240px;
   --imagine-font-ui: Arial, Helvetica, sans-serif;
+  /* A mesma experiência de navegação em todos os produtos. */
+  --imagine-radius-panel: 14px;
+  --imagine-radius-navigation: 10px;
+  --imagine-shadow-panel: 0 6px 24px rgba(23, 27, 25, .035);
+  --imagine-content-max: 1380px;
+  --imagine-touch-target: 44px;
+  --imagine-space-1: 4px;
+  --imagine-space-2: 8px;
+  --imagine-space-3: 12px;
+  --imagine-space-4: 16px;
+  --imagine-space-6: 24px;
+  --imagine-space-8: 32px;
+  --imagine-space-12: 48px;
 }

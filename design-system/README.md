@@ -35,6 +35,10 @@
 - **Mobile/tablet:** menu adaptativo, controles de toque e tabelas com rolagem segura; não perder a identidade nas quebras de layout.
 - **Acessibilidade:** contraste de estados e texto, foco visível, redução de movimento, rótulos legíveis e QA responsivo; cores semânticas de alerta, sucesso e erro permanecem independentes da cor de marca.
 
+## UX e layout de todas as páginas
+
+Além das cores e da logomarca, a Direção aprovou **menus elegantes, páginas modernas, leves, visualmente claras e fáceis de navegar**. Os requisitos verificáveis de navegação, hierarquia, componentes, espaçamento, responsividade, acessibilidade e critérios de pronto por tela estão em [experience-system.md](experience-system.md). Aplicar a cada tela real, sem confundir uma issue com código implementado.
+
 ## Aplicação aos produtos
 
 O Portal será a **referência visual central**. Todos os módulos com interface humana (CRM, Sites, Comercial, Performance AI, Universidade, Agentes de IA e SEO Engine) devem usar os mesmos tokens, navegação e linguagem de componentes, com adaptações funcionais:
