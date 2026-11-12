@@ -2,6 +2,7 @@ import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
 import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
+import {consumeRateLimit} from './rate-limit.mjs';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
 import {subscriptionGuidance} from './subscription-guidance.mjs';
@@ -86,12 +87,9 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    pruneExpiredOwnerExportLeases(db,time);
    lastRateLimitPruneAt=time;
   }
-  const row=q('SELECT * FROM rate_limits WHERE key=?',key);
-  if(!row||row.reset_at<time)run('INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=1,reset_at=excluded.reset_at',key,time+window);
-  else{
-   assert(row.count<max,429,'Muitas tentativas. Aguarde alguns minutos.');
-   run('UPDATE rate_limits SET count=count+1 WHERE key=?',key);
-  }
+  // F259: atomic UPSERT across workers; a separate read/update could lose
+  // increments and admit more requests than the quota when requests race.
+  assert(consumeRateLimit(db,key,max,window,time),429,'Muitas tentativas. Aguarde alguns minutos.');
  }
  function findSession(req){const cookie=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('imagine_session='));if(!cookie)return null;const raw=cookie.slice(16);if(raw.length>100)return null;return team.decorate(q('SELECT s.hash,s.csrf,u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.hash=? AND s.expires_at>?',digest(raw),Date.now()))}
  function session(res,user){
