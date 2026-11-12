@@ -167,9 +167,14 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    const chunks=projectsCsvChunks(iterateOwnerExportProjects(db,user),{withStage:columns==='stage'});
    res.setHeader('Content-Type','text/csv; charset=utf-8');
    res.setHeader('Content-Disposition','attachment; filename="imagine-projetos.csv"');
-   audit(db,user.id,'account.projects_csv_exported',user.id);
+   // F245: record the request even if the connection drops. Only the
+   // real HTTP finish event can make this a completed export in history.
+   audit(db,user.id,'account.projects_csv_export_requested',user.id);
    res.writeHead(200);
-   return await writeOwnerExportWithinLease(res,chunks);
+   await writeOwnerExportWithinLease(res,chunks);
+   if(res.writableFinished===true)
+    audit(db,user.id,'account.projects_csv_exported',user.id);
+   return;
   }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/export'&&method==='GET'){
@@ -186,9 +191,12 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
    const chunks=accountDataExportChunks(compact,iterateOwnerExportProjects(db,user));
    res.setHeader('Content-Disposition','attachment; filename="imagine-cadastro-projetos.json"');
    res.setHeader('Content-Type','application/json; charset=utf-8');
-   audit(db,user.id,'account.data_exported',user.id);
+   audit(db,user.id,'account.data_export_requested',user.id);
    res.writeHead(200);
-   return await writeOwnerExportWithinLease(res,chunks);
+   await writeOwnerExportWithinLease(res,chunks);
+   if(res.writableFinished===true)
+    audit(db,user.id,'account.data_exported',user.id);
+   return;
   }finally{releaseOwnerExportLease(db,user.id,lease);}
  }
  if(path==='/api/account/projects'&&method==='GET'){
