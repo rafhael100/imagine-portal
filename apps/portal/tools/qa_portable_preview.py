@@ -60,6 +60,7 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
     inspected = 0
     scroll_tests = 0
     nav_tests = 0
+    offline_nav_checks = 0
     with sync_playwright() as p:
         options = {"headless": True, "args": [
             "--no-sandbox", "--disable-gpu",
@@ -96,6 +97,27 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
                         errors.append({"page": name, "width": width,
                                        "reason": "unexpected_image_count"})
                     if width == 320:
+                        # The review-only navigation must remain on one
+                        # horizontal line and be reachable by tab focus.
+                        offline_nav = page.locator(".pi-offline-nav")
+                        if offline_nav.count() != 1:
+                            errors.append({"page": name, "width": width,
+                                           "reason": "missing_offline_review_navigation"})
+                        else:
+                            offline_nav_checks += 1
+                            offline_nav.evaluate("(e) => { e.scrollLeft = 0; }")
+                            offline_nav.locator("a").last.focus()
+                            page.wait_for_timeout(50)
+                            moved_nav = offline_nav.evaluate("(e) => e.scrollLeft")
+                            if moved_nav < 1:
+                                errors.append({"page": name, "width": width,
+                                               "reason": "offline_navigation_not_keyboard_scrollable"})
+                            actual_color = offline_nav.locator("a").first.evaluate(
+                                "(e) => getComputedStyle(e).color"
+                            )
+                            if actual_color != "rgb(153, 75, 0)":
+                                errors.append({"page": name, "width": width,
+                                               "reason": "offline_navigation_not_imagine_branded"})
                         regions = page.locator(".pi-table-wrap")
                         for index in range(regions.count()):
                             region = regions.nth(index)
@@ -133,6 +155,7 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
         "pages": len(PAGES),
         "keyboard_table_checks": scroll_tests,
         "mobile_menu_checks": nav_tests,
+        "offline_navigation_checks": offline_nav_checks,
         "manifest_integrity_verified": True,
         "passed": not errors,
         "issues": errors,
