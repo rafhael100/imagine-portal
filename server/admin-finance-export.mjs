@@ -1,6 +1,7 @@
 // Administrative finance CSV. Use only after the admin authorization guard.
 // Iterates SQLite rows lazily: avoids allocating one array for every payment.
 import {safeCsvCell} from './account-export.mjs';
+import {writeOwnerExportWithinLease} from './owner-project-export.mjs';
 
 const FINANCE_HEADERS=['Pedido','Cliente','Email','Serviço','Tipo','Status',
  'Valor bruto BRL','Valor líquido BRL','Vencimento','Pagamento'];
@@ -19,4 +20,12 @@ export function *financeCsvChunks(db){
  for(const payment of rows){
   yield '\r\n'+paymentColumns(payment).map(safeCsvCell).join(';');
  }
+}
+
+// F251: cap a stalled admin download; a disconnected/slow browser must not
+// retain SQLite cursor resources indefinitely. Owner exports keep their
+// existing independent 14-minute deadline and per-account lease.
+export const ADMIN_FINANCE_MAX_STREAM_MS=5*60*1000;
+export async function streamAdminFinanceCsv(res,db,maxMs=ADMIN_FINANCE_MAX_STREAM_MS){
+ return writeOwnerExportWithinLease(res,financeCsvChunks(db),maxMs);
 }
