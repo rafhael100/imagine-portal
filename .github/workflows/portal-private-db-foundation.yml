@@ -128,6 +128,24 @@ jobs:
           admin_sql "ALTER TABLE public.portal_auth_sessions ENABLE ROW LEVEL SECURITY"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-rls-repair.out
           cmp before.out after-rls-repair.out
+      - name: Reject unsafe SECURITY DEFINER settings or elevated function owner
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY INVOKER"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_active(text) SECURITY DEFINER"
+          admin_sql "ALTER FUNCTION public.portal_browser_envelope_read(text) OWNER TO postgres"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_envelope_read(text) OWNER TO portal_browser_envelope_owner"
+          admin_sql "ALTER FUNCTION public.portal_browser_pending(text) SET search_path TO public"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER FUNCTION public.portal_browser_pending(text) SET search_path TO pg_catalog, pg_temp"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-definer-repair.out
+          cmp before.out after-definer-repair.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
