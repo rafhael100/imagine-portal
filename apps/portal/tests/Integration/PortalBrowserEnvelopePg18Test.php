@@ -220,8 +220,15 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         fwrite(STDERR,"HTTP integration: identity adapter ready\n");
         $this->app->instance(PortalBrowserAuthentication::class,$adapter);
         config(['app.url'=>'https://portal.example.test','session.driver'=>'portal_pg_encrypted','session.encrypt'=>false,'session.lottery'=>[0,100]]);
-        $this->app['session']->extend('portal_pg_encrypted',function(){
-            return new EncryptedPostgresPortalSessionHandler($this->other(),'portal_browser_lab',$this->app['encrypter']);
+        // Laravel's Manager::extend() rebinds $this to SessionManager.
+        // Do not call $this->other() or $this->app from its factory: Manager's
+        // __call() can recurse back into driver() while the driver is building.
+        $createConnection=fn():PDO=>$this->other();
+        $laravel=$this->app;
+        $laravel['session']->extend('portal_pg_encrypted',function()use($createConnection,$laravel){
+            return new EncryptedPostgresPortalSessionHandler(
+                $createConnection(),'portal_browser_lab',$laravel['encrypter']
+            );
         });
         Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void{
             Route::get('/__pg-envelope/csrf',[PortalBrowserAuthController::class,'csrf']);
