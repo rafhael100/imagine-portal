@@ -11,6 +11,16 @@ namespace App\Domain\SeoReview;
  */
 final class GoogleSearchConsoleOAuthCallbackCoordinator
 {
+    /** Opaque process-local provenance: only minted after the DB CAS succeeds. */
+    private static ?\WeakMap $issuedOutcomes=null;
+
+    public static function issuedByConsumedState(
+        GoogleSearchConsoleOAuthCallbackOutcome $outcome
+    ):bool {
+        return self::$issuedOutcomes!==null &&
+            isset(self::$issuedOutcomes[$outcome]);
+    }
+
     public function __construct(
         private readonly GoogleSearchConsoleOAuthStateLedger $ledger,
         private readonly GoogleSearchConsoleOAuthCallbackPolicy $policy
@@ -48,10 +58,13 @@ final class GoogleSearchConsoleOAuthCallbackCoordinator
 
         $isCode=$decision['decision']==='CODE_RECEIVED_REQUIRES_ATOMIC_STATE_CONSUMPTION';
         if ($isCode) {
-            return new GoogleSearchConsoleOAuthCallbackOutcome(
+            $outcome=new GoogleSearchConsoleOAuthCallbackOutcome(
                 'CODE_CONSUMED_AWAITING_TRUSTED_TOKEN_BACKEND',
                 $callback['code'],$verifier
             );
+            self::$issuedOutcomes ??= new \WeakMap();
+            self::$issuedOutcomes[$outcome]=true;
+            return $outcome;
         }
         return new GoogleSearchConsoleOAuthCallbackOutcome(
             $decision['decision'],null,null
