@@ -106,7 +106,7 @@ final class DemoPortalNavigationAudit
                 $name = $caption instanceof DOMElement ? trim($caption->textContent) : '';
                 if (!$region instanceof DOMElement
                     || !in_array('pi-table-wrap',
-                        preg_split('/\\s+/', trim($region->getAttribute('class'))) ?: [], true)
+                        preg_split('/\s+/', trim($region->getAttribute('class'))) ?: [], true)
                     || $region->getAttribute('role') !== 'region'
                     || $region->getAttribute('tabindex') !== '0'
                     || $name === ''
