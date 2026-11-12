@@ -276,7 +276,11 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
  if(method==='GET'&&(path==='/api/admin/clients'||/^\/api\/admin\/clients\/[a-f\d-]{36}$/i.test(path))){assert(!user.staff_profile||user.staff_profile==='atendimento',403,'Acesso não permitido.');const id=path.split('/')[4]||null;const clients=clientDirectory(db,{id,financial:!user.staff_profile});if(id)assert(clients.length,404,'Cliente não encontrado.');return send(res,200,{clients,financial:!user.staff_profile});}
  if(['/api/admin/tasks-bi','/api/admin/tasks-bi.csv'].includes(path)&&method==='GET'){
   assert(!user.staff_profile,403,'BI de atividades exclusivo da administração.');
-  if(!path.endsWith('.csv'))return send(res,200,buildTasksBI(db,url.searchParams,clock(),false));
+  if(!path.endsWith('.csv')){
+   // F258: protect the high-cost BI aggregation from unlimited refreshes.
+   limit('admin-bi-json:'+user.id,120,60000);
+   return send(res,200,buildTasksBI(db,url.searchParams,clock(),false));
+  }
   // F256: one administrative CSV per user, even across Node workers sharing SQLite.
   const lease=acquireOwnerExportLease(db,user.id);
   try{
