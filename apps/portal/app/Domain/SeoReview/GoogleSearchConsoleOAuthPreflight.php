@@ -14,15 +14,24 @@ final class GoogleSearchConsoleOAuthPreflight
     public const READONLY_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
     private const CALLBACK_PATH = '/integrations/google/search-console/callback';
 
+    /**
+     * Syntactic config check shared by preflight and token-request planning.
+     * DOES NOT prove Google Cloud registration or authority to use credentials.
+     */
+    public static function validRegistration(mixed $config): bool
+    {
+        return self::exact($config,['clientId','registeredRedirectUri'])
+            && is_string($config['clientId'])
+            && preg_match('/\A[0-9]{3,20}-[A-Za-z0-9_-]{4,100}\.apps\.googleusercontent\.com\z/D',
+                $config['clientId'])===1
+            && self::validCallback($config['registeredRedirectUri']);
+    }
+
     public function prepare(mixed $config, mixed $context, mixed $now): ?array
     {
-        if (!self::exact($config,['clientId','registeredRedirectUri']) ||
+        if (!self::validRegistration($config) ||
             !self::exact($context,['tenantRef','actorRef']) ||
             !is_int($now) || $now<1600000000 || $now>2200000000 ||
-            !is_string($config['clientId']) ||
-            preg_match('/\A[0-9]{3,20}-[A-Za-z0-9_-]{4,100}\.apps\.googleusercontent\.com\z/D',
-                $config['clientId'])!==1 ||
-            !self::validCallback($config['registeredRedirectUri']) ||
             !self::validRef($context['tenantRef']) ||
             !self::validRef($context['actorRef'])) {
             return null;
