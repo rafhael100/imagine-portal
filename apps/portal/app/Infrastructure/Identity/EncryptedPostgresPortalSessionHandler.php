@@ -37,6 +37,14 @@ final class EncryptedPostgresPortalSessionHandler implements SessionHandlerInter
         return ['backend'=>'encrypted Portal PostgreSQL envelopes'];
     }
 
+    // F289: cloning would duplicate the ownership flag while retaining the
+    // *same* PDO connection. The clone's destructor could roll back an active
+    // session transaction owned by the original request.
+    // Private visibility rejects clone before the copy is constructed.
+    private function __clone(): void
+    {
+    }
+
     public function __serialize(): array
     {
         throw new RuntimeException('Session handlers cannot be serialized.');
