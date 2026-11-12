@@ -12,14 +12,21 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const filters={from,to,basis:params.get('basis')||'created',assignee:params.get('assignee')||'',client:params.get('client')||'',product:params.get('product')||'',stage:params.get('stage')||'',kind:params.get('kind')||'',status:params.get('status')||'',priority:params.get('priority')||'',risk:params.get('risk')||'',archive:params.get('archive')||'all',query:(params.get('query')||'').trim().slice(0,200),sort:params.get('sort')||'risk'};
  for(const [key,values] of Object.entries({basis:['created','due','completed'],status:['','open','pending','doing','blocked','done','canceled'],priority:['','critical','high','normal','low'],risk:['','late','today','future','unassigned'],archive:['all','active','archived'],sort:['risk','due','newest','oldest']}))if(!values.includes(filters[key]))fail('Filtro inválido: '+key);
  const all=s=>db.prepare(s).all(),inside=v=>v&&v>=from&&v<=to;
- const updates=all(`SELECT task_id,status,note,created_at FROM task_updates UNION ALL SELECT task_id,status,note,created_at FROM manual_task_updates UNION ALL SELECT task_id,'done' AS status,'Conclusão automática' AS note,completed_at AS created_at FROM task_completion_events ORDER BY created_at`),history=all('SELECT task_id,action,before_json,after_json,created_at FROM task_management_history ORDER BY created_at');
+ // F271: event notes can contain private operational details. The BI only
+ // needs a management-event flag; do not pull their raw text into aggregation.
+ const managementPrefixes=['Atividade editada:','Atividade cancelada:','Atividade arquivada:','Atividade restaurada do arquivo:'];
+ const managementSql=managementPrefixes.map(prefix=>`substr(note,1,length('${prefix}'))='${prefix}'`).join(' OR ');
+ const updates=all(`SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM task_updates
+  UNION ALL SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM manual_task_updates
+  UNION ALL SELECT task_id,'done' AS status,completed_at AS created_at,0 AS management_note FROM task_completion_events ORDER BY created_at`),
+ history=all('SELECT task_id,action,before_json,after_json,created_at FROM task_management_history ORDER BY created_at');
  const eventMap=new Map(),historyMap=new Map();for(const e of updates){if(!eventMap.has(e.task_id))eventMap.set(e.task_id,[]);eventMap.get(e.task_id).push(e);}for(const h of history){if(!historyMap.has(h.task_id))historyMap.set(h.task_id,[]);historyMap.get(h.task_id).push(h);}
  // F269: explicitly exclude source_key and the full private checklist from
  // SQLite results. BI already excluded both from its public response.
  // F268: the BI UI and reports use names and authorized IDs, not emails;
  // do not load client/staff addresses into the JSON/CSV aggregation.
  let rows=all(`SELECT t.id,t.order_id,t.kind,t.title,t.assignee_id,t.status,t.due_date,t.note,t.version,t.created_at,t.updated_at,t.priority,t.instructions,t.goal,t.archived_at,t.canceled_at,u.name AS assignee,s.active AS staff_active,u.role AS assignee_role,o.title AS order_title,o.product_id,o.user_id AS client_id,c.name AS client,p.stage FROM work_items t LEFT JOIN users u ON u.id=t.assignee_id LEFT JOIN staff s ON s.user_id=t.assignee_id LEFT JOIN orders o ON o.id=t.order_id LEFT JOIN users c ON c.id=o.user_id LEFT JOIN productions p ON p.order_id=t.order_id`).map(t=>{
-  const events=eventMap.get(t.id)||[],hist=historyMap.get(t.id)||[],progress=events.filter(e=>!/^Atividade (editada|cancelada|arquivada|restaurada do arquivo):/.test(e.note));let completion=null;for(const e of progress){if(e.status!=='done')completion=null;else completion??=e.created_at;}
+  const events=eventMap.get(t.id)||[],hist=historyMap.get(t.id)||[],progress=events.filter(e=>!e.management_note);let completion=null;for(const e of progress){if(e.status!=='done')completion=null;else completion??=e.created_at;}
   let completed_at=t.status==='done'?completion:null,completion_estimated=false;
   if(t.status==='done'&&!completed_at){const before=hist.map(h=>JSON.parse(h.before_json)).find(b=>b.status==='done');completed_at=before?.updated_at||t.updated_at;completion_estimated=true;}
   const due_changes=hist.filter(h=>JSON.parse(h.before_json).due_date!==JSON.parse(h.after_json).due_date).length;
