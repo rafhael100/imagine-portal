@@ -84,6 +84,18 @@ jobs:
           admin_sql "DROP ROLE portal_f331_ci_probe"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-role-denials.out
           cmp before.out after-role-denials.out
+      - name: Reject default grants on future private database tables
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT ON TABLES TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE SELECT ON TABLES FROM portal_browser_runtime"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-default-grant-revocation.out
+          cmp before.out after-default-grant-revocation.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
