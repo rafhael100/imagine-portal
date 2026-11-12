@@ -29,6 +29,17 @@ export function validateManifest(m) {
       m.requiredWorkflows.length !== 9 ||
       new Set(m.requiredWorkflows).size !== m.requiredWorkflows.length ||
       !m.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160) ||
+      !Array.isArray(m.reviewLots) || m.reviewLots.length !== 2 ||
+      new Set(m.reviewLots.map(l => l?.pullRequest)).size !== m.reviewLots.length ||
+      m.reviewLots.some(l => !plainRecord(l) ||
+        !Number.isSafeInteger(l.pullRequest) || l.pullRequest < 1 ||
+        typeof l.headBranch !== 'string' || !l.headBranch.startsWith('review/') ||
+        l.baseBranch !== m.targetBranch ||
+        !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
+        !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 50 ||
+        !Array.isArray(l.requiredWorkflows) || l.requiredWorkflows.length !== 2 ||
+        new Set(l.requiredWorkflows).size !== 2 ||
+        !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       !plainRecord(m.policy) ||
       Object.keys(m.policy).sort().join() !== [
         'antiRollbackResolved', 'deployApproved', 'independentAppSecDbaApproved',
@@ -40,10 +51,12 @@ export function validateManifest(m) {
   return m;
 }
 
-export function assessCandidate(m, pull, runs, comparison) {
+export function assessCandidate(m, pull, runs, comparison, lot = null) {
   validateManifest(m);
   const errors = [];
-  const c = m.candidate;
+  const c = lot ?? m.candidate;
+  const required = lot?.requiredWorkflows ?? m.requiredWorkflows;
+  const commitLimit = lot?.maxCommits ?? m.maxCommitsPerIntegrationLot;
   if (!plainRecord(pull) || pull.number !== c.pullRequest ||
       pull.state !== 'open' || pull.draft !== true || pull.merged_at !== null ||
       pull.head?.ref !== c.headBranch ||
@@ -67,7 +80,7 @@ export function assessCandidate(m, pull, runs, comparison) {
     }
   }
   const workflowEvidence = {};
-  for (const name of m.requiredWorkflows) {
+  for (const name of required) {
     const run = latest.get(name);
     const valid = !!run && run.status === 'completed' &&
       run.conclusion === 'success' &&
@@ -89,7 +102,7 @@ export function assessCandidate(m, pull, runs, comparison) {
   const commitsAhead = Number.isSafeInteger(comparison?.ahead_by) ?
     comparison.ahead_by : null;
   const splitRequired = commitsAhead === null ||
-    commitsAhead > m.maxCommitsPerIntegrationLot;
+    commitsAhead > commitLimit;
   const evidenceVerified = errors.length === 0;
   return {
     decision: !evidenceVerified ? 'BLOCKED_EVIDENCE' :
@@ -98,7 +111,7 @@ export function assessCandidate(m, pull, runs, comparison) {
     evidenceVerified,
     splitRequired,
     commitsAheadOfDev: commitsAhead,
-    requiredWorkflowCount: m.requiredWorkflows.length,
+    requiredWorkflowCount: required.length,
     workflowEvidence,
     errors,
     // Intentionally immutable irrespective of CI outcome.
@@ -134,18 +147,19 @@ async function githubGet(path, token) {
   };
 }
 
-export async function fetchEvidence(m, token) {
+export async function fetchEvidence(m, token, lot = null) {
   validateManifest(m);
   if (typeof token !== 'string' || token.length < 20) {
     throw new Error('MISSING_READ_ONLY_GITHUB_TOKEN');
   }
+  const candidate = lot ?? m.candidate;
   const root = '/repos/' + m.repository;
-  const pr = await githubGet(root + '/pulls/' + m.candidate.pullRequest, token);
+  const pr = await githubGet(root + '/pulls/' + candidate.pullRequest, token);
   const runs = await githubGet(root + '/actions/runs?head_sha=' +
-    m.candidate.headSha + '&per_page=100', token);
+    candidate.headSha + '&per_page=100', token);
   const comparison = await githubGet(root + '/compare/' +
     encodeURIComponent(m.targetBranch) + '...' +
-    m.candidate.headSha, token);
+    candidate.headSha, token);
   if (pr.paginated || runs.paginated ||
       !Array.isArray(runs.data?.workflow_runs) ||
       runs.data.total_count > runs.data.workflow_runs.length) {
@@ -167,8 +181,26 @@ export async function main(args = process.argv.slice(2)) {
     const { pull, runs, comparison } =
       await fetchEvidence(manifest, process.env.GITHUB_TOKEN);
     const result = assessCandidate(manifest, pull, runs, comparison);
-    process.stdout.write(JSON.stringify(printableDecision(result), null, 2) + '\n');
-    return result.evidenceVerified ? 0 : 65;
+    const lots = [];
+    for (const lot of manifest.reviewLots) {
+      const proof = await fetchEvidence(manifest, process.env.GITHUB_TOKEN, lot);
+      lots.push({
+        pullRequest: lot.pullRequest,
+        ...printableDecision(
+          assessCandidate(manifest, proof.pull, proof.runs, proof.comparison, lot)
+        ),
+      });
+    }
+    const output = {
+      decision: 'NO_GO_RELEASE_INTEGRATION_REVIEW_ONLY',
+      stackedCandidate: printableDecision(result),
+      smallLots: lots,
+      mergeApproved: false,
+      deployApproved: false,
+    };
+    process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+    return result.evidenceVerified &&
+      lots.every(item => item.evidenceVerified && !item.splitRequired) ? 0 : 65;
   } catch (error) {
     process.stderr.write(JSON.stringify({
       decision: 'BLOCKED_UNVERIFIED',
