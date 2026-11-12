@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {openStore} from '../server/store.mjs';
+import {createProduction} from '../server/production.mjs';
 import {accountProjectsPage} from '../server/account-projects.mjs';
 
 test('F261: corrupted own paid briefing becomes controlled 503, not a JSON parse leak',()=>{
  const db=openStore(':memory:');
+ createProduction(db); // accountProjectsPage joins productions.
  try{
   const owner=randomUUID(),foreign=randomUUID();
   for(const [id,name] of [[owner,'Titular'],[foreign,'Outro titular']]){
@@ -44,6 +46,7 @@ test('F261: corrupted own paid briefing becomes controlled 503, not a JSON parse
 
 test('F261: fixing a malformed paid briefing restores its owner-only project view',()=>{
  const db=openStore(':memory:');
+ createProduction(db); // accountProjectsPage joins productions.
  try{
   const id=randomUUID(),project=randomUUID(),user={id,role:'client'};
   db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(id,'Titular','owner-f261@example.test','hash','client','2026-11-11');
