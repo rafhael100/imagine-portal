@@ -17,14 +17,24 @@ use Throwable;
 final class GoogleSearchConsoleEncryptedTokenVault
 {
     private readonly \SensitiveParameterValue $key;
+    private readonly ?\SensitiveParameterValue $previousKey;
 
     public function __construct(
         private readonly PDO $pdo,
-        #[\SensitiveParameter] string $encryptionKey
+        #[\SensitiveParameter] string $encryptionKey,
+        private readonly int $keyVersion=1,
+        #[\SensitiveParameter] ?string $previousEncryptionKey=null
     ) {
-        if(strlen($encryptionKey)!==32 || !extension_loaded('sodium'))
+        if(strlen($encryptionKey)!==32 ||
+            !in_array($keyVersion,[1,2],true) ||
+            ($previousEncryptionKey!==null &&
+                (strlen($previousEncryptionKey)!==32 || $keyVersion!==2 ||
+                 hash_equals($previousEncryptionKey,$encryptionKey))) ||
+            !extension_loaded('sodium'))
             throw new \InvalidArgumentException('GSC vault: invalid server config');
         $this->key=new \SensitiveParameterValue($encryptionKey);
+        $this->previousKey=$previousEncryptionKey===null?null:
+            new \SensitiveParameterValue($previousEncryptionKey);
     }
 
     /**
@@ -54,7 +64,7 @@ final class GoogleSearchConsoleEncryptedTokenVault
             json_encode($data,JSON_THROW_ON_ERROR),$aad,$nonce,
             $this->key->getValue()
         );
-        $sealed='v1.'.base64_encode($nonce.$cipher);
+        $sealed='v'.$this->keyVersion.'.'.base64_encode($nonce.$cipher);
         try {
             $stmt=$this->pdo->prepare('INSERT INTO portal_gsc_oauth_token_candidates
                 (tenant_ref,actor_ref,property_fingerprint,scope,
@@ -103,7 +113,17 @@ final class GoogleSearchConsoleEncryptedTokenVault
                 return null;
             $expires=(int)$row['expires_at'];
             $sealed=$row['sealed_tokens'];
-            if(!is_string($sealed)||!str_starts_with($sealed,'v1.'))return null;
+            if(!is_string($sealed)||
+               preg_match('/\Av([12])\./D',$sealed,$m)!==1)return null;
+            $sealedVersion=(int)$m[1];
+            $key=null;
+            if($sealedVersion===$this->keyVersion){
+                $key=$this->key->getValue();
+            }elseif($sealedVersion===1 && $this->keyVersion===2 &&
+                    $this->previousKey!==null){
+                $key=$this->previousKey->getValue();
+            }
+            if($key===null)return null;
             $bytes=base64_decode(substr($sealed,3),true);
             if(!is_string($bytes) ||
                 strlen($bytes)<SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES+16)
@@ -113,7 +133,7 @@ final class GoogleSearchConsoleEncryptedTokenVault
             $plain=sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
                 $cipher,self::aad($trustedTenant,$trustedActor,
                     $propertyFingerprint,$expires),
-                $nonce,$this->key->getValue()
+                $nonce,$key
             );
             if(!is_string($plain))return null;
             $data=json_decode($plain,true,8,JSON_THROW_ON_ERROR);
@@ -121,6 +141,68 @@ final class GoogleSearchConsoleEncryptedTokenVault
                 return null;
             return new GoogleSearchConsoleEncryptedTokenSecret($data);
         }catch(Throwable){return null;}
+    }
+
+    /**
+     * One-record compare-and-swap re-encryption from key version 1 to 2.
+     * The new-version vault must be configured with current and previous key.
+     * Never returns token material; read windows stay isolated by tenant.
+     */
+    public function rotateSyntheticCandidate(
+        mixed $trustedTenant,
+        mixed $trustedActor,
+        mixed $propertyFingerprint,
+        mixed $trustedNow
+    ):bool {
+        if($this->keyVersion!==2 || $this->previousKey===null ||
+            !self::validContext($trustedTenant,$trustedActor,
+                $propertyFingerprint,$trustedNow))return false;
+        try {
+            $stmt=$this->pdo->prepare('SELECT sealed_tokens,expires_at
+                FROM portal_gsc_oauth_token_candidates
+                WHERE tenant_ref=:tenant AND actor_ref=:actor
+                AND property_fingerprint=:property AND revoked_at IS NULL
+                AND issued_at<=:now_issued AND expires_at>=:now_expires
+                LIMIT 1');
+            if(!$stmt)return false;
+            $stmt->execute([
+                'tenant'=>$trustedTenant,'actor'=>$trustedActor,
+                'property'=>$propertyFingerprint,
+                'now_issued'=>$trustedNow,'now_expires'=>$trustedNow
+            ]);
+            $row=$stmt->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($row)||!is_string($row['sealed_tokens'])||
+                !str_starts_with($row['sealed_tokens'],'v1.'))return false;
+            $old=$row['sealed_tokens'];
+            $secret=$this->inspectSyntheticCandidate(
+                $trustedTenant,$trustedActor,$propertyFingerprint,$trustedNow
+            );
+            if($secret===null)return false;
+            $data=$secret->takeForTrustedBackend();
+            if(!self::validTokens($data))return false;
+            $expires=(int)$row['expires_at'];
+            if($expires!==$data['expiresAt'])return false;
+            $nonce=random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
+            $cipher=sodium_crypto_aead_xchacha20poly1305_ietf_encrypt(
+                json_encode($data,JSON_THROW_ON_ERROR),
+                self::aad($trustedTenant,$trustedActor,$propertyFingerprint,$expires),
+                $nonce,$this->key->getValue()
+            );
+            $updated='v2.'.base64_encode($nonce.$cipher);
+            $update=$this->pdo->prepare('UPDATE portal_gsc_oauth_token_candidates
+                SET sealed_tokens=:updated
+                WHERE tenant_ref=:tenant AND actor_ref=:actor
+                AND property_fingerprint=:property
+                AND sealed_tokens=:old AND revoked_at IS NULL
+                AND issued_at<=:now_issued AND expires_at>=:now_expires');
+            if(!$update)return false;
+            $update->execute([
+                'updated'=>$updated,'tenant'=>$trustedTenant,
+                'actor'=>$trustedActor,'property'=>$propertyFingerprint,
+                'old'=>$old,'now_issued'=>$trustedNow,'now_expires'=>$trustedNow
+            ]);
+            return $update->rowCount()===1;
+        }catch(Throwable){return false;}
     }
 
     public function revokeSyntheticCandidate(
