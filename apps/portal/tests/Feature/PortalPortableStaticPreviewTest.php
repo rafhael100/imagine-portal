@@ -62,6 +62,10 @@ final class PortalPortableStaticPreviewTest extends TestCase
             self::assertSame(strlen($html), $manifest['pages'][$i]['bytes']);
             self::assertSame(hash('sha256', $html), $manifest['pages'][$i]['sha256']);
             self::assertStringContainsString('Navegação exclusivamente offline', $html);
+            self::assertStringContainsString('class="pi-offline-nav"', $html);
+            self::assertStringContainsString('Prévia offline', $html);
+            self::assertStringContainsString('overscroll-behavior-x:contain', $html);
+            self::assertStringContainsString('color:#994b00', $html);
             self::assertStringContainsString('noindex,nofollow', $html);
             self::assertStringNotContainsString('<script', $html);
             self::assertStringNotContainsString('<form', $html);
