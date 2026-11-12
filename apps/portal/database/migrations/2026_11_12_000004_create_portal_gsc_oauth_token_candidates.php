@@ -35,7 +35,7 @@ return new class extends Migration
             CHECK (scope='https://www.googleapis.com/auth/webmasters.readonly')");
         DB::statement("ALTER TABLE portal_gsc_oauth_token_candidates
             ADD CONSTRAINT portal_gsc_token_sealing
-            CHECK (sealed_tokens LIKE 'v1.%')");
+            CHECK (sealed_tokens LIKE 'v1.%' OR sealed_tokens LIKE 'v2.%')");
         DB::statement('ALTER TABLE portal_gsc_oauth_token_candidates
             ADD CONSTRAINT portal_gsc_token_time
             CHECK (expires_at>issued_at AND expires_at<=issued_at+3600
