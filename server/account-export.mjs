@@ -1,0 +1,91 @@
+// Client-only CSV view. Call with the already authorized accountProfile.view
+// projects, never with unrestricted database rows.
+const HEADERS=['ID','Projeto','Criado em','Situação do pagamento','Empresa','Domínio'];
+export function safeCsvCell(value){
+ const valueText=String(value??'').replace(/\r\n?/g,'\n');
+ // Spreadsheet programs may evaluate formulas even in quoted CSV fields.
+ // F247: guard whitespace, control characters and all Unicode default-ignorable
+ // characters (including soft hyphen, bidi marks and combining grapheme joiner).
+ // Prefix an apostrophe so formula-like content remains text in Excel.
+ const safe=/^[\s\p{Default_Ignorable_Code_Point}\u0000-\u001F\u007F-\u009F]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
+ return '"'+safe.replace(/"/g,'""')+'"';
+}
+export function *projectsCsvChunks(projects,{withStage=false}={}){
+ if(!projects||typeof projects[Symbol.iterator]!=='function')throw new TypeError('Projetos inválidos.');
+ const headers=withStage?[...HEADERS,'Etapa do projeto']:HEADERS;
+ yield '\uFEFF'+headers.map(safeCsvCell).join(';')+'\r\n';
+ for(const p of projects){
+  const fields=[p.id,p.title,p.created_at,p.payment_status,p.data?.company_name||'',p.data?.domain||'',...(withStage?[p.phase||'']:[])];
+  yield fields.map(safeCsvCell).join(';')+'\r\n';
+ }
+}
+export function projectsCsv(projects,options={}){
+ if(!Array.isArray(projects))throw new TypeError('Projetos inválidos.');
+ return [...projectsCsvChunks(projects,options)].join('');
+}
+
+const PROFILE_FIELDS=['company','whatsapp','phone','website','version','updated_at'];
+const FISCAL_FIELDS=['legal_name','email','document','whatsapp','street','number','district','city','municipality','uf','zip','complement','version'];
+const PROJECT_FIELDS=['company_name','domain','email','whatsapp','phone','address','current_site','contact_site','company_intro','services','notes'];
+function pickFields(value,fields){
+ const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+ return Object.fromEntries(fields.filter(key=>{
+  if(!Object.hasOwn(source,key))return false;
+  const v=source[key];
+  return v===null||typeof v==='string'||typeof v==='boolean'||(typeof v==='number'&&Number.isFinite(v));
+ }).map(key=>[key,source[key]]));
+}
+// Safe for ordinary authenticated account responses and downloads alike.
+export function publicProjectData(data){
+ return pickFields(data,PROJECT_FIELDS);
+}
+
+// F264: a valid JSON scalar/array is not a valid paid briefing. Returning
+// empty fields would silently create an apparently complete but partial
+// account export. Enforce an object without exposing its private content.
+export function parsePaidBriefingData(raw){
+ let decoded;
+ try{decoded=JSON.parse(raw||'{}');}
+ catch(error){
+  if(!(error instanceof SyntaxError))throw error;
+  throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
+ }
+ if(!decoded||typeof decoded!=='object'||Array.isArray(decoded))
+  throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
+ return publicProjectData(decoded);
+}
+
+// Fixed privacy contract: never spread whole DB rows or arbitrary material
+// keys into an export. Unknown fields (including future internal additions)
+// are excluded by default, regardless of what the account UI can render.
+export function publicExportProject(p){
+ return {...pickFields(p,['id','title','created_at','phase','payment_status','status']),data:pickFields(p.data,PROJECT_FIELDS)};
+}
+export function accountDataExport(account,exportedAt=new Date().toISOString()){
+ if(!account||!Array.isArray(account.projects))throw new TypeError('Cadastro inválido.');
+ return {
+  schema_version:1,
+  exported_at:exportedAt,
+  scope:'cadastro_e_projetos',
+  user:pickFields(account.user,['name','email']),
+  created_at:account.created_at,
+  profile:pickFields(account.profile,PROFILE_FIELDS),
+  fiscal:pickFields(account.fiscal,FISCAL_FIELDS),
+  projects:account.projects.map(publicExportProject),
+ };
+}
+
+// Same versioned JSON contract, but render a bounded fragment per database
+// cursor row instead of allocating the complete projects array in memory.
+export function *accountDataExportChunks(account,projectRows,exportedAt=new Date().toISOString()){
+ if(!projectRows||typeof projectRows[Symbol.iterator]!=='function')throw new TypeError('Projetos inválidos.');
+ const base=accountDataExport({...account,projects:[]},exportedAt);
+ const {projects:_unused,...metadata}=base;
+ yield JSON.stringify(metadata).slice(0,-1)+',"projects":[';
+ let first=true;
+ for(const row of projectRows){
+  yield (first?'':',')+JSON.stringify(publicExportProject(row));
+  first=false;
+ }
+ yield ']}';
+}

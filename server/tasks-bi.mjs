@@ -1,3 +1,4 @@
+import {safeCsvCell} from './account-export.mjs';
 const day=v=>v?new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v.length===10?v+'T12:00:00Z':v)):'';
 const days=(a,b)=>Math.max(0,(new Date(b)-new Date(a))/86400000);
 const valid=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
@@ -11,13 +12,52 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const filters={from,to,basis:params.get('basis')||'created',assignee:params.get('assignee')||'',client:params.get('client')||'',product:params.get('product')||'',stage:params.get('stage')||'',kind:params.get('kind')||'',status:params.get('status')||'',priority:params.get('priority')||'',risk:params.get('risk')||'',archive:params.get('archive')||'all',query:(params.get('query')||'').trim().slice(0,200),sort:params.get('sort')||'risk'};
  for(const [key,values] of Object.entries({basis:['created','due','completed'],status:['','open','pending','doing','blocked','done','canceled'],priority:['','critical','high','normal','low'],risk:['','late','today','future','unassigned'],archive:['all','active','archived'],sort:['risk','due','newest','oldest']}))if(!values.includes(filters[key]))fail('Filtro inválido: '+key);
  const all=s=>db.prepare(s).all(),inside=v=>v&&v>=from&&v<=to;
- const updates=all(`SELECT task_id,status,note,created_at FROM task_updates UNION ALL SELECT task_id,status,note,created_at FROM manual_task_updates UNION ALL SELECT task_id,'done' AS status,'Conclusão automática' AS note,completed_at AS created_at FROM task_completion_events ORDER BY created_at`),history=all('SELECT task_id,action,before_json,after_json,created_at FROM task_management_history ORDER BY created_at');
+ // F271: event notes can contain private operational details. The BI only
+ // needs a management-event flag; do not pull their raw text into aggregation.
+ const managementPrefixes=['Atividade editada:','Atividade cancelada:','Atividade arquivada:','Atividade restaurada do arquivo:'];
+ const managementSql=managementPrefixes.map(prefix=>`substr(note,1,length('${prefix}'))='${prefix}'`).join(' OR ');
+ const updates=all(`SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM task_updates
+  UNION ALL SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM manual_task_updates
+  UNION ALL SELECT task_id,'done' AS status,completed_at AS created_at,0 AS management_note FROM task_completion_events ORDER BY created_at`),
+ // F276: snapshots can contain full client/task details. Derive only the
+ // fields used by BI while still distinguishing missing/null, text, numeric
+ // and complex JSON values for accurate due-date change counting.
+ history=all(`WITH snapshots AS (
+   SELECT task_id,created_at,
+    CASE WHEN json_valid(before_json) THEN before_json ELSE '{}' END AS before_safe,
+    CASE WHEN json_valid(after_json) THEN after_json ELSE '{}' END AS after_safe,
+    CASE WHEN json_valid(before_json) AND json_valid(after_json) THEN 0 ELSE 1 END AS invalid_json
+   FROM task_management_history
+  )
+  SELECT task_id,
+   json_extract(before_safe,'$.status') AS before_status,
+   json_extract(before_safe,'$.updated_at') AS before_updated_at,
+   CASE WHEN invalid_json=0 AND json_type(before_safe)='object' AND json_type(after_safe)='object'
+    THEN CASE
+     WHEN json_type(before_safe,'$.due_date') IN ('array','object')
+       OR json_type(after_safe,'$.due_date') IN ('array','object') THEN 1
+     WHEN json_type(before_safe,'$.due_date') IN ('integer','real')
+      AND json_type(after_safe,'$.due_date') IN ('integer','real')
+      THEN CASE WHEN json_extract(before_safe,'$.due_date') IS json_extract(after_safe,'$.due_date') THEN 0 ELSE 1 END
+     WHEN json_type(before_safe,'$.due_date') IS json_type(after_safe,'$.due_date')
+      AND json_extract(before_safe,'$.due_date') IS json_extract(after_safe,'$.due_date') THEN 0
+     ELSE 1 END
+    ELSE NULL END AS due_changed,
+   CASE WHEN invalid_json=1 OR json_type(before_safe)!='object' OR json_type(after_safe)!='object'
+    THEN 1 ELSE 0 END AS malformed_history
+  FROM snapshots ORDER BY created_at`);
  const eventMap=new Map(),historyMap=new Map();for(const e of updates){if(!eventMap.has(e.task_id))eventMap.set(e.task_id,[]);eventMap.get(e.task_id).push(e);}for(const h of history){if(!historyMap.has(h.task_id))historyMap.set(h.task_id,[]);historyMap.get(h.task_id).push(h);}
- let rows=all(`SELECT t.*,u.name AS assignee,u.email AS assignee_email,s.active AS staff_active,u.role AS assignee_role,o.title AS order_title,o.product_id,o.user_id AS client_id,c.name AS client,c.email AS client_email,p.stage FROM work_items t LEFT JOIN users u ON u.id=t.assignee_id LEFT JOIN staff s ON s.user_id=t.assignee_id LEFT JOIN orders o ON o.id=t.order_id LEFT JOIN users c ON c.id=o.user_id LEFT JOIN productions p ON p.order_id=t.order_id`).map(t=>{
-  const events=eventMap.get(t.id)||[],hist=historyMap.get(t.id)||[],progress=events.filter(e=>!/^Atividade (editada|cancelada|arquivada|restaurada do arquivo):/.test(e.note));let completion=null;for(const e of progress){if(e.status!=='done')completion=null;else completion??=e.created_at;}
+ // F269: explicitly exclude source_key and the full private checklist from
+ // SQLite results. BI already excluded both from its public response.
+ // F268: the BI UI and reports use names and authorized IDs, not emails;
+ // do not load client/staff addresses into the JSON/CSV aggregation.
+ let rows=all(`SELECT t.id,t.order_id,t.kind,t.title,t.assignee_id,t.status,t.due_date,t.note,t.version,t.created_at,t.updated_at,t.priority,t.instructions,t.goal,t.archived_at,t.canceled_at,u.name AS assignee,s.active AS staff_active,u.role AS assignee_role,o.title AS order_title,o.product_id,o.user_id AS client_id,c.name AS client,p.stage FROM work_items t LEFT JOIN users u ON u.id=t.assignee_id LEFT JOIN staff s ON s.user_id=t.assignee_id LEFT JOIN orders o ON o.id=t.order_id LEFT JOIN users c ON c.id=o.user_id LEFT JOIN productions p ON p.order_id=t.order_id`).map(t=>{
+  const events=eventMap.get(t.id)||[],hist=historyMap.get(t.id)||[],progress=events.filter(e=>!e.management_note);let completion=null;for(const e of progress){if(e.status!=='done')completion=null;else completion??=e.created_at;}
   let completed_at=t.status==='done'?completion:null,completion_estimated=false;
-  if(t.status==='done'&&!completed_at){const before=hist.map(h=>JSON.parse(h.before_json)).find(b=>b.status==='done');completed_at=before?.updated_at||t.updated_at;completion_estimated=true;}
-  const due_changes=hist.filter(h=>JSON.parse(h.before_json).due_date!==JSON.parse(h.after_json).due_date).length;
+  if(hist.some(h=>h.malformed_history))
+   throw Object.assign(Error('Histórico de atividade temporariamente indisponível.'),{status:503});
+  if(t.status==='done'&&!completed_at){const before=hist.find(h=>h.before_status==='done');completed_at=before?.before_updated_at||t.updated_at;completion_estimated=true;}
+  const due_changes=hist.reduce((sum,h)=>sum+Number(h.due_changed),0);
   const age_days=days(day(t.created_at),today),overdue_days=open(t)&&t.due_date<today?days(t.due_date,today):0;
   return {...t,assignee:t.assignee||'Sem responsável',client:t.client||'Atividade interna',order_title:t.order_title||'Sem pedido vinculado',active:open(t),unassigned:!t.assignee_id||(t.assignee_role!=='admin'&&t.staff_active!==1),age_days,overdue_days,completed_at,completion_estimated,cycle_days:completed_at?Math.round(days(t.created_at,completed_at)*10)/10:null,on_time:completed_at?day(completed_at)<=t.due_date:null,due_changes,updates_count:events.length};
  });
@@ -35,4 +75,14 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const clean=t=>{const {instructions,checklist,source_key,...r}=t;return r;};
  return {filters,options,today,generated_at:clock.toISOString(),summary,statuses:breakdown('status'),priorities:breakdown('priority'),kinds:breakdown('kind'),workload,months,aging,risks:risks.map(clean),page,pages:Math.ceil(rows.length/40)||1,page_size:40,rows:(exportAll?rows:rows.slice((page-1)*40,page*40)).map(clean),quality:{source:'Banco completo do portal',scope:'Situação atual da coorte filtrada; gráficos mensais usam as datas de criação e conclusão dentro do período.',completion:'Conclusões sem evento explícito usam data aproximada e ficam fora das médias e do indicador de pontualidade. Pontualidade compara com o prazo atual, não com o prazo original.',limits:'Tempo de ciclo em dias corridos; não representa horas trabalhadas. Alterações de prazo contam somente edições registradas no histórico de gestão. Não há histórico diário de backlog nem apontamento de horas.'}};
 }
-export function tasksBICsv(data){const cell=v=>'"'+String(v??'').replace(/^[=+@\-\t\r]/,"' $&").replaceAll('"','""')+'"';return '\uFEFF'+[['ID','Atividade','Tipo','Cliente','Pedido','Responsável','Situação','Prioridade','Criação','Prazo atual','Conclusão','Conclusão aproximada','Dias em atraso','Idade dias','Ciclo dias corridos','No prazo atual','Arquivada','Último registro'],...data.rows.map(t=>[t.id,t.title,t.kind,t.client,t.order_title,t.assignee,t.status,t.priority,t.created_at,t.due_date,t.completed_at,t.completion_estimated?'Sim':'Não',t.overdue_days,t.age_days,t.cycle_days,t.on_time===null?'':t.on_time?'Sim':'Não',t.archived_at?'Sim':'Não',t.note])].map(r=>r.map(cell).join(';')).join('\r\n');}
+// F255: preserve the existing BOM/semicolon/CRLF contract while yielding one
+// output fragment at a time. The BI snapshot is already authorized and built
+// before the HTTP response starts; no second giant CSV string is allocated.
+const TASKS_CSV_HEADERS=['ID','Atividade','Tipo','Cliente','Pedido','Responsável','Situação','Prioridade','Criação','Prazo atual','Conclusão','Conclusão aproximada','Dias em atraso','Idade dias','Ciclo dias corridos','No prazo atual','Arquivada','Último registro'];
+function tasksCsvValues(t){return [t.id,t.title,t.kind,t.client,t.order_title,t.assignee,t.status,t.priority,t.created_at,t.due_date,t.completed_at,t.completion_estimated?'Sim':'Não',t.overdue_days,t.age_days,t.cycle_days,t.on_time===null?'':t.on_time?'Sim':'Não',t.archived_at?'Sim':'Não',t.note];}
+export function *tasksBICsvChunks(data){
+ yield '\uFEFF'+TASKS_CSV_HEADERS.map(safeCsvCell).join(';');
+ for(const row of data.rows)yield '\r\n'+tasksCsvValues(row).map(safeCsvCell).join(';');
+}
+// Keep the public serializer used by existing CLI/unit consumers unchanged.
+export function tasksBICsv(data){return [...tasksBICsvChunks(data)].join('');}

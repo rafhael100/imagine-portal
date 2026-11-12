@@ -1,0 +1,124 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {runInNewContext} from 'node:vm';
+
+const source=await readFile(fileURLToPath(new URL('../account-ui.js',import.meta.url)),'utf8');
+const context={
+ escapeHtml:value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
+};
+runInNewContext(source+'\nthis.projectTestApi={filteredAccountProjects,accountProjectCards,accountProjectPaymentLabel,accountProjectPhaseLabel,accountProductionLabel};',context);
+const {filteredAccountProjects:filter,accountProjectCards:cards}=context.projectTestApi;
+
+function projects(n=21){
+ return Array.from({length:n},(_,i)=>({
+  id:'project-'+String(i+1).padStart(2,'0'),
+  title:'Site '+String(i+1),
+  payment_status:i%2===0?'RECEIVED':'PENDING',
+  data:{company_name:i===12?'Café São João':'Empresa '+(i+1),domain:i===12?'cafesao.example':'ex'+(i+1)+'.test'},
+ }));
+}
+
+test('F188: account archive paginates only eight authorized projects per page',()=>{
+ const data=projects();
+ const first=filter(data);
+ assert.equal(first.count,21);assert.equal(first.page,1);assert.equal(first.pages,3);
+ assert.equal(first.items.length,8);assert.equal(first.items[0].id,'project-01');
+ const second=filter(data,'','all',2);
+ assert.equal(second.items[0].id,'project-09');assert.equal(second.items.length,8);
+ const last=filter(data,'','all',3);
+ assert.equal(last.items.length,5);assert.equal(last.items.at(-1).id,'project-21');
+ assert.equal(filter(data,'','all',999).page,3);
+ assert.equal(filter(data,'','all',-5).page,1);
+ assert.equal(filter([],null,'all',1).count,0);
+});
+
+test('F188: search is accent-insensitive and scope includes title/company/domain, never another account',()=>{
+ const data=projects();
+ assert.equal(filter(data,'CAFE SAO').items[0].id,'project-13');
+ assert.equal(filter(data,'cafesao.example').count,1);
+ assert.equal(filter(data,'site 12').count,1);
+ assert.equal(filter(data,'project-08').count,1);
+ assert.equal(filter(data,'zzzz').count,0);
+ assert.equal(filter([{...data[0]}],'site 20').count,0);
+});
+
+test('F188: payment states filter without changing backend authorization',()=>{
+ const data=projects();
+ assert.equal(filter(data,'','paid').count,11);
+ assert.equal(filter(data,'','other').count,10);
+ assert.equal(filter(data,'site 3','paid').count,1);
+ assert.equal(filter(data,'site 3','other').count,0);
+ assert.equal(filter(data,'','any-status').count,0);
+});
+
+test('F188: card html escapes user-supplied strings while preserving safe project action',()=>{
+ const html=cards([{id:'safe-123',title:'<script>alert(1)</script>',payment_status:'PENDING',data:{
+  company_name:'<img src=x onerror=alert(1)>',domain:'x"; onclick="boom',notes:'<b>unsafe</b>',
+ }}]);
+ assert.ok(html.includes('&lt;script&gt;'));
+ assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+ assert.ok(html.includes('x&quot;; onclick=&quot;boom'));
+ assert.ok(html.includes('&lt;b&gt;unsafe&lt;/b&gt;'));
+ assert.ok(html.includes('data-account-project="safe-123"'));
+ assert.ok(!html.includes('<script>'));
+});
+
+test('F192: project cards show translated payment labels and fail closed on unknown states',()=>{
+ const label=context.projectTestApi.accountProjectPaymentLabel;
+ for(const [state,expected] of Object.entries({
+  RECEIVED:'Pago',CONFIRMED:'Pagamento confirmado',PENDING:'Pagamento pendente',
+  OVERDUE:'Pagamento em atraso',REFUNDED:'Pagamento estornado',NOT_CREATED:'Pagamento não iniciado',
+  UNRECOGNIZED:'Pagamento em análise',
+ })) assert.equal(label(state),expected);
+ const html=cards([
+  {id:'a-safe-id',title:'Site',payment_status:'REFUNDED',data:{}},
+  {id:'b-safe-id',title:'Novo site',payment_status:'UNRECOGNIZED',data:{}},
+ ]);
+ assert.ok(html.includes('Pagamento estornado'));
+ assert.ok(html.includes('Pagamento em análise'));
+ assert.equal(html.includes('UNRECOGNIZED'),false);
+});
+
+test('F213: project phase and sort are recognized and safe labels are translated',()=>{
+ const label=context.projectTestApi.accountProjectPhaseLabel;
+ assert.equal(label('desenvolvimento'),'Em desenvolvimento');
+ assert.equal(label('entregue'),'Entregue');
+ assert.equal(label('injected'),'Etapa a confirmar');
+ const rows=[{id:'z',title:'Mais novo',phase:'entregue',created_at:'2026-11-11',payment_status:'RECEIVED',data:{}},{id:'a',title:'Mais antigo',phase:'solicitado',created_at:'2026-11-01',payment_status:'RECEIVED',data:{}}];
+ assert.equal(filter(rows,'','all',1,'entregue').count,1);
+ assert.equal(filter(rows,'','all',1,'all','oldest').items[0].id,'a');
+});
+
+test('F218: site production badge uses approved labels and sanitized progress only',()=>{
+ const label=context.projectTestApi.accountProductionLabel;
+ assert.equal(label('production'),'Em produção');
+ assert.equal(label('review'),'Aguardando revisão');
+ assert.equal(label('published'),'Publicado');
+ assert.equal(label('<script>'),'Acompanhamento indisponível');
+ const html=cards([{id:'owned',title:'Site',phase:'desenvolvimento',payment_status:'RECEIVED',
+  data:{company_name:'Empresa'},production:{stage:'production',progress:65,due_date:'2026-11-30'}}]);
+ assert.ok(html.includes('value="65" max="100"'));
+ assert.ok(html.includes('Em produção'));
+ assert.ok(html.includes('2026-11-30'));
+});
+
+test('F219: production progress hidden for unpaid, missing or unknown stage',()=>{
+ const html=cards([{id:'unpaid',title:'Novo',payment_status:'PENDING',data:{},production:null},
+  {id:'unknown',title:'Futuro',payment_status:'RECEIVED',data:{},production:null}]);
+ assert.equal(html.includes('account-production'),false);
+ const authorized=cards([{id:'paid',title:'Pago',payment_status:'RECEIVED',data:{},
+  production:{stage:'review',progress:100,due_date:null}}]);
+ assert.ok(authorized.includes('Aguardando revisão'));
+ assert.ok(authorized.includes('value="100"'));
+});
+
+test('F226: published site links are displayed safely and only after publication',()=>{
+ const published=cards([{id:'paid',title:'Site',payment_status:'RECEIVED',data:{},production:{stage:'published',progress:100,due_date:null,live_url:'https://site.example.test/'}}]);
+ assert.ok(published.includes('Abrir site publicado'));
+ assert.ok(published.includes('rel="noopener noreferrer"'));
+ assert.ok(published.includes('href="https://site.example.test/"'));
+ const privatePreview=cards([{id:'review',title:'Aguardando revisão',payment_status:'RECEIVED',data:{},production:{stage:'review',progress:100,due_date:null,live_url:null}}]);
+ assert.equal(privatePreview.includes('Abrir site publicado'),false);
+});
