@@ -301,9 +301,9 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             self::assertSame('Dedicated Portal authentication role required.',$e->getMessage());
         }
         $preflight = new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
-        self::assertFalse($preflight->allows('forged-session',self::ORG,'services.view'));
-        self::assertFalse($preflight->allows(str_repeat('a',64),self::ORG,'services.*'));
-        self::assertFalse($preflight->allows(str_repeat('a',64),'foreign-organization','services.view'));
+        self::assertFalse($preflight->hasCandidateGrant('forged-session',self::ORG,'services.view'));
+        self::assertFalse($preflight->hasCandidateGrant(str_repeat('a',64),self::ORG,'services.*'));
+        self::assertFalse($preflight->hasCandidateGrant(str_repeat('a',64),'foreign-organization','services.view'));
         self::assertSame(['backend'=>'Portal PostgreSQL permission preflight'],$preflight->__debugInfo());
 
         $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
@@ -311,14 +311,14 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
           VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
         $grant->execute(['66666666-6666-4666-8666-666666666666',self::MEMBER,'services.view']);
         $active=$this->active();
-        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
-        self::assertFalse($preflight->allows($active,self::ORG,'billing.view'));
-        self::assertFalse($preflight->allows($active,'44444444-4444-4444-8444-444444444444','services.view'));
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+        self::assertFalse($preflight->hasCandidateGrant($active,self::ORG,'billing.view'));
+        self::assertFalse($preflight->hasCandidateGrant($active,'44444444-4444-4444-8444-444444444444','services.view'));
 
         $this->runtime->beginTransaction();
         try {
             try {
-                $preflight->allows($active,self::ORG,'services.view');
+                $preflight->hasCandidateGrant($active,self::ORG,'services.view');
                 self::fail('Caller-controlled transaction must never be accepted.');
             } catch(RuntimeException $e) {
                 self::assertSame('Dedicated autocommit Portal permission connection required.',$e->getMessage());
@@ -326,9 +326,9 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         } finally {
             $this->runtime->rollBack();
         }
-        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
         $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
-        self::assertFalse($preflight->allows($active,self::ORG,'services.view'));
+        self::assertFalse($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
     }
 
     // F302: executable only against the disposable PostgreSQL 18 laboratory.
@@ -411,23 +411,23 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
 
         $activeA=$this->active();
         $check=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
-        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
-        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'),
+        self::assertTrue($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.view'),
             'A real grant in B must not make a browser session for A usable in B.');
-        self::assertFalse($check->allows($activeA,$otherOrg,'services.manage'));
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.manage'));
 
         // Revoking a grant only in B advances B's membership revision;
         // it must not revoke A's otherwise valid MFA session.
         $q=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE membership_id=?');
         $q->execute([$otherMember]);
         self::assertSame(1,$q->rowCount());
-        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
-        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'));
+        self::assertTrue($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->hasCandidateGrant($activeA,$otherOrg,'services.view'));
 
         // The session is finally invalidated by revoking its own grant.
         $q->execute([self::MEMBER]);
         self::assertSame(1,$q->rowCount());
-        self::assertFalse($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->hasCandidateGrant($activeA,self::ORG,'services.view'));
         self::assertFalse($this->adapter->isActiveBusinessSession($activeA));
     }
 
@@ -440,7 +440,7 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
         $session=$this->active();
         $permission=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
-        self::assertTrue($permission->allows($session,self::ORG,'services.view'),
+        self::assertTrue($permission->hasCandidateGrant($session,self::ORG,'services.view'),
             'Positive PG18 preflight must actually be exercised.');
 
         // F305: a valid password + TOTP + explicit service grant does not
