@@ -27,6 +27,11 @@ final class GoogleSearchConsoleOAuthTokenExchangePlan
                 $trustedServerConfig['clientSecret'])!==1)
             return null;
 
+        // Status fields are self-reported by the outcome and CAN be forged.
+        // Require process-local proof minted only after ledger CAS success.
+        if(!GoogleSearchConsoleOAuthCallbackCoordinator::issuedByConsumedState(
+            $consumedCallback
+        ))return null;
         $status=$consumedCallback->safeReview();
         if (($status['decision']??null)!=='CODE_CONSUMED_AWAITING_TRUSTED_TOKEN_BACKEND'
             ||($status['stateConsumed']??null)!==true
