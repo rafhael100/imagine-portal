@@ -27,6 +27,8 @@
 ### Estrutura visual
 
 - **Marca:** usar o logotipo Imagine original, `assets/logo-imagine.png`, migrado como asset local para o frontend de cada app quando apropriado; não inventar logo ou introduzir gradiente azul/roxo.
+- **Logotipo oficial aplicado no Portal Laravel:** `apps/portal/public/assets/logo-imagine.png`, uma cópia **idêntica em bytes** do original (Git blob `678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77`), referenciada pelo componente `x-portal.brand` via caminho local `/assets/logo-imagine.png`. A CSP da demonstração permite apenas imagem local (`img-src 'self' data:`), sem recursos de terceiros. A versão Node permanece intocada.
+- **Outros produtos:** replicar o mesmo arquivo PNG original e a grafia da marca sem redesenhos; usar a versão original em cor para fundos claros. A aplicação exige QA de contraste e dimensões por produto.
 - **Desktop:** menu lateral branco (cerca de 240px), item selecionado em laranja suave, fundo geral cinza bem claro, cabeçalho branco com borda fina, cartões brancos e bordas discretas.
 - **Indicadores e ações:** destaques em laranja; para texto pequeno, usar grafite ou `--imagine-orange-text` sobre fundos claros; não usar `#F9941D` para texto pequeno em branco.
 - **Tipografia base do Portal legado:** Arial / Helvetica / sans-serif, com títulos fortes, espaçamento consistente, botões com cantos discretos; outras fontes só mediante decisão de atualização **global**.

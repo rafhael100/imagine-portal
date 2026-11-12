@@ -90,7 +90,7 @@ final class PortalHelpPresentationTest extends TestCase
         foreach ([...array_column($sectionsBefore, 'value'), 'help'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('<main id="pi-content"', $html);
-            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'src=', 'action=', 'http://', 'https://'] as $forbidden) {
+            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'action=', 'http://', 'https://'] as $forbidden) {
                 self::assertStringNotContainsString($forbidden, $html);
             }
             $xpath = $this->navigation($html);
@@ -107,7 +107,8 @@ final class PortalHelpPresentationTest extends TestCase
                 self::assertSame('page', $active->item(0)->getAttribute('aria-current'));
                 self::assertSame(ClientSection::from($screen)->label(), trim($active->item(0)->textContent));
             }
-            preg_match_all('/href="([^"]*)"/', $html, $links);
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
+        preg_match_all('/href="([^"]*)"/', $html, $links);
             self::assertSame(['#pi-content'], $links[1]);
         }
         self::assertSame($routesBefore, $snapshot());
