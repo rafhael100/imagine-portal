@@ -40,3 +40,20 @@ O manifesto atualizado seleciona somente dois lotes canônicos:
 O gate confere para cada PR sua base de comparação correta: `dev...#588` e `#588...#592`. Se a #588 mudar sem rebase/reteste da #592, a comparação deixa de ser limpa e a auditoria falha fechada. Não são aceitos desvios silenciosos para outra base ou mais de 20 commits no delta editorial. As PRs históricas #580/#581/#582/#583/#584/#585/#587/#590 não devem ser mescladas simultaneamente com estas duas candidatas, pois contêm código ancestral/duplicado.
 
 **Um resultado verde continua sendo apenas prova de revisão.** A revisão operacional e a autorização específica de merge/deploy são decisões separadas, e a issue de anti-rollback #64 permanece NO-GO. Não existe automática publicação ou ativação de cliente neste fluxo.
+
+## Atualização — quatro etapas canônicas de interface (12/11/2026)
+
+A seleção anterior de dois lotes foi **ampliada**, sem trocar as versões aprovadas. O caminho atual de revisão, sempre pelo par `base...head` exato, é:
+
+| Ordem | PR | Base de comparação | Commits incrementais | Alterações |
+| --- | --- | --- | ---: | --- |
+| 1 | [#588](https://github.com/rafhael100/imagine-portal/pull/588) | `dev/fast-track-portal-2026-11-05` | 41 | Catálogo, contratos, solicitações, painel |
+| 2 | [#592](https://github.com/rafhael100/imagine-portal/pull/592) | Branch da #588 | 10 | Editorial Sites sem catálogo duplicado |
+| 3 | [#594](https://github.com/rafhael100/imagine-portal/pull/594) | Branch da #592 | 16 | **Logomarca PNG original**, laranja/grafite, sidebar e CSS responsivo |
+| 4 | [#595](https://github.com/rafhael100/imagine-portal/pull/595) | Branch da #594 | 5 | Prévia HTML navegável offline para QA visual |
+
+Cada etapa possui **dois workflows aprovados** no seu SHA exato: testes Node e Laravel PHP 8.3/8.4. A quarta inclui um artefato ZIP privado de revisão com **oito HTML**, o PNG original incorporado e manifesto de integridade; isso **não** é uma publicação.
+
+O gate valida cada base, nome de branch, PR, SHA, workflows e o limite de commits. Se a base ou HEAD de uma etapa for alterada, o conjunto deve ser reavaliado; não é permitido pular ou reaplicar um lote. A candidata extensa #578 continua **bloqueada para merge integral**, independentemente de CI verde.
+
+**NO-GO continua:** nenhum sinal de aprovação de produção é emitido por este gate. QA visual em dispositivos reais, revisão independente AppSec/DBA/LGPD, recuperação/anti-rollback #64, homologação e autorização específica de merge/deploy não foram dispensados. As PRs históricas incrementais não devem ser mescladas em duplicidade.
