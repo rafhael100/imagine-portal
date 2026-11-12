@@ -46,6 +46,20 @@ source_marker=$(sql portal_identity_dev "$marker_query")
 migration_query="SELECT md5(string_agg(migration,',' ORDER BY migration))
  FROM public.migrations"
 [[ $(sql portal_identity_dev 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 65
+# Count-only gates could accept ten unexpected migration names. Pin the reviewed set.
+allowlist_query="SELECT count(*) FROM public.migrations WHERE migration NOT IN (
+  '2026_11_09_000002_create_portal_identity_foundation',
+  '2026_11_09_000003_add_mfa_replay_counter_to_portal_identities',
+  '2026_11_10_000004_add_org_revision_to_portal_sessions',
+  '2026_11_10_000005_create_portal_auth_throttle_buckets',
+  '2026_11_10_000008_add_session_purpose_to_portal_auth_sessions',
+  '2026_11_11_000012_fence_portal_membership_revision',
+  '2026_11_11_000013_fence_portal_organization_revision',
+  '2026_11_11_000014_guard_portal_session_issuance',
+  '2026_11_12_000016_fence_portal_identity_revision',
+  '2026_11_12_000017_create_portal_service_resource_claims'
+)"
+[[ $(sql portal_identity_dev "$allowlist_query") == 0 ]] || exit 65
 source_migrations=$(sql portal_identity_dev "$migration_query")
 [[ "$source_migrations" =~ ^[[:xdigit:]]{32}$ ]] || exit 65
 
@@ -85,6 +99,7 @@ pg pg_restore -h 127.0.0.1 -U postgres --dbname="$target" \
 restored_marker=$(sql "$target" "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" == "$restored_marker" ]] || exit 1
 [[ $(sql "$target" 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 1
+[[ $(sql "$target" "$allowlist_query") == 0 ]] || exit 1
 [[ $(sql "$target" "$migration_query") == "$source_migrations" ]] || exit 1
 [[ $(sql "$target" 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 1
 
