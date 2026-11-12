@@ -121,6 +121,7 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $adapter = $this->adapter();
         $token = $this->csrf();
         $this->request('POST', 'password', $this->credentials())->assertStatus(419);
+        $this->request('POST', 'password', $this->credentials(), null, ['HTTP_SEC_FETCH_SITE' => 'same-origin'])->assertStatus(419);
         $this->request('POST', 'password', $this->credentials(), 'wrong-token')->assertStatus(419);
         $this->request('POST', 'password', $this->credentials(), $token, ['HTTP_ORIGIN' => 'https://crm.example.test'])->assertStatus(419);
         $this->request('POST', 'password', $this->credentials(), $token, ['HTTP_SEC_FETCH_SITE' => 'same-site'])->assertStatus(419);
@@ -148,7 +149,9 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $password = $this->request('POST', 'password', $this->credentials(), $csrf)
             ->assertStatus(202)->assertExactJson(['next' => 'mfa']);
         $pending = $this->app['session']->driver()->getId();
+        $pendingCookie = $this->browserCookie;
         self::assertNotSame($anonymous, $pending);
+        $this->request('POST', 'mfa', ['code' => '123456'], $csrf)->assertStatus(419);
         self::assertFileDoesNotExist($this->directory . '/' . $anonymous);
         $this->request('GET', 'session')->assertUnauthorized();
         $this->request('POST', 'mfa', ['code' => '000000'], $this->csrf())->assertUnauthorized();
@@ -157,6 +160,10 @@ final class PortalBrowserAuthTransportTest extends TestCase
         self::assertNotSame($pending, $this->app['session']->driver()->getId());
         self::assertFileDoesNotExist($this->directory . '/' . $pending);
         self::assertContains(str_repeat('a', 64), $adapter->revoked);
+        $activeCookie = $this->browserCookie;
+        $this->browserCookie = $pendingCookie;
+        $this->request('GET', 'session')->assertUnauthorized();
+        $this->browserCookie = $activeCookie;
         $this->request('GET', 'session')->assertOk()->assertExactJson(['authenticated' => true]);
         self::assertSame('127.0.0.1', $adapter->sourceIp);
         foreach ([$password, $mfa] as $response) {
@@ -186,9 +193,11 @@ final class PortalBrowserAuthTransportTest extends TestCase
     {
         $adapter = $this->loginWithMfa();
         $oldId = $this->app['session']->driver()->getId();
+        $oldCookie = $this->browserCookie;
         $this->request('POST', 'logout', [], $this->csrf())->assertNoContent();
         self::assertContains(str_repeat('b', 64), $adapter->revoked);
         self::assertFileDoesNotExist($this->directory . '/' . $oldId);
+        $this->browserCookie = $oldCookie;
         $this->request('GET', 'session')->assertUnauthorized();
     }
 
@@ -198,6 +207,16 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $adapter->revocationSucceeds = false;
         $this->request('POST', 'logout', [], $this->csrf())
             ->assertStatus(503)->assertExactJson(['error' => 'authentication_unavailable']);
+        $this->request('GET', 'session')->assertUnauthorized();
+    }
+
+    public function test_relogin_requires_old_reference_revocation_before_another_password_attempt(): void
+    {
+        $adapter = $this->loginWithMfa();
+        $adapter->revocationSucceeds = false;
+        $calls = $adapter->passwordCalls;
+        $this->request('POST', 'password', $this->credentials(), $this->csrf())->assertStatus(503);
+        self::assertSame($calls, $adapter->passwordCalls);
         $this->request('GET', 'session')->assertUnauthorized();
     }
 
