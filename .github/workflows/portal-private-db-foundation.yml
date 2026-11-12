@@ -188,6 +188,23 @@ jobs:
             -tA -v ON_ERROR_STOP=1 -c \
             "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 1
           pg dropdb -h 127.0.0.1 -U postgres "$target"
+      - name: Refuse restore drill when source has a session envelope but no users
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -tA -c "$1"
+          }
+          admin_sql "INSERT INTO public.portal_browser_envelopes
+            (id_sha256,payload,expires_at)
+            VALUES(repeat('a',64),'f340-synthetic-only',clock_timestamp()+interval '1 hour')" >/dev/null
+          if sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh; then exit 1; fi
+          test "$(admin_sql "SELECT count(*) FROM public.portal_browser_envelopes")" = 1
+          test "$(admin_sql "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
+          admin_sql "DELETE FROM public.portal_browser_envelopes WHERE id_sha256=repeat('a',64)" >/dev/null
+          test "$(admin_sql "SELECT count(*) FROM public.portal_browser_envelopes")" = 0
       - name: Restore a logical backup to a new disposable database only
         run: |
           set -euo pipefail
