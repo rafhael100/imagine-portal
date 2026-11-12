@@ -58,3 +58,7 @@ A verificação do banco restaurado recusa qualquer entrada `CONNECT` na ACL con
 ## F344 — manifesto de migrations após restauração
 
 O laboratório recusa uma origem que não possua exatamente as dez migrations previstas no provisionador. Calcula um fingerprint MD5 **apenas dos nomes ordenados** das migrations (não dos dados ou arquivos de aplicação) e confirma que o banco restaurado conserva a mesma lista e contagem. A verificação não substitui inspeção de integridade do SQL, das tabelas ou dos dados nem uma política de migração para produção; ela detecta somente diferenças do manifesto que seria esperado no laboratório sintético.
+
+## F345 — lista exata de migrations autorizadas
+
+A F344 comparava contagem e fingerprint entre origem e destino; isoladamente isso não impediria que a origem trouxesse dez **nomes inesperados**. O gate F345 exige que cada nome pertença ao conjunto fechado das dez migrations explicitamente instaladas em `provision.php`, tanto antes do dump quanto depois da restauração. Em conjunto com a contagem exata, isso comprova igualdade do conjunto de nomes conhecido, não a integridade criptográfica do conteúdo dos scripts ou de dados de negócio.
