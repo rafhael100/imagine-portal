@@ -67,6 +67,23 @@ jobs:
           admin_sql "REVOKE EXECUTE ON FUNCTION public.portal_browser_envelope_read(text) FROM portal_browser_runtime"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-grant-revocation.out
           cmp before.out after-grant-revocation.out
+      - name: Reject schema CREATE privileges and role memberships, then recover
+        run: |
+          set -euo pipefail
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "GRANT CREATE ON SCHEMA public TO portal_browser_envelope_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE CREATE ON SCHEMA public FROM portal_browser_envelope_runtime"
+          admin_sql "CREATE ROLE portal_f331_ci_probe NOLOGIN"
+          admin_sql "GRANT portal_f331_ci_probe TO portal_browser_runtime"
+          if sudo -E docker compose run --rm -T provision php provision.php verify; then exit 1; fi
+          admin_sql "REVOKE portal_f331_ci_probe FROM portal_browser_runtime"
+          admin_sql "DROP ROLE portal_f331_ci_probe"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-role-denials.out
+          cmp before.out after-role-denials.out
       - name: Prove the same database survives container stop and start
         run: |
           set -euo pipefail
