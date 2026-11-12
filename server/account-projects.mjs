@@ -62,7 +62,8 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
  const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
  const current=Number(page),{pages,limited}=boundedProjectPages(total);
  const direction=sort==='oldest'?'ASC':'DESC';
- const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,b.data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date,pr.live_url AS production_live_url '+from+
+ // F263: do not fetch unpaid briefing payloads into the Node process.
+ const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,CASE WHEN o.payment_status IN ${paid} THEN b.data ELSE NULL END AS data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date,pr.live_url AS production_live_url '+from+
   ` ORDER BY o.created_at ${direction},o.id ${direction} LIMIT ? OFFSET ?`)
   .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
  const projects=rows.map(row=>({
