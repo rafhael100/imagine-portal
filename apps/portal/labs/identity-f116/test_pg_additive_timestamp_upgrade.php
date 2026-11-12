@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Synthetic upgrade rehearsal only, before F116 installs fixture SQL roles.
+// Synthetic upgrade rehearsal with F116 fixture SQL roles and policies installed.
 if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing'
     || getenv('PORTAL_F116_PG_LAB') !== '1'
     || getenv('PGHOST') !== '127.0.0.1' || getenv('PGPORT') !== '5432'
@@ -57,6 +57,27 @@ try {
                       ('portal_identities','portal_auth_sessions','portal_email_verification_challenges')
                      ORDER BY c.relname";
     $security = json_encode($db->select($securitySql), JSON_THROW_ON_ERROR);
+    // A dependent view must fail atomically, leaving no partially upgraded columns.
+    $db->statement('CREATE VIEW public.precision_upgrade_dependency AS SELECT revoked_at FROM public.portal_email_verification_challenges');
+    $dependencyRefused = false;
+    try {
+        $migration->up();
+    } catch (Illuminate\Database\QueryException $error) {
+        $dependencyRefused = $error->getCode() === '0A000';
+    }
+    if (!$dependencyRefused) {
+        throw new RuntimeException('Dependent schema was not safely refused.');
+    }
+    foreach ($tables as $table => $columns) {
+        foreach ($columns as $column) {
+            $legacy = $db->selectOne("SELECT datetime_precision FROM information_schema.columns
+                WHERE table_schema='public' AND table_name=? AND column_name=?", [$table,$column]);
+            if ($legacy === null || (int) $legacy->datetime_precision !== 0) {
+                throw new RuntimeException('Failed upgrade left a partially changed schema.');
+            }
+        }
+    }
+    $db->statement('DROP VIEW public.precision_upgrade_dependency');
     $migration->up();
     $migration->up(); // Reapplying an already upgraded schema is harmless.
     if ($db->selectOne($rowSql)->snapshot !== $before
@@ -81,7 +102,7 @@ try {
     if (!$refused || $db->selectOne($rowSql)->snapshot !== $before) {
         throw new RuntimeException('Lossy rollback was not safely refused.');
     }
-    echo "PASS additive precision upgrade: 10 legacy columns, stored values, RLS/ACL, repeat application and rollback refusal\n";
+    echo "PASS additive precision upgrade: 10 legacy columns, stored values, RLS/ACL, dependency failure atomicity, repeat application and rollback refusal\n";
 } finally {
     $db->rollBack(); // Remove fixture and restore the original CI schema.
 }
