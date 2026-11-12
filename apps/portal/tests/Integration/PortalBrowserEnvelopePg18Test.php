@@ -421,6 +421,42 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             self::assertSame('revoked',$staleStatus->fetchColumn());
             $cookie=$replayCookie;
             $request('GET','session')->assertUnauthorized();
+
+            // F296: prove the same fail-closed behavior for the other
+            // authoritative revision axes. An operator can restore status,
+            // but the prior authenticated envelope must stay revoked.
+            foreach ([
+                ['organization','public.portal_organizations','security_revision',$org],
+                ['identity','public.portal_identities','security_revision',$actor],
+            ] as [$kind,$table,$revision,$id]) {
+                $request('GET','csrf')->assertOk();
+                $reference=bin2hex(random_bytes(32));
+                $seed->execute([hash('sha256',$reference),$actor,$org]);
+                self::assertSame(1,$seed->rowCount());
+                $session=$this->app['session']->driver();
+                $session->put('portal.browser_auth',['phase'=>'business','reference'=>$reference]);
+                $session->save();
+                $request('GET','session')->assertOk();
+                $oldEnvelopeCookie=$cookie;
+
+                // Names below are compile-time literals of this test only.
+                $suspend=$this->admin->prepare("UPDATE ".$table."
+                    SET status='suspended',".$revision."=".$revision."+1 WHERE id=?");
+                $suspend->execute([$id]);
+                self::assertSame(1,$suspend->rowCount(),$kind);
+                $request('GET','session')->assertUnauthorized();
+                $staleStatus->execute([hash('sha256',$reference)]);
+                self::assertSame('revoked',$staleStatus->fetchColumn(),$kind);
+                self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                    WHERE status='active'")->fetchColumn(),$kind);
+
+                $restore=$this->admin->prepare("UPDATE ".$table."
+                    SET status='active' WHERE id=?");
+                $restore->execute([$id]);
+                self::assertSame(1,$restore->rowCount(),$kind);
+                $cookie=$oldEnvelopeCookie;
+                $request('GET','session')->assertUnauthorized();
+            }
         }finally{
             $this->app['session']->driver()->getHandler()->close();
         }
