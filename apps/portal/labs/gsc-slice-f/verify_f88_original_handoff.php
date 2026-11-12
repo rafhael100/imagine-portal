@@ -22,11 +22,13 @@ if (!is_file($path) || is_link($path) || filesize($path)>1048576 ||
     denyF88();
 }
 try {
+    $phase = 'payload';
     $payload=file_get_contents($path, false, null, 0, 1048577);
     if (!is_string($payload) || strlen($payload)>1048576 ||
-        preg_match('/SYNTHETIC-SLICE-F-PRIVATE|123\.456\.789-09|<script|Bearer /i',$payload)) {
+        preg_match('/SYNTHETIC-SLICE-F-PRIVATE|123\.456\.789-09|<script|Bearer [A-Za-z0-9._-]{12,}/i',$payload)) {
         denyF88();
     }
+    $phase = 'json';
     $dto=json_decode($payload,true,32,JSON_THROW_ON_ERROR);
     $phase = "envelope";
     if (!is_array($dto) || array_is_list($dto))denyF88();
