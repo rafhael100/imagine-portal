@@ -137,6 +137,38 @@ final class F32ActualPgRestoreWitnessTest extends TestCase
         self::assertFalse($blocked->grantsUniversityBenefit());
     }
 
+    public function test_unavailable_external_witness_never_falls_back_to_restored_session(): void
+    {
+        $key = random_bytes(32);
+        $organization = new OrganizationId('org-a');
+        $witnessPdo = $this->connect('witness');
+        $witnessReader = new F31ExternalWitnessReader($witnessPdo);
+
+        // Force a deterministic witness-unavailable condition without
+        // touching the shared witness service or its monotonic floor.
+        $witnessPdo->beginTransaction();
+        try {
+            $reader = new F31RollbackAwareLabReader(
+                new F24SyntheticAuthorizedReader($this->connect('primary'), $key),
+                $witnessReader,
+                $key,
+            );
+            $result = $reader->read($organization, $this->token($key, 1), self::NOW);
+            self::assertSame('unavailable_external_witness', $result->reason);
+            self::assertFalse($result->isPreparedPreview());
+            self::assertSame([], $result->rows);
+            self::assertSame(0, $result->totalServices);
+            self::assertSame(0, $result->totalRequests);
+            self::assertSame(0, $result->totalContracts);
+            self::assertNull($result->nextCursor);
+            self::assertFalse($result->mayExposeCustomerData());
+            self::assertFalse($result->authorizesServiceAccess());
+            self::assertFalse($result->authorizesContractOrPayment());
+        } finally {
+            $witnessPdo->rollBack();
+        }
+    }
+
     public function test_proof_matching_witness_floor_is_still_denied_by_restored_primary_revision(): void
     {
         $key = random_bytes(32);

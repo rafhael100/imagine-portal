@@ -11,7 +11,7 @@ use LogicException;
 use RuntimeException;
 
 /**
- * F136: local-only structural audit of the nine synthetic HTML pages.
+ * F136/F352: local-only structural audit of all eleven synthetic HTML pages.
  * Not an accessibility certification, authentication or public crawler.
  */
 final class DemoPortalNavigationAudit
@@ -94,6 +94,38 @@ final class DemoPortalNavigationAudit
                     throw new LogicException('Offline images must be inert embedded raster data with alt text.');
                 }
             }
+            // F352: horizontal tables must be reachable by keyboard and
+            // announced with the same accessible name as their <caption>.
+            // This is a static export contract, not an accessibility certification.
+            foreach ($doc->getElementsByTagName('table') as $table) {
+                if (!$table instanceof DOMElement) {
+                    throw new LogicException('Offline table is malformed.');
+                }
+                $region = $table->parentNode;
+                $caption = $xpath->query('./caption', $table)?->item(0);
+                $name = $caption instanceof DOMElement ? trim($caption->textContent) : '';
+                if (!$region instanceof DOMElement
+                    || !in_array('pi-table-wrap',
+                        preg_split('/\s+/', trim($region->getAttribute('class'))) ?: [], true)
+                    || $region->getAttribute('role') !== 'region'
+                    || $region->getAttribute('tabindex') !== '0'
+                    || $name === ''
+                    || $region->getAttribute('aria-label') !== $name) {
+                    throw new LogicException('Offline data table needs a named, keyboard-focusable scroll region.');
+                }
+                $headers = $xpath->query('./thead/tr/th', $table);
+                if ($headers === false || $headers->length < 1) {
+                    throw new LogicException('Offline data table needs column headers.');
+                }
+                foreach ($headers as $header) {
+                    if (!$header instanceof DOMElement
+                        || $header->getAttribute('scope') !== 'col'
+                        || trim($header->textContent) === '') {
+                        throw new LogicException('Offline table headers must have column scope and a name.');
+                    }
+                }
+            }
+
             if ($doc->getElementsByTagName('nav')->length < 1) {
                 throw new LogicException('Offline page lacks a navigation landmark.');
             }

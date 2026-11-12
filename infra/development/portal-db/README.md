@@ -90,3 +90,27 @@ A CI exige que `restore-contracts.sql` passe com a fundação sintética íntegr
 ## F351 — continuidade da chave de prova HMAC sintética
 
 Os dois ensaios de restauração deixam de verificar apenas que existe uma linha na tabela privada de chave HMAC. Agora capturam na origem um hash SHA-256 da **chave aleatória de CI** (sem expor chave bruta), exigem que esse fingerprint permaneça igual após gerar o dump e que o banco restaurado — no mesmo cluster ou no segundo contêiner independente — tenha exatamente o mesmo fingerprint. O último cheque garante que a origem também não mudou. A comparação comprova integridade de uma chave sintética durante a cópia; **não** comprova custódia externa de chaves de clientes, rotação, backup off-host nem recuperação anti-rollback.
+
+## Ensaio de coexistência F143 + F351 — PR #578 (somente CI)
+
+A candidata de integração isolada [PR #578](https://github.com/rafhael100/imagine-portal/pull/578) transplanta somente as quatro alterações de UI F143 ainda ausentes da base de autenticação/recuperação F351. Como o workflow de fundação privada tem filtro de caminhos, uma PR com mudanças apenas em UI não o executaria novamente. Esta anotação, **exclusiva da branch de ensaio**, obriga uma nova execução do teste PostgreSQL 18 no mesmo SHA combinado, além de PHP, Node, GSC e F64. O teste não conecta a interface aos papéis runtime nem libera qualquer rota; resultados aprovados não substituem revisão independente, anti-rollback ou aprovação de integração. **Sem merge/deploy.**
+
+## F354 — segredo administrativo independente no cluster restaurado (somente CI)
+
+A prova de restauração em segundo contêiner agora gera, sob o diretório temporário protegido do runner, **uma nova senha aleatória de 48 bytes codificada em hexadecimal** para o administrador do cluster-alvo, distinta da senha da origem. Descobre o UID `postgres` na imagem `postgres:18-alpine`, entrega o arquivo somente a esse UID com permissão `0400`, e monta **apenas o segredo temporário do alvo** em seu contêiner isolado, sem passar senhas em argumentos ou environment. O script exige que os dois arquivos não tenham os mesmos bytes, mantém `--network none` e remove contêiner e diretório temporário no cleanup.
+
+Isto comprova independência das credenciais administrativas no **laboratório sintético**. Não é rotação de chaves de aplicações, recuperação real de R2, custódia de dados operacionais nem autorização para utilização na VPS.
+
+## F355 — protótipo de barreira anti-rollback antes de reabrir sessões
+
+A prova da restauração vazia e sem rede **não resolve** o risco conhecido em [PORTAL-SEC-R03 #64](https://github.com/rafhael100/imagine-portal/issues/64): um snapshot anterior à revogação pode reintroduzir estados de sessão e permissão. `recovery_epoch_preflight.py` modela uma verificação **somente offline na CI**, comparando metadados fictícios de um snapshot com um estado testemunha armazenado em outro arquivo privado. A verificação recusa revisões ou sequência de revogação diferentes (para trás **ou para frente**), geração do serviço divergente, empresa/instância diferentes, documento inválido, arquivo ausente, permissões inseguras, link simbólico, mesmo inode e uso fora do runner autorizado. Testes adversariais: `python3 -m unittest -v test_recovery_epoch_preflight.py`.
+
+Mesmo com todas as revisões iguais, o retorno é `LAB_CONSISTENT_STILL_NO_SERVING` e o campo `can_authorize_http` **sempre é falso**: dois arquivos controlados pela mesma máquina ou conta não constituem testemunha externa íntegra. Não há criação de sessão, GRANT, serviço de autenticação, importação de dados reais, rotação de segredos ou exposição da base restaurada. Para retirar o bloqueio operacional, ainda são indispensáveis testemunha monotônica de confiança separada, garantias de não rollback da própria testemunha, atestação autenticada, reconciliação offline de revogações/MFA/tokens e aprovação da revisão de segurança. **NO-GO para produção.**
+
+## F356 — prova negativa do segundo cluster antes da criação
+
+A CI reutiliza o cenário adversarial de F347 (um envelope sintético, zero identidades): além do dump no mesmo cluster, agora o script do **segundo cluster** precisa retornar `65` e deixar a lista de contêineres exatamente igual à anterior, sem criar contêiner ou acessar o segredo administrativo de recuperação. A CI também exige erro `64` ao tentar iniciar esse script fora do runner GitHub autorizado ou com nome de projeto incorreto. A origem sintética é limpa e seu fingerprint é verificado antes dos demais testes. Essa barreira reduz o risco do laboratório, mas não equivale a procedimentos de backup de clientes reais e não retira o NO-GO de anti-rollback.
+
+## F358 — JSON ambíguo e rollback conjunto: NO-GO explícito
+
+O classificador offline rejeita nomes de chave duplicados no JSON (por exemplo, `"sequence":11` e `"sequence":12` no mesmo documento), impedindo interpretações diferentes entre parsers. A suíte também demonstra o **risco residual de rollback conjunto**: quando snapshot e testemunha voltam juntos a revisões antigas idênticas, a comparação pura ainda classifica os metadados como consistentes para laboratório. Mesmo nesse caso, o resultado continua **`LAB_CONSISTENT_STILL_NO_SERVING` / `can_authorize_http=false`**; isso é evidência de que o protótipo não resolve a issue [#64](https://github.com/rafhael100/imagine-portal/issues/64) e não permite habilitar sessões. Nenhuma integridade/autenticidade de testemunha externa foi provada.

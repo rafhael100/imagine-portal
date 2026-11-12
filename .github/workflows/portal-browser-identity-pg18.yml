@@ -12,6 +12,12 @@ on:
       - 'apps/portal/database/migrations/**'
       - 'apps/portal/tests/Integration/PortalBrowserAuthenticationPg18Test.php'
       - 'apps/portal/tests/Support/BrowserMfaRaceWorker.php'
+      # F361: run this separate privileged-identity lab whenever recovery
+      # fixtures change, on the very same candidate SHA as F22/F32/PG18.
+      - 'apps/portal/labs/service-relations-f359/**'
+      - 'apps/portal/tests/Integration/F32ActualPgRestoreWitnessTest.php'
+      - 'apps/portal/tests/Integration/F359PostRestoreQuarantineTest.php'
+      - 'infra/development/portal-db/recovery_epoch_preflight.py'
       - '.github/workflows/portal-browser-identity-pg18.yml'
 permissions:
   contents: read

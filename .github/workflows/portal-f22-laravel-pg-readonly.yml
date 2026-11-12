@@ -405,10 +405,16 @@ jobs:
           echo "F31 synthetic external witness is a SECOND disposable container."
           echo "F31 neither survives this runner nor represents an independently operated trust domain."
 
-          # phpunit.xml does not discover tests/Integration automatically;
-          # target this file explicitly, without modifying Laravel routes.
-          vendor/bin/phpunit --configuration phpunit.xml \
-            tests/Integration
+          # F357: select by FILE NAME, not --filter: PHPUnit's class/method
+          # pattern also matches test_f310... methods on PortalBrowser classes.
+          # Those must run with the private browser PG18 credentials in the
+          # separate portal-browser-identity-pg18 CI. Never bypass their guards.
+          lab_files=(tests/Integration/F[0-9]*Test.php)
+          test "${#lab_files[@]}" -ge 15
+          for lab_test in "${lab_files[@]}"; do
+            test -f "$lab_test"
+            vendor/bin/phpunit --configuration phpunit.xml "$lab_test"
+          done
 
           # F32: ACTUAL LOGICAL BACKUP and RESTORE of the entire primary
           # PostgreSQL 18 *lab* database. Witness stays separate and
@@ -448,7 +454,94 @@ jobs:
           unset F32_AFTER_RESTORE
           rm -f "$f32_backup"
 
+          # F359: alternate recovery strategy, synthetic and strictly offline.
+          # BEFORE serving anything, invalidate all restored F24 sessions
+          # and membership permissions in one SQL transaction. It must not
+          # touch/reconstruct the independently booted witness container.
+          php -l tests/Integration/F359PostRestoreQuarantineTest.php
+          # F360 negative atomicity: inject an unexpected third fictitious
+          # session; quarantine must FAIL before changing ANY A/B records.
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "INSERT INTO f24.session_fixture
+                  (organization_id,actor_id,session_id,session_revision,
+                   mock_state,expires_at,mfa_at)
+                VALUES ('org-a','DEMO-USER-A','DEMO-SESSION-EXTRA',
+                        1,'active',1800000900,1800000000)" >/dev/null
+          unexpected_status=0
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql \
+            >/dev/null 2>&1 || unexpected_status=$?
+          test "$unexpected_status" -ne 0
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.session_fixture
+                WHERE mock_state='active' AND session_revision=1")" = 3
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.membership_fixture
+                WHERE mock_state='active' AND membership_revision=1
+                  AND can_view_services")" = 2
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "DELETE FROM f24.session_fixture
+                WHERE session_id='DEMO-SESSION-EXTRA'
+                AND organization_id='org-a'" >/dev/null
+          # F362: also reject an unrecognized membership with no session,
+          # without partially revoking either known tenant.
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "INSERT INTO f24.membership_fixture
+                  (organization_id,actor_id,membership_revision,mock_state,can_view_services)
+                VALUES ('org-b','DEMO-USER-EXTRA',1,'active',true)" >/dev/null
+          unexpected_status=0
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql \
+            >/dev/null 2>&1 || unexpected_status=$?
+          test "$unexpected_status" -ne 0
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.session_fixture
+                WHERE mock_state='active' AND session_revision=1")" = 2
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.membership_fixture
+                WHERE mock_state='active' AND membership_revision=1
+                  AND can_view_services")" = 3
+          docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "DELETE FROM f24.membership_fixture
+                WHERE actor_id='DEMO-USER-EXTRA'
+                AND organization_id='org-b'" >/dev/null
+          # The exact two-session, two-membership fixture is now safe.
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql >/dev/null
+          state_query="SELECT string_agg(organization_id||':'||session_id||':'||
+                      mock_state||':'||session_revision,'|' ORDER BY organization_id)
+                      FROM f24.session_fixture"
+          state_once="$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "$state_query")"
+          test "$state_once" = 'org-a:DEMO-SESSION-A:revoked:2|org-b:DEMO-SESSION-B:revoked:2'
+          # Running the quarantine again may not increment epochs endlessly.
+          docker exec -i "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            < labs/service-relations-f359/quarantine-restored-fixture.sql >/dev/null
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres -c "$state_query")" = "$state_once"
+          test "$(docker exec "$F22_PG_CONTAINER" \
+            psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "SELECT count(*) FROM f24.membership_fixture WHERE mock_state='revoked'
+                AND membership_revision=2 AND NOT can_view_services")" = 2
+          export F359_QUARANTINED=ALL_FIXTURE_SESSIONS_REVOKED
+          vendor/bin/phpunit --configuration phpunit.xml \
+            tests/Integration/F359PostRestoreQuarantineTest.php
+          unset F359_QUARANTINED
+
           echo "F32 ACTUAL SYNTHETIC PG_DUMP/PG_RESTORE: primary restored; independent witness retained newer floor."
+          echo "F359 SYNTHETIC QUARANTINE: both tenant sessions and memberships revoked, idempotent, no serving."
           echo "F32 RESTRICTION: no production backup, PITR, physical restore, external trust domain or Z4 certification."
           echo "F22/F24 LAB ONLY: PHP PDO verified local DB identities/RLS and synthetic revocation; no real IAM."
           echo "F22 LAB ONLY: no backend Node.js, DB migration or customer endpoint."
