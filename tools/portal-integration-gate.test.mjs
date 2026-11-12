@@ -201,3 +201,41 @@ test('reviewLots cannot be redefined to main or a missing workflow list', () => 
     assert.throws(() => validateManifest(m), /INVALID_REVIEW_MANIFEST/);
   }
 });
+
+test('second UI lot is strictly based on the exact first review branch, not dev', () => {
+  const f = smallLot(1);
+  assert.equal(f.lot.baseBranch, f.m.reviewLots[0].headBranch);
+  assert.equal(f.lot.pullRequest, 592);
+  const out = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(out.comparisonBase, f.m.reviewLots[0].headBranch);
+  assert.equal(out.evidenceVerified, true);
+  assert.equal(out.mergeApproved, false);
+});
+
+test('silently retargeting second lot to dev fails manifest validation', () => {
+  const m = structuredClone(manifest);
+  m.reviewLots[1].baseBranch = m.targetBranch;
+  assert.throws(() => validateManifest(m), /INVALID_REVIEW_MANIFEST/);
+  const m2 = structuredClone(manifest);
+  m2.reviewLots[0].headBranch = 'review/unrelated-parent';
+  assert.throws(() => validateManifest(m2), /INVALID_REVIEW_MANIFEST/);
+});
+
+test('an outdated second lot fails even when earlier parent checks were green', () => {
+  const f = smallLot(1);
+  f.comparison.behind_by = 1;
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.decision, 'BLOCKED_EVIDENCE');
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
+});
+
+test('second lot is limited by the incremental 20-commit comparison not cumulative 50', () => {
+  const f = smallLot(1);
+  f.comparison.ahead_by = 21;
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
+  assert.equal(result.commitsAheadOfBase, 21);
+  assert.equal(result.comparisonBase, f.lot.baseBranch);
+  assert.equal(result.antiRollbackApproved, false);
+});
