@@ -1,6 +1,6 @@
 // Bounded, read-only projects listing for the currently authenticated
 // customer. SQL always includes the owner ID; no client-provided tenant key.
-import {publicProjectData} from './account-export.mjs';
+import {parsePaidBriefingData} from './account-export.mjs';
 import {isIP} from 'node:net';
 
 export function safePublishedSiteUrl(value){
@@ -26,14 +26,9 @@ const paidStatus=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
 // Consistent with account export preflight, do not expose JSON parsing internals
 // to the client when a stored paid briefing is malformed.
 function pageBriefingData(row){
- if(!paidStatus.has(row.payment_status))return {};
- try{return publicProjectData(JSON.parse(row.data||'{}'));}
- catch(error){
-  if(error instanceof SyntaxError)
-   fail(503,'Dados de projeto temporariamente indisponíveis para exportação.');
-  throw error;
- }
+ return paidStatus.has(row.payment_status)?parsePaidBriefingData(row.data):{};
 }
+
 export function accountProjectsPage(db,user,{page='1',payment='all',search='',phase='all',sort='newest',attention='all'}={}){
  if(user?.role!=='client'||user.staff_profile||!user.id)fail(403,'Arquivo de projetos exclusivo do cliente.');
  if(typeof page!=='string'||!/^[1-9][0-9]{0,3}$/.test(page)||Number(page)>1000)fail(400,'Página de projetos inválida.');

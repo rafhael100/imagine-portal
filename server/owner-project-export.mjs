@@ -1,7 +1,7 @@
 // Export-only bounded projection of a customer's projects. No LIMIT/OFFSET
 // truncation: the cursor iterates DB rows one at a time for large exports.
 // Do not use outside a route that already authenticated the owner.
-import {publicProjectData} from './account-export.mjs';
+import {parsePaidBriefingData} from './account-export.mjs';
 import {randomUUID} from 'node:crypto';
 
 const paid=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
@@ -37,7 +37,9 @@ export function preflightOwnerProjectExport(db,user){
   throw Object.assign(Error('Exportação exclusiva do titular.'),{status:403});
  const invalid=db.prepare(`SELECT o.id FROM orders o JOIN briefings b ON b.order_id=o.id
   WHERE o.user_id=? AND o.payment_status IN ('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')
-    AND b.data IS NOT NULL AND b.data<>'' AND json_valid(b.data)=0 LIMIT 1`).get(user.id);
+    AND b.data IS NOT NULL AND b.data<>''
+    AND CASE WHEN json_valid(b.data)=0 THEN 1
+             WHEN json_type(b.data)!='object' THEN 1 ELSE 0 END=1 LIMIT 1`).get(user.id);
  if(invalid)throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
 }
 
@@ -52,7 +54,7 @@ export function *iterateOwnerExportProjects(db,user){
   yield {
    id:row.id,title:row.title,created_at:row.created_at,phase:row.phase,
    payment_status:row.payment_status,status:row.status,
-   data:paid.has(row.payment_status)?publicProjectData(JSON.parse(row.data||'{}')):{},
+   data:paid.has(row.payment_status)?parsePaidBriefingData(row.data):{},
   };
  }
 }

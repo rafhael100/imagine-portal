@@ -40,6 +40,21 @@ export function publicProjectData(data){
  return pickFields(data,PROJECT_FIELDS);
 }
 
+// F264: a valid JSON scalar/array is not a valid paid briefing. Returning
+// empty fields would silently create an apparently complete but partial
+// account export. Enforce an object without exposing its private content.
+export function parsePaidBriefingData(raw){
+ let decoded;
+ try{decoded=JSON.parse(raw||'{}');}
+ catch(error){
+  if(!(error instanceof SyntaxError))throw error;
+  throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
+ }
+ if(!decoded||typeof decoded!=='object'||Array.isArray(decoded))
+  throw Object.assign(Error('Dados de projeto temporariamente indisponíveis para exportação.'),{status:503});
+ return publicProjectData(decoded);
+}
+
 // Fixed privacy contract: never spread whole DB rows or arbitrary material
 // keys into an export. Unknown fields (including future internal additions)
 // are excluded by default, regardless of what the account UI can render.
