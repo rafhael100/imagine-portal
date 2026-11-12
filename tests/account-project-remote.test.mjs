@@ -126,3 +126,19 @@ test('F221: review filter dispatches a scoped owner-only API query',async()=>{
  h.calls[1].resolve({projects:[],total:0,page:1,pages:1});await tick();
  assert.equal(h.result.innerHTML.includes('Nenhum projeto encontrado'),true);
 });
+
+
+test('F266: corrupt paid project shows actionable fixed text without rendering raw server error',async()=>{
+ const h=harness();
+ h.calls[0].reject(Error('Dados de projeto temporariamente indisponíveis para exportação. PRIVATE_BRIEFING_123'));
+ await tick();
+ assert.ok(h.result.innerHTML.includes('Alguns dados de projeto estão temporariamente indisponíveis'));
+ assert.ok(h.result.innerHTML.includes('entre em contato com a equipe'));
+ assert.equal(h.result.innerHTML.includes('PRIVATE_BRIEFING_123'),false);
+ assert.ok(h.result.innerHTML.includes('Tentar novamente'));
+ click(h,'accountPage','retry');
+ assert.equal(h.calls.length,2);
+ h.calls[1].resolve({projects:[item(1)],total:1,page:1,pages:1});
+ await tick();
+ assert.ok(h.result.innerHTML.includes('data-account-project="project-01"'));
+});

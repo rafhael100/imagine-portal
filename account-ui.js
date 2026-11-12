@@ -148,9 +148,14 @@ function bindAccountProjectArchive(projects,{remote=false,allCount=projects.leng
   }).catch(error=>{
    if(request===generation&&projectResults.isConnected){
     projectResults.removeAttribute?.('aria-busy');
-    const throttled=typeof error?.message==='string'&&/Muitas tentativas/i.test(error.message);
+    const message=typeof error?.message==='string'?error.message:'';
+    const throttled=/Muitas tentativas/i.test(message);
+    // F266: paid briefing corruption is a controlled 503 from the server.
+    // Never inject the raw error body or a private briefing into HTML.
+    const unavailable=/Dados de projeto temporariamente indisponíveis/i.test(message);
     projectResults.innerHTML='<div class="empty">'+(throttled?
      'Muitas consultas em pouco tempo. Aguarde alguns minutos para pesquisar novamente.':
+     unavailable?'Alguns dados de projeto estão temporariamente indisponíveis. Tente novamente mais tarde ou entre em contato com a equipe.':
      'Não foi possível consultar os projetos.')+
      ' <button class="btn secondary" type="button" data-account-page="retry">Tentar novamente</button></div>';
    }
