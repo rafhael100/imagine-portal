@@ -84,6 +84,10 @@ jobs:
       - name: Testes Laravel sem banco ou servicos externos
         run: php artisan test --no-ansi
 
+      - name: Validar sintaxe do QA responsivo reproduzível
+        if: matrix.php == '8.3'
+        run: python -m py_compile tools/qa_portable_preview.py
+
       - name: Gerar prévia visual offline e fictícia da identidade Imagine
         if: matrix.php == '8.3'
         run: |
