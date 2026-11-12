@@ -10,6 +10,7 @@ use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler;
+use App\Infrastructure\Identity\EncryptedPostgresPortalSessionFactory;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Session\Store;
@@ -220,16 +221,14 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         fwrite(STDERR,"HTTP integration: identity adapter ready\n");
         $this->app->instance(PortalBrowserAuthentication::class,$adapter);
         config(['app.url'=>'https://portal.example.test','session.driver'=>'portal_pg_encrypted','session.encrypt'=>false,'session.lottery'=>[0,100]]);
-        // Laravel's Manager::extend() rebinds $this to SessionManager.
-        // Do not call $this->other() or $this->app from its factory: Manager's
-        // __call() can recurse back into driver() while the driver is building.
+        // The tested factory creates a fresh dedicated PostgreSQL connection
+        // on each request and avoids Manager::extend() rebind recursion.
         $createConnection=fn():PDO=>$this->other();
-        $laravel=$this->app;
-        $laravel['session']->extend('portal_pg_encrypted',function()use($createConnection,$laravel){
-            return new EncryptedPostgresPortalSessionHandler(
-                $createConnection(),'portal_browser_lab',$laravel['encrypter']
-            );
-        });
+        $this->app['session']->extend('portal_pg_encrypted',
+            EncryptedPostgresPortalSessionFactory::creator(
+                $createConnection,'portal_browser_lab',$this->app['encrypter']
+            )
+        );
         Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void{
             Route::get('/__pg-envelope/csrf',[PortalBrowserAuthController::class,'csrf']);
             Route::post('/__pg-envelope/password',[PortalBrowserAuthController::class,'password']);
