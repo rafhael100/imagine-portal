@@ -1,0 +1,464 @@
+name: Portal GSC Slices A-O - OAuth PostgreSQL and tenant property access review
+
+on:
+  pull_request:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+      # All controlled stacked integration review branches. Exact scopes
+      # are still constrained independently by the changed-path allowlist.
+      - 'review/portal-gsc-integration-slice-*'
+    paths:
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/GoogleSearchConsole*.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php'
+      - 'apps/portal/labs/gsc-f155/**'
+      - 'apps/portal/labs/gsc-f156/**'
+      - 'apps/portal/labs/gsc-f160/**'
+      - 'apps/portal/labs/gsc-f157/**'
+      - 'apps/portal/labs/gsc-f143/**'
+      - 'apps/portal/labs/gsc-f146/**'
+      - 'apps/portal/labs/gsc-f151/**'
+      - 'apps/portal/labs/gsc-slice-c/**'
+      - 'apps/portal/labs/gsc-slice-d/**'
+      - 'apps/portal/labs/gsc-slice-e/**'
+      - 'apps/portal/labs/gsc-slice-f/**'
+      - 'apps/portal/labs/gsc-slice-g/**'
+      - 'apps/portal/labs/gsc-slice-h/**'
+      - 'apps/portal/labs/gsc-slice-i/**'
+      - 'apps/portal/labs/gsc-slice-j/**'
+      - 'apps/portal/labs/gsc-slice-k/**'
+      - 'apps/portal/labs/gsc-slice-l/**'
+      - 'apps/portal/labs/gsc-slice-m/**'
+      - 'apps/portal/labs/gsc-slice-n/**'
+      - 'apps/portal/labs/gsc-slice-o/**'
+      - 'apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php'
+      - 'apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php'
+      - 'apps/portal/labs/gsc-slice-b/**'
+      - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
+      - 'apps/portal/tools/f153-render-gsc-overlap-trend-offline.php'
+      - '.github/workflows/portal-gsc-slice-a-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-gsc-slice-a-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-offline-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        node: ['22', '24']
+    steps:
+      - name: Checkout exact review head with full ancestry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout pinned SEO RC32 code
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: f46b65aaef9b10e32d02e415907cd916a43b548e
+          path: .qa/seo-rc32
+          persist-credentials: false
+      - name: Checkout exact SEO F79 privacy view model under test
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: fdae08985e89b9bd1323e42d1d64678ddc69e446
+          path: .qa/seo-f79
+          persist-credentials: false
+      - name: Checkout pinned SEO-F88 original-source handoff
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 56d7fa79904903f9af0c88646a59c0fa07546594
+          path: .qa/seo-f88
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Verify Git provenance and narrow-scope review
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-rc32 rev-parse HEAD)" = f46b65aaef9b10e32d02e415907cd916a43b548e
+          test "$(git -C .qa/seo-f79 rev-parse HEAD)" = fdae08985e89b9bd1323e42d1d64678ddc69e446
+          test "$(git -C .qa/seo-f88 rev-parse HEAD)" = 56d7fa79904903f9af0c88646a59c0fa07546594
+          test -z "$(git -C .qa/seo-rc32 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > changes.zlist
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const files=readFileSync("changes.zlist","utf8").split("\u0000").filter(Boolean);
+            const exact=new Set([
+              ".github/workflows/portal-gsc-slice-a-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php",
+              "apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+              "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+              "apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthPreflight.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackPolicy.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateLedger.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackCoordinator.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateRetention.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRecordedPropertyGrant.php",
+              "apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php",
+              "apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php",
+              "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
+              "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
+            ]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n","gsc-slice-o"]);
+            const allow=p=>{
+              if(exact.has(p))return true;
+              const pieces=p.split("/");
+              return pieces.length===5&&pieces[0]==="apps"&&
+                pieces[1]==="portal"&&pieces[2]==="labs"&&
+                labs.has(pieces[3])&&pieces[4].length>0;
+            };
+            const consolidated=process.env.BASE_REF==="dev/fast-track-portal-2026-11-05";
+            const maxPaths=consolidated?70:12;
+            const minPaths=consolidated?20:1;
+            if(files.length<minPaths||files.length>maxPaths||files.some(p=>!allow(p))){
+              console.error("GSC review slice: unexpected modified paths");process.exit(1);
+            }
+            console.log("GSC review slice: "+files.length+" allowed paths; consolidated="+consolidated+"; routes/migrations denied");
+          '
+          rm -f changes.zlist
+      - name: PHP and Node offline contract acceptance
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_QUERY_PAGE_REVIEW_LAB: '1'
+          PORTAL_GSC_REVIEW_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageReviewPreview.php
+          php -l apps/portal/labs/gsc-f155/test_php_query_page_review.php
+          php -l apps/portal/labs/gsc-f156/verify_php_query_page_review.php
+          php -l apps/portal/tools/f159-render-gsc-query-page-review-offline.php
+          node --check apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs
+          node --check apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+          php -r 'require "apps/portal/labs/gsc-f155/test_php_query_page_review.php"; portalGscF155SyntheticChecks(); echo "F155: synthetic contract passed".PHP_EOL;'
+          fixture="$(mktemp)"
+          rendered="$(mktemp)"
+          trap 'rm -f "$fixture" "$rendered"' EXIT
+          for scenario in complete redacted partial empty multi multi_redacted; do
+            node apps/portal/labs/gsc-f156/emit_node_query_page_review.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f156/verify_php_query_page_review.php "$fixture" "$scenario"
+            php apps/portal/tools/f159-render-gsc-query-page-review-offline.php "$fixture" > "$rendered"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$rendered"
+            grep -q 'noindex,nofollow' "$rendered"
+            grep -q "connect-src 'none'" "$rendered"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
+              echo 'GSC Slice A: unsafe static HTML' >&2;exit 1
+            fi
+            if [[ "$scenario" == redacted || "$scenario" == multi_redacted || "$scenario" == partial ]]; then
+              # Both query metrics are withheld when source rows have
+              # privacy redactions or unconfirmed continuation.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 2
+              grep -q 'sugestões desativadas' "$rendered"
+            fi
+          done
+          node apps/portal/labs/gsc-f160/check_f159_renderer_fail_closed.mjs
+
+      - name: GSC Slice C readonly pagination planning and continuation
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_OVERLAP_LAB: '1'
+          PORTAL_GSC_PAGINATION_LAB: '1'
+          PORTAL_GSC_REQUEST_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f143/emit_node_pagination.mjs
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleNextPageIntent.php
+          php -l apps/portal/labs/gsc-f146/verify_php_request_response_pair.php
+          php -l apps/portal/labs/gsc-f151/verify_php_next_page.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          node apps/portal/labs/gsc-f143/emit_node_pagination.mjs > "$fixture"
+          php apps/portal/labs/gsc-f146/verify_php_request_response_pair.php "$fixture"
+          php apps/portal/labs/gsc-f151/verify_php_next_page.php "$fixture"
+      - name: GSC Slice D pure provider-status and retry fail-closed review
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_PROVIDER_POLICY_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleProviderResponsePolicy.php
+          php -l apps/portal/labs/gsc-slice-d/verify_provider_policy.php
+          php apps/portal/labs/gsc-slice-d/verify_provider_policy.php
+      - name: GSC Slice D adversarial trend HTML privacy and production refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
+          node apps/portal/labs/gsc-slice-d/verify_trend_html_fail_closed.mjs
+      - name: GSC Slice E parity of SEO-F79 withheld metrics and PHP HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
+          node apps/portal/labs/gsc-slice-e/verify_f79_php_display_parity.mjs
+      - name: GSC Slice F F88 original-source handoff checked across Node and PHP
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_F88_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-slice-f/emit_f88_original_handoff.mjs
+          php -l apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete redacted; do
+            node apps/portal/labs/gsc-slice-f/emit_f88_original_handoff.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php "$fixture" "$scenario"
+          done
+          node --input-type=module - "$fixture" <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path=process.argv[2];
+          const payload=JSON.parse(readFileSync(path,'utf8'));
+          payload.customerDisplayAuthorized=true;
+          writeFileSync(path,JSON.stringify(payload));
+          NODE
+          if php apps/portal/labs/gsc-slice-f/verify_f88_original_handoff.php "$fixture" redacted; then
+            echo 'GSC Slice F: forged customer grant was accepted' >&2
+            exit 1
+          fi
+      - name: GSC Slice G offline OAuth PKCE S256 and CSRF state boundary
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_PKCE_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthPreflight.php
+          php -l apps/portal/labs/gsc-slice-g/verify_pkce_preflight.php
+          php apps/portal/labs/gsc-slice-g/verify_pkce_preflight.php
+      - name: GSC Slice H callback classification, CSRF and PII denial
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_CALLBACK_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackPolicy.php
+          php -l apps/portal/labs/gsc-slice-h/verify_callback_policy.php
+          php apps/portal/labs/gsc-slice-h/verify_callback_policy.php
+      - name: GSC Slice L fixed Google token endpoint and confidential request plan
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TOKEN_PLAN_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php
+          php -l apps/portal/labs/gsc-slice-l/verify_token_plan.php
+          php apps/portal/labs/gsc-slice-l/verify_token_plan.php
+      - name: GSC Slice M deny non-readonly token scope and secret response leaks
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TOKEN_RESPONSE_LAB: '1'
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php
+          php -l apps/portal/labs/gsc-slice-m/verify_token_response.php
+          php apps/portal/labs/gsc-slice-m/verify_token_response.php
+      - name: SEO-F67 trend policy Node RC32 to PHP and safe HTML
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_TRENDS_LAB: '1'
+          PORTAL_GSC_TREND_HTML_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          node --check apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs
+          php -l apps/portal/app/Domain/SeoReview/OfflineGscOverlapTrendPreview.php
+          php -l apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php
+          php -l apps/portal/tools/f153-render-gsc-overlap-trend-offline.php
+          fixture="$(mktemp)"
+          rendered="$(mktemp)"
+          trap 'rm -f "$fixture" "$rendered"' EXIT
+          for scenario in complete redacted partial; do
+            node apps/portal/labs/gsc-f157/emit_node_overlap_trend_rc32.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f157/verify_php_overlap_trend_rc32.php "$fixture" "$scenario"
+            php apps/portal/tools/f153-render-gsc-overlap-trend-offline.php "$fixture" > "$rendered"
+            grep -q 'DEMONSTRAÇÃO NÃO HOMOLOGADA' "$rendered"
+            grep -q 'noindex,nofollow' "$rendered"
+            grep -q "connect-src 'none'" "$rendered"
+            if grep -Eiq '<(script|form|a)([[:space:]>])' "$rendered"; then
+              echo 'GSC Slice B: unsafe trend HTML' >&2;exit 1
+            fi
+            if [[ "$scenario" == complete ]]; then
+              grep -q 'Investigar possível aumento da sobreposição editorial' "$rendered"
+              grep -q '10,0%' "$rendered"
+              grep -q '50,0%' "$rendered"
+            else
+              grep -q 'Amostra incompleta: tendências suprimidas' "$rendered"
+              # F153 must hide both shares AND the delta, not merely suppress signals.
+              test "$(grep -o 'Indisponível' "$rendered" | wc -l)" -ge 3
+              if grep -Eq '[0-9]+,[0-9]+%' "$rendered"; then
+                echo 'GSC Slice D: partial/redacted share leaked' >&2;exit 1
+              fi
+            fi
+          done
+
+
+  gsc-state-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: imagine_gsc_ci_test
+          POSTGRES_USER: imagine_ci
+          POSTGRES_PASSWORD: local_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imagine_ci -d imagine_gsc_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact review commit, no credential persistence
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP 8.4 PostgreSQL and sodium test runtime
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: pdo_pgsql, sodium
+      - name: Enforce lint of ledger and migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateLedger.php
+          php -l apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          php -l apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php -l apps/portal/labs/gsc-slice-i/verify_postgres_state_ledger.php
+      - name: Prove Laravel migration up and down in temporary PostgreSQL
+        shell: bash
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_DATABASE: imagine_gsc_ci_test
+          DB_USERNAME: imagine_ci
+          DB_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress
+          cd apps/portal
+          php artisan migrate --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+      - name: Test XChaCha20-Poly1305, SHA state, two PDO workers and replay
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_POSTGRES_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/gsc-slice-i/verify_postgres_state_ledger.php
+      - name: Verify callback coordinator on same isolated PostgreSQL
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_COORDINATOR_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthCallbackCoordinator.php
+          php -l apps/portal/labs/gsc-slice-j/verify_one_time_callback.php
+          php apps/portal/labs/gsc-slice-j/verify_one_time_callback.php
+      - name: Verify bounded and secret-free state retirement
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_RETENTION_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateRetention.php
+          php -l apps/portal/labs/gsc-slice-k/verify_postgres_retention.php
+          php apps/portal/labs/gsc-slice-k/verify_postgres_retention.php
+      - name: Integrated PKCE, single-use callback, token candidate and retention
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_END_TO_END_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
+          php apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
+      - name: Exact tenant actor and property grant record, no OAuth authority
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_GRANT_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRecordedPropertyGrant.php
+          php -l apps/portal/labs/gsc-slice-o/verify_recorded_grants.php
+          php apps/portal/labs/gsc-slice-o/verify_recorded_grants.php
