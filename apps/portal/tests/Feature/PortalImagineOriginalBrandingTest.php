@@ -45,7 +45,7 @@ final class PortalImagineOriginalBrandingTest extends TestCase
         self::assertStringContainsString('--pi-bg:#f7f7f8', $html);
         self::assertStringContainsString('--pi-nav:#fff', $html);
         self::assertStringContainsString('var(--pi-orange-soft)', $html);
-        self::assertStringContainsString('img-src &#039;self&#039; data:', html_entity_decode($html, ENT_QUOTES));
+        self::assertStringContainsString("img-src 'self' data:", html_entity_decode($html, ENT_QUOTES));
         self::assertStringContainsString('name="theme-color" content="#171b19"', $html);
         self::assertStringContainsString('role="region"', Blade::render(
             '<x-portal.table caption="TABELA-FICTICIA" :columns="[\'Código\']" :rows="[[\'DEMO-1\']]" />'
