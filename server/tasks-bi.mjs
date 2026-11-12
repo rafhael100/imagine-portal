@@ -70,7 +70,28 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const summary={total:rows.length,open:active.length,doing:active.filter(t=>t.status==='doing').length,blocked:active.filter(t=>t.status==='blocked').length,overdue:active.filter(t=>t.overdue_days>0).length,today:active.filter(t=>t.due_date===today).length,unassigned:active.filter(t=>t.unassigned).length,urgent:active.filter(t=>['critical','high'].includes(t.priority)).length,done:done.length,canceled:rows.filter(t=>t.status==='canceled').length,archived:rows.filter(t=>t.archived_at).length,cycle_mean:mean(cycles),cycle_median:median(cycles),on_time_percent:reliable.length?Math.round(ontime/reliable.length*100):null,on_time_sample:reliable.length,estimated_completions:done.length-reliable.length,oldest_open:active.length?Math.max(...active.map(t=>t.age_days)):null,due_changes:rows.reduce((s,t)=>s+t.due_changes,0)};
  const breakdown=key=>[...new Set(rows.map(t=>t[key]))].map(value=>({key:value||'',count:rows.filter(t=>t[key]===value).length})).sort((a,b)=>b.count-a.count);
  const workload=[...new Set(rows.map(t=>t.assignee_id))].map(id=>{const ts=rows.filter(t=>t.assignee_id===id),os=ts.filter(t=>t.active),ds=ts.filter(t=>t.status==='done'&&!t.completion_estimated);return {id:id||'none',name:ts[0].assignee,total:ts.length,open:os.length,overdue:os.filter(t=>t.overdue_days>0).length,blocked:os.filter(t=>t.status==='blocked').length,urgent:os.filter(t=>['critical','high'].includes(t.priority)).length,done:ts.filter(t=>t.status==='done').length,cycle_mean:mean(ds.map(t=>t.cycle_days)),on_time_percent:ds.length?Math.round(ds.filter(t=>t.on_time).length/ds.length*100):null};}).sort((a,b)=>b.overdue-a.overdue||b.open-a.open);
- const months=[];for(let m=from.slice(0,7);m<=to.slice(0,7);){months.push({month:m,created:rows.filter(t=>inside(day(t.created_at))&&day(t.created_at).startsWith(m)).length,completed:done.filter(t=>inside(day(t.completed_at))&&day(t.completed_at).startsWith(m)).length});const d=new Date(m+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);m=d.toISOString().slice(0,7);}
+ // F281: compute each date's São Paulo day once rather than scanning
+ // the entire cohort for each month (up to 37 scans for a 3-year report).
+ const monthCreated=new Map(),monthCompleted=new Map();
+ for(const task of rows){
+  const createdDay=day(task.created_at);
+  if(inside(createdDay)){
+   const month=createdDay.slice(0,7);
+   monthCreated.set(month,(monthCreated.get(month)||0)+1);
+  }
+  if(task.status==='done'){
+   const completedDay=day(task.completed_at);
+   if(inside(completedDay)){
+    const month=completedDay.slice(0,7);
+    monthCompleted.set(month,(monthCompleted.get(month)||0)+1);
+   }
+  }
+ }
+ const months=[];
+ for(let m=from.slice(0,7);m<=to.slice(0,7);){
+  months.push({month:m,created:monthCreated.get(m)||0,completed:monthCompleted.get(m)||0});
+  const d=new Date(m+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);m=d.toISOString().slice(0,7);
+ }
  const aging=[[0,2,'0–2 dias'],[3,7,'3–7 dias'],[8,14,'8–14 dias'],[15,30,'15–30 dias'],[31,Infinity,'31 dias ou mais']].map(([min,max,label])=>({key:label,count:active.filter(t=>t.age_days>=min&&t.age_days<=max).length}));
  const risks=active.filter(t=>t.overdue_days||t.status==='blocked'||t.unassigned).sort((a,b)=>b.overdue_days-a.overdue_days).slice(0,8);
  rows.sort((a,b)=>filters.sort==='due'?a.due_date.localeCompare(b.due_date):filters.sort==='newest'?b.created_at.localeCompare(a.created_at):filters.sort==='oldest'?a.created_at.localeCompare(b.created_at):b.overdue_days-a.overdue_days||({critical:0,high:1,normal:2,low:3}[a.priority]-{critical:0,high:1,normal:2,low:3}[b.priority])||a.due_date.localeCompare(b.due_date));
