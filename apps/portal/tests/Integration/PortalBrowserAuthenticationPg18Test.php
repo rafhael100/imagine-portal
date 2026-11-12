@@ -13,6 +13,7 @@ use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
 use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
 use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
 use App\Domain\Organizations\OrganizationId;
+use App\Domain\SiteIntake\SiteEngineSyntheticEnvelopePreview;
 use Illuminate\Support\Facades\Route;
 use PDO;
 use PDOException;
@@ -649,6 +650,59 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertSame(1,(int)$this->admin->query(
             'SELECT count(*) FROM public.portal_service_resource_claims')->fetchColumn());
         $this->deniedSql('SELECT * FROM public.portal_service_resource_claims');
+    }
+
+
+    public function test_f313_synthetic_sites_mac_and_valid_grant_still_do_not_prove_service_ownership():void
+    {
+        // Three independently positive facts (MFA, explicit grant and
+        // candidate signed bytes) cannot manufacture service ownership.
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
+        $session=$this->active();
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($preflight->hasCandidateGrant($session,self::ORG,'services.view'));
+
+        $payload=json_encode([
+            'schemaVersion'=>'1',
+            'operationId'=>'OP-F313',
+            'tenantRef'=>self::ORG,
+            'orderRef'=>'ORDER-F313',
+            'contractRef'=>'CONTRACT-F313',
+            'contractRevision'=>1,
+            'productCode'=>'onepage',
+            'idempotencyKey'=>'IDEMP-F313',
+        ],JSON_THROW_ON_ERROR);
+        $envelope=SiteEngineSyntheticEnvelopePreview::compose(
+            $payload,str_repeat('s',32),'SYNTH-NONCE-F313',1700000000,1700000060
+        );
+        self::assertSame('imagine-sites',json_decode($envelope,true,16,JSON_THROW_ON_ERROR)['audience']);
+        self::assertFalse(SiteEngineSyntheticEnvelopePreview::mayRegisterOwnership());
+
+        // In particular, an execute-only authentication runtime cannot use
+        // possession of signed-looking bytes to write a service claim.
+        $this->deniedSql("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','".self::ORG."',
+            'imagine_sites','OP-F313','sites_onepage')");
+        self::assertSame(0,(int)$this->admin->query(
+            'SELECT count(*) FROM public.portal_service_resource_claims')->fetchColumn());
+
+        // Even if a DBA creates a candidate-only row in the disposable
+        // database, this is NOT an operationally verified service owner.
+        $insert=$this->admin->prepare("INSERT INTO public.portal_service_resource_claims
+            (id,organization_id,source_system,source_resource_ref,product_code)
+            VALUES(?,?,'imagine_sites','OP-F313','sites_onepage')");
+        $insert->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',self::ORG]);
+        self::assertSame('candidate',$this->admin->query(
+            'SELECT state FROM public.portal_service_resource_claims')->fetchColumn());
+        $verdict=$this->app->make(PortalAuthorityBoundary::class)->inspect(
+            $session,new OrganizationId(self::ORG),'OP-F313','services.view',time()
+        );
+        self::assertFalse($verdict->canAuthorizeHttp(),
+            'A candidate record plus grant plus synthetic HMAC cannot authorize business data.');
     }
 
     private function expectIdentityFenceRefusal(string $sql):void
