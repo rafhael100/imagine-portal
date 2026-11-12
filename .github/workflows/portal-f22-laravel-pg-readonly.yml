@@ -405,10 +405,15 @@ jobs:
           echo "F31 synthetic external witness is a SECOND disposable container."
           echo "F31 neither survives this runner nor represents an independently operated trust domain."
 
-          # phpunit.xml does not discover tests/Integration automatically;
-          # target this file explicitly, without modifying Laravel routes.
+          # F357: this workflow provides the dedicated F22-F45 fixture roles.
+          # Run only the F-numbered integration lab suites. The adjacent
+          # PortalBrowserAuthenticationPg18Test/PortalBrowserEnvelopePg18Test
+          # require a different set of private CI credentials and are run in
+          # portal-browser-identity-pg18 and the private-db workflows.
+          # Running them here produced 52 environment-guard failures unrelated
+          # to F31/F32; do not bypass their guards or mask real lab failures.
           vendor/bin/phpunit --configuration phpunit.xml \
-            tests/Integration
+            --filter 'F[0-9]{2}' tests/Integration
 
           # F32: ACTUAL LOGICAL BACKUP and RESTORE of the entire primary
           # PostgreSQL 18 *lab* database. Witness stays separate and
