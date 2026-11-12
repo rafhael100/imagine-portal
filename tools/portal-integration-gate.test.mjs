@@ -21,6 +21,9 @@ function fixture() {
     runs: m.requiredWorkflows.map((name, i) => ({
       id: i + 10, run_attempt: 1, name, event: 'pull_request',
       head_sha: m.candidate.headSha,
+      head_branch: m.candidate.headBranch,
+      pull_requests: [{ number: m.candidate.pullRequest,
+        head: { ref: m.candidate.headBranch }, base: { ref: m.candidate.baseBranch } }],
       status: 'completed', conclusion: 'success',
     })),
     comparison: { ahead_by: 32, behind_by: 0, status: 'ahead' },
@@ -151,7 +154,10 @@ function smallLot(index = 0) {
   f.pr.base.ref = lot.baseBranch;
   f.runs = lot.requiredWorkflows.map((name, i) => ({
     id: 1000 + i, run_attempt: 1, name, event: 'pull_request',
-    head_sha: lot.headSha, status: 'completed', conclusion: 'success',
+    head_sha: lot.headSha, head_branch: lot.headBranch,
+    pull_requests: [{ number: lot.pullRequest,
+      head: { ref: lot.headBranch }, base: { ref: lot.baseBranch } }],
+    status: 'completed', conclusion: 'success',
   }));
   f.comparison.ahead_by = 2 + index * 4;
   return { ...f, lot };
@@ -245,4 +251,22 @@ test('stacked candidate always compares to dev, while second lot uses parent', (
   assert.notEqual(comparisonBase(manifest), manifest.candidate.baseBranch);
   assert.equal(comparisonBase(manifest, manifest.reviewLots[0]), manifest.targetBranch);
   assert.equal(comparisonBase(manifest, manifest.reviewLots[1]), manifest.reviewLots[0].headBranch);
+});
+
+test('newer push job cannot shadow valid pull-request checks on the same SHA', () => {
+  const f = smallLot(0);
+  f.runs.push({ ...f.runs[0], id: 90000, event: 'push', conclusion: 'failure' });
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, true);
+  f.runs.push({ ...f.runs[0], id: 90001, event: 'pull_request', conclusion: 'failure' });
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+});
+
+test('a passing run from a different PR or base cannot certify a shared SHA', () => {
+  const f = smallLot(1);
+  f.runs[0].pull_requests = [{ number: 999,
+    head: { ref: f.lot.headBranch }, base: { ref: f.lot.baseBranch } }];
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+  f.runs[0].pull_requests = [{ number: f.lot.pullRequest,
+    head: { ref: f.lot.headBranch }, base: { ref: 'main' } }];
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
 });
