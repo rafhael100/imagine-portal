@@ -65,7 +65,7 @@
       "pullRequest": 595,
       "headBranch": "review/portal-portable-visual-preview-2026-11-12",
       "baseBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
-      "headSha": "cb95dae2f27238a80e04e9b313a0e6c5d86508e3",
+      "headSha": "0aa7bc09e76f6f1380587eb29e835ac5f2a81663",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
