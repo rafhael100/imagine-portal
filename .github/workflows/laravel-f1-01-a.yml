@@ -97,6 +97,43 @@ jobs:
           test -s storage/app/portal-demo-static/manifest.json
           test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 11
 
+      - name: Executar QA real offline no Chromium (10 páginas × 7 larguras)
+        if: matrix.php == '8.3'
+        run: |
+          set -euo pipefail
+          # Reuse the browser already present in the hosted Ubuntu runner.
+          # No additional cloud services, production domain or credentials.
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$BROWSER"
+          python3 -m venv "$RUNNER_TEMP/portal-browser-qa"
+          "$RUNNER_TEMP/portal-browser-qa/bin/python" -m pip install --disable-pip-version-check --no-cache-dir "playwright==1.56.0"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          root = Path("storage/app/portal-demo-static")
+          target = Path("storage/app/portal-browser-qa.zip")
+          with ZipFile(target, "w", ZIP_DEFLATED) as archive:
+              for path in sorted(root.iterdir()):
+                  if not path.is_file() or path.is_symlink():
+                      raise SystemExit("Refusing unexpected preview entry")
+                  archive.write(path, path.name)
+          PY
+          "$RUNNER_TEMP/portal-browser-qa/bin/python" tools/qa_portable_preview.py \
+            storage/app/portal-browser-qa.zip --chromium "$BROWSER" \
+            | tee "$RUNNER_TEMP/portal-browser-qa-report.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                               "portal-browser-qa-report.json").read_text())
+          assert report["passed"] is True
+          assert report["manifest_integrity_verified"] is True
+          assert report["screens"] == 70 and report["pages"] == 10
+          assert report["mobile_menu_checks"] == 9
+          assert report["keyboard_table_checks"] == 6
+          assert report["authorizes_production"] is False
+          PY
+
       - name: Arquivar prévia HTML navegável para revisão visual (sem publicação)
         if: matrix.php == '8.3'
         uses: actions/upload-artifact@v5
