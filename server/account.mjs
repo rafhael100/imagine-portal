@@ -6,8 +6,18 @@ const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 // F200: Do not expose unknown persisted JSON fields through the regular API.
 const ACCOUNT_PROFILE_LIMITS={company:150,whatsapp:30,phone:30,website:250};
 export function safeAccountProfile(row){
- const raw=row?JSON.parse(row.data):{};
- const data=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+ let data={};
+ if(row){
+  // F274: a malformed stored profile is not an empty new profile. Never
+  // silently hide it and allow a subsequent save to overwrite unknown data.
+  try{data=JSON.parse(row.data);}
+  catch(error){
+   if(!(error instanceof SyntaxError))throw error;
+   fail(503,'Dados cadastrais temporariamente indisponíveis.');
+  }
+  if(!data||typeof data!=='object'||Array.isArray(data))
+   fail(503,'Dados cadastrais temporariamente indisponíveis.');
+ }
  const profile=Object.fromEntries(Object.entries(ACCOUNT_PROFILE_LIMITS).map(([key,max])=>[
   key,typeof data[key]==='string'?data[key].slice(0,max):'',
  ]));
