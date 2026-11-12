@@ -12,13 +12,16 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  const filters={from,to,basis:params.get('basis')||'created',assignee:params.get('assignee')||'',client:params.get('client')||'',product:params.get('product')||'',stage:params.get('stage')||'',kind:params.get('kind')||'',status:params.get('status')||'',priority:params.get('priority')||'',risk:params.get('risk')||'',archive:params.get('archive')||'all',query:(params.get('query')||'').trim().slice(0,200),sort:params.get('sort')||'risk'};
  for(const [key,values] of Object.entries({basis:['created','due','completed'],status:['','open','pending','doing','blocked','done','canceled'],priority:['','critical','high','normal','low'],risk:['','late','today','future','unassigned'],archive:['all','active','archived'],sort:['risk','due','newest','oldest']}))if(!values.includes(filters[key]))fail('Filtro inválido: '+key);
  const all=s=>db.prepare(s).all(),inside=v=>v&&v>=from&&v<=to;
+ // F278: scope raw event/history reads to work_items that still exist.
+ // Orphaned historical rows cannot contribute to metrics, yet previously
+ // consumed memory and SQL-to-Node transfer on every administrative refresh.
  // F271: event notes can contain private operational details. The BI only
  // needs a management-event flag; do not pull their raw text into aggregation.
  const managementPrefixes=['Atividade editada:','Atividade cancelada:','Atividade arquivada:','Atividade restaurada do arquivo:'];
  const managementSql=managementPrefixes.map(prefix=>`substr(note,1,length('${prefix}'))='${prefix}'`).join(' OR ');
- const updates=all(`SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM task_updates
-  UNION ALL SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM manual_task_updates
-  UNION ALL SELECT task_id,'done' AS status,completed_at AS created_at,0 AS management_note FROM task_completion_events ORDER BY created_at`),
+ const updates=all(`SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM task_updates WHERE task_id IN (SELECT id FROM work_items)
+  UNION ALL SELECT task_id,status,created_at,CASE WHEN ${managementSql} THEN 1 ELSE 0 END AS management_note FROM manual_task_updates WHERE task_id IN (SELECT id FROM work_items)
+  UNION ALL SELECT task_id,'done' AS status,completed_at AS created_at,0 AS management_note FROM task_completion_events WHERE task_id IN (SELECT id FROM work_items) ORDER BY created_at`),
  // F276: snapshots can contain full client/task details. Derive only the
  // fields used by BI while still distinguishing missing/null, text, numeric
  // and complex JSON values for accurate due-date change counting.
@@ -27,7 +30,7 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
     CASE WHEN json_valid(before_json) THEN before_json ELSE '{}' END AS before_safe,
     CASE WHEN json_valid(after_json) THEN after_json ELSE '{}' END AS after_safe,
     CASE WHEN json_valid(before_json) AND json_valid(after_json) THEN 0 ELSE 1 END AS invalid_json
-   FROM task_management_history
+   FROM task_management_history WHERE task_id IN (SELECT id FROM work_items)
   )
   SELECT task_id,
    json_extract(before_safe,'$.status') AS before_status,
