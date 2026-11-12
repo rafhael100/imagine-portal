@@ -165,6 +165,19 @@ WHERE has_schema_privilege(roles.role_name,'public','CREATE')
    OR has_database_privilege(roles.role_name,'portal_identity_dev','CREATE')
 SQL)->fetchColumn();
     if($dangerousSchemaOrDatabaseGrants!==0)throw new RuntimeException();
+
+    // F332: ALTER DEFAULT PRIVILEGES affects objects created *later*.
+    // Today's table/function ACL checks (F330) cannot discover a
+    // pre-authorized grant on a future object. Reject any explicit
+    // default ACL entry targeting the application runtime principals.
+    $dangerousFutureGrants=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM pg_default_acl defaults
+CROSS JOIN LATERAL aclexplode(defaults.defaclacl) AS privileges
+JOIN pg_roles recipient ON recipient.oid=privileges.grantee
+WHERE recipient.rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime')
+SQL)->fetchColumn();
+    if($dangerousFutureGrants!==0)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
