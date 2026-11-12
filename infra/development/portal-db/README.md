@@ -94,3 +94,9 @@ Os dois ensaios de restauração deixam de verificar apenas que existe uma linha
 ## Ensaio de coexistência F143 + F351 — PR #578 (somente CI)
 
 A candidata de integração isolada [PR #578](https://github.com/rafhael100/imagine-portal/pull/578) transplanta somente as quatro alterações de UI F143 ainda ausentes da base de autenticação/recuperação F351. Como o workflow de fundação privada tem filtro de caminhos, uma PR com mudanças apenas em UI não o executaria novamente. Esta anotação, **exclusiva da branch de ensaio**, obriga uma nova execução do teste PostgreSQL 18 no mesmo SHA combinado, além de PHP, Node, GSC e F64. O teste não conecta a interface aos papéis runtime nem libera qualquer rota; resultados aprovados não substituem revisão independente, anti-rollback ou aprovação de integração. **Sem merge/deploy.**
+
+## F354 — segredo administrativo independente no cluster restaurado (somente CI)
+
+A prova de restauração em segundo contêiner agora gera, sob o diretório temporário protegido do runner, **uma nova senha aleatória de 48 bytes codificada em hexadecimal** para o administrador do cluster-alvo, distinta da senha da origem. Descobre o UID `postgres` na imagem `postgres:18-alpine`, entrega o arquivo somente a esse UID com permissão `0400`, e monta **apenas o segredo temporário do alvo** em seu contêiner isolado, sem passar senhas em argumentos ou environment. O script exige que os dois arquivos não tenham os mesmos bytes, mantém `--network none` e remove contêiner e diretório temporário no cleanup.
+
+Isto comprova independência das credenciais administrativas no **laboratório sintético**. Não é rotação de chaves de aplicações, recuperação real de R2, custódia de dados operacionais nem autorização para utilização na VPS.
