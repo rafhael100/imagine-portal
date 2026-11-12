@@ -1,6 +1,6 @@
-# Imagine Portal × SEO — Candidata consolidada A–AA (revisão)
+# Imagine Portal × SEO — Candidata consolidada A–AB (revisão)
 
-**Candidata única para revisão:** [PR #539](https://github.com/rafhael100/imagine-portal/pull/539), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **169 commits / 94 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
+**Candidata única para revisão:** [PR #543](https://github.com/rafhael100/imagine-portal/pull/543), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **174 commits / 95 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
 
 | Lote | PR incremental | Entrega |
 | --- | --- | --- |
@@ -31,12 +31,13 @@
 | Y | [#535](https://github.com/rafhael100/imagine-portal/pull/535) | Envelope de POST OAuth transportável uma só vez, sem clone/serialização |
 | Z | [#536](https://github.com/rafhael100/imagine-portal/pull/536) | Wrapper de `SET LOCAL app.tenant_ref` com transação e papel restrito |
 | AA | [#539](https://github.com/rafhael100/imagine-portal/pull/539) | Gateway de grant sob RLS e revogação+auditoria atômicas |
+| AB | [#543](https://github.com/rafhael100/imagine-portal/pull/543) | Vault sintético bloqueado fora de testes e para tokens sem marcador sintético |
 
-**Não mesclar as PRs A–Z separadamente ou em paralelo com #539.** Elas preservam a trilha de commits e testes de cada entrega; #539 contém o diff único para eventual revisão de integração.
+**Não mesclar as PRs A–AA separadamente ou em paralelo com #543.** Elas preservam a trilha de commits e testes de cada entrega; #543 contém o diff único para eventual revisão de integração.
 
 ## Limites de código e testes
 
-A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, cinco migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 121 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
+A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, cinco migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 123 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
 
 - Node 22/24 × PHP 8.3/8.4; hashes SEO RC32 `f46b65aaef9b10e32d02e415907cd916a43b548e`, F79 `fdae08985e89b9bd1323e42d1d64678ddc69e446` e F88 `56d7fa79904903f9af0c88646a59c0fa07546594` fixados na CI.
 - PostgreSQL 16 **descartável** testa migrations para state, grants, auditoria e candidatos de token; PKCE/state com expiração e consumo único, AEAD, grant isolado/revogado, auditoria atômica, segredo criptografado e expurgo.
@@ -66,3 +67,7 @@ O planejador de tokens não aceita mais `GoogleSearchConsoleOAuthCallbackOutcome
 As etapas X/Y bloqueiam planos e envelopes OAuth repetidos após o consumo do state no PostgreSQL. O envelope de transporte contém segredos apenas durante a primeira retirada, não pode ser clonado ou serializado e não autoriza HTTP. A fase Z aplica `set_config('app.tenant_ref', :tenant, true)` dentro de uma transação sob role PostgreSQL restrita, prevenindo vazamento do tenant entre requisições. A etapa AA utiliza esse wrapper de fato para consultar grants e revogá-los em uma única transação com evento de auditoria, revertendo ambos quando a escrita do evento é negada. Tudo validado com dados e papéis de teste no PostgreSQL descartável.
 
 **Aviso importante:** não existe um login MFA/RBAC autenticando este contexto na integração GSC; `tenantRef` continua precisando vir exclusivamente de uma sessão/identidade verificada por backend externo. Também faltam autenticação Google real, callback registrado, provas de acesso à propriedade, HTTPS de produção, gestão de segredos e parecer independente. A migração e o RLS continuam só no CI. CI verde não autoriza o merge nem acesso aos dados de clientes.
+
+## Lote AB — bloqueio de tokens reais no vault de laboratório
+
+O vault de candidatos OAuth continua um **módulo de revisão, não um cofre de tokens operacionais**. Suas ações de escrita, leitura, revogação e rotação exigem ambiente `testing` e flag de laboratório; tokens cujo conteúdo não começa por `synthetic-` são recusados. Os testes PostgreSQL validam que um candidato de formato plausível não é persistido e que a aplicação não consegue operar o vault em `production`. Antes de habilitar credenciais reais é obrigatório construir/autorizar um serviço separado com sessão Portal autenticada, prova Google de propriedade e escopo, transporte HTTPS, cofre operacional de chaves, auditoria e política de retenção; nenhuma destas integrações foi declarada pronta.
