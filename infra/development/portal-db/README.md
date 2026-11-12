@@ -38,3 +38,7 @@ A prova não é um backup de produção e **não** equivale à recuperação ap�
 Antes do `pg_dump`, a prova registra o marcador da origem e exige seu formato hexadecimal de 64 caracteres. Após inspecionar o arquivo, mas **antes** de criar qualquer banco-alvo, reconfere o marcador e confirma novamente que não há identidades; após a restauração, reconfere a origem. Isso protege contra mudanças detectáveis durante a preparação, sem prometer um snapshot transacional entre verificações. A própria extração `pg_dump` possui sua consistência de snapshot; o marcador não detecta toda modificação possível em tabelas não monitoradas.
 
 O workflow testa antes de criar segredos que o script retorne código 64 quando falta `GITHUB_ACTIONS`, quando `GITHUB_ACTIONS=false` ou quando `COMPOSE_PROJECT_NAME` não corresponde ao projeto descartável esperado. Esses testes são locais à CI, não executam recuperação no servidor. A prova continua **NO-GO** para implantação, restauração externa, conta real ou dados de clientes.
+
+## F340 — recusa de sobrescrita comprovada na CI
+
+O workflow cria um banco-alvo descartável de mesmo nome **antes** de chamar a restauração. O script deve recusar a operação com código 65, o banco preexistente deve continuar presente e o fingerprint da origem deve permanecer igual. Só o próprio workflow, no projeto Docker descartável, remove explicitamente esse banco de teste depois da verificação. Isso comprova o bloqueio de destino já existente, mas não cobre autorização para recuperação fora da CI nem restauração em cluster novo.
