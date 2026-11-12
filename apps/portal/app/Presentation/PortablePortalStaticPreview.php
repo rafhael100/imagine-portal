@@ -11,7 +11,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Generates a visual-only OFFLINE file:// preview of seven synthetic Blade
+ * Generates a visual-only OFFLINE file:// preview of nine synthetic Blade
  * screens. No HTTP routes, CRM/Sites connectors, customer identity or writes.
  *
  * This class is deliberately unavailable outside local/testing environments.
@@ -24,10 +24,14 @@ final class PortablePortalStaticPreview
     /** @return list<string> */
     private static function pageNames(): array
     {
-        return array_map(
+        $pages = array_map(
             static fn (ClientSection $section): string => $section->value.'.html',
             ClientSection::cases(),
         );
+        // The existing help/notices views are informational examples, not
+        // authenticated ClientSection entries or customer navigation routes.
+        array_push($pages, 'help.html', 'notices.html');
+        return $pages;
     }
 
     /** @return list<string> */
@@ -132,6 +136,8 @@ final class PortablePortalStaticPreview
         foreach (ClientSection::cases() as $section) {
             $labels[$section->value.'.html'] = $section->label();
         }
+        $labels['help.html'] = 'Central de Ajuda';
+        $labels['notices.html'] = 'Central de Avisos';
         $links = '';
         foreach ($known as $name) {
             $label = htmlspecialchars($labels[$name], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -153,6 +159,8 @@ final class PortablePortalStaticPreview
             $label = htmlspecialchars($section->label(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $links .= '<li><a href="'.$name.'">'.$label.'</a></li>';
         }
+        $links .= '<li><a href="help.html">Central de Ajuda</a></li>'
+            .'<li><a href="notices.html">Central de Avisos</a></li>';
         return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">'
             .'<meta name="viewport" content="width=device-width,initial-scale=1">'
             .'<meta name="robots" content="noindex,nofollow">'
