@@ -21,6 +21,19 @@ export function boundedProjectPages(total){
 const paid="('CONFIRMED','RECEIVED','RECEIVED_IN_CASH')";
 export const ACCOUNT_PROJECT_PHASES=['solicitado','planejamento','desenvolvimento','revisao','entregue'];
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
+const paidStatus=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
+// F261: only inspect an authorized paid briefing in the selected page.
+// Consistent with account export preflight, do not expose JSON parsing internals
+// to the client when a stored paid briefing is malformed.
+function pageBriefingData(row){
+ if(!paidStatus.has(row.payment_status))return {};
+ try{return publicProjectData(JSON.parse(row.data||'{}'));}
+ catch(error){
+  if(error instanceof SyntaxError)
+   fail(503,'Dados de projeto temporariamente indisponíveis para exportação.');
+  throw error;
+ }
+}
 export function accountProjectsPage(db,user,{page='1',payment='all',search='',phase='all',sort='newest',attention='all'}={}){
  if(user?.role!=='client'||user.staff_profile||!user.id)fail(403,'Arquivo de projetos exclusivo do cliente.');
  if(typeof page!=='string'||!/^[1-9][0-9]{0,3}$/.test(page)||Number(page)>1000)fail(400,'Página de projetos inválida.');
@@ -54,8 +67,7 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
   .all(...params,ACCOUNT_PROJECT_PAGE_SIZE,(current-1)*ACCOUNT_PROJECT_PAGE_SIZE);
  const projects=rows.map(row=>({
   id:row.id,title:row.title,created_at:row.created_at,phase:row.phase,payment_status:row.payment_status,status:row.status,
-  data:['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)?
-    publicProjectData(JSON.parse(row.data||'{}')):{},
+  data:pageBriefingData(row),
   production:row.product_id==='site'&&['CONFIRMED','RECEIVED','RECEIVED_IN_CASH'].includes(row.payment_status)&&
    ['preparation','production','changes','review','approved','published'].includes(row.production_stage)?{
     stage:row.production_stage,
