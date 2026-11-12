@@ -80,3 +80,7 @@ A CI agora inclui um **segundo contêiner PostgreSQL 18**, com cluster próprio 
 ## F349 — contrato SQL compartilhado para recuperar funções e migrations
 
 Os dois ensaios de restauração (no mesmo cluster descartável e no segundo cluster sem rede) agora executam `restore-contracts.sql` contra o **banco restaurado**, e não apenas o banco de origem. A instrução SQL exige as dez migrations exatas e confere as **13 funções de identidade/envelope**: existência, `SECURITY DEFINER`, papel proprietário, `row_security=on`, `search_path` restrito e matriz exata de `EXECUTE` de ambos os papéis runtime. A função interna de prova HMAC não pode ser executada diretamente. O contrato é somente leitura e falha fechado; não substitui teste de recuperação de credenciais reais nem auditoria independente.
+
+## F350 — provas negativas para o contrato SQL
+
+A CI exige que `restore-contracts.sql` passe com a fundação sintética íntegra, falhe após uma alteração temporária de `SECURITY DEFINER` para `SECURITY INVOKER` na função de validação de sessão e falhe quando `PUBLIC` recebe `EXECUTE` direto na função interna HMAC. Cada alteração é revertida antes de uma segunda aprovação do contrato e da comparação do fingerprint original. São testes exclusivamente no cluster descartável, sem alterar autenticação real, sem abrir rotas HTTP e sem deploy.
