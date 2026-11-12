@@ -3,11 +3,10 @@
 const HEADERS=['ID','Projeto','Criado em','Situação do pagamento','Empresa','Domínio'];
 export function safeCsvCell(value){
  const valueText=String(value??'').replace(/\r\n?/g,'\n');
- // Spreadsheet programs may evaluate cells beginning with formulas, even
- // when a field is surrounded by CSV quotes. Guard leading invisible Unicode
- // F247: include every Unicode Default_Ignorable_Code_Point, not only
- // selected bidi/zero-width ranges (e.g. soft hyphen and combining grapheme joiner).
- // position ensures it remains data (including with preceding whitespace).
+ // Spreadsheet programs may evaluate formulas even in quoted CSV fields.
+ // F247: guard whitespace, control characters and all Unicode default-ignorable
+ // characters (including soft hyphen, bidi marks and combining grapheme joiner).
+ // Prefix an apostrophe so formula-like content remains text in Excel.
  const safe=/^[\s\p{Default_Ignorable_Code_Point}\u0000-\u001F\u007F-\u009F]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
