@@ -49,6 +49,28 @@
         "Testes do portal",
         "Validacao isolada Laravel F1-01-A"
       ]
+    },
+    {
+      "pullRequest": 594,
+      "headBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
+      "baseBranch": "review/portal-ui-sites-editorial-on-overview-2026-11-12",
+      "headSha": "1b0f97f6fcb09fc0bc54c4a43c1d1861108e1b63",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 595,
+      "headBranch": "review/portal-portable-visual-preview-2026-11-12",
+      "baseBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
+      "headSha": "2f99bfa286e30842bae5954ac52fb43dea3d5967",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
     }
   ]
 }
