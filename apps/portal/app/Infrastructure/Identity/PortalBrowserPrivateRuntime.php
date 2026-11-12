@@ -55,7 +55,11 @@ final class PortalBrowserPrivateRuntime
         if (!is_string($sessionKey) || strlen($sessionKey) !== 32
             || hash_equals($sessionKey,base64_decode($this->configuration->value('totp_key'),true))
             || hash_equals($sessionKey,hex2bin($this->configuration->value('proof_key')))
-            || hash_equals($sessionKey,hex2bin($this->configuration->value('scope_pepper')))) {
+            || hash_equals($sessionKey,hex2bin($this->configuration->value('scope_pepper')))
+            // F327: database-role credentials are sensitive cryptographic
+            // material too; reject AES key reuse when a password is 32 bytes.
+            || hash_equals($sessionKey,$this->configuration->value('identity_password'))
+            || hash_equals($sessionKey,$this->configuration->value('envelope_password'))) {
             throw new RuntimeException('Independent Portal session encryption key required.');
         }
 
