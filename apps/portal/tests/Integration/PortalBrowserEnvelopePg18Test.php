@@ -274,6 +274,12 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             PortalTotpSecretCipher::seal('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',$key)]);
         $q=$this->admin->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision)
             VALUES(?,'envelope-fixture','Synthetic envelope only','active',1)");$q->execute([$org]);
+        // F292: a second active organization exists, but has NO membership
+        // for this synthetic identity. Its ID cannot authorize password login.
+        $foreignOrg='44444444-4444-4444-8444-444444444444';
+        $q=$this->admin->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision)
+            VALUES(?,'foreign-envelope-fixture','Unrelated synthetic company','active',1)");
+        $q->execute([$foreignOrg]);
         $q=$this->admin->prepare("INSERT INTO public.portal_memberships(id,identity_id,organization_id,role,status,membership_revision)
             VALUES('33333333-3333-4333-8333-333333333333',?,?,'member','active',1)");$q->execute([$actor,$org]);
         $identity=self::connect('portal_browser_runtime',(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'));
@@ -317,6 +323,15 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             $request('POST','password',$passwordBody,'invalid-csrf-F291')->assertStatus(419);
             $request('POST','password',$passwordBody,$token,'https://attacker.example.invalid')->assertStatus(419);
             self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
+            // F292: a valid identity + password cannot authenticate in a
+            // different active organization without a server-side membership.
+            $foreignPassword=$passwordBody;
+            $foreignPassword['organization']=$foreignOrg;
+            $request('POST','password',$foreignPassword,$token)->assertUnauthorized();
+            self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
+            // A denied login rotates the anonymous session and CSRF token;
+            // use its new token for the legitimate organization's login.
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
             $request('POST','password',$passwordBody,$token)->assertStatus(202);
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
             $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
