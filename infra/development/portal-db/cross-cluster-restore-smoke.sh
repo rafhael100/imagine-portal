@@ -68,7 +68,13 @@ container_id=$(docker run --detach --network none --memory 1g --cpus 1 \
 [[ -z $(docker port "$container_id") ]] || exit 1
 healthy=0
 for attempt in {1..60}; do
-    if docker exec --user postgres "$container_id" pg_isready -q -U postgres -d "$target"; then
+    # pg_isready can succeed against initdb's *temporary* server before
+    # POSTGRES_DB is created. Wait for the final PID 1 postgres process AND
+    # a real SQL connection to the intended restored database.
+    if docker exec "$container_id" sh -ec 'test "$(cat /proc/1/comm)" = postgres' 2>/dev/null \
+       && docker exec --user postgres "$container_id" \
+           psql -X -v ON_ERROR_STOP=1 -U postgres -d "$target" \
+           -tAc 'SELECT current_database()' 2>/dev/null | grep -qx "$target"; then
         healthy=1
         break
     fi
