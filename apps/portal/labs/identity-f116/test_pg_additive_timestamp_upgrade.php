@@ -15,6 +15,10 @@ if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing'
 require __DIR__ . '/../../vendor/autoload.php';
 $app = require __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+set_exception_handler(static function (Throwable $error): void {
+    fwrite(STDERR, "FAIL additive precision upgrade: " . get_class($error) . "\n");
+    exit(1);
+});
 $db = Illuminate\Support\Facades\DB::connection();
 if ($db->getDriverName() !== 'pgsql'
     || (array) $db->selectOne('SELECT current_user AS actor,current_database() AS db')
@@ -35,11 +39,29 @@ foreach ($tables as $table => $_) {
 $migration = require __DIR__ . '/../../database/migrations/2026_11_11_000015_preserve_portal_security_timestamp_precision.php';
 $db->beginTransaction();
 try {
+    // Temporarily save the two known F115 checks while recreating legacy types.
+    $fixturePolicies = [];
+    foreach ([
+        'portal_identities' => 'portal_f115_identity_update',
+        'portal_email_verification_challenges' => 'portal_f115_challenge_update',
+    ] as $table => $name) {
+        $policy = $db->selectOne("SELECT with_check FROM pg_policies
+            WHERE schemaname='public' AND tablename=? AND policyname=?", [$table,$name]);
+        if ($policy === null) {
+            throw new RuntimeException('F115 fixture policies must be installed.');
+        }
+        $fixturePolicies[] = [$table,$name,$policy->with_check];
+        $db->statement('DROP POLICY "' . $name . '" ON public."' . $table . '"');
+    }
     // Recreate old physical column types only in this disposable transaction.
     foreach ($tables as $table => $columns) {
         foreach ($columns as $column) {
             $db->statement('ALTER TABLE public."' . $table . '" ALTER COLUMN "' . $column . '" TYPE timestamp(0) with time zone');
         }
+    }
+    foreach ($fixturePolicies as [$table,$name,$check]) {
+        $db->statement('CREATE POLICY "' . $name . '" ON public."' . $table
+            . '" FOR UPDATE TO portal_f115_email_definer USING (true) WITH CHECK (' . $check . ')');
     }
     $db->insert("INSERT INTO public.portal_identities
         (id,email_normalized,status,email_verified_at,mfa_confirmed_at)
