@@ -1,6 +1,6 @@
-# Imagine Portal × SEO — Candidata consolidada A–T (revisão)
+# Imagine Portal × SEO — Candidata consolidada A–U (revisão)
 
-**Candidata única para revisão:** [PR #505](https://github.com/rafhael100/imagine-portal/pull/505), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **125 commits / 82 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
+**Candidata única para revisão:** [PR #509](https://github.com/rafhael100/imagine-portal/pull/509), contra `dev/fast-track-portal-2026-11-05`, **DRAFT/NO-GO**. Antes da atualização deste manifesto: **132 commits / 84 arquivos**, 0 atrás. A antiga PR [#394](https://github.com/rafhael100/imagine-portal/pull/394), ampla e histórica, **não** está incluída nesta candidata.
 
 | Lote | PR incremental | Entrega |
 | --- | --- | --- |
@@ -24,12 +24,13 @@
 | R | [#500](https://github.com/rafhael100/imagine-portal/pull/500) | Revogação + auditoria em mesma transação |
 | S | [#503](https://github.com/rafhael100/imagine-portal/pull/503) | Vault AEAD de *candidatos* a token por tenant |
 | T | [#505](https://github.com/rafhael100/imagine-portal/pull/505) | Remoção controlada de candidatos vencidos/revogados |
+| U | [#509](https://github.com/rafhael100/imagine-portal/pull/509) | Rotação AEAD de chave v1→v2 com dois segredos e CAS no PostgreSQL |
 
-**Não mesclar as PRs A–S separadamente ou em paralelo com #505.** Elas preservam a trilha de commits e testes de cada entrega; #505 contém o diff único para eventual revisão de integração.
+**Não mesclar as PRs A–T separadamente ou em paralelo com #509.** Elas preservam a trilha de commits e testes de cada entrega; #509 contém o diff único para eventual revisão de integração.
 
 ## Limites de código e testes
 
-A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, quatro migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 95 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
+A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, renderizadores estáticos, quatro migrations e o próprio workflow. Não inclui **nenhuma rota ou controller OAuth pública**, arquivo de deploy, provider credentials, sessão MFA ou telas que possam mostrar credenciais. O limite total é de até 100 arquivos na revisão consolidada, além de limites menores nos lotes incrementais.
 
 - Node 22/24 × PHP 8.3/8.4; hashes SEO RC32 `f46b65aaef9b10e32d02e415907cd916a43b548e`, F79 `fdae08985e89b9bd1323e42d1d64678ddc69e446` e F88 `56d7fa79904903f9af0c88646a59c0fa07546594` fixados na CI.
 - PostgreSQL 16 **descartável** testa migrations para state, grants, auditoria e candidatos de token; PKCE/state com expiração e consumo único, AEAD, grant isolado/revogado, auditoria atômica, segredo criptografado e expurgo.
@@ -41,7 +42,7 @@ A CI usa uma **allowlist explícita** de contratos PHP GSC, laboratórios, rende
 1. Backend autenticado do Portal, **MFA/RBAC**, membership e isolamento de empresa/operador, com evidência servidor; aceitar strings do cliente não comprova identidade.
 2. OAuth registrado no Google Cloud com callback exato; cliente HTTPS de origem fixa, TLS, sem redirecionamentos e com quotas, logs seguros e tratamento de erros.
 3. **Comprovação atual de acesso Google** à propriedade exata; um fingerprint ou registro PostgreSQL não é permissão real.
-4. Cofre real de chaves com versionamento/rotação, política de retenção LGPD e revogação remota de refresh token.
+4. Cofre real de chaves e política operacional de rotação. O Lote U valida somente a passagem de v1 para v2 com dados sintéticos, **sem configurar segredos reais nem agendamento**; continuam pendentes retenção LGPD e revogação remota de refresh token.
 5. Revisão independente AppSec/DBA/LGPD/SEO, testes de staging autenticado, migrações/rollback ensaiados e autorização de liberação.
 
 **DRAFT/NO-GO.** CI verde atesta testes de componentes e comportamento sintético, não uma integração Google operacional. Nenhum merge em dev/main ou deploy autorizado.
