@@ -66,8 +66,43 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  });
  const options={assignees:all("SELECT u.id,u.name,COALESCE(s.active,1) AS active FROM users u LEFT JOIN staff s ON s.user_id=u.id WHERE u.role='admin' OR s.user_id IS NOT NULL ORDER BY u.name"),clients:all("SELECT DISTINCT u.id,u.name FROM users u JOIN orders o ON o.user_id=u.id ORDER BY u.name"),products:all('SELECT id,title FROM products ORDER BY title'),kinds:[...new Set(rows.map(t=>t.kind))].sort(),stages:[...new Set(rows.map(t=>t.stage).filter(Boolean))].sort()};
  rows=rows.filter(t=>(!filters.assignee||(filters.assignee==='none'?t.unassigned:t.assignee_id===filters.assignee))&&(!filters.client||t.client_id===filters.client)&&(!filters.product||t.product_id===filters.product)&&(!filters.stage||t.stage===filters.stage)&&(!filters.kind||t.kind===filters.kind)&&(!filters.status||(filters.status==='open'?t.active:t.status===filters.status))&&(!filters.priority||t.priority===filters.priority)&&(filters.archive==='all'||(filters.archive==='archived'?!!t.archived_at:!t.archived_at))&&(!filters.query||[t.title,t.instructions,t.note,t.client,t.order_title,t.id].join(' ').toLocaleLowerCase('pt-BR').includes(filters.query.toLocaleLowerCase('pt-BR')))&&(!filters.risk||(filters.risk==='unassigned'?t.active&&t.unassigned:filters.risk==='late'?t.overdue_days>0:filters.risk==='today'?t.active&&t.due_date===today:t.active&&t.due_date>today))&&inside(filters.basis==='due'?t.due_date:filters.basis==='completed'?day(t.completed_at):day(t.created_at)));
- const active=rows.filter(t=>t.active),done=rows.filter(t=>t.status==='done'),reliable=done.filter(t=>!t.completion_estimated),cycles=reliable.map(t=>t.cycle_days),ontime=reliable.filter(t=>t.on_time).length;
- const summary={total:rows.length,open:active.length,doing:active.filter(t=>t.status==='doing').length,blocked:active.filter(t=>t.status==='blocked').length,overdue:active.filter(t=>t.overdue_days>0).length,today:active.filter(t=>t.due_date===today).length,unassigned:active.filter(t=>t.unassigned).length,urgent:active.filter(t=>['critical','high'].includes(t.priority)).length,done:done.length,canceled:rows.filter(t=>t.status==='canceled').length,archived:rows.filter(t=>t.archived_at).length,cycle_mean:mean(cycles),cycle_median:median(cycles),on_time_percent:reliable.length?Math.round(ontime/reliable.length*100):null,on_time_sample:reliable.length,estimated_completions:done.length-reliable.length,oldest_open:active.length?Math.max(...active.map(t=>t.age_days)):null,due_changes:rows.reduce((s,t)=>s+t.due_changes,0)};
+ // F284: calculate counters while retaining the same active/done subsets
+ // used by downstream indicators. Avoid rescanning the full filtered cohort
+ // for every summary field.
+ const active=[],done=[],cycles=[];
+ let ontime=0,reliableCount=0;
+ const summary={total:rows.length,open:0,doing:0,blocked:0,overdue:0,today:0,unassigned:0,urgent:0,
+  done:0,canceled:0,archived:0,cycle_mean:null,cycle_median:null,on_time_percent:null,
+  on_time_sample:0,estimated_completions:0,oldest_open:null,due_changes:0};
+ for(const task of rows){
+  if(task.active){
+   active.push(task);summary.open++;
+   if(task.status==='doing')summary.doing++;
+   if(task.status==='blocked')summary.blocked++;
+   if(task.overdue_days>0)summary.overdue++;
+   if(task.due_date===today)summary.today++;
+   if(task.unassigned)summary.unassigned++;
+   if(task.priority==='critical'||task.priority==='high')summary.urgent++;
+   summary.oldest_open=summary.oldest_open===null?task.age_days:Math.max(summary.oldest_open,task.age_days);
+  }
+  if(task.status==='done'){
+   done.push(task);
+   summary.done++;
+   if(!task.completion_estimated){
+    reliableCount++;
+    cycles.push(task.cycle_days);
+    if(task.on_time)ontime++;
+   }
+  }
+  if(task.status==='canceled')summary.canceled++;
+  if(task.archived_at)summary.archived++;
+  summary.due_changes+=task.due_changes;
+ }
+ summary.cycle_mean=mean(cycles);
+ summary.cycle_median=median(cycles);
+ summary.on_time_percent=reliableCount?Math.round(ontime/reliableCount*100):null;
+ summary.on_time_sample=reliableCount;
+ summary.estimated_completions=done.length-reliableCount;
  // F283: group each dimension in one pass instead of refiltering the full
  // cohort for every unique status, priority or kind.
  const breakdown=key=>{
