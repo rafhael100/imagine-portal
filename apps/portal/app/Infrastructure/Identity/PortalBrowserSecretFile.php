@@ -68,6 +68,14 @@ final class PortalBrowserSecretFile
             if(strlen($v[$key])<16||strlen($v[$key])>128||str_contains($v[$key],"\0"))$fail();
         if(hash_equals($v['identity_password'],$v['envelope_password']))$fail();
         foreach(['proof_key','scope_pepper']as$key)if(preg_match('/\A[a-f0-9]{64}\z/D',$v[$key])!==1)$fail();
+        // F317: a SQL role password must not double as a signing,
+        // pepper or TOTP key. The existing guard checks cross-key reuse,
+        // but password-versus-key reuse was previously still accepted.
+        foreach(['identity_password','envelope_password'] as $password){
+            foreach(['proof_key','scope_pepper','totp_key'] as $material){
+                if(hash_equals($v[$password],$v[$material]))$fail();
+            }
+        }
         $totp=base64_decode($v['totp_key'],true);
         if(!is_string($totp)||strlen($totp)!==32||base64_encode($totp)!==$v['totp_key']
             ||hash_equals(hex2bin($v['proof_key']),$totp)
