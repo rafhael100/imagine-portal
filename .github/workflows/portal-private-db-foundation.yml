@@ -81,6 +81,29 @@ jobs:
             dropdb -U postgres "$target"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-existing-target.out
           cmp before.out after-existing-target.out
+      - name: Reject an unknown migration even with the expected row count
+        run: |
+          set -euo pipefail
+          original=2026_11_12_000017_create_portal_service_resource_claims
+          altered=2026_11_12_000017_unknown_portal_migration
+          admin_sql() {
+            sudo -E docker compose exec -T --user postgres postgres \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_identity_dev -c "$1" >/dev/null
+          }
+          admin_sql "UPDATE public.migrations SET migration='$altered' WHERE migration='$original'"
+          test "$(sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d portal_identity_dev -tAc 'SELECT count(*) FROM public.migrations')" = 10
+          status=0
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./backup-restore-smoke.sh >/dev/null 2>&1 || status=$?
+          test "$status" -eq 65
+          test "$(sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
+          admin_sql "UPDATE public.migrations SET migration='$original' WHERE migration='$altered'"
+          sudo -E docker compose run --rm -T provision php provision.php verify > after-migration-repair.out
+          cmp before.out after-migration-repair.out
       - name: Deliberately misgrant privileges and prove verify fails closed
         run: |
           set -euo pipefail
