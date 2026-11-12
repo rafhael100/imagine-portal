@@ -21,3 +21,17 @@ Para desenvolvedores com dependências PHP instaladas e `APP_ENV=local`, existe 
 - Os links adicionados são **exclusivamente para HTML offline** e não existem como rotas Laravel. O ambiente operacional permanece fechado.
 - Não inserir dados reais nos fixtures nem divulgar essa prévia como produto publicado.
 - Revisão AppSec/DBA/LGPD, visual em dispositivos reais, anti-rollback de autenticação (issue #64) e decisão específica de merge/deploy (issue #341) continuam pendentes.
+
+## QA responsivo no Chromium — regressão corrigida
+
+Uma inspeção renderizada da prévia anterior identificou **rolagem global indevida: em viewport de 390 px o layout media 912 px**, causada pela coluna `1fr` no breakpoint `max-width:1050px`, cujo tamanho mínimo herdava o conteúdo horizontal da sidebar.
+
+A correção substitui a coluna por `minmax(0,1fr)`, preservando o scroll **somente dentro do menu móvel e das regiões de tabela**. Em QA local de desenvolvimento com Chromium headless, **70 combinações (dez HTML × sete larguras: 320, 375, 390, 640, 768, 1024 e 1440 px)** não tiveram overflow global após injetar a correção; a alteração correspondente já está versionada no Blade. A verificação precisa ser **reexecutada no artefato do HEAD final** após cada alteração.
+
+O teste reprodutível está em `apps/portal/tools/qa_portable_preview.py`. Requer Python Playwright + Chromium instalados localmente; não altera serviços nem publica páginas:
+
+```bash
+python apps/portal/tools/qa_portable_preview.py imagine-portal-original-brand-offline-preview.zip --chromium /usr/bin/chromium
+```
+
+A saída JSON informa quantidade de telas/larguras, verificação de scroll de tabelas por teclado e problemas encontrados. Código de saída diferente de zero bloqueia a avaliação técnica. O script aceita outros caminhos de navegador. No Windows, omita `--chromium` se o Playwright já tiver o Chromium instalado. A inspeção estrutural automatizada **não equivale a certificação WCAG nem substitui revisão visual humana**.
