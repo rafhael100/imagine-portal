@@ -33,8 +33,11 @@ GRANT SELECT(id,status,security_revision) ON public.portal_organizations TO port
 GRANT UPDATE(id) ON public.portal_organizations TO portal_browser_owner;
 GRANT UPDATE(id) ON public.portal_memberships TO portal_browser_owner;
 CREATE POLICY portal_browser_org_read ON public.portal_organizations FOR SELECT TO portal_browser_owner USING(true);
-GRANT SELECT(identity_id,organization_id,status,membership_revision) ON public.portal_memberships TO portal_browser_owner;
+GRANT SELECT(id,identity_id,organization_id,status,membership_revision) ON public.portal_memberships TO portal_browser_owner;
 CREATE POLICY portal_browser_member_read ON public.portal_memberships FOR SELECT TO portal_browser_owner USING(true);
+GRANT SELECT(membership_id,permission_code) ON public.portal_membership_grants TO portal_browser_owner;
+CREATE POLICY portal_browser_explicit_grant_read ON public.portal_membership_grants
+ FOR SELECT TO portal_browser_owner USING(true);
 CREATE POLICY portal_browser_member_lock ON public.portal_memberships FOR UPDATE TO portal_browser_owner USING(true) WITH CHECK(true);
 CREATE POLICY portal_browser_org_lock ON public.portal_organizations FOR UPDATE TO portal_browser_owner USING(true) WITH CHECK(true);
 GRANT SELECT(id,session_sha256,identity_id,organization_id,status,session_purpose,
@@ -203,6 +206,34 @@ SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
  AND s.organization_revision=o.security_revision);
 $fn$;
 
+-- F302: permission PRE-FLIGHT only. Resource ownership must be checked
+-- separately, under the same transactional authority, before any HTTP access.
+CREATE FUNCTION public.portal_browser_permission_preflight(p_digest text,p_organization uuid,p_permission text)
+RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
+ SELECT EXISTS(
+  SELECT 1
+   FROM public.portal_auth_sessions s
+   JOIN public.portal_identities i ON i.id=s.identity_id
+   JOIN public.portal_memberships m ON m.identity_id=i.id AND m.organization_id=s.organization_id
+   JOIN public.portal_organizations o ON o.id=s.organization_id
+   JOIN public.portal_membership_grants g ON g.membership_id=m.id
+   WHERE p_digest ~ '^[a-f0-9]{64}$' AND s.session_sha256=p_digest
+     AND p_organization IS NOT NULL AND s.organization_id=p_organization
+     AND p_permission IN ('services.view','services.manage','billing.view','members.manage')
+     AND g.permission_code=p_permission
+     AND s.status='active' AND s.session_purpose='business' AND s.revoked_at IS NULL
+     AND s.issued_at<=clock_timestamp() AND s.expires_at>clock_timestamp()
+     AND s.expires_at<=s.issued_at+interval '2 hours'
+     AND s.mfa_verified_at>=s.issued_at AND s.mfa_verified_at<=clock_timestamp()
+     AND i.status='active' AND m.status='active' AND o.status='active'
+     AND i.email_verified_at<=clock_timestamp() AND i.mfa_confirmed_at<=clock_timestamp()
+     AND s.identity_revision=i.security_revision
+     AND s.membership_revision=m.membership_revision
+     AND s.organization_revision=o.security_revision
+ );
+$fn$;
+
 CREATE FUNCTION public.portal_browser_revoke(p_digest text,p_proof text)
 RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
@@ -216,17 +247,23 @@ END;
 $fn$;
 
 DO $roles$
-DECLARE f record;
+DECLARE signature text;
 BEGIN
- FOR f IN SELECT p.oid::regprocedure AS signature,p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
- WHERE n.nspname='public' AND p.proname IN (
- 'portal_browser_proof_ok','portal_browser_claim_attempt','portal_browser_material','portal_browser_begin',
- 'portal_browser_pending','portal_browser_complete','portal_browser_active','portal_browser_revoke')
+ FOREACH signature IN ARRAY ARRAY[
+ 'public.portal_browser_proof_ok(text,text)',
+ 'public.portal_browser_claim_attempt(text,text)',
+ 'public.portal_browser_material(text,uuid)',
+ 'public.portal_browser_begin(text,uuid,text,text,text)',
+ 'public.portal_browser_pending(text)',
+ 'public.portal_browser_complete(text,text,bigint,text,text)',
+ 'public.portal_browser_active(text)',
+ 'public.portal_browser_permission_preflight(text,uuid,text)',
+ 'public.portal_browser_revoke(text,text)']
  LOOP
- EXECUTE format('ALTER FUNCTION %s OWNER TO portal_browser_owner',f.signature);
- EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',f.signature);
- IF f.proname<>'portal_browser_proof_ok' THEN
- EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO portal_browser_runtime',f.signature);
+ EXECUTE format('ALTER FUNCTION %s OWNER TO portal_browser_owner',signature);
+ EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',signature);
+ IF signature<>'public.portal_browser_proof_ok(text,text)' THEN
+ EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO portal_browser_runtime',signature);
  END IF;
  END LOOP;
 END;
