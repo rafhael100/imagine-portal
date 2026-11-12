@@ -45,6 +45,10 @@ final class PortalImagineOriginalBrandingTest extends TestCase
         self::assertStringContainsString('--pi-bg:#f7f7f8', $html);
         self::assertStringContainsString('--pi-nav:#fff', $html);
         self::assertStringContainsString('var(--pi-orange-soft)', $html);
+        self::assertStringContainsString('class="pi-nav-title"', $html);
+        self::assertStringContainsString('Seu espaço Imagine', $html);
+        self::assertStringContainsString('grid-auto-flow:column', $html);
+        self::assertStringContainsString('overscroll-behavior-x:contain', $html);
         self::assertStringContainsString("img-src 'self' data:", html_entity_decode($html, ENT_QUOTES));
         self::assertStringContainsString('name="theme-color" content="#171b19"', $html);
         self::assertStringContainsString('role="region"', Blade::render(
