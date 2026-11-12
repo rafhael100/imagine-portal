@@ -1,4 +1,4 @@
-name: Portal GSC Slices A-N - complete synthetic OAuth PostgreSQL contract
+name: Portal GSC Slices A-O - OAuth PostgreSQL and tenant property access review
 
 on:
   pull_request:
@@ -32,6 +32,8 @@ on:
       - 'apps/portal/labs/gsc-slice-l/**'
       - 'apps/portal/labs/gsc-slice-m/**'
       - 'apps/portal/labs/gsc-slice-n/**'
+      - 'apps/portal/labs/gsc-slice-o/**'
+      - 'apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php'
       - 'apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php'
       - 'apps/portal/labs/gsc-slice-b/**'
       - 'apps/portal/tools/f159-render-gsc-query-page-review-offline.php'
@@ -127,11 +129,13 @@ jobs:
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateRetention.php",
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php",
               "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRecordedPropertyGrant.php",
+              "apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php",
               "apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php",
               "apps/portal/tools/f159-render-gsc-query-page-review-offline.php",
               "apps/portal/tools/f153-render-gsc-overlap-trend-offline.php"
             ]);
-            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n"]);
+            const labs=new Set(["gsc-f143","gsc-f146","gsc-f151","gsc-f155","gsc-f156","gsc-f157","gsc-f160","gsc-slice-a","gsc-slice-b","gsc-slice-c","gsc-slice-d","gsc-slice-e","gsc-slice-f","gsc-slice-g","gsc-slice-h","gsc-slice-i","gsc-slice-j","gsc-slice-k","gsc-slice-l","gsc-slice-m","gsc-slice-n","gsc-slice-o"]);
             const allow=p=>{
               if(exact.has(p))return true;
               const pieces=p.split("/");
@@ -375,6 +379,7 @@ jobs:
           set -euo pipefail
           php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthStateLedger.php
           php -l apps/portal/database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          php -l apps/portal/database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
           php -l apps/portal/labs/gsc-slice-i/verify_postgres_state_ledger.php
       - name: Prove Laravel migration up and down in temporary PostgreSQL
         shell: bash
@@ -392,6 +397,8 @@ jobs:
           composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress
           cd apps/portal
           php artisan migrate --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
           php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
       - name: Test XChaCha20-Poly1305, SHA state, two PDO workers and replay
         shell: bash
@@ -442,3 +449,16 @@ jobs:
           set -euo pipefail
           php -l apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
           php apps/portal/labs/gsc-slice-n/verify_full_oauth_review.php
+      - name: Exact tenant actor and property grant record, no OAuth authority
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_GSC_GRANT_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRecordedPropertyGrant.php
+          php -l apps/portal/labs/gsc-slice-o/verify_recorded_grants.php
+          php apps/portal/labs/gsc-slice-o/verify_recorded_grants.php
