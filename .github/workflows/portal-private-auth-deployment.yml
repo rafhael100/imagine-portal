@@ -60,7 +60,7 @@ jobs:
           assert len(gateway['ports'])==1 and gateway['ports'][0]['published']=='18082'
           assert set(gateway['networks'])=={'database_private','host_access'}
           assert c['networks']['database_private']['external'] is True
-          assert c['networks']['host_access']['internal'] is False
+          assert c['networks']['host_access'].get('internal',False) is False
           assert all(s['read_only'] and s['cap_drop']==['ALL'] and not s.get('privileged') for s in c['services'].values())
           PY
           sudo -E docker compose -p imagine-portal-private-auth-ci build application
