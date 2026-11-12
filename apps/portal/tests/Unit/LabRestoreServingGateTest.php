@@ -30,10 +30,11 @@ final class LabRestoreServingGateTest extends TestCase
     private function witness(
         string $tenant = 'demo-org-a', string $cluster = 'demo-witness-z4',
         int $sequence = 5, int $sessionFloor = 2, int $membershipFloor = 2,
+        int $coveredBackupSequence = 5,
     ): LabExternalWitnessFloor {
         return new LabExternalWitnessFloor(
             new OrganizationId($tenant), $cluster, $sequence,
-            $sessionFloor, $membershipFloor
+            $coveredBackupSequence, $sessionFloor, $membershipFloor
         );
     }
 
@@ -96,16 +97,42 @@ final class LabRestoreServingGateTest extends TestCase
         self::assertSame('restored_identity_still_active', $result->reason);
     }
 
-    public function test_restoring_both_database_and_fixture_witness_sequence_does_not_count_as_newer_evidence(): void
+    public function test_witness_must_cover_a_later_backup_in_the_primary_sequence_namespace(): void
     {
-        foreach ([1, 3, 4] as $sequence) {
+        foreach ([1, 3, 4] as $covered) {
             $result = $this->check(
-                before: $this->witness(sequence: $sequence),
-                after: $this->witness(sequence: $sequence)
+                before: $this->witness(coveredBackupSequence: $covered),
+                after: $this->witness(coveredBackupSequence: $covered)
             );
-            self::assertSame('witness_not_newer_than_backup', $result->reason);
+            self::assertSame('witness_does_not_cover_backup', $result->reason);
             self::assertFalse($result->canAuthorizeHttp());
         }
+    }
+
+    public function test_local_witness_counter_cannot_falsely_imply_backup_coverage(): void
+    {
+        $newLocalCounterButStaleCoverage = $this->witness(
+            sequence: 900_000_000, coveredBackupSequence: 4
+        );
+        self::assertSame(
+            'witness_does_not_cover_backup',
+            $this->check(
+                before: $newLocalCounterButStaleCoverage,
+                after: $newLocalCounterButStaleCoverage
+            )->reason
+        );
+
+        // A smaller but independent local witness sequence does not
+        // determine ordering: only the claimed PRIMARY generation does.
+        $smallCounterButCovered = $this->witness(
+            sequence: 1, coveredBackupSequence: 5
+        );
+        $result = $this->check(
+            before: $smallCounterButCovered,
+            after: $smallCounterButCovered
+        );
+        self::assertSame('synthetic_recovery_candidate_only', $result->reason);
+        self::assertFalse($result->canReleaseProductionServing());
     }
 
     public function test_matching_old_session_or_membership_revision_cannot_bypass_witness_floor(): void
@@ -136,6 +163,7 @@ final class LabRestoreServingGateTest extends TestCase
     {
         foreach ([
             $this->witness(sequence: 6),
+            $this->witness(coveredBackupSequence: 6),
             $this->witness(sessionFloor: 3),
             $this->witness(membershipFloor: 3),
             $this->witness(cluster: 'demo-witness-other'),
@@ -168,6 +196,8 @@ final class LabRestoreServingGateTest extends TestCase
             fn () => $this->snapshot(membershipRev: 1_000_000_001),
             fn () => $this->witness(cluster: 'bad cluster'),
             fn () => $this->witness(sequence: 0),
+            fn () => $this->witness(coveredBackupSequence: 0),
+            fn () => $this->witness(coveredBackupSequence: 1_000_000_001),
             fn () => $this->witness(sessionFloor: 0),
             fn () => $this->witness(membershipFloor: 1_000_000_001),
         ] as $make) {
