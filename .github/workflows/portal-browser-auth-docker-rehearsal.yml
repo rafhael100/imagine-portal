@@ -1,0 +1,54 @@
+name: Portal browser auth - private Docker rehearsal
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/infra/browser-auth-lab/**'
+      - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/app/Http/**'
+      - 'apps/portal/app/Domain/Identity/**'
+      - 'apps/portal/database/security/**'
+      - 'apps/portal/database/migrations/**'
+      - 'apps/portal/tests/Integration/PortalBrowser*'
+      - 'apps/portal/tests/Support/Browser*'
+      - '.github/workflows/portal-browser-auth-docker-rehearsal.yml'
+concurrency:
+  group: portal-browser-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  private-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Validate internal-only compose and run disposable integration
+        run: |
+          set -euo pipefail
+          docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml config --format json > /tmp/portal-browser-compose.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.load(open('/tmp/portal-browser-compose.json'))
+          assert c['networks']['private']['internal'] is True
+          assert set(c['services'])=={'postgres','runner'}
+          assert all(not s.get('ports') and not s.get('privileged') for s in c['services'].values())
+          assert c['services']['runner']['read_only'] is True
+          assert c['services']['runner']['network_mode']=='service:postgres'
+          assert all(v['type']=='tmpfs' for v in c['services']['postgres'].get('volumes',[]))
+          # Synthetic canaries model files present in a configured VPS checkout.
+          Path('apps/portal/.env').write_text('APP_KEY=synthetic-not-a-secret-canary\\n')
+          cache=Path('apps/portal/bootstrap/cache')
+          cache.mkdir(parents=True, exist_ok=True)
+          (cache/'config.php').write_text("<?php return ['canary'=>'synthetic-cache-only'];")
+          Path('apps/portal/database/private-dump.sql').write_text('-- synthetic dump canary only\\n')
+          PY
+          docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml up --build --abort-on-container-exit --exit-code-from runner
+          image=$(docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml images -q runner)
+          test -n "$image"
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges:true --entrypoint /bin/sh "$image" -ec 'test "$(id -u)" -ne 0; test ! -e .env; test ! -e .git; test ! -e bootstrap/cache/config.php; test ! -e database/private-dump.sql; echo "PASS image context: synthetic local secrets, cache and dump excluded"'
+      - name: Always remove only this disposable rehearsal project
+        if: always()
+        run: docker compose -f apps/portal/infra/browser-auth-lab/compose.yaml down --volumes --remove-orphans

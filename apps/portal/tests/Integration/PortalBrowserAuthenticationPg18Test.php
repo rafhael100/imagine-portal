@@ -10,6 +10,9 @@ use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
+use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
+use App\Domain\PortalAccess\Authority\PortalAuthorityBoundary;
+use App\Domain\Organizations\OrganizationId;
 use Illuminate\Support\Facades\Route;
 use PDO;
 use PDOException;
@@ -287,4 +290,277 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             rmdir($directory);
         }
     }
+
+
+    public function test_permission_preflight_adapter_is_not_http_authority_and_enforces_dedicated_role():void
+    {
+        try {
+            new PostgresPortalPermissionPreflight($this->admin,'portal_browser_lab');
+            self::fail('Privileged admin connection must not become permission preflight.');
+        } catch(RuntimeException $e) {
+            self::assertSame('Dedicated Portal authentication role required.',$e->getMessage());
+        }
+        $preflight = new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertFalse($preflight->allows('forged-session',self::ORG,'services.view'));
+        self::assertFalse($preflight->allows(str_repeat('a',64),self::ORG,'services.*'));
+        self::assertFalse($preflight->allows(str_repeat('a',64),'foreign-organization','services.view'));
+        self::assertSame(['backend'=>'Portal PostgreSQL permission preflight'],$preflight->__debugInfo());
+
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['66666666-6666-4666-8666-666666666666',self::MEMBER,'services.view']);
+        $active=$this->active();
+        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
+        self::assertFalse($preflight->allows($active,self::ORG,'billing.view'));
+        self::assertFalse($preflight->allows($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->runtime->beginTransaction();
+        try {
+            try {
+                $preflight->allows($active,self::ORG,'services.view');
+                self::fail('Caller-controlled transaction must never be accepted.');
+            } catch(RuntimeException $e) {
+                self::assertSame('Dedicated autocommit Portal permission connection required.',$e->getMessage());
+            }
+        } finally {
+            $this->runtime->rollBack();
+        }
+        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
+        $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
+        self::assertFalse($preflight->allows($active,self::ORG,'services.view'));
+    }
+
+    // F302: executable only against the disposable PostgreSQL 18 laboratory.
+    // This is a session + explicit-grant preflight, NEVER resource ownership.
+    private function permissionPreflight(?string $reference,string $organization,string $permission):bool
+    {
+        $q=$this->runtime->prepare('SELECT public.portal_browser_permission_preflight(?,CAST(? AS uuid),?)');
+        $q->execute([$reference===null?null:hash('sha256',$reference),$organization,$permission]);
+        return in_array($q->fetchColumn(),[true,1,'1','t'],true);
+    }
+
+    public function test_browser_permission_preflight_never_implies_role_or_cross_tenant_authorization():void
+    {
+        // No explicit grant means no permission even for a valid MFA session.
+        $this->admin->exec("UPDATE public.portal_memberships SET role='owner'");
+        $active=$this->active();
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.manage'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'*'));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.*'));
+        self::assertFalse($this->permissionPreflight(null,self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('0',64),self::ORG,'services.view'));
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->deniedSql('SELECT * FROM public.portal_membership_grants');
+        $this->deniedSql('SELECT * FROM public.portal_auth_sessions');
+        $this->deniedSql('SELECT * FROM public.portal_memberships');
+    }
+
+    public function test_grant_revocation_invalidates_existing_business_permission_preflight():void
+    {
+        $grant='55555555-5555-4555-8555-555555555555';
+        $insert=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(2,(int)$this->admin->query(
+            'SELECT membership_revision FROM public.portal_memberships'
+        )->fetchColumn(),'Explicit grant issuance must rotate membership revision.');
+        $active=$this->active();
+        self::assertTrue($this->permissionPreflight($active,self::ORG,'services.view'));
+        foreach(['services.manage','billing.view','members.manage','services.*','*'] as $ungranted){
+            self::assertFalse($this->permissionPreflight($active,self::ORG,$ungranted));
+        }
+        self::assertFalse($this->permissionPreflight($active,'44444444-4444-4444-8444-444444444444','services.view'));
+        self::assertFalse($this->permissionPreflight(str_repeat('a',64),self::ORG,'services.view'));
+
+        $delete=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE id=?');
+        $delete->execute([$grant]);
+        self::assertSame(1,$delete->rowCount());
+        self::assertSame(3,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        // Reissue of the same grant cannot resurrect a session from a prior revision.
+        $insert->execute([$grant,self::MEMBER,'services.view']);
+        self::assertSame(4,(int)$this->admin->query('SELECT membership_revision FROM public.portal_memberships')->fetchColumn());
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+        self::assertTrue($this->adapter->revoke($active));
+        self::assertFalse($this->permissionPreflight($active,self::ORG,'services.view'));
+    }
+
+
+    public function test_same_identity_in_two_tenants_cannot_use_one_tenant_session_for_other_tenant_grants():void
+    {
+        $otherOrg='44444444-4444-4444-8444-444444444444';
+        $otherMember='77777777-7777-4777-8777-777777777777';
+        $org=$this->admin->prepare("INSERT INTO public.portal_organizations
+            (id,reference,display_name,status,security_revision)
+            VALUES(?,'same-actor-second-tenant','Second synthetic organization','active',1)");
+        $org->execute([$otherOrg]);
+        $member=$this->admin->prepare("INSERT INTO public.portal_memberships
+            (id,identity_id,organization_id,role,status,membership_revision)
+            VALUES(?,?,?,'owner','active',1)");
+        $member->execute([$otherMember,self::ACTOR,$otherOrg]);
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['88888888-8888-4888-8888-888888888888',self::MEMBER,'services.view']);
+        $grant->execute(['99999999-9999-4999-8999-999999999999',$otherMember,'services.view']);
+
+        $activeA=$this->active();
+        $check=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'),
+            'A real grant in B must not make a browser session for A usable in B.');
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.manage'));
+
+        // Revoking a grant only in B advances B's membership revision;
+        // it must not revoke A's otherwise valid MFA session.
+        $q=$this->admin->prepare('DELETE FROM public.portal_membership_grants WHERE membership_id=?');
+        $q->execute([$otherMember]);
+        self::assertSame(1,$q->rowCount());
+        self::assertTrue($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($check->allows($activeA,$otherOrg,'services.view'));
+
+        // The session is finally invalidated by revoking its own grant.
+        $q->execute([self::MEMBER]);
+        self::assertSame(1,$q->rowCount());
+        self::assertFalse($check->allows($activeA,self::ORG,'services.view'));
+        self::assertFalse($this->adapter->isActiveBusinessSession($activeA));
+    }
+
+
+    public function test_positive_grant_preflight_cannot_unlock_resource_or_http_authorization():void
+    {
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',self::MEMBER,'services.view']);
+        $session=$this->active();
+        $permission=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($permission->allows($session,self::ORG,'services.view'),
+            'Positive PG18 preflight must actually be exercised.');
+
+        // F305: a valid password + TOTP + explicit service grant does not
+        // establish ownership of an arbitrary resource. The application's
+        // trusted membership/resource/session sources are still deny-all.
+        $authority=$this->app->make(PortalAuthorityBoundary::class);
+        $verdict=$authority->inspect(
+            $session,
+            new OrganizationId(self::ORG),
+            'unverified-synthetic-service-asset',
+            'services.view',
+            time(),
+        );
+        self::assertFalse($verdict->syntheticChecksPass);
+        self::assertFalse($verdict->canAuthorizeHttp());
+
+        $routes=array_map(static fn($route):string=>$route->uri(),
+            iterator_to_array($this->app['router']->getRoutes()));
+        self::assertSame(['up'],$routes,'There must be no live business or auth route.');
+    }
+
+    private function expectIdentityFenceRefusal(string $sql):void
+    {
+        try {
+            $this->admin->exec($sql);
+        } catch(PDOException $error) {
+            self::assertSame('42501',(string)$error->getCode());
+            return;
+        }
+        self::fail('Identity security mutation unexpectedly accepted.');
+    }
+
+    public function test_password_replacement_automatically_invalidates_active_session():void
+    {
+        $active=$this->active();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_password_replacement_invalidates_pending_mfa_evidence():void
+    {
+        $pending=$this->begin();
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?');
+        $q->execute([PortalPasswordCredential::makeHash('replacement-password-only')]);
+        self::assertNull($this->adapter->completeMfa($pending,$this->otp(),'192.0.2.1'));
+        self::assertSame('pending_mfa',$this->admin->query('SELECT status FROM public.portal_auth_sessions')->fetchColumn());
+    }
+
+    public function test_email_change_requires_reverification_and_invalidates_session():void
+    {
+        $active=$this->active();
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET email_normalized='changed@example.invalid'");
+        $this->admin->exec("UPDATE public.portal_identities SET email_normalized='changed@example.invalid',email_verified_at=NULL");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_counter_advance_preserves_session_but_backward_counter_and_revision_are_refused():void
+    {
+        $active=$this->active();
+        $this->admin->exec('UPDATE public.portal_identities SET mfa_last_used_counter=mfa_last_used_counter+1');
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertTrue($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET mfa_last_used_counter=-1');
+        $this->admin->exec('UPDATE public.portal_identities SET security_revision=3');
+        $this->expectIdentityFenceRefusal('UPDATE public.portal_identities SET security_revision=1');
+    }
+
+    public function test_suspension_and_revocation_cannot_silently_restore_old_sessions():void
+    {
+        $active=$this->active();
+        $this->admin->exec("UPDATE public.portal_identities SET status='suspended'");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn());
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='active'");
+        $this->admin->exec("UPDATE public.portal_identities SET status='revoked'");
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET status='invited'");
+    }
+
+    public function test_initial_invited_enrollment_preserves_challenge_revision_until_activation():void
+    {
+        $this->admin->exec('TRUNCATE public.portal_auth_sessions,public.portal_membership_grants,public.portal_memberships,
+            public.portal_identities,public.portal_organizations CASCADE');
+        $q=$this->admin->prepare("INSERT INTO public.portal_identities(id,email_normalized,status,security_revision)
+            VALUES(?,'enrollment@example.invalid','invited',1)");
+        $q->execute([self::ACTOR]);
+        $this->admin->exec('UPDATE public.portal_identities SET email_verified_at=clock_timestamp()');
+        $q=$this->admin->prepare('UPDATE public.portal_identities SET password_hash=?,mfa_secret_ciphertext=?');
+        $q->execute([PortalPasswordCredential::makeHash('synthetic-password-only'),
+            PortalTotpSecretCipher::seal(self::SECRET,$this->key)]);
+        self::assertSame(1,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Initial enrollment must retain the consumed email challenge revision.');
+        $this->admin->exec("UPDATE public.portal_identities SET status='active',mfa_confirmed_at=clock_timestamp(),security_revision=security_revision+1");
+        self::assertSame(2,(int)$this->admin->query('SELECT security_revision FROM public.portal_identities')->fetchColumn(),
+            'Explicit activation increment is not incremented twice by the trigger.');
+    }
+
+    public function test_identity_binding_is_immutable_and_rollback_refuses_populated_database():void
+    {
+        $this->expectIdentityFenceRefusal("UPDATE public.portal_identities SET id='99999999-9999-4999-8999-999999999999'");
+        $original=\Illuminate\Support\Facades\DB::getDefaultConnection();
+        config(['database.connections.identity_fence_probe'=>[
+            'driver'=>'pgsql','host'=>'127.0.0.1','port'=>'5432','database'=>'portal_browser_lab',
+            'username'=>'postgres','password'=>(string)getenv('PGPASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
+        ]]);
+        \Illuminate\Support\Facades\DB::setDefaultConnection('identity_fence_probe');
+        try {
+            $migration=require __DIR__.'/../../database/migrations/2026_11_12_000016_fence_portal_identity_revision.php';
+            try {
+                $migration->down();
+                self::fail('Security fence removed while identity rows remain.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Identity fence rollback denied: identity/session evidence requires audited cleanup.',$error->getMessage());
+            }
+        } finally {
+            \Illuminate\Support\Facades\DB::disconnect('identity_fence_probe');
+            \Illuminate\Support\Facades\DB::setDefaultConnection($original);
+        }
+    }
+
 }

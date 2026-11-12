@@ -92,19 +92,24 @@ final readonly class PortalBrowserAuthController
     public function current(Request $request): JsonResponse
     {
         $state = $this->state($request);
+        if ($state === null || $state['phase'] !== 'business') {
+            return $this->denied();
+        }
         try {
-            if ($state !== null && $state['phase'] === 'business'
-                && $this->identity->isActiveBusinessSession($state['reference'])) {
+            if ($this->identity->isActiveBusinessSession($state['reference'])) {
                 return response()->json(['authenticated' => true]);
             }
+            // F294: a revoked membership, changed identity revision or
+            // expired authentication is not only a local cookie problem.
+            // Durably revoke the old SQL reference before clearing its
+            // browser envelope so that restoration cannot revive it.
+            $revoked = $this->identity->revoke($state['reference']);
+            $this->clear($request);
+            return $revoked ? $this->denied() : $this->unavailable();
         } catch (Throwable) {
             $this->clear($request);
             return $this->unavailable();
         }
-        if ($state !== null && $state['phase'] === 'business') {
-            $this->clear($request);
-        }
-        return $this->denied();
     }
 
     public function logout(Request $request): JsonResponse
