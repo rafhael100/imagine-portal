@@ -315,6 +315,13 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
                 $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
             fwrite(STDERR,"HTTP integration: response ".$response->getStatusCode()."\n");
+            // F300: all auth responses (also 400/401/419/503 paths) must
+            // prevent caches and referrer leakage, even with real PG18
+            // session persistence and the web middleware stack enabled.
+            self::assertStringContainsString('no-store',(string)$response->headers->get('Cache-Control'));
+            self::assertSame('no-cache',$response->headers->get('Pragma'));
+            self::assertSame('nosniff',$response->headers->get('X-Content-Type-Options'));
+            self::assertSame('no-referrer',$response->headers->get('Referrer-Policy'));
             // F299: prove the actual PostgreSQL-backed browser response
             // preserves the Portal-only host cookie security contract,
             // including cookie refreshes, rotations and session logout.
