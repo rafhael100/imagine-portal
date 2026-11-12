@@ -55,8 +55,25 @@ pg pg_restore --list < "$temporary/database.dump" > "$temporary/archive.list"
 # A fresh database is created explicitly. No --clean and no writes to source.
 pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
 created=1
+# createdb/template0 grants CONNECT to PUBLIC by default. Close the restored
+# target to all unspecified roles before importing any sensitive schema objects.
+sql postgres "REVOKE CONNECT ON DATABASE $target FROM PUBLIC" >/dev/null
+[[ $(sql postgres "SELECT has_database_privilege('portal_browser_runtime',
+ '$target','CONNECT')") == f ]] || exit 1
+[[ $(sql postgres "SELECT has_database_privilege('portal_browser_envelope_runtime',
+ '$target','CONNECT')") == f ]] || exit 1
 pg pg_restore -h 127.0.0.1 -U postgres --dbname="$target" \
     --exit-on-error < "$temporary/database.dump"
+# Re-check after import: dump ACL commands must not reopen the target.
+[[ $(sql postgres "SELECT has_database_privilege('portal_browser_runtime',
+ '$target','CONNECT')") == f ]] || exit 1
+[[ $(sql postgres "SELECT has_database_privilege('portal_browser_envelope_runtime',
+ '$target','CONNECT')") == f ]] || exit 1
+[[ $(sql postgres "SELECT NOT EXISTS (
+ SELECT 1 FROM pg_database d,
+ LATERAL aclexplode(coalesce(d.datacl,acldefault('d',d.datdba))) acl
+ WHERE d.datname='$target' AND acl.grantee=0
+ AND acl.privilege_type='CONNECT')") == t ]] || exit 1
 
 restored_marker=$(sql "$target" "$marker_query")
 [[ ${#source_marker} == 64 && "$source_marker" == "$restored_marker" ]] || exit 1

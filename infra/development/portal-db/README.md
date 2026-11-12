@@ -46,3 +46,7 @@ O workflow cria um banco-alvo descartável de mesmo nome **antes** de chamar a r
 ## F341 — matriz de privilégios após restauração
 
 A prova verifica também que os dois papéis runtime (`portal_browser_runtime` e `portal_browser_envelope_runtime`) não herdam **nenhum** privilégio direto de tabela (SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER) nas nove tabelas sensíveis protegidas com RLS. A validação ocorre **no banco-alvo restaurado**, não apenas na origem; a checagem de nove tabelas com ENABLE+FORCE RLS permanece obrigatória. Não substitui auditoria DBA independente nem testes de cópia externa.
+
+## F342 — banco-alvo restaurado sem CONNECT público
+
+`createdb --template=template0` pode conceder CONNECT a `PUBLIC` por padrão. No laboratório descartável, imediatamente após criar o banco-alvo, a restauração revoga CONNECT público e exige que ambos os papéis runtime não possam conectar ao destino. Após `pg_restore`, confere novamente a negação dos dois papéis e a ausência de concessão explícita de CONNECT a PUBLIC na ACL do banco. O acesso administrativo do próprio laboratório é preservado para leitura de verificação e limpeza do destino. Esta restrição protege apenas o banco restaurado sintético; não configura o banco de produção nem resolve os procedimentos de emergência de um cluster novo.
