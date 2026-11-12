@@ -98,6 +98,9 @@ jobs:
             COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
             bash ./backup-restore-smoke.sh >/dev/null 2>&1 || status=$?
           test "$status" -eq 65
+          test "$(sudo -E docker compose exec -T --user postgres postgres \
+            psql -X -U postgres -d postgres -tAc \
+            "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
           admin_sql "UPDATE public.migrations SET migration='$original' WHERE migration='$altered'"
           sudo -E docker compose run --rm -T provision php provision.php verify > after-migration-repair.out
           cmp before.out after-migration-repair.out
