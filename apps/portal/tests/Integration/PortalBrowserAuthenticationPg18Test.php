@@ -478,6 +478,34 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             'Bearer reference must be redacted if a future exception creates a stack trace.');
     }
 
+
+    public function test_permission_preflight_database_failure_exposes_no_sql_or_credentials():void
+    {
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',self::MEMBER,'services.view']);
+        $active=$this->active();
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
+
+        // Kill ONLY this test's dedicated disposable PG18 runtime connection,
+        // never a production service. PG18's timeout variant waits for exit.
+        $pid=(int)$this->runtime->query('SELECT pg_backend_pid()')->fetchColumn();
+        $kill=$this->admin->prepare('SELECT pg_terminate_backend(CAST(? AS integer),1000)');
+        $kill->execute([$pid]);
+        self::assertTrue(in_array($kill->fetchColumn(),[true,1,'1','t'],true));
+
+        try {
+            $preflight->hasCandidateGrant($active,self::ORG,'services.view');
+            self::fail('A terminated connection must never return stale grant=true.');
+        } catch(RuntimeException $error) {
+            self::assertSame('Portal permission preflight unavailable.',$error->getMessage());
+            self::assertStringNotContainsString('portal_browser_runtime',$error->getMessage());
+            self::assertStringNotContainsString('pg_terminate_backend',$error->getMessage());
+        }
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
