@@ -112,6 +112,10 @@ restored_marker=$(sql "$target" "$marker_query")
 [[ $(sql "$target" 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 1
 [[ $(sql "$target" "$allowlist_query") == 0 ]] || exit 1
 [[ $(sql "$target" "$migration_query") == "$source_migrations" ]] || exit 1
+# F349: check all thirteen restored SECURITY DEFINER function contracts,
+# including the exact EXECUTE matrix and reviewed migration-name set.
+pg psql -X -h 127.0.0.1 -U postgres -d "$target" \
+    -v ON_ERROR_STOP=1 < ./restore-contracts.sql >/dev/null
 [[ $(sql "$target" "$empty_source_query") == 0 ]] || exit 1
 
 rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace

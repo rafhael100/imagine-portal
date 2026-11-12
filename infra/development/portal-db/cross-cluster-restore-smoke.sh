@@ -95,6 +95,9 @@ docker exec -i --user postgres "$container_id" pg_restore -U postgres \
 [[ $(target_sql "$marker_query") == "$source_marker" ]] || exit 1
 [[ $(target_sql "$empty_query") == 0 ]] || exit 1
 [[ $(target_sql 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 1
+# Reuse the same immutable function/migration contract in the new cluster.
+docker exec -i --user postgres "$container_id" psql -X -U postgres \
+    -d "$target" -v ON_ERROR_STOP=1 < ./restore-contracts.sql >/dev/null
 [[ $(target_sql 'SELECT count(*) FROM portal_browser_private.proof_key') == 1 ]] || exit 1
 # Restored tables must keep their RLS and FORCE flags in a new cluster.
 rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
