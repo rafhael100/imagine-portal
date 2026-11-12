@@ -1,0 +1,183 @@
+#!/usr/bin/env node
+/**
+ * Review-only integration witness. Never merges, deploys, modifies a branch,
+ * grants database access, or turns a CI success into production approval.
+ * This tool belongs to dev, NOT the enormous draft candidate being audited.
+ */
+import { readFileSync } from 'node:fs';
+
+export const manifestUrl = new URL('../integration/portal-candidate.json', import.meta.url);
+
+function plainRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function validateManifest(m) {
+  if (!plainRecord(m) || m.schemaVersion !== 1 ||
+      m.repository !== 'rafhael100/imagine-portal' ||
+      m.targetBranch !== 'dev/fast-track-portal-2026-11-05' ||
+      !plainRecord(m.candidate) ||
+      !Number.isSafeInteger(m.candidate.pullRequest) ||
+      m.candidate.pullRequest < 1 ||
+      m.candidate.headBranch !== 'review/portal-int-ui-pg-f351-combined-ci-2026-11-12' ||
+      m.candidate.baseBranch !== 'review/portal-laravel-f350-restored-contract-negative-tests-2026-11-12' ||
+      !/^[a-f0-9]{40}$/.test(m.candidate.headSha ?? '') ||
+      !Number.isSafeInteger(m.maxCommitsPerIntegrationLot) ||
+      m.maxCommitsPerIntegrationLot < 1 ||
+      m.maxCommitsPerIntegrationLot > 100 ||
+      !Array.isArray(m.requiredWorkflows) ||
+      m.requiredWorkflows.length !== 9 ||
+      new Set(m.requiredWorkflows).size !== m.requiredWorkflows.length ||
+      !m.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160) ||
+      !plainRecord(m.policy) ||
+      Object.keys(m.policy).sort().join() !== [
+        'antiRollbackResolved', 'deployApproved', 'independentAppSecDbaApproved',
+        'mergeApproved', 'operationalRecoveryApproved'
+      ].sort().join() ||
+      Object.values(m.policy).some(value => value !== false)) {
+    throw new Error('INVALID_REVIEW_MANIFEST');
+  }
+  return m;
+}
+
+export function assessCandidate(m, pull, runs, comparison) {
+  validateManifest(m);
+  const errors = [];
+  const c = m.candidate;
+  if (!plainRecord(pull) || pull.number !== c.pullRequest ||
+      pull.state !== 'open' || pull.draft !== true || pull.merged_at !== null ||
+      pull.head?.ref !== c.headBranch ||
+      pull.head?.sha !== c.headSha ||
+      pull.head?.repo?.full_name !== m.repository ||
+      pull.base?.ref !== c.baseBranch ||
+      pull.base?.repo?.full_name !== m.repository) {
+    errors.push('DRAFT_PR_SHA_OR_ANCESTRY_CHANGED');
+  }
+  if (!Array.isArray(runs)) {
+    errors.push('WORKFLOW_EVIDENCE_MISSING');
+  }
+  const latest = new Map();
+  for (const run of Array.isArray(runs) ? runs : []) {
+    if (!plainRecord(run) || run.head_sha !== c.headSha ||
+        typeof run.name !== 'string' || !Number.isSafeInteger(run.id)) continue;
+    const old = latest.get(run.name);
+    if (!old || run.id > old.id ||
+        (run.id === old.id && run.run_attempt > old.run_attempt)) {
+      latest.set(run.name, run);
+    }
+  }
+  const workflowEvidence = {};
+  for (const name of m.requiredWorkflows) {
+    const run = latest.get(name);
+    const valid = !!run && run.status === 'completed' &&
+      run.conclusion === 'success' &&
+      run.head_sha === c.headSha &&
+      run.event === 'pull_request';
+    workflowEvidence[name] = valid ? 'PASSED' : 'MISSING_OR_FAILED';
+    if (!valid) errors.push('MISSING_OR_FAILED_CI:' + name);
+  }
+
+  if (!plainRecord(comparison) ||
+      !Number.isSafeInteger(comparison.ahead_by) ||
+      !Number.isSafeInteger(comparison.behind_by) ||
+      comparison.ahead_by < 0 || comparison.behind_by !== 0 ||
+      !['ahead', 'identical'].includes(comparison.status)) {
+    errors.push('UNVERIFIED_OR_DIVERGED_DEV_ANCESTRY');
+  }
+  // The GitHub compare API truncates its file listing. Only use aggregate
+  // ahead/behind counts; NEVER claim a full file review from its first page.
+  const commitsAhead = Number.isSafeInteger(comparison?.ahead_by) ?
+    comparison.ahead_by : null;
+  const splitRequired = commitsAhead === null ||
+    commitsAhead > m.maxCommitsPerIntegrationLot;
+  const evidenceVerified = errors.length === 0;
+  return {
+    decision: !evidenceVerified ? 'BLOCKED_EVIDENCE' :
+      splitRequired ? 'BLOCKED_SPLIT_INTEGRATION_LOTS' :
+      'REVIEW_CANDIDATE_ONLY',
+    evidenceVerified,
+    splitRequired,
+    commitsAheadOfDev: commitsAhead,
+    requiredWorkflowCount: m.requiredWorkflows.length,
+    workflowEvidence,
+    errors,
+    // Intentionally immutable irrespective of CI outcome.
+    mergeApproved: false,
+    deployApproved: false,
+    customerAccessApproved: false,
+    antiRollbackApproved: false,
+  };
+}
+
+export function printableDecision(decision) {
+  const { workflowEvidence, ...summary } = decision;
+  return {
+    ...summary,
+    workflowsPassed: Object.values(workflowEvidence).filter(s => s === 'PASSED').length,
+  };
+}
+
+async function githubGet(path, token) {
+  const response = await fetch('https://api.github.com' + path, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: 'Bearer ' + token,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'imagine-portal-readonly-integration-review',
+    },
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!response.ok) throw new Error('GITHUB_READ_FAILED_' + response.status);
+  return {
+    data: await response.json(),
+    paginated: (response.headers.get('link') || '').includes('rel="next"'),
+  };
+}
+
+export async function fetchEvidence(m, token) {
+  validateManifest(m);
+  if (typeof token !== 'string' || token.length < 20) {
+    throw new Error('MISSING_READ_ONLY_GITHUB_TOKEN');
+  }
+  const root = '/repos/' + m.repository;
+  const pr = await githubGet(root + '/pulls/' + m.candidate.pullRequest, token);
+  const runs = await githubGet(root + '/actions/runs?head_sha=' +
+    m.candidate.headSha + '&per_page=100', token);
+  const comparison = await githubGet(root + '/compare/' +
+    encodeURIComponent(m.targetBranch) + '...' +
+    m.candidate.headSha, token);
+  if (pr.paginated || runs.paginated || comparison.paginated ||
+      !Array.isArray(runs.data?.workflow_runs) ||
+      runs.data.total_count > runs.data.workflow_runs.length) {
+    // Do not silently accept the first 100 runs or a truncated response.
+    throw new Error('INCOMPLETE_GITHUB_EVIDENCE');
+  }
+  return { pull: pr.data, runs: runs.data.workflow_runs, comparison: comparison.data };
+}
+
+export async function main(args = process.argv.slice(2)) {
+  if (args.length !== 1 || args[0] !== '--verify-github') {
+    process.stderr.write('Usage: node tools/portal-integration-gate.mjs --verify-github\n');
+    return 64;
+  }
+  try {
+    const manifest = validateManifest(JSON.parse(readFileSync(manifestUrl, 'utf8')));
+    const { pull, runs, comparison } =
+      await fetchEvidence(manifest, process.env.GITHUB_TOKEN);
+    const result = assessCandidate(manifest, pull, runs, comparison);
+    process.stdout.write(JSON.stringify(printableDecision(result), null, 2) + '\n');
+    return result.evidenceVerified ? 0 : 65;
+  } catch (error) {
+    process.stderr.write(JSON.stringify({
+      decision: 'BLOCKED_UNVERIFIED',
+      reason: error instanceof Error ? error.message : 'UNKNOWN',
+      mergeApproved: false,
+      deployApproved: false,
+    }) + '\n');
+    return 65;
+  }
+}
+
+if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+  process.exitCode = await main();
+}
