@@ -30,13 +30,19 @@ final readonly class PortalBrowserAuthController
     public function password(Request $request): JsonResponse
     {
         $input = $request->json()->all();
+        // The private development gateway can authenticate only the
+        // organization explicitly configured server-side. Never trust a
+        // browser-provided tenant UUID merely because it is well formed.
+        $configuredOrganization = config('portal_development_auth.organization');
         if (!$this->only($input, ['email', 'password', 'organization'])
             || !is_string($input['email'] ?? null) || strlen($input['email']) > 254
             || filter_var($input['email'], FILTER_VALIDATE_EMAIL) === false
             || !is_string($input['password'] ?? null) || strlen($input['password']) > 1024
             || $input['password'] === ''
             || !is_string($input['organization'] ?? null)
-            || preg_match('/\\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z/D', $input['organization']) !== 1) {
+            || preg_match('/\\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z/D', $input['organization']) !== 1
+            || !is_string($configuredOrganization)
+            || !hash_equals($configuredOrganization, $input['organization'])) {
             return $this->denied();
         }
 
