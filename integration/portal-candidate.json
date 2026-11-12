@@ -43,7 +43,7 @@
       "pullRequest": 581,
       "headBranch": "review/portal-ui-contracts-dev-pilot-2026-11-12",
       "baseBranch": "dev/fast-track-portal-2026-11-05",
-      "headSha": "b3e5f8632da1a3799af991dc898d40beebcbe08f",
+      "headSha": "c33f4cdfd262d783cb6d2ccc1ba3df652aa5be5e",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
