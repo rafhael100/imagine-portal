@@ -172,8 +172,16 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
 
     private function ready(): void
     {
+        // F321: driver metadata/transaction probes may throw on a broken
+        // PDO before execute() can redact SQL provider diagnostics.
+        try {
+            $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $inTransaction = $this->db->inTransaction();
+        } catch (Throwable) {
+            throw new RuntimeException('Portal authentication database unavailable.');
+        }
         // Never acknowledge durable success within a caller-owned transaction.
-        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql' || $this->db->inTransaction()) {
+        if ($driver !== 'pgsql' || $inTransaction) {
             throw new RuntimeException('Dedicated autocommit PostgreSQL connection required.');
         }
         $r = $this->row("SELECT current_database() AS db,current_user AS actor,session_user AS login,
