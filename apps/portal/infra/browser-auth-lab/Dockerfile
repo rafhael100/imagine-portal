@@ -16,7 +16,7 @@ COPY apps/portal/routes ./routes
 COPY apps/portal/database/migrations ./database/migrations
 COPY apps/portal/database/security ./database/security
 COPY apps/portal/tests/TestCase.php ./tests/TestCase.php
-COPY apps/portal/tests/Feature/PortalBrowserAuthTransportTest.php apps/portal/tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php ./tests/Feature/
+COPY apps/portal/tests/Feature/PortalBrowserAuthTransportTest.php apps/portal/tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php apps/portal/tests/Feature/PortalDevelopmentAuthActivationTest.php ./tests/Feature/
 COPY apps/portal/tests/Integration/PortalBrowserAuthenticationPg18Test.php apps/portal/tests/Integration/PortalBrowserEnvelopePg18Test.php ./tests/Integration/
 COPY apps/portal/tests/Support/BrowserMfaRaceWorker.php apps/portal/tests/Support/BrowserEnvelopeRaceWorker.php ./tests/Support/
 COPY apps/portal/artisan apps/portal/phpunit.xml ./

@@ -1122,4 +1122,58 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         $this->expectExceptionMessage('Private Portal runtime cannot be reconstructed.');
         unserialize($payload);
     }
+
+    public function test_optin_application_provider_uses_persistent_sessions_and_real_password_mfa_logout():void
+    {
+        $directory=sys_get_temp_dir().'/portal-provider-'.bin2hex(random_bytes(12));
+        mkdir($directory,0700);$path=$directory.'/runtime.json';
+        $v=['origin'=>'https://portal-dev.imaginecomunica.com.br','host'=>'127.0.0.1','port'=>5432,
+            'database'=>'portal_browser_lab','identity_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),'proof_key'=>$this->proof,
+            'totp_key'=>base64_encode($this->key),'scope_pepper'=>$this->pepper];
+        file_put_contents($path,json_encode($v,JSON_THROW_ON_ERROR));chmod($path,0600);
+        config(['portal_development_auth.enabled'=>true,'portal_development_auth.secret_file'=>$path,
+            'app.env'=>'staging','app.debug'=>false,'app.url'=>'https://portal-dev.imaginecomunica.com.br',
+            'session.driver'=>'portal_private_pg','session.encrypt'=>false,'session.serialization'=>'json']);
+        $this->app->instance('encrypter',new Encrypter(random_bytes(32),'AES-256-CBC'));
+        $provider=new \App\Providers\PortalDevelopmentAuthServiceProvider($this->app);
+        $cookie=null;
+        $request=function(string $method,string $path,array $body=[],?string $token=null)use(&$cookie){
+            $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
+            $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json',
+                'HTTP_ORIGIN'=>'https://portal-dev.imaginecomunica.com.br','HTTP_SEC_FETCH_SITE'=>'same-origin','REMOTE_ADDR'=>'192.0.2.81'];
+            if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
+            $response=$this->call($method,'https://portal-dev.imaginecomunica.com.br/_development/auth/'.$path,[],
+                $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
+            foreach($response->headers->getCookies()as$c)if($c->getName()===config('session.cookie')){
+                self::assertTrue($c->isSecure());self::assertTrue($c->isHttpOnly());self::assertSame('/',$c->getPath());
+                $cookie=$c->getValue();
+            }
+            return $response;
+        };
+        try{
+            $provider->register();$provider->boot();
+            self::assertInstanceOf(PostgresPortalBrowserAuthentication::class,$this->app->make(PortalBrowserAuthentication::class));
+            self::assertInstanceOf(\App\Domain\PortalAccess\Authority\DenyingPortalAuthorities::class,
+                $this->app->make(\App\Domain\PortalAccess\Authority\PortalResourceAuthority::class));
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            self::assertInstanceOf(EncryptedPostgresPortalSessionHandler::class,$this->app['session']->driver()->getHandler());
+            $request('POST','password',['email'=>'synthetic@example.invalid','password'=>'synthetic-password-only','organization'=>self::ORG],$token)->assertStatus(202);
+            $request('GET','session')->assertUnauthorized();
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            $request('POST','mfa',['code'=>$this->otp()],$token)->assertOk()->assertExactJson(['authenticated'=>true]);
+            $request('GET','session')->assertOk();
+            self::assertGreaterThan(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_browser_envelopes')->fetchColumn());
+            config(['portal_development_auth.enabled'=>false]);
+            $request('GET','session')->assertNotFound();
+            config(['portal_development_auth.enabled'=>true]);
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            $request('POST','logout',[],$token)->assertNoContent();
+            $request('GET','session')->assertUnauthorized();
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
+        }finally{
+            try{$this->app['session']->driver()->getHandler()->close();}catch(\Throwable){}
+            unlink($path);rmdir($directory);
+        }
+    }
 }

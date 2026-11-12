@@ -26,6 +26,7 @@
 !apps/portal/tests/
 !apps/portal/tests/TestCase.php
 !apps/portal/tests/Feature/
+!apps/portal/tests/Feature/PortalDevelopmentAuthActivationTest.php
 !apps/portal/tests/Feature/PortalBrowserAuthTransportTest.php
 !apps/portal/tests/Feature/PortalDefaultDenyAuthorityBindingsTest.php
 !apps/portal/tests/Integration/

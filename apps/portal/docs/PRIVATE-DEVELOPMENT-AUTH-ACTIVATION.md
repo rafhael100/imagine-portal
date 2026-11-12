@@ -1,0 +1,9 @@
+# Ativação explícita de autenticação privada de desenvolvimento
+
+O provider está registrado, porém desativado por padrão. Sem PORTAL_DEVELOPMENT_AUTH_ENABLED=true, o container mantém DenyingPortalBrowserAuthentication e somente /up; não lê o arquivo de segredos nem cria PDO. O opt-in exige também APP_ENV=staging, APP_DEBUG=false, APP_URL=https://portal-dev.imaginecomunica.com.br, SESSION_DRIVER=portal_private_pg e cookies __Host-, HTTPS, HttpOnly, host-only, Path=/ e serialização JSON. Configuração/rotas em cache são recusadas quando ativado.
+
+O arquivo privado é o mesmo validado e protegido já existente. O operador deve montar somente runtime.json na aplicação (UID igual ao processo) e fornecer APP_KEY Laravel independente da chave TOTP, HMAC, pepper e senhas SQL. A senha administrativa do PostgreSQL nunca é montada no aplicativo. A factory já exige conexão nova por handler e roles fixos para identidade/envelope, no mesmo namespace de loopback.
+
+Somente cinco endpoints JSON são registrados no opt-in, sob /_development/auth: GET csrf, POST password, POST mfa, GET session, POST logout. Usam web, CSRF/Origin/Fetch Site/HTTPS já testados, além de checagem de ativação em cada requisição. Não existe formulário neste pacote, cadastro de operador, rota de negócio ou conta real. As quatro autoridades de sessão/empresa/membership/recurso e a fonte de convite permanecem DENY; sessão autenticada não libera CRM nem dados de serviços.
+
+Antes de ativar na VPS: montar credenciais/chave no UID correto, garantir rede interna sem publicação de banco/FPM, usar gateway com allowlist dessas rotas atrás da proteção existente e marcar HTTPS/IP somente de proxy confiável. O app não deve confiar em X-Forwarded-* de clientes. A implantação, primeiro cadastro com senha/MFA pelo operador, recuperação/custódia e revisão operacional são etapas separadas. O código não altera a VPS e permanece desligado até configuração explícita.
