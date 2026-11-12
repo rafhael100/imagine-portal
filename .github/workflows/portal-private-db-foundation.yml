@@ -249,6 +249,12 @@ jobs:
           sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
             COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
             bash ./backup-restore-smoke.sh
+      - name: Prove restore in an independent networkless PostgreSQL cluster
+        run: |
+          set -euo pipefail
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./cross-cluster-restore-smoke.sh
       - name: Remove only this disposable CI project and its credentials
         if: always()
         run: |
