@@ -298,10 +298,10 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         });
         fwrite(STDERR,"HTTP integration: session driver and routes ready\n");
         $cookie=null;
-        $request=function(string $method,string $path,array $body=[],?string $token=null)use(&$cookie){
+        $request=function(string $method,string $path,array $body=[],?string $token=null,string $origin='https://portal.example.test')use(&$cookie){
             fwrite(STDERR,"HTTP integration: request ".$method." ".$path."\n");
             $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
-            $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>'https://portal.example.test','REMOTE_ADDR'=>'192.0.2.10'];
+            $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>$origin,'REMOTE_ADDR'=>'192.0.2.10'];
             if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
                 $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
@@ -311,12 +311,21 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         };
         try{
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
-            $request('POST','password',['email'=>'synthetic@example.invalid','password'=>'synthetic-password-only','organization'=>$org],$token)->assertStatus(202);
+            $passwordBody=['email'=>'synthetic@example.invalid','password'=>'synthetic-password-only','organization'=>$org];
+            // F291: the real PG-backed HTTP transport must reject invalid
+            // CSRF and cross-site Origin *before* touching the identity DB.
+            $request('POST','password',$passwordBody,'invalid-csrf-F291')->assertStatus(419);
+            $request('POST','password',$passwordBody,$token,'https://attacker.example.invalid')->assertStatus(419);
+            self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
+            $request('POST','password',$passwordBody,$token)->assertStatus(202);
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
             $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
             $hmac=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);
             $offset=ord($hmac[19])&15;$n=unpack('N',substr($hmac,$offset,4))[1]&0x7fffffff;
             $otp=str_pad((string)($n%1000000),6,'0',STR_PAD_LEFT);
+            $request('POST','mfa',['code'=>$otp],'invalid-mfa-csrf-F291')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,'https://attacker.example.invalid')->assertStatus(419);
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
             $request('POST','mfa',['code'=>$otp],$token)->assertOk();
             $request('GET','session')->assertOk()->assertExactJson(['authenticated'=>true]);
             $payloads=json_encode($this->admin->query('SELECT payload FROM public.portal_browser_envelopes')->fetchAll(PDO::FETCH_COLUMN));
