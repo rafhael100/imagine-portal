@@ -8,6 +8,7 @@ The QA checks rendered width, isolated table scroll and mobile menu focus.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -25,13 +26,40 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
     from playwright.sync_api import sync_playwright
 
     with zipfile.ZipFile(archive) as zf:
-        if sorted(name for name in zf.namelist() if name.endswith(".html")) != sorted(PAGES):
-            raise ValueError("Expected exactly nine synthetic views plus the index.")
-        pages = {name: zf.read(name).decode("utf-8") for name in PAGES}
+        inventory = zf.namelist()
+        if len(inventory) != len(PAGES) + 1 or sorted(inventory) != sorted((*PAGES, "manifest.json")):
+            raise ValueError("Expected exactly ten synthetic HTML files and one manifest.")
+        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+        if (manifest.get("schema") != "imagine-portal-visual-only-preview-v1"
+            or manifest.get("synthetic_only") is not True
+            or manifest.get("logo_git_blob_sha1") != "678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77"
+            or any(manifest.get(k) is not False for k in (
+                "authorizes_customer_access", "authorizes_payment",
+                "authorizes_deployment"))):
+            raise ValueError("Manifest must explicitly deny customer access and deployment.")
+        records = manifest.get("pages")
+        if not isinstance(records, list) or len(records) != len(PAGES):
+            raise ValueError("Incomplete manifest page list.")
+        pages: dict[str, str] = {}
+        for record in records:
+            if not isinstance(record, dict) or record.get("name") not in PAGES:
+                raise ValueError("Unrecognized manifest entry.")
+            name = record["name"]
+            if name in pages:
+                raise ValueError("Duplicate manifest entry.")
+            content = zf.read(name)
+            if (record.get("bytes") != len(content)
+                or record.get("sha256") != hashlib.sha256(content).hexdigest()
+                or len(content) > 1_000_000):
+                raise ValueError("Manifest checksum/size mismatch.")
+            pages[name] = content.decode("utf-8")
+        if set(pages) != set(PAGES):
+            raise ValueError("Missing HTML page in manifest.")
 
     errors: list[dict] = []
     inspected = 0
     scroll_tests = 0
+    nav_tests = 0
     with sync_playwright() as p:
         options = {"headless": True, "args": [
             "--no-sandbox", "--disable-gpu",
@@ -92,6 +120,7 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
                             if nav.count() == 1:
                                 nav.evaluate("(e) => { e.scrollLeft = 0; }")
                                 nav.evaluate("(e) => { e.scrollLeft = 120; }")
+                                nav_tests += 1
                                 if nav.evaluate("(e) => e.scrollLeft") < 1:
                                     errors.append({"page": name, "width": width,
                                                    "reason": "mobile_navigation_not_scrollable"})
@@ -103,6 +132,8 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
         "widths": list(WIDTHS),
         "pages": len(PAGES),
         "keyboard_table_checks": scroll_tests,
+        "mobile_menu_checks": nav_tests,
+        "manifest_integrity_verified": True,
         "passed": not errors,
         "issues": errors,
         "authorizes_production": False,
