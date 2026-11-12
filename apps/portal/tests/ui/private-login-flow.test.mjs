@@ -12,7 +12,9 @@ function setup(organization='22222222-2222-4222-8222-222222222222'){
   for(const id of ['auth','password-form','mfa-form','authenticated','status','email','password','code','back','logout','success-title'])elements.set('#'+id,element(id));
   elements.get('#auth').dataset.organization=organization;
   const calls=[];const queue=[{status:401}];
-  const context={document:{querySelector:id=>elements.get(id)},AbortSignal,fetch:async(path,options)=>{
+  const document={querySelector:id=>elements.get(id),visibilityState:'visible',listeners:{},
+    addEventListener(type,handler){this.listeners[type]=handler;}};
+  const context={document,AbortSignal,fetch:async(path,options)=>{
     calls.push({path,options});
     const response=queue.shift();
     if(response instanceof Error)throw response;
@@ -21,7 +23,7 @@ function setup(organization='22222222-2222-4222-8222-222222222222'){
   }};
   vm.runInNewContext(source,context);
   const fire=async(id,event='submit')=>{elements.get('#'+id).listeners[event]({preventDefault(){}});await flush();};
-  return {elements,calls,queue,fire};
+  return {elements,calls,queue,fire,document};
 }
 test('unconfigured company never starts an authentication request',async()=>{
   const s=setup('');await flush();assert.equal(s.calls.length,0);
@@ -71,4 +73,63 @@ test('logout failure hides all account actions and does not claim successful log
   assert.equal(s.elements.get('#authenticated').hidden,true);
   assert.equal(s.elements.get('#password-form').hidden,true);
   assert.match(s.elements.get('#status').textContent,/Não foi possível confirmar a saída/);
+});
+
+test('logout network uncertainty immediately conceals the previously confirmed session',async()=>{
+  const s=setup();await flush();
+  s.elements.get('#email').value='operator@example.invalid';
+  s.elements.get('#password').value='synthetic-only';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:202});
+  await s.fire('password-form');
+  s.elements.get('#code').value='123456';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:200,body:{authenticated:true}},{status:200,body:{authenticated:true}});
+  await s.fire('mfa-form');
+  assert.equal(s.elements.get('#authenticated').hidden,false);
+  s.queue.push(new Error('network down before logout can be confirmed'));
+  await s.fire('logout','click');
+  assert.equal(s.elements.get('#authenticated').hidden,true);
+  assert.equal(s.elements.get('#password-form').hidden,true);
+  assert.equal(s.elements.get('#mfa-form').hidden,true);
+  assert.match(s.elements.get('#status').textContent,/Não foi possível confirmar a saída/);
+  assert.doesNotMatch(s.elements.get('#status').textContent,/saiu com segurança/);
+});
+
+test('returning to a visible tab rechecks active login, expires denied sessions and keeps outages locked',async()=>{
+  const s=setup();await flush();
+  s.elements.get('#email').value='operator@example.invalid';
+  s.elements.get('#password').value='synthetic-only';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:202});
+  await s.fire('password-form');
+  s.elements.get('#code').value='123456';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:200,body:{authenticated:true}},{status:200,body:{authenticated:true}});
+  await s.fire('mfa-form');
+  assert.equal(s.elements.get('#authenticated').hidden,false);
+  assert.equal(typeof s.document.listeners.visibilitychange,'function');
+  s.document.visibilityState='hidden';
+  s.document.listeners.visibilitychange();
+  assert.equal(s.elements.get('#authenticated').hidden,false);
+  s.document.visibilityState='visible';
+  s.queue.push({status:503});
+  s.document.listeners.visibilitychange();
+  assert.equal(s.elements.get('#authenticated').hidden,true);
+  await flush();
+  assert.equal(s.elements.get('#password-form').hidden,true);
+  assert.match(s.elements.get('#status').textContent,/Não foi possível verificar a sessão/);
+});
+
+test('returning to a visible tab with expired session returns to password without claiming authentication',async()=>{
+  const s=setup();await flush();
+  s.elements.get('#email').value='operator@example.invalid';
+  s.elements.get('#password').value='synthetic-only';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:202});
+  await s.fire('password-form');
+  s.elements.get('#code').value='123456';
+  s.queue.push({status:200,body:{csrf_token:'test-token'}},{status:200,body:{authenticated:true}},{status:200,body:{authenticated:true}});
+  await s.fire('mfa-form');
+  s.queue.push({status:401});
+  s.document.listeners.visibilitychange();
+  await flush();
+  assert.equal(s.elements.get('#authenticated').hidden,true);
+  assert.equal(s.elements.get('#password-form').hidden,false);
+  assert.match(s.elements.get('#status').textContent,/Sua sessão terminou/);
 });
