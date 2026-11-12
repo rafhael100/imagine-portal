@@ -2,7 +2,7 @@
 -- Not a migration/deploy command. Runtime remains NOLOGIN until provisioning.
 BEGIN;
 SET LOCAL search_path=pg_catalog,public;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 CREATE ROLE portal_browser_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
 CREATE ROLE portal_browser_runtime NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
 GRANT USAGE,CREATE ON SCHEMA public TO portal_browser_owner;
