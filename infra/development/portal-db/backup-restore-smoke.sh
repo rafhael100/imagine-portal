@@ -37,7 +37,19 @@ cleanup() {
 trap cleanup EXIT
 
 # Refuse populated sources, preexisting targets and ambiguous cluster state.
-[[ $(sql portal_identity_dev 'SELECT count(*) FROM public.portal_identities') == 0 ]] || exit 65
+# F340: zero identities is not sufficient proof that the source contains
+# no business data. Envelope/session/service rows may exist without users.
+# This CI-only drill must never copy a nonempty foundation.
+empty_source_query='SELECT
+ (SELECT count(*) FROM public.portal_identities) +
+ (SELECT count(*) FROM public.portal_organizations) +
+ (SELECT count(*) FROM public.portal_memberships) +
+ (SELECT count(*) FROM public.portal_membership_grants) +
+ (SELECT count(*) FROM public.portal_auth_sessions) +
+ (SELECT count(*) FROM public.portal_auth_attempt_buckets) +
+ (SELECT count(*) FROM public.portal_browser_envelopes) +
+ (SELECT count(*) FROM public.portal_service_resource_claims)'
+[[ $(sql portal_identity_dev "$empty_source_query") == 0 ]] || exit 65
 [[ $(sql portal_identity_dev "SELECT count(*) FROM pg_database WHERE datname='$target'") == 0 ]] || exit 65
 
 pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev \
