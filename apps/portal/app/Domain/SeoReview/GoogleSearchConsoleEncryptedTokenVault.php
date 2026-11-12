@@ -48,11 +48,12 @@ final class GoogleSearchConsoleEncryptedTokenVault
         GoogleSearchConsoleOAuthTokenCandidate $candidate,
         mixed $trustedNow
     ):bool {
-        if(!self::validContext($trustedTenant,$trustedActor,$propertyFingerprint,
+        if(!self::syntheticLabEnabled() ||
+            !self::validContext($trustedTenant,$trustedActor,$propertyFingerprint,
             $trustedNow))return false;
         $data=$candidate->takeForTrustedVault();
         $safe=$candidate->safeReview();
-        if(!self::validTokens($data) ||
+        if(!self::validSyntheticTokens($data) ||
             $safe['tokenPersistenceAuthorized']!==false ||
             $safe['customerDisplayAuthorized']!==false ||
             $data['expiresAt']<=$trustedNow ||
@@ -92,8 +93,9 @@ final class GoogleSearchConsoleEncryptedTokenVault
         mixed $propertyFingerprint,
         mixed $trustedNow
     ):?GoogleSearchConsoleEncryptedTokenSecret {
-        if(!self::validContext($trustedTenant,$trustedActor,
-            $propertyFingerprint,$trustedNow))return null;
+        if(!self::syntheticLabEnabled() ||
+            !self::validContext($trustedTenant,$trustedActor,
+                $propertyFingerprint,$trustedNow))return null;
         try{
             $stmt=$this->pdo->prepare('SELECT sealed_tokens,scope,expires_at
                 FROM portal_gsc_oauth_token_candidates
@@ -137,7 +139,7 @@ final class GoogleSearchConsoleEncryptedTokenVault
             );
             if(!is_string($plain))return null;
             $data=json_decode($plain,true,8,JSON_THROW_ON_ERROR);
-            if(!self::validTokens($data) || $data['expiresAt']!==$expires)
+            if(!self::validSyntheticTokens($data) || $data['expiresAt']!==$expires)
                 return null;
             return new GoogleSearchConsoleEncryptedTokenSecret($data);
         }catch(Throwable){return null;}
@@ -154,7 +156,8 @@ final class GoogleSearchConsoleEncryptedTokenVault
         mixed $propertyFingerprint,
         mixed $trustedNow
     ):bool {
-        if($this->keyVersion!==2 || $this->previousKey===null ||
+        if(!self::syntheticLabEnabled() ||
+            $this->keyVersion!==2 || $this->previousKey===null ||
             !self::validContext($trustedTenant,$trustedActor,
                 $propertyFingerprint,$trustedNow))return false;
         try {
@@ -179,7 +182,7 @@ final class GoogleSearchConsoleEncryptedTokenVault
             );
             if($secret===null)return false;
             $data=$secret->takeForTrustedBackend();
-            if(!self::validTokens($data))return false;
+            if(!self::validSyntheticTokens($data))return false;
             $expires=(int)$row['expires_at'];
             if($expires!==$data['expiresAt'])return false;
             $nonce=random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
@@ -211,8 +214,9 @@ final class GoogleSearchConsoleEncryptedTokenVault
         mixed $propertyFingerprint,
         mixed $trustedNow
     ):bool {
-        if(!self::validContext($trustedTenant,$trustedActor,
-            $propertyFingerprint,$trustedNow))return false;
+        if(!self::syntheticLabEnabled() ||
+            !self::validContext($trustedTenant,$trustedActor,
+                $propertyFingerprint,$trustedNow))return false;
         try{
             $stmt=$this->pdo->prepare('UPDATE portal_gsc_oauth_token_candidates
                 SET revoked_at=:revoked
@@ -233,6 +237,34 @@ final class GoogleSearchConsoleEncryptedTokenVault
     public static function authorizesGoogleHttp():bool{return false;}
     public static function authorizesTokenUse():bool{return false;}
     public static function authorizesCustomerDisplay():bool{return false;}
+
+    /**
+     * Explicit lab gate: no real Google credential may be persisted through
+     * these review-only methods. An operational vault needs a separately
+     * authorized service after live Google/Portal verification.
+     */
+    private static function syntheticLabEnabled():bool
+    {
+        if(getenv('APP_ENV')!=='testing')return false;
+        foreach([
+            'PORTAL_GSC_TOKEN_VAULT_LAB',
+            'PORTAL_GSC_TOKEN_RETENTION_LAB',
+            'PORTAL_GSC_KEY_ROTATION_LAB'
+        ] as $flag){
+            if(getenv($flag)==='1')return true;
+        }
+        return false;
+    }
+
+    private static function validSyntheticTokens(mixed $data):bool
+    {
+        if(!self::validTokens($data))return false;
+        foreach(['accessToken','refreshToken'] as $name){
+            if(array_key_exists($name,$data) &&
+                !str_starts_with($data[$name],'synthetic-'))return false;
+        }
+        return true;
+    }
 
     private static function aad(string $tenant,string $actor,string $property,int $expires):string
     {
