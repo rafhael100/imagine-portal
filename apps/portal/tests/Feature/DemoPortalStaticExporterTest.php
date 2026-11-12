@@ -367,6 +367,35 @@ final class DemoPortalStaticExporterTest extends TestCase
         (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
     }
 
+    public function test_replaced_claim_is_left_untouched_by_original_exporter(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            self::markTestSkipped('Renaming an open claim marker requires Unix filesystem semantics.');
+        }
+        $claim = $this->temporaryDirectory.'.exporting';
+        $moved = $claim.'.original';
+        $this->app['view']->composer('portal.demo.delivery-review',
+            static function () use ($claim, $moved): void {
+                self::assertFileExists($claim);
+                self::assertTrue(rename($claim, $moved));
+                self::assertSame(strlen('new owner'), file_put_contents($claim, 'new owner'));
+            });
+
+        try {
+            (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+            self::assertSame('new owner', file_get_contents($claim),
+                'a predecessor must not remove or modify the replacement claim');
+            self::assertFileExists($moved);
+        } finally {
+            if (is_file($claim) && !is_link($claim)) {
+                unlink($claim);
+            }
+            if (is_file($moved) && !is_link($moved)) {
+                unlink($moved);
+            }
+        }
+    }
+
     public function test_stale_or_competing_export_claim_prevents_new_output(): void
     {
         $claim = $this->temporaryDirectory . '.exporting';
