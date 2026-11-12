@@ -5,9 +5,10 @@ export function safeCsvCell(value){
  const valueText=String(value??'').replace(/\r\n?/g,'\n');
  // Spreadsheet programs may evaluate cells beginning with formulas, even
  // when a field is surrounded by CSV quotes. Guard leading invisible Unicode
- // format/control characters as well as regular whitespace. An apostrophe in the first
+ // F247: include every Unicode Default_Ignorable_Code_Point, not only
+ // selected bidi/zero-width ranges (e.g. soft hyphen and combining grapheme joiner).
  // position ensures it remains data (including with preceding whitespace).
- const safe=/^[\s\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
+ const safe=/^[\s\p{Default_Ignorable_Code_Point}\u0000-\u001F\u007F-\u009F]*[=+\-@]/u.test(valueText)?"'"+valueText:valueText;
  return '"'+safe.replace(/"/g,'""')+'"';
 }
 export function *projectsCsvChunks(projects,{withStage=false}={}){
