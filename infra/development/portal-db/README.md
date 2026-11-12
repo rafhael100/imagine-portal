@@ -84,3 +84,5 @@ Os dois ensaios de restauração (no mesmo cluster descartável e no segundo clu
 ## F350 — provas negativas para o contrato SQL
 
 A CI exige que `restore-contracts.sql` passe com a fundação sintética íntegra, falhe após uma alteração temporária de `SECURITY DEFINER` para `SECURITY INVOKER` na função de validação de sessão e falhe quando `PUBLIC` recebe `EXECUTE` direto na função interna HMAC. Cada alteração é revertida antes de uma segunda aprovação do contrato e da comparação do fingerprint original. São testes exclusivamente no cluster descartável, sem alterar autenticação real, sem abrir rotas HTTP e sem deploy.
+
+**Correção de inicialização F348 (CI):** uma execução da candidata F350 detectou que `pg_isready` aceita o servidor temporário do `initdb` **antes** de `POSTGRES_DB` existir. O segundo cluster agora precisa ter o processo final PostgreSQL como PID 1 **e** responder a uma consulta SQL ao banco-alvo correto antes de criar os papéis. Esse teste evita a corrida de inicialização sem aumentar permissões ou usar rede externa.
