@@ -84,6 +84,14 @@ jobs:
           python3 smoke.py --resume /tmp/portal-auth-probe.json
           python3 smoke.py
           test "$(sudo docker compose -p imagine-portal-auth-db-ci -f ../portal-db/compose.yaml port postgres 5432 2>/dev/null || true)" = ""
+      - name: Diagnose gateway startup without credential or response output
+        if: failure()
+        working-directory: infra/development/portal-auth
+        run: |
+          if test -n "${PORTAL_DB_CONTAINER:-}"; then
+            sudo -E docker compose -p imagine-portal-private-auth-ci ps --format json
+            sudo -E docker compose -p imagine-portal-private-auth-ci logs --no-color --tail 25 gateway
+          fi
       - name: Remove only this runner's disposable rehearsal
         if: always()
         run: |
