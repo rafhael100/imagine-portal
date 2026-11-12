@@ -29,12 +29,16 @@ final class F359PostRestoreQuarantineTest extends TestCase
         }
     }
 
-    private function connect(bool $witness = false): PDO
+    private function connect(bool $witness = false, string $tenant = 'a'): PDO
     {
+        if (!in_array($tenant, ['a', 'b'], true)) {
+            throw new RuntimeException('Unknown synthetic tenant.');
+        }
         $host = $witness ? getenv('F31_PG_HOST') : getenv('F22_PG_HOST');
         $port = $witness ? getenv('F31_PG_PORT') : getenv('F22_PG_PORT');
-        $user = $witness ? 'f31_witness_reader' : 'f21_org_a';
-        $password = $witness ? getenv('F31_PG_PASSWORD_READER') : getenv('F22_PG_PASSWORD_A');
+        $user = $witness ? 'f31_witness_reader' : 'f21_org_'.$tenant;
+        $password = $witness ? getenv('F31_PG_PASSWORD_READER')
+            : getenv($tenant === 'a' ? 'F22_PG_PASSWORD_A' : 'F22_PG_PASSWORD_B');
         if ($host !== '127.0.0.1'
             || !is_string($port) || preg_match('/\A[0-9]{4,5}\z/D', $port) !== 1
             || (int) $port > 65535
@@ -112,6 +116,47 @@ final class F359PostRestoreQuarantineTest extends TestCase
             self::assertFalse($result->mayExposeCustomerData());
             self::assertFalse($result->authorizesServiceAccess());
             self::assertFalse($result->authorizesContractOrPayment());
+        }
+    }
+
+    public function test_tenant_b_cannot_reuse_old_or_new_session_proof_after_restore(): void
+    {
+        // Tenant-B is accessed with its own restricted SQL identity, never A.
+        $pdo = $this->connect(false, 'b');
+        $sessions = $pdo->query('SELECT organization_id,session_id,session_revision,mock_state
+                                  FROM f24.session_fixture ORDER BY session_id')->fetchAll();
+        self::assertCount(1, $sessions);
+        self::assertSame('org-b', $sessions[0]['organization_id']);
+        self::assertSame('DEMO-SESSION-B', $sessions[0]['session_id']);
+        self::assertSame('revoked', $sessions[0]['mock_state']);
+        self::assertSame(2, (int) $sessions[0]['session_revision']);
+
+        $memberships = $pdo->query(
+            'SELECT organization_id,actor_id,membership_revision,mock_state,can_view_services
+               FROM f24.membership_fixture'
+        )->fetchAll();
+        self::assertCount(1, $memberships);
+        self::assertSame('org-b', $memberships[0]['organization_id']);
+        self::assertSame('DEMO-USER-B', $memberships[0]['actor_id']);
+        self::assertSame(2, (int) $memberships[0]['membership_revision']);
+        self::assertSame('revoked', $memberships[0]['mock_state']);
+        self::assertContains($memberships[0]['can_view_services'], ['f', false, '0', 0]);
+
+        $key = random_bytes(32);
+        $reader = new F24SyntheticAuthorizedReader($pdo, $key);
+        foreach ([[1, 1], [2, 2]] as [$sessionRevision, $membershipRevision]) {
+            $blocked = $reader->read(
+                new OrganizationId('org-b'),
+                $this->token($key, 'org-b', 'DEMO-USER-B', 'DEMO-SESSION-B',
+                    $sessionRevision, $membershipRevision),
+                self::NOW,
+            );
+            self::assertSame('revoked_lab_identity', $blocked->reason);
+            self::assertFalse($blocked->isPreparedPreview());
+            self::assertSame([], $blocked->rows);
+            self::assertFalse($blocked->mayExposeCustomerData());
+            self::assertFalse($blocked->authorizesServiceAccess());
+            self::assertFalse($blocked->authorizesContractOrPayment());
         }
     }
 
