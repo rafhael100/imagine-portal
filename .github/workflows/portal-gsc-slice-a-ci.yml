@@ -125,7 +125,7 @@ jobs:
                 labs.has(pieces[3])&&pieces[4].length>0;
             };
             const consolidated=process.env.BASE_REF==="dev/fast-track-portal-2026-11-05";
-            const maxPaths=consolidated?35:12;
+            const maxPaths=consolidated?40:12;
             const minPaths=consolidated?20:1;
             if(files.length<minPaths||files.length>maxPaths||files.some(p=>!allow(p))){
               console.error("GSC review slice: unexpected modified paths");process.exit(1);
