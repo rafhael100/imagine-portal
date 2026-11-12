@@ -5,8 +5,10 @@ declare(strict_types=1);
  * GSC Slice F — strictly isolated, synthetic PHP verifier for pinned SEO-F88.
  * No production routes, token handling, database or customer display.
  */
+ $phase = "input";
 function denyF88(): never {
-    fwrite(STDERR, "GSC Slice F: original-row handoff contract refused\n");
+    global $phase;
+    fwrite(STDERR, "GSC Slice F: synthetic contract refused at {$phase}\n");
     exit(1);
 }
 if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
@@ -26,6 +28,7 @@ try {
         denyF88();
     }
     $dto=json_decode($payload,true,32,JSON_THROW_ON_ERROR);
+    $phase = "envelope";
     if (!is_array($dto) || array_is_list($dto))denyF88();
     $only=function(array $value,array $allowed): bool {
         $actual=array_keys($value);
@@ -43,10 +46,12 @@ try {
         $dto['releaseStatus']!=='HOLD_EXTERNAL_AUTHORIZATION'||
         !is_array($dto['coverage'])||!is_array($dto['brief'])||
         !is_array($dto['handoff'])||!is_array($dto['caveats']))denyF88();
+    $phase = "privilege-flags";
     foreach(['oauthVerified','propertyAuthorizationVerified','backendTenantGrantVerified',
         'customerDisplayAuthorized','publicationAuthorized','networkPerformed'] as $flag){
         if($dto[$flag]!==false)denyF88();
     }
+    $phase = "coverage";
     $c=$dto['coverage'];
     if(!$only($c,['status','metricsWithheld','reason','receivedRows','redactedRows'])||
         !is_array($c['receivedRows'])||
@@ -59,6 +64,7 @@ try {
         $c['reason']!==($withheld?'PRIVACY_REDACTION':null)||
         $c['status']!==($withheld?'REDACTED_ROWS_NO_COMPARISON':
             'SUPPLIED_ROWS_ONLY_NOT_VERIFIED'))denyF88();
+    $phase = "brief-handoff";
     $brief=$dto['brief'];$handoff=$dto['handoff'];
     if(!$only($brief,[
         'contractVersion','sourceType','technical','organic',
@@ -84,13 +90,16 @@ try {
         $handoff['scope']['sourceRevision']!==str_repeat('b',40)||
         $handoff['technical']!==$brief['technical']||
         !is_array($handoff['suggestedReviews']))denyF88();
+    $phase = "technical-summary";
     $technical=$brief['technical'];
     if(!$only($technical,['status','pages','errors','warnings'])||
        $technical!==[
            'status'=>'review_required','pages'=>2,'errors'=>1,'warnings'=>0
        ])denyF88();
+    $phase = "review-codes";
     $reviewCodes=array_column($handoff['suggestedReviews'],'code');
     if(!in_array('repair_canonical',$reviewCodes,true))denyF88();
+    $phase = "scenario";
     if($withheld){
         if($brief['organic']!==null||$handoff['organic']!==null||
             $reviewCodes!==['repair_canonical']||
