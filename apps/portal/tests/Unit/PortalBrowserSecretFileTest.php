@@ -162,6 +162,24 @@ final class PortalBrowserSecretFileTest extends TestCase
         }
     }
 
+    public function test_sql_role_password_must_not_equal_any_signing_or_totp_material():void
+    {
+        $baseline=$this->values;
+        foreach(['identity_password','envelope_password'] as $role){
+            foreach(['proof_key','scope_pepper','totp_key'] as $material){
+                $this->values=$baseline;
+                $this->values[$role]=$this->values[$material];
+                $this->write();
+                $this->refused();
+            }
+        }
+        $this->values=$baseline;
+        $this->write();
+        self::assertSame($baseline['identity_password'],
+            PortalBrowserSecretFile::load($this->path,'https://portal.example.test')
+                ->value('identity_password'));
+    }
+
     public function test_connection_components_cannot_inject_dsn_options():void
     {
         $this->values['host']='127.0.0.1;user=postgres';$this->write();$this->refused();
