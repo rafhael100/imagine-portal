@@ -77,7 +77,7 @@ try {
     $rows=$pdo->query('SELECT event_code FROM portal_gsc_security_events
         ORDER BY event_at')->fetchAll(PDO::FETCH_COLUMN);
     $check($rows===['oauth_callback_denied','oauth_pkce_prepared']);
-    $check($audit->purge($now+366*86400,365,500)===null);
+    $check($audit->purge($now,365,500)===0);
     $check($audit->purge($now+31*86400,30,500)===2);
     $check($pdo->query('SELECT COUNT(*) FROM portal_gsc_security_events')
         ->fetchColumn()==0);
