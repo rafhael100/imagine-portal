@@ -311,6 +311,12 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             PortalTotpSecretCipher::seal('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',$key)]);
         $q=$this->admin->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision)
             VALUES(?,'envelope-fixture','Synthetic envelope only','active',1)");$q->execute([$org]);
+        // F292: a second active organization exists, but has NO membership
+        // for this synthetic identity. Its ID cannot authorize password login.
+        $foreignOrg='44444444-4444-4444-8444-444444444444';
+        $q=$this->admin->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision)
+            VALUES(?,'foreign-envelope-fixture','Unrelated synthetic company','active',1)");
+        $q->execute([$foreignOrg]);
         $q=$this->admin->prepare("INSERT INTO public.portal_memberships(id,identity_id,organization_id,role,status,membership_revision)
             VALUES('33333333-3333-4333-8333-333333333333',?,?,'member','active',1)");$q->execute([$actor,$org]);
         $identity=self::connect('portal_browser_runtime',(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'));
@@ -335,25 +341,114 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         });
         fwrite(STDERR,"HTTP integration: session driver and routes ready\n");
         $cookie=null;
-        $request=function(string $method,string $path,array $body=[],?string $token=null)use(&$cookie){
+        $request=function(string $method,string $path,array $body=[],?string $token=null,
+            string $origin='https://portal.example.test',?string $fetchSite=null,
+            string $contentType='application/json')use(&$cookie){
             fwrite(STDERR,"HTTP integration: request ".$method." ".$path."\n");
             $this->app['session']->forgetDrivers();$this->app->forgetInstance('session.store');
-            $server=['CONTENT_TYPE'=>'application/json','HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>'https://portal.example.test','REMOTE_ADDR'=>'192.0.2.10'];
+            $server=['CONTENT_TYPE'=>$contentType,'HTTP_ACCEPT'=>'application/json','HTTP_ORIGIN'=>$origin,'REMOTE_ADDR'=>'192.0.2.10'];
             if($token!==null)$server['HTTP_X_CSRF_TOKEN']=$token;
+            if($fetchSite!==null)$server['HTTP_SEC_FETCH_SITE']=$fetchSite;
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
                 $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
             fwrite(STDERR,"HTTP integration: response ".$response->getStatusCode()."\n");
-            foreach($response->headers->getCookies()as$c)if($c->getName()===config('session.cookie'))$cookie=$c->getValue();
+            // F300: all auth responses (also 400/401/419/503 paths) must
+            // prevent caches and referrer leakage, even with real PG18
+            // session persistence and the web middleware stack enabled.
+            self::assertStringContainsString('no-store',(string)$response->headers->get('Cache-Control'));
+            self::assertSame('no-cache',$response->headers->get('Pragma'));
+            self::assertSame('nosniff',$response->headers->get('X-Content-Type-Options'));
+            self::assertSame('no-referrer',$response->headers->get('Referrer-Policy'));
+            // F299: prove the actual PostgreSQL-backed browser response
+            // preserves the Portal-only host cookie security contract,
+            // including cookie refreshes, rotations and session logout.
+            self::assertSame('__Host-imagine-portal-session',config('session.cookie'));
+            foreach($response->headers->getCookies()as$c) {
+                if($c->getName()!==config('session.cookie'))continue;
+                self::assertTrue($c->isSecure(),'Host-only session must be HTTPS.');
+                self::assertTrue($c->isHttpOnly(),'Session cookie must be inaccessible to JavaScript.');
+                self::assertEmpty($c->getDomain(),'No Domain attribute for Portal session.');
+                self::assertSame('/',$c->getPath(),'__Host- cookie must be path /.');
+                self::assertSame('lax',strtolower((string)$c->getSameSite()));
+                $cookie=$c->getValue();
+            }
             return $response;
         };
         try{
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
-            $request('POST','password',['email'=>'synthetic@example.invalid','password'=>'synthetic-password-only','organization'=>$org],$token)->assertStatus(202);
+            $passwordBody=['email'=>'synthetic@example.invalid','password'=>'synthetic-password-only','organization'=>$org];
+            // F291: the real PG-backed HTTP transport must reject invalid
+            // CSRF and cross-site Origin *before* touching the identity DB.
+            $request('POST','password',$passwordBody,'invalid-csrf-F291')->assertStatus(419);
+            $request('POST','password',$passwordBody,$token,'https://attacker.example.invalid')->assertStatus(419);
+            // F297: a sibling subdomain may be same-site, but it is not
+            // same-origin. Even a valid CSRF and Origin cannot override the
+            // Fetch Metadata signal from a cross-origin initiating page.
+            $request('POST','password',$passwordBody,$token,
+                'https://portal.example.test','same-site')->assertStatus(419);
+            $request('POST','password',$passwordBody,$token,
+                'https://portal.example.test','cross-site')->assertStatus(419);
+            // F298: same-origin cookies and correct CSRF do not override the
+            // JSON-only, bounded-body HTTP contract.
+            $request('POST','password',$passwordBody,$token,
+                'https://portal.example.test',null,'text/plain')->assertStatus(400);
+            $oversizedPassword=$passwordBody;
+            $oversizedPassword['padding']=str_repeat('x',4096);
+            $request('POST','password',$oversizedPassword,$token)->assertStatus(400);
+            self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
+            // F292: a valid identity + password cannot authenticate in a
+            // different active organization without a server-side membership.
+            $foreignPassword=$passwordBody;
+            $foreignPassword['organization']=$foreignOrg;
+            $request('POST','password',$foreignPassword,$token)->assertUnauthorized();
+            self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn());
+            // A denied login rotates the anonymous session and CSRF token;
+            // use its new token for the legitimate organization's login.
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            // F293: a legitimate password creates only a pending MFA session.
+            // Revoking then restoring its membership MUST NOT revive it: the
+            // revision changed while the user had not yet completed MFA.
+            $request('POST','password',$passwordBody,$token)->assertStatus(202);
+            $q=$this->admin->prepare("UPDATE public.portal_memberships
+                SET status='revoked',membership_revision=membership_revision+1
+                WHERE identity_id=? AND organization_id=?");
+            $q->execute([$actor,$org]);
+            self::assertSame(1,$q->rowCount());
+            $q=$this->admin->prepare("UPDATE public.portal_memberships SET status='active'
+                WHERE identity_id=? AND organization_id=?");
+            $q->execute([$actor,$org]);
+            self::assertSame(1,$q->rowCount());
             $token=$request('GET','csrf')->assertOk()->json('csrf_token');
             $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
             $hmac=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);
             $offset=ord($hmac[19])&15;$n=unpack('N',substr($hmac,$offset,4))[1]&0x7fffffff;
             $otp=str_pad((string)($n%1000000),6,'0',STR_PAD_LEFT);
+            $counterBefore=(int)$this->admin->query('SELECT mfa_last_used_counter
+                FROM public.portal_identities')->fetchColumn();
+            $request('POST','mfa',['code'=>$otp],$token)->assertUnauthorized();
+            self::assertSame($counterBefore,(int)$this->admin->query('SELECT mfa_last_used_counter
+                FROM public.portal_identities')->fetchColumn(),'Denied pending MFA must not consume TOTP.');
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                WHERE status='active'")->fetchColumn());
+            // The new password request revokes the stale pending reference,
+            // starts a fresh one at the current membership revision, and
+            // rotates the anonymous session/cookie.
+            $request('POST','password',$passwordBody,$token)->assertStatus(202);
+            $token=$request('GET','csrf')->assertOk()->json('csrf_token');
+            $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
+            $hmac=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);
+            $offset=ord($hmac[19])&15;$n=unpack('N',substr($hmac,$offset,4))[1]&0x7fffffff;
+            $otp=str_pad((string)($n%1000000),6,'0',STR_PAD_LEFT);
+            $request('POST','mfa',['code'=>$otp],'invalid-mfa-csrf-F291')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,'https://attacker.example.invalid')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,
+                'https://portal.example.test','same-site')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,
+                'https://portal.example.test','cross-site')->assertStatus(419);
+            $request('POST','mfa',['code'=>$otp],$token,
+                'https://portal.example.test',null,'text/plain')->assertStatus(400);
+            $request('POST','mfa',['code'=>$otp,'padding'=>str_repeat('x',4096)],$token)->assertStatus(400);
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
             $request('POST','mfa',['code'=>$otp],$token)->assertOk();
             $request('GET','session')->assertOk()->assertExactJson(['authenticated'=>true]);
             $payloads=json_encode($this->admin->query('SELECT payload FROM public.portal_browser_envelopes')->fetchAll(PDO::FETCH_COLUMN));
@@ -365,6 +460,84 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             $cookie=$oldCookie;
             $request('GET','session')->assertUnauthorized();
             self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status='active'")->fetchColumn());
+
+            // F295: independently test durable revocation when the server-side
+            // membership revision changes AFTER an authenticated session exists.
+            // The ordinary password -> TOTP -> logout path above remains intact.
+            // This synthetic seed isolates the current() cleanup behavior and
+            // must never be used as a way to issue a real browser identity.
+            $request('GET','csrf')->assertOk();
+            $staleReference=bin2hex(random_bytes(32));
+            $sql="INSERT INTO public.portal_auth_sessions
+                (id,session_sha256,identity_id,organization_id,status,session_purpose,
+                 identity_revision,membership_revision,organization_revision,
+                 issued_at,expires_at,mfa_verified_at,created_at,updated_at)
+                SELECT gen_random_uuid(),?,i.id,m.organization_id,'active','business',
+                 i.security_revision,m.membership_revision,o.security_revision,
+                 clock_timestamp()-interval '10 seconds',clock_timestamp()+interval '1 hour',
+                 clock_timestamp(),clock_timestamp(),clock_timestamp()
+                FROM public.portal_identities i
+                JOIN public.portal_memberships m ON m.identity_id=i.id
+                JOIN public.portal_organizations o ON o.id=m.organization_id
+                WHERE i.id=? AND o.id=? AND m.status='active' AND o.status='active'";
+            $seed=$this->admin->prepare($sql);
+            $seed->execute([hash('sha256',$staleReference),$actor,$org]);
+            self::assertSame(1,$seed->rowCount());
+            $session=$this->app['session']->driver();
+            $session->put('portal.browser_auth',['phase'=>'business','reference'=>$staleReference]);
+            $session->save();
+            $request('GET','session')->assertOk()->assertExactJson(['authenticated'=>true]);
+            $replayCookie=$cookie;
+            $update=$this->admin->prepare("UPDATE public.portal_memberships
+                SET membership_revision=membership_revision+1
+                WHERE identity_id=? AND organization_id=?");
+            $update->execute([$actor,$org]);
+            self::assertSame(1,$update->rowCount());
+            $request('GET','session')->assertUnauthorized();
+            self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                WHERE status='active'")->fetchColumn(),'F295: invalid reference must be durably revoked.');
+            $staleStatus=$this->admin->prepare('SELECT status FROM public.portal_auth_sessions WHERE session_sha256=?');
+            $staleStatus->execute([hash('sha256',$staleReference)]);
+            self::assertSame('revoked',$staleStatus->fetchColumn());
+            $cookie=$replayCookie;
+            $request('GET','session')->assertUnauthorized();
+
+            // F296: identity revision invalidation is tested first, while
+            // the account and organization remain active. Organization
+            // suspension is tested last: PostgreSQL deliberately refuses
+            // silently reactivating a suspended organization (F156 guard).
+            foreach ([
+                ['identity','public.portal_identities',$actor],
+                ['organization','public.portal_organizations',$org],
+            ] as [$kind,$table,$id]) {
+                $request('GET','csrf')->assertOk();
+                $reference=bin2hex(random_bytes(32));
+                $seed->execute([hash('sha256',$reference),$actor,$org]);
+                self::assertSame(1,$seed->rowCount(),$kind);
+                $session=$this->app['session']->driver();
+                $session->put('portal.browser_auth',['phase'=>'business','reference'=>$reference]);
+                $session->save();
+                $request('GET','session')->assertOk();
+                $oldEnvelopeCookie=$cookie;
+
+                // These table identifiers are hard-coded test fixtures.
+                // Do not bypass F156's protection against org reactivation.
+                $sql="UPDATE ".$table." SET security_revision=security_revision+1";
+                if ($kind==='organization') {
+                    $sql.=",status='suspended'";
+                }
+                $change=$this->admin->prepare($sql." WHERE id=?");
+                $change->execute([$id]);
+                self::assertSame(1,$change->rowCount(),$kind);
+                $request('GET','session')->assertUnauthorized();
+                $staleStatus->execute([hash('sha256',$reference)]);
+                self::assertSame('revoked',$staleStatus->fetchColumn(),$kind);
+                self::assertSame(0,(int)$this->admin->query("SELECT count(*) FROM public.portal_auth_sessions
+                    WHERE status='active'")->fetchColumn(),$kind);
+
+                $cookie=$oldEnvelopeCookie;
+                $request('GET','session')->assertUnauthorized();
+            }
         }finally{
             $this->app['session']->driver()->getHandler()->close();
         }
