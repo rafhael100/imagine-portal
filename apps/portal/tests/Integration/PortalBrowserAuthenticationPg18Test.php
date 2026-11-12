@@ -10,6 +10,7 @@ use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
+use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
 use Illuminate\Support\Facades\Route;
 use PDO;
 use PDOException;
@@ -286,6 +287,46 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             foreach(glob($directory.'/*')?:[]as$file)unlink($file);
             rmdir($directory);
         }
+    }
+
+
+    public function test_permission_preflight_adapter_is_not_http_authority_and_enforces_dedicated_role():void
+    {
+        try {
+            new PostgresPortalPermissionPreflight($this->admin,'portal_browser_lab');
+            self::fail('Privileged admin connection must not become permission preflight.');
+        } catch(RuntimeException $e) {
+            self::assertSame('Dedicated Portal authentication role required.',$e->getMessage());
+        }
+        $preflight = new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertFalse($preflight->allows('forged-session',self::ORG,'services.view'));
+        self::assertFalse($preflight->allows(str_repeat('a',64),self::ORG,'services.*'));
+        self::assertFalse($preflight->allows(str_repeat('a',64),'foreign-organization','services.view'));
+        self::assertSame(['backend'=>'Portal PostgreSQL permission preflight'],$preflight->__debugInfo());
+
+        $grant=$this->admin->prepare("INSERT INTO public.portal_membership_grants
+          (id,membership_id,permission_code,created_at,updated_at)
+          VALUES(?,?,?,clock_timestamp(),clock_timestamp())");
+        $grant->execute(['66666666-6666-4666-8666-666666666666',self::MEMBER,'services.view']);
+        $active=$this->active();
+        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
+        self::assertFalse($preflight->allows($active,self::ORG,'billing.view'));
+        self::assertFalse($preflight->allows($active,'44444444-4444-4444-8444-444444444444','services.view'));
+
+        $this->runtime->beginTransaction();
+        try {
+            try {
+                $preflight->allows($active,self::ORG,'services.view');
+                self::fail('Caller-controlled transaction must never be accepted.');
+            } catch(RuntimeException $e) {
+                self::assertSame('Dedicated autocommit Portal permission connection required.',$e->getMessage());
+            }
+        } finally {
+            $this->runtime->rollBack();
+        }
+        self::assertTrue($preflight->allows($active,self::ORG,'services.view'));
+        $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
+        self::assertFalse($preflight->allows($active,self::ORG,'services.view'));
     }
 
     // F302: executable only against the disposable PostgreSQL 18 laboratory.
