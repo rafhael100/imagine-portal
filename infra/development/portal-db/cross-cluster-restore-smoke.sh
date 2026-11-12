@@ -48,6 +48,11 @@ marker_query='SELECT marker FROM public.portal_development_installation WHERE si
 [[ $(source_sql 'SELECT count(*) FROM public.migrations') == 10 ]] || exit 65
 source_marker=$(source_sql "$marker_query")
 [[ "$source_marker" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
+# A key-count check is insufficient for HMAC continuity after recovery.
+proof_digest_query="SELECT encode(public.digest(secret,'sha256'),'hex')
+ FROM portal_browser_private.proof_key"
+source_proof_digest=$(source_sql "$proof_digest_query")
+[[ "$source_proof_digest" =~ ^[[:xdigit:]]{64}$ ]] || exit 65
 
 source_pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev \
     > "$temporary/source.dump"
@@ -55,6 +60,7 @@ source_pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev \
 source_pg pg_restore --list < "$temporary/source.dump" > "$temporary/archive.list"
 [[ -s "$temporary/archive.list" ]] || exit 1
 [[ $(source_sql "$empty_query") == 0 && $(source_sql "$marker_query") == "$source_marker" ]] || exit 65
+[[ $(source_sql "$proof_digest_query") == "$source_proof_digest" ]] || exit 65
 
 # New Docker container, independent cluster/volume, no network/host ports.
 # Use the *synthetic CI-only* secret file as an initdb password, never a literal CLI password.
@@ -105,6 +111,7 @@ docker exec -i --user postgres "$container_id" pg_restore -U postgres \
 docker exec -i --user postgres "$container_id" psql -X -U postgres \
     -d "$target" -v ON_ERROR_STOP=1 < ./restore-contracts.sql >/dev/null
 [[ $(target_sql 'SELECT count(*) FROM portal_browser_private.proof_key') == 1 ]] || exit 1
+[[ $(target_sql "$proof_digest_query") == "$source_proof_digest" ]] || exit 1
 # Restored tables must keep their RLS and FORCE flags in a new cluster.
 rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
 WHERE n.nspname||'.'||c.relname IN
@@ -141,4 +148,5 @@ LATERAL aclexplode(coalesce(d.datacl,acldefault('d',d.datdba))) a
 WHERE d.datname='$target' AND a.privilege_type='CONNECT'
 AND a.grantee<>(SELECT oid FROM pg_roles WHERE rolname='postgres'))") == t ]] || exit 1
 [[ $(source_sql "$marker_query") == "$source_marker" && $(source_sql "$empty_query") == 0 ]] || exit 1
+[[ $(source_sql "$proof_digest_query") == "$source_proof_digest" ]] || exit 1
 printf 'PASS F348 independent disposable cluster restore: RLS, owner roles and ACLs preserved.\n'
