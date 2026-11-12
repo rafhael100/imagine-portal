@@ -46,8 +46,22 @@ def read_private_json(path: Path) -> dict:
                 raise RecoveryBlocked("size")
     except (OSError, UnicodeError, ValueError) as exc:
         raise RecoveryBlocked("unavailable") from exc
+    # Different JSON parsers can disagree about repeated keys. A witness
+    # document with ambiguous revocation evidence must never be accepted.
+    def distinct_pairs(pairs: list[tuple[str, object]]) -> dict:
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise RecoveryBlocked("duplicate_json_key")
+            result[key] = value
+        return result
+
     try:
-        data = json.loads(raw.decode("utf-8"), parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
+        data = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=distinct_pairs,
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
     except (UnicodeError, ValueError, json.JSONDecodeError) as exc:
         raise RecoveryBlocked("invalid_json") from exc
     if not isinstance(data, dict):
