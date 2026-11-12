@@ -50,10 +50,12 @@ A seleção anterior de dois lotes foi **ampliada**, sem trocar as versões apro
 | 1 | [#588](https://github.com/rafhael100/imagine-portal/pull/588) | `dev/fast-track-portal-2026-11-05` | 41 | Catálogo, contratos, solicitações, painel |
 | 2 | [#592](https://github.com/rafhael100/imagine-portal/pull/592) | Branch da #588 | 10 | Editorial Sites sem catálogo duplicado |
 | 3 | [#594](https://github.com/rafhael100/imagine-portal/pull/594) | Branch da #592 | 16 | **Logomarca PNG original**, laranja/grafite, sidebar e CSS responsivo |
-| 4 | [#595](https://github.com/rafhael100/imagine-portal/pull/595) | Branch da #594 | 5 | Prévia HTML navegável offline para QA visual |
+| 4 | [#595](https://github.com/rafhael100/imagine-portal/pull/595) | Branch da #594 | 8 | Prévia HTML offline, verificação semântica de tabelas e QA visual |
 
 Cada etapa possui **dois workflows aprovados** no seu SHA exato: testes Node e Laravel PHP 8.3/8.4. A quarta inclui um artefato ZIP privado de revisão com **oito HTML**, o PNG original incorporado e manifesto de integridade; isso **não** é uma publicação.
 
 O gate valida cada base, nome de branch, PR, SHA, workflows e o limite de commits. Se a base ou HEAD de uma etapa for alterada, o conjunto deve ser reavaliado; não é permitido pular ou reaplicar um lote. A candidata extensa #578 continua **bloqueada para merge integral**, independentemente de CI verde.
 
 **NO-GO continua:** nenhum sinal de aprovação de produção é emitido por este gate. QA visual em dispositivos reais, revisão independente AppSec/DBA/LGPD, recuperação/anti-rollback #64, homologação e autorização específica de merge/deploy não foram dispensados. As PRs históricas incrementais não devem ser mescladas em duplicidade.
+
+**Confirmação da quarta etapa:** SHA final `1548c8327e1e4ddbcb99e5354a126bd29e4a2555`; [Node 43312909255](https://github.com/rafhael100/imagine-portal/actions/runs/43312909255) e [Laravel PHP 8.3/8.4 43312909311](https://github.com/rafhael100/imagine-portal/actions/runs/43312909311) aprovados. O pacote [artefato GitHub #13985709640](https://github.com/rafhael100/imagine-portal/actions/runs/43312909311/artifacts/13985709640) contém 8 páginas + manifesto SHA256. Os testes agora também exigem um único h1/main, legendas, cabeçalhos com `scope=col` e regiões de rolagem acessíveis por teclado. Uma tabela adversarial sem foco deve ser rejeitada. Isto não substitui QA visual humano.
