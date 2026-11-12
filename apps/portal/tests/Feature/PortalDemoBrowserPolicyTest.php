@@ -29,12 +29,13 @@ final class PortalDemoBrowserPolicyTest extends TestCase
         self::assertStringContainsString('lang="pt-BR"', $html);
         self::assertStringContainsString('name="robots" content="noindex,nofollow"', $html);
         self::assertStringContainsString('name="referrer" content="no-referrer"', $html);
+        self::assertStringContainsString('name="theme-color" content="#171b19"', $html);
         self::assertSame(1, substr_count($html, 'http-equiv="Content-Security-Policy"'));
 
         foreach ([
             "default-src 'none'",
             "style-src 'unsafe-inline'",
-            "img-src data:",
+            "img-src 'self' data:",
             "font-src 'none'",
             "connect-src 'none'",
             "form-action 'none'",
