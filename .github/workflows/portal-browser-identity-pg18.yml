@@ -98,6 +98,7 @@ jobs:
           php artisan migrate --path=database/migrations/2026_11_11_000014_guard_portal_session_issuance.php --force --no-interaction
           php -l database/migrations/2026_11_12_000016_fence_portal_identity_revision.php
           php artisan migrate --path=database/migrations/2026_11_12_000016_fence_portal_identity_revision.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php --force --no-interaction
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_auth.sql
           psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_runtime LOGIN PASSWORD 'ci-browser-runtime-only'"
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_envelopes.sql

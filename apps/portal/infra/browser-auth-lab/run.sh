@@ -16,7 +16,8 @@ for migration in \
   2026_11_11_000012_fence_portal_membership_revision.php \
   2026_11_11_000013_fence_portal_organization_revision.php \
   2026_11_11_000014_guard_portal_session_issuance.php \
-  2026_11_12_000016_fence_portal_identity_revision.php
+  2026_11_12_000016_fence_portal_identity_revision.php \
+  2026_11_12_000017_create_portal_service_resource_claims.php
 do
   php artisan migrate --path="database/migrations/$migration" --force --no-interaction
 done
