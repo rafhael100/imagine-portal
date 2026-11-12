@@ -78,6 +78,9 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
                                 continue
                             region.focus()
                             page.keyboard.press("ArrowRight")
+                            # Chromium scrolls asynchronously; reading in the
+                            # same event-loop turn produces a false failure.
+                            page.wait_for_timeout(180)
                             moved = region.evaluate("(e) => e.scrollLeft")
                             scroll_tests += 1
                             if moved < 1:
