@@ -10,5 +10,15 @@ export async function verifyPassword(value,stored){if(typeof value!=='string'||v
 export function validDocument(value){const doc=String(value||'').replace(/\D/g,'');if(![11,14].includes(doc.length)||/^(\d)\1+$/.test(doc))return false;const calc=(base,weights)=>{const sum=[...base].reduce((n,d,i)=>n+Number(d)*weights[i],0),r=sum%11;return r<2?0:11-r};if(doc.length===11){const a=calc(doc.slice(0,9),[10,9,8,7,6,5,4,3,2]);return a===Number(doc[9])&&calc(doc.slice(0,10),[11,10,9,8,7,6,5,4,3,2])===Number(doc[10])}return calc(doc.slice(0,12),[5,4,3,2,9,8,7,6,5,4,3,2])===Number(doc[12])&&calc(doc.slice(0,13),[6,5,4,3,2,9,8,7,6,5,4,3,2])===Number(doc[13])}
 export const cleanText=(value,max=2000)=>typeof value==='string'?value.trim().slice(0,max):'';
 export const validEmail=value=>typeof value==='string'&&value.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-export function safeAsaasUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&(u.hostname==='asaas.com'||u.hostname.endsWith('.asaas.com'))?u.href:null}catch{return null}}
+// F262: payment links must be official HTTPS endpoints without URL userinfo
+// or custom ports. Reject ambiguous links rather than forwarding user:pass
+// credentials or unusual origins into the client's billing experience.
+export function safeAsaasUrl(value){
+ try{
+  const u=new URL(value);
+  if(u.protocol!=='https:'||u.username||u.password||u.port)return null;
+  if(u.hostname!=='asaas.com'&&!u.hostname.endsWith('.asaas.com'))return null;
+  return u.href;
+ }catch{return null;}
+}
 export const publicUser=u=>({id:u.id,name:u.name,email:u.email,role:u.role,...(u.staff_profile?{staff_profile:u.staff_profile,permissions:u.permissions}:{})});
