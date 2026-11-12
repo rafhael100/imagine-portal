@@ -47,6 +47,12 @@ final class GoogleSearchConsoleOAuthTokenExchangePlan
             ||preg_match('/\A[A-Za-z0-9_-]{43}\z/D',$verifier)!==1)
             return null;
 
+        // Consume the capability only after all input checks. A later
+        // attempt to plan the same OAuth code must fail closed.
+        if(!GoogleSearchConsoleOAuthCallbackCoordinator::claimTokenPlanOnce(
+            $consumedCallback
+        ))return null;
+
         // A trusted HTTPS client must explicitly request these sensitive
         // form fields; the plan does not execute or authorize a request.
         return new GoogleSearchConsoleOAuthTokenPostRequest([
