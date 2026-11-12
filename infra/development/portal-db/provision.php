@@ -199,6 +199,31 @@ WHERE db.datname='portal_identity_dev'
   )
 SQL)->fetchColumn();
     if($unexpectedDatabaseConnect!==0)throw new RuntimeException();
+
+    // F334: FORCE RLS is a structural invariant, not an installation-time
+    // checkbox. A subsequent migration/maintenance ALTER TABLE could
+    // disable it while leaving the SQL role flags and ACLs unchanged.
+    // Include the private proof-key table in addition to business tables.
+    $rlsProtectedTables=(int)$db->query(<<<'SQL'
+SELECT count(*)
+FROM pg_class relations
+JOIN pg_namespace schemas ON schemas.oid=relations.relnamespace
+WHERE schemas.nspname||'.'||relations.relname IN (
+    'public.portal_identities',
+    'public.portal_auth_sessions',
+    'public.portal_memberships',
+    'public.portal_membership_grants',
+    'public.portal_organizations',
+    'public.portal_auth_attempt_buckets',
+    'public.portal_browser_envelopes',
+    'public.portal_service_resource_claims',
+    'portal_browser_private.proof_key'
+)
+AND relations.relkind='r'
+AND relations.relrowsecurity
+AND relations.relforcerowsecurity
+SQL)->fetchColumn();
+    if($rlsProtectedTables!==9)throw new RuntimeException();
     // F329: provisioning verifies the same restricted composition that the
     // browser candidate uses, not a separately assembled connection pair.
     // No HTTP route, session manager or application service is registered.
