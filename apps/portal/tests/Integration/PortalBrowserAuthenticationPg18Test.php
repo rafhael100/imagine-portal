@@ -462,6 +462,22 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertSame(['up'],$routes,'There must be no live business or auth route.');
     }
 
+
+    public function test_preflight_api_name_and_sensitive_reference_prevent_accidental_authority_use():void
+    {
+        $preflight=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertFalse(method_exists($preflight,'allows'),
+            'A generic allows() could be mistaken for authoritative HTTP access.');
+        self::assertFalse(method_exists($preflight,'authorize'),
+            'Resource authorization must have separate ownership evidence.');
+        self::assertTrue(method_exists($preflight,'hasCandidateGrant'));
+        $method=new \ReflectionMethod(PostgresPortalPermissionPreflight::class,'hasCandidateGrant');
+        $params=$method->getParameters();
+        self::assertSame('businessReference',$params[0]->getName());
+        self::assertCount(1,$params[0]->getAttributes(\SensitiveParameter::class),
+            'Bearer reference must be redacted if a future exception creates a stack trace.');
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
