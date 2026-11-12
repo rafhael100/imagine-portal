@@ -272,6 +272,12 @@ jobs:
           sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
             COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
             bash ./backup-restore-smoke.sh
+      - name: Reject synthetic anti-rollback mismatches before any recovery serving
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v test_recovery_epoch_preflight.py
+          # The preflight returns only LAB_CONSISTENT_STILL_NO_SERVING,
+          # never an authorization to open restored sessions or endpoints.
       - name: Prove restore in an independent networkless PostgreSQL cluster
         run: |
           set -euo pipefail
