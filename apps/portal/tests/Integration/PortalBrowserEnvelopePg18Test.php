@@ -79,6 +79,36 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         self::assertNotSame($before,$this->admin->query('SELECT payload FROM public.portal_browser_envelopes')->fetchColumn());
     }
 
+    public function test_factory_refuses_reusing_the_same_pdo_for_two_handlers():void
+    {
+        $connection=$this->other();
+        $creator=EncryptedPostgresPortalSessionFactory::creator(
+            fn():PDO=>$connection,'portal_browser_lab',$this->cipher
+        );
+
+        $first=$creator();
+        try {
+            $creator();
+            self::fail('A dedicated PDO was reused for multiple session handlers.');
+        } catch (RuntimeException $error) {
+            self::assertSame('Fresh Portal session PDO required.',$error->getMessage());
+        }
+
+        self::assertFalse($connection->inTransaction(),'A failed second handler cannot disturb the first.');
+        self::assertTrue($first->write(self::SID,'original-private-session'));
+        self::assertSame('original-private-session',$first->read(self::SID));
+        $first->close();
+        self::assertFalse($connection->inTransaction());
+
+        // The normal HTTP creator must return a new connection each time.
+        $fresh=EncryptedPostgresPortalSessionFactory::creator(
+            fn():PDO=>$this->other(),'portal_browser_lab',$this->cipher
+        );
+        $reader=$fresh();
+        self::assertSame('original-private-session',$reader->read(self::SID));
+        $reader->close();
+    }
+
     public function test_handler_cannot_be_cloned_or_serialized_during_a_live_transaction():void
     {
         $handler=$this->handler();
