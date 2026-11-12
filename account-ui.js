@@ -1,5 +1,7 @@
 // Browser download with explicit feedback for HTTP 401, 429 and server errors.
 // Unlike a direct <a download>, error JSON is never offered as a downloaded file.
+// F252: one in-flight account export across both CSV and JSON controls.
+let accountExportBusy=false;
 async function downloadAccountFile(kind){
  const resources={
   json:{path:'/api/account/export',filename:'imagine-cadastro-projetos.json',type:'application/json'},
@@ -7,6 +9,9 @@ async function downloadAccountFile(kind){
  };
  const resource=Object.hasOwn(resources,kind)?resources[kind]:null;
  if(!resource)throw Error('Formato de exportação inválido.');
+ if(accountExportBusy)throw Error('Aguarde a conclusão do download em andamento.');
+ accountExportBusy=true;
+ try{
  const response=await fetch(resource.path,{credentials:'same-origin',headers:{Accept:resource.type}});
  if(!response.ok){
   let details;
@@ -26,6 +31,7 @@ async function downloadAccountFile(kind){
  link.download=resource.filename;
  document.body.appendChild(link);
  try{link.click();}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ }finally{accountExportBusy=false;}
 }
 // F188: limit DOM rendering for large accounts; text filters only the
 // authenticated account's already-authorized project view.
