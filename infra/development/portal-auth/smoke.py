@@ -47,6 +47,13 @@ def main():
     assert request("GET", "/.env")[0] == 404
     assert request("GET", "/_development/auth/password")[0] == 403
     if len(sys.argv) == 3 and sys.argv[1] == "--save":
+        # Invalid-password handling deliberately rotates the earlier session.
+        # Persist a fresh CSRF-only session to test an unchanged cookie after restart.
+        fresh_status, fresh_headers, fresh_body = request("GET", "/_development/auth/csrf")
+        assert fresh_status == 200
+        token = json.loads(fresh_body)["csrf_token"]
+        cookie = fresh_headers.get("Set-Cookie", fresh_headers.get("set-cookie", "")).split(";", 1)[0]
+        assert cookie.startswith("__Host-imagine-portal-session=")
         descriptor = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "w") as handle:
             json.dump({"token": token, "cookie": cookie}, handle)
