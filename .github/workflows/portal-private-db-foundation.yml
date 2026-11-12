@@ -38,6 +38,11 @@ jobs:
           assert_denied env -u GITHUB_ACTIONS -u PORTAL_DB_DISPOSABLE_CI bash ./backup-restore-smoke.sh
           assert_denied env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=wrong-ci bash ./backup-restore-smoke.sh
           assert_denied env GITHUB_ACTIONS=false PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci bash ./backup-restore-smoke.sh
+          # F356: also deny any attempt to start the second-cluster drill on
+          # the wrong project or outside the hosted CI runner.
+          assert_denied env -u GITHUB_ACTIONS -u PORTAL_DB_DISPOSABLE_CI bash ./cross-cluster-restore-smoke.sh
+          assert_denied env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=wrong-ci bash ./cross-cluster-restore-smoke.sh
+          assert_denied env GITHUB_ACTIONS=false PORTAL_DB_DISPOSABLE_CI=1 COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci bash ./cross-cluster-restore-smoke.sh
       - name: Prepare ephemeral independent credentials without outputting values
         run: |
           set -euo pipefail
