@@ -1,6 +1,6 @@
 import {createRecurringBilling,RECURRING_MODEL} from './recurring-billing.mjs';
 import {projectsCsv,projectsCsvChunks,accountDataExport,accountDataExportChunks} from './account-export.mjs';
-import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,writeExportChunks,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
+import {iterateOwnerExportProjects,preflightOwnerProjectExport,writeOwnerExportWithinLease,acquireOwnerExportLease,releaseOwnerExportLease,pruneExpiredOwnerExportLeases} from './owner-project-export.mjs';
 import {isIP} from 'node:net';
 import {createAccount} from './account.mjs';
 import {accountProjectsPage} from './account-projects.mjs';
@@ -9,7 +9,7 @@ import {createFiscal} from './fiscal.mjs';
 import {createFocus} from './focus.mjs';
 import {createMailer} from './mail.mjs';
 import {buildTasksBI,tasksBICsv} from './tasks-bi.mjs';
-import {financeCsvChunks} from './admin-finance-export.mjs';
+import {streamAdminFinanceCsv} from './admin-finance-export.mjs';
 import {buildOverview} from './overview.mjs';
 import {createOrderOps} from './order-ops.mjs';
 import {clientDirectory} from './clients.mjs';
@@ -283,7 +283,7 @@ export function createApp({db,asaas,publicDir,origin,production=false,sellerName
   // F250: send headers once, then stream the authorized SQLite cursor instead
   // of collecting all payments in memory; writer handles backpressure/close.
   res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="financeiro-imagine.csv"'});
-  return await writeExportChunks(res,financeCsvChunks(db));
+  return await streamAdminFinanceCsv(res,db);
  }
  throw problem(404,'Recurso não encontrado.');}
  assert(method==='GET'||method==='HEAD',405,'Método não permitido.');const allowed=path==='/'?'index.html':path==='/portal'||path==='/admin'?'portal.html':path.slice(1);assert(['index.html','checkout.html','contrato.html','checkout-validation.js','portal.html','portal.css','portal.js','client-orders-ui.js','client-finance-ui.js','client-care-ui.js','subscription-ui.js','account-ui.js','fiscal-ui.js','tasks-bi-ui.js','briefing-ui.js','production-ui.js','assets/logo-imagine.png'].includes(allowed),404,'Página não encontrada.');const body=await readFile(join(root,allowed));res.setHeader('Content-Security-Policy',['index.html','checkout.html','contrato.html'].includes(allowed)?"default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'":"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'})[extname(allowed)]});res.end(method==='HEAD'?undefined:body);
