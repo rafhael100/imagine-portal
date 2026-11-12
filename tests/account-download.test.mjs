@@ -62,3 +62,28 @@ test('F182: expired sessions, unsupported formats and invalid content type fail 
  await assert.rejects(invalid.download('csv'),/formato inesperado/);
  assert.equal(invalid.state.clicks,0);
 });
+
+
+test('F249: exact MIME is required, without blob allocation or download on spoofed types',async()=>{
+ for(const [kind,mime] of [
+  ['json','application/jsonp'],['json','text/html; application/json'],
+  ['json','application/json, text/html'],['csv','text/csv-malicious'],
+  ['csv','text/html; text/csv'],['csv','']
+ ]){
+  let blobReads=0;
+  const h=harness({ok:true,headers:{get:()=>mime},blob:async()=>{blobReads++;return new Blob(['data']);}});
+  await assert.rejects(h.download(kind),/formato inesperado/,mime);
+  assert.equal(blobReads,0,mime);
+  assert.equal(h.state.clicks,0,mime);
+  assert.deepEqual(h.state.links,[],mime);
+ }
+});
+
+test('F249: exact MIME accepts capitalization and charset parameters',async()=>{
+ for(const [kind,mime] of [['json','Application/JSON ; charset=utf-8'],['csv','TEXT/CSV; charset=UTF-8']]){
+  const h=harness({ok:true,headers:{get:()=>mime},blob:async()=>new Blob(['valid'])});
+  await h.download(kind);
+  assert.equal(h.state.clicks,1,mime);
+  assert.equal(h.state.revoked.length,1,mime);
+ }
+});

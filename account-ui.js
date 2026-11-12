@@ -14,7 +14,10 @@ async function downloadAccountFile(kind){
   if(response.status===401&&state.user){state.user=null;renderAuth();}
   throw Error(response.status===401?'Sua sessão expirou. Entre novamente para baixar seus dados.':details.error||'Não foi possível exportar seus dados.');
  }
- if(!(response.headers.get('content-type')||'').includes(resource.type))
+ // F249: substring checks accept application/jsonp or text/csv-malicious.
+ // Compare the MIME essence exactly; allow only casing and MIME parameters.
+ const mime=(response.headers.get('content-type')||'').split(';',1)[0].trim().toLowerCase();
+ if(mime!==resource.type)
   throw Error('O servidor retornou um arquivo em formato inesperado.');
  const blob=await response.blob();
  const url=URL.createObjectURL(blob);
