@@ -963,6 +963,43 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         });
     }
 
+    public function test_f326_session_key_is_independent_of_totp_hmac_and_scope_pepper():void
+    {
+        $this->withPrivateRuntime(function ($runtime):void {
+            foreach ([
+                'totp'=>$this->key,
+                'proof'=>hex2bin($this->proof),
+                'scope'=>hex2bin($this->pepper),
+            ] as $kind=>$reusedKey) {
+                self::assertIsString($reusedKey);
+                try {
+                    $runtime->sessionCreator(
+                        new \Illuminate\Encryption\Encrypter($reusedKey,'AES-256-CBC')
+                    );
+                    self::fail('F326 accepted key reuse from '.$kind.'.');
+                } catch (RuntimeException $error) {
+                    self::assertSame(
+                        'Independent Portal session encryption key required.',
+                        $error->getMessage(),
+                        $kind
+                    );
+                }
+            }
+            $fresh=new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC');
+            $creator=$runtime->sessionCreator($fresh);
+            $handler=$creator();
+            $sid=strtoupper(bin2hex(random_bytes(20)));
+            try {
+                self::assertTrue($handler->write($sid,'f326-independent-key'));
+                self::assertSame('f326-independent-key',$handler->read($sid));
+                $handler->close();
+                self::assertTrue($handler->destroy($sid));
+            } finally {
+                $handler->close();
+            }
+        });
+    }
+
     public function test_private_composition_allocates_independent_envelope_connections(): void
     {
         $this->withPrivateRuntime(function ($runtime): void {

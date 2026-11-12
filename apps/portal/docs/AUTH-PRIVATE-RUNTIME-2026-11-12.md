@@ -11,3 +11,6 @@ Os testes de integração usam arquivo temporário 0600 em diretório 0700 e seg
 Próximos requisitos operacionais: confirmar a candidata final integrada, revisão AppSec/DBA/LGPD, provisionar banco/papéis/chaves privados, configurar proxy confiável e cookies HTTPS, ensaiar recuperação sem retroceder revisões/contador MFA e então habilitar rotas em homologação. Esta composição não satisfaz nem declara essas aprovações.
 
 Esta candidata também incorpora F314/F315 (#520/#522): bloqueio de reconstrução do leitor por unserialize e recusa de symlinks em todos os ancestrais. O runtime recusa os mesmos caminhos de reconstrução. Não integrar os incrementos cumulativos duas vezes.
+
+## F326 — chaves de sessão criptográfica independentes
+A composição candidata recusa `Encrypter` cuja chave bruta AES-256 (32 bytes) seja igual, em bytes, ao segredo TOTP, `proof_key` HMAC ou `scope_pepper` carregados do arquivo privado. Refusa implementações de encriptação que não exponham chave verificável via `Illuminate\\Encryption\\Encrypter`. O teste integrado PG18 exercita as três colisões com dados sintéticos, além do fluxo positivo com nova chave independente. Essa verificação **não comprova** independência em relação às chaves do CRM ou sistemas externos; custódia independente e rotação controlada permanecem requisitos de homologação.

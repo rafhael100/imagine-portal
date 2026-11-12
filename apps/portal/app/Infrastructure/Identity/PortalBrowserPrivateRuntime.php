@@ -45,6 +45,20 @@ final class PortalBrowserPrivateRuntime
 
     public function sessionCreator(Encrypter $cipher, int $lockWaitMilliseconds = 2000): Closure
     {
+        // F326: a session-encryption key must be independently generated
+        // and never reused as a TOTP secret, authentication HMAC key or
+        // rate-limit pepper. Refuse unverifiable cipher implementations.
+        if (!$cipher instanceof \Illuminate\Encryption\Encrypter) {
+            throw new RuntimeException('Independent Portal session encryption key required.');
+        }
+        $sessionKey = $cipher->getKey();
+        if (!is_string($sessionKey) || strlen($sessionKey) !== 32
+            || hash_equals($sessionKey,base64_decode($this->configuration->value('totp_key'),true))
+            || hash_equals($sessionKey,hex2bin($this->configuration->value('proof_key')))
+            || hash_equals($sessionKey,hex2bin($this->configuration->value('scope_pepper')))) {
+            throw new RuntimeException('Independent Portal session encryption key required.');
+        }
+
         return EncryptedPostgresPortalSessionFactory::creator(
             fn (): PDO => $this->connect('portal_browser_envelope_runtime', 'envelope_password'),
             $this->configuration->value('database'),
