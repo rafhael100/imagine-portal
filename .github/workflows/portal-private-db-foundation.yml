@@ -100,6 +100,16 @@ jobs:
           test "$status" -eq 65
           test "$(admin_sql 'SELECT count(*) FROM public.portal_browser_envelopes')" = 1
           test "$(admin_sql "SELECT count(*) FROM pg_database WHERE datname='portal_identity_f338_restore_ci'")" = 0
+          # F356: an independent-cluster drill must reject the same nonempty
+          # source BEFORE it creates any container or reads secret material.
+          existing_containers="$(sudo docker ps -q --no-trunc | sort)"
+          cross_status=0
+          sudo -E env GITHUB_ACTIONS=true PORTAL_DB_DISPOSABLE_CI=1 \
+            COMPOSE_PROJECT_NAME=imagine-portal-foundation-ci \
+            bash ./cross-cluster-restore-smoke.sh >/dev/null 2>&1 || cross_status=$?
+          test "$cross_status" -eq 65
+          test "$(sudo docker ps -q --no-trunc | sort)" = "$existing_containers"
+          test "$(admin_sql 'SELECT count(*) FROM public.portal_browser_envelopes')" = 1
           admin_sql "DELETE FROM public.portal_browser_envelopes WHERE id_sha256=repeat('a',64)" >/dev/null
           sudo -E docker compose run --rm -T provision php provision.php verify > after-envelope-removal.out
           cmp before.out after-envelope-removal.out
