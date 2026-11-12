@@ -1048,6 +1048,35 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         });
     }
 
+    public function test_f328_swapping_private_pg_role_passwords_never_swaps_role_authority():void
+    {
+        // The config schema accepts both independent passwords, but each
+        // connection must still authenticate ONLY under its hard-coded
+        // identity/envelope role. Swapping passwords must fail closed.
+        $this->withPrivateRuntime(function ($runtime):void {
+            try {
+                $runtime->authentication();
+                self::fail('Swapped envelope credential authenticated as identity role.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Private Portal authentication unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            $creator=$runtime->sessionCreator(
+                new \Illuminate\Encryption\Encrypter(random_bytes(32),'AES-256-CBC')
+            );
+            try {
+                $creator();
+                self::fail('Swapped identity credential opened envelope role.');
+            } catch(RuntimeException $error) {
+                self::assertSame('Private Portal database unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+        },[
+            'identity_password'=>(string)getenv('PORTAL_BROWSER_ENVELOPE_PASSWORD'),
+            'envelope_password'=>(string)getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'),
+        ]);
+    }
+
     public function test_wrong_private_role_credentials_fail_without_diagnostic_chain_or_secret_debug(): void
     {
         $this->withPrivateRuntime(function ($runtime): void {
