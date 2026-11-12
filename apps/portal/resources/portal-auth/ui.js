@@ -11,12 +11,14 @@
   const password = document.querySelector('#password');
   const code = document.querySelector('#code');
   let busy = false;
+  let phase = 'password';
   const message = (text, error = false) => {
     status.textContent = text;
     status.dataset.error = String(error);
     status.hidden = !text;
   };
   const state = (value) => {
+    phase = value;
     passwordForm.hidden = value !== 'password';
     mfaForm.hidden = value !== 'mfa';
     authenticated.hidden = value !== 'authenticated';
@@ -79,10 +81,35 @@
     });
   });
   const leave = () => perform(async () => {
-    const response = await call('logout',{});
+    // Invalidate the presentation before any network call. An uncertain logout
+    // MUST NOT leave an old "authenticated" claim visible.
+    state('locked');
     password.value='';code.value='';
-    if (response.status === 204) {state('password');message('Você saiu com segurança.');}
-    else {passwordForm.hidden=true;mfaForm.hidden=true;authenticated.hidden=true;message('Não foi possível confirmar a saída. Feche esta página e tente novamente.',true);}
+    try {
+      const response = await call('logout',{});
+      if (response.status === 204) {state('password');message('Você saiu com segurança.');}
+      else message('Não foi possível confirmar a saída. Feche esta página e tente novamente.',true);
+    } catch {
+      message('Não foi possível confirmar a saída. Feche esta página e tente novamente.',true);
+    }
+  });
+  // On returning to the tab, an old success screen must be revalidated
+  // against the server; it never grants access to business resources.
+  document.addEventListener('visibilitychange', () => {
+    if (busy || phase !== 'authenticated' || document.visibilityState === 'hidden') return;
+    state('locked');
+    perform(async () => {
+      try {
+        const response = await call('session');
+        if (response.ok && (await response.json()).authenticated === true) {
+          state('authenticated');message('');return;
+        }
+        if (response.status === 401) {
+          state('password');message('Sua sessão terminou. Entre novamente.',true);return;
+        }
+      } catch { /* Remain locked on network or parsing errors. */ }
+      message('Não foi possível verificar a sessão. Atualize a página para tentar novamente.',true);
+    });
   });
   document.querySelector('#back').addEventListener('click',leave);
   document.querySelector('#logout').addEventListener('click',leave);
