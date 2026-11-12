@@ -55,7 +55,10 @@ export function accountProjectsPage(db,user,{page='1',payment='all',search='',ph
  }
  const from='FROM orders o LEFT JOIN briefings b ON b.order_id=o.id LEFT JOIN productions pr ON pr.order_id=o.id WHERE '+where.join(' AND ');
  const total=Number(db.prepare('SELECT count(*) AS n '+from).get(...params).n);
- const current=Number(page),{pages,limited}=boundedProjectPages(total);
+ const {pages,limited}=boundedProjectPages(total);
+ // F265: after data/filter changes, a formerly valid page can exceed the
+ // latest last page; clamp it instead of reporting e.g. page 999 of 1.
+ const current=Math.min(Number(page),pages);
  const direction=sort==='oldest'?'ASC':'DESC';
  // F263: do not fetch unpaid briefing payloads into the Node process.
  const rows=db.prepare('SELECT o.id,o.title,o.created_at,o.phase,o.payment_status,o.product_id,CASE WHEN o.payment_status IN '+paid+' THEN b.data ELSE NULL END AS data,b.status,pr.stage AS production_stage,pr.progress AS production_progress,pr.due_date AS production_due_date,pr.live_url AS production_live_url '+from+
