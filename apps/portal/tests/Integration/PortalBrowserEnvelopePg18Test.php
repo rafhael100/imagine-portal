@@ -79,6 +79,36 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
         self::assertNotSame($before,$this->admin->query('SELECT payload FROM public.portal_browser_envelopes')->fetchColumn());
     }
 
+    public function test_handler_cannot_be_cloned_or_serialized_during_a_live_transaction():void
+    {
+        $handler=$this->handler();
+        self::assertTrue($handler->write(self::SID,'original'));
+        self::assertSame('original',$handler->read(self::SID));
+        self::assertTrue($this->runtime->inTransaction());
+
+        // A shallow clone would duplicate owned=true and share one PDO; its
+        // destructor could undo the live transaction of the original handler.
+        try {
+            $copy=clone $handler;
+            self::fail('A live Portal session handler was cloneable.');
+        } catch (\\Error $error) {
+            self::assertNotSame('', $error->getMessage());
+        }
+        self::assertTrue($this->runtime->inTransaction(),'Denied clone must not roll back owner.');
+
+        try {
+            serialize($handler);
+            self::fail('Portal session handler was serializable.');
+        } catch (RuntimeException $error) {
+            self::assertSame('Session handlers cannot be serialized.',$error->getMessage());
+        }
+        self::assertTrue($this->runtime->inTransaction(),'Denied serialization must not release lock.');
+        self::assertTrue($handler->write(self::SID,'after-denied-copy'));
+        self::assertFalse($this->runtime->inTransaction());
+        self::assertSame('after-denied-copy',$handler->read(self::SID));
+        $handler->close();
+    }
+
     public function test_corrupt_ciphertext_fails_closed_and_releases_transaction():void
     {
         $handler=$this->handler();
