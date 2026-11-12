@@ -705,6 +705,39 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             'A candidate record plus grant plus synthetic HMAC cannot authorize business data.');
     }
 
+
+    public function test_f318_authenticated_adapter_object_dumps_never_include_signing_or_scope_keys():void
+    {
+        $dump=var_export($this->adapter,true);
+        self::assertIsString($dump);
+        self::assertStringNotContainsString($this->proof,$dump);
+        self::assertStringNotContainsString($this->pepper,$dump);
+        self::assertStringNotContainsString('scopePepper',$dump);
+        self::assertStringNotContainsString('proofKey',$dump);
+
+        $debug=print_r($this->adapter,true);
+        self::assertIsString($debug);
+        self::assertStringNotContainsString($this->proof,$debug);
+        self::assertStringNotContainsString($this->pepper,$debug);
+        self::assertSame(['backend'=>'Portal PostgreSQL','keys'=>'[redacted]'],
+            $this->adapter->__debugInfo());
+
+        $class=PostgresPortalBrowserAuthentication::class;
+        $malicious='O:'.strlen($class).':"'.$class.'":0:{}';
+        try {
+            unserialize($malicious,['allowed_classes'=>[$class]]);
+            self::fail('Crafted PDO authentication object was hydrated without validation.');
+        } catch(RuntimeException $e) {
+            self::assertSame('Authentication adapters cannot be unserialized.',$e->getMessage());
+        }
+        try {
+            clone $this->adapter;
+            self::fail('Cloning could duplicate a privileged PDO adapter.');
+        } catch(\Error $e) {
+            self::assertNotSame('',$e->getMessage());
+        }
+    }
+
     private function expectIdentityFenceRefusal(string $sql):void
     {
         try {
