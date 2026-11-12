@@ -430,6 +430,28 @@ test('F178: quota compartilhada limita exportações sem afetar clientes diferen
  assert.equal(otherHistory.body.events.some(e=>e.action==='account.projects_csv_exported'),false);
 });
 
+test('F245: successful exports are audited as requested and completed exactly once',async t=>{
+ const f=await fixture(t),owner=await f.client('Cliente'),id=owner.user.id;
+ const requests=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action LIKE 'account.%_export_requested' ORDER BY id");
+ const completed=f.db.prepare("SELECT action FROM audit WHERE actor_id=? AND action IN ('account.data_exported','account.projects_csv_exported') ORDER BY id");
+ assert.equal((await owner.call('/api/account/projects.csv')).status,200);
+ assert.equal((await owner.call('/api/account/export')).status,200);
+ assert.deepEqual(requests.all(id).map(row=>row.action),[
+  'account.projects_csv_export_requested','account.data_export_requested',
+ ]);
+ assert.deepEqual(completed.all(id).map(row=>row.action),[
+  'account.projects_csv_exported','account.data_exported',
+ ]);
+ const history=await owner.call('/api/account/security-events');
+ assert.equal(history.status,200);
+ assert.equal(history.body.events.some(row=>row.action.endsWith('_export_requested')),false,
+  'attempt events are internal and must not crowd the security timeline');
+ assert.equal(history.body.events[0].action,'account.data_exported');
+ const anon=await fetch(f.url+'/api/account/export');
+ assert.equal(anon.status,401);
+ assert.equal(requests.all(id).length,2,'unauthorized calls do not count as export attempts');
+});
+
 test('Cadastro, login, autorização, CSRF e isolamento entre clientes',async t=>{const f=await fixture(t),a=await f.client('Ana'),b=await f.client('Bia'),o=await order(a);assert.equal((await b.call('/api/orders/'+o.id)).status,404);assert.equal((await b.call('/api/admin/dashboard')).status,403);assert.equal((await b.call('/api/admin/finance.csv')).status,403);assert.equal((await b.call('/api/orders/'+o.id+'/messages',{body:'invasão'})).status,404);const rows=await b.call('/api/orders');assert.equal(rows.body.orders.length,0);const attack=await fetch(f.url+'/api/orders',{method:'POST',headers:{Origin:'https://evil.test','Content-Type':'application/json',Cookie:a.cookie},body:'{}'});assert.equal(attack.status,403);const saved=a.csrf;a.csrf='errado';assert.equal((await a.call('/api/logout',{})).status,403);a.csrf=saved;assert.equal((await a.call('/api/session')).body.user.role,'client');assert.equal((await fetch(f.url+'/.env')).status,404);assert.equal((await fetch(f.url+'/var/portal.sqlite')).status,404);assert.equal((await fetch(f.url+'/server/app.mjs')).status,404)});
 test('Preço vem do servidor; repetir checkout não duplica cobrança; proposta fica imutável',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),admin=await f.client('Gestor','admin'),o=await order(c);const first=await pay(c,o,{price:1,price_cents:1});assert.equal(first.status,200);assert.equal(f.gateway.payments.length,1);assert.equal(f.gateway.payments[0].value,990);assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1);assert.equal((await admin.call('/api/orders/'+o.id+'/proposal',{price_cents:1,scope:'Escopo adulterado depois de aceito.',delivery:'1 dia'})).status,409);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM payments').get().n,1);assert.equal((await c.call('/api/orders/'+o.id)).body.order.payment_status,'PENDING')});
 test('Timeout após cobrança criada exige conciliação e não permite cobrança duplicada',async t=>{const f=await fixture(t);enableSite(f.db);const c=await f.client(),o=await order(c),create=f.gateway.createPayment;f.gateway.createPayment=async data=>{await create(data);throw Object.assign(Error('Timeout de teste'),{uncertain:true,status:502})};assert.equal((await pay(c,o)).status,502);assert.equal((await pay(c,o)).status,409);assert.equal(f.gateway.payments.length,1);assert.equal((await c.call('/api/orders/'+o.id+'/sync',{})).status,200);assert.equal((await c.call('/api/orders/'+o.id)).body.order.billing_state,'ready');assert.equal((await pay(c,o)).status,200);assert.equal(f.gateway.payments.length,1)});
