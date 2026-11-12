@@ -26,3 +26,9 @@ Não usar down --volumes no servidor: isso apagaria dados persistentes. Para par
 ## Limites e próxima implantação
 
 Somente desenvolvimento. Sem aplicativo HTTP ou conta de operador neste pacote. Sem dados de clientes. As prévias protegidas e os gateways atuais permanecem separados. Uma próxima implantação deverá montar runtime.json no UID do processo e registrar explicitamente driver/rotas, revisar cookies/proxy/HTTPS, fornecer cadastro e recuperação de conta por operador, documentar custódia/rotação das chaves e testar backup/restore sem reativar sessões ou regredir contadores MFA. Backup do volume sozinho não resolve restauração anti-rollback. Não atribuir a este pacote liberação de produção ou revisão independente.
+
+## F338 — prova de restauração lógica exclusivamente descartável
+
+O workflow de fundação executa `backup-restore-smoke.sh` **somente quando** `GITHUB_ACTIONS=true`, `PORTAL_DB_DISPOSABLE_CI=1` e o projeto Docker tem o nome de teste fixo. Faz `pg_dump --format=custom` da fundação **vazia** e restaura em novo banco `portal_identity_f338_restore_ci` no **mesmo cluster temporário**, sem alterar o banco de origem nem restaurar por cima de um alvo existente. Verifica marcador não secreto, tabelas `FORCE RLS`, ownership de funções e ausência de SELECT pelos papéis de runtime, e remove apenas o alvo que criou. Não imprime dumps nem os valores de segredos.
+
+A prova não é um backup de produção e **não** equivale à recuperação após perda da VPS: roles globais já estão presentes no mesmo cluster, segredos e chaves são descartáveis, o ambiente tem zero identidades reais e não há anti-rollback entre cópias externas. Nunca executar o script na VPS; a guarda de ambiente recusa uso fora da CI. Os procedimentos operacionais de backup e recuperação precisam de aprovação e validação separadas.
