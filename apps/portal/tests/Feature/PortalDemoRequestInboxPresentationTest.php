@@ -20,6 +20,14 @@ final class PortalDemoRequestInboxPresentationTest extends TestCase
         ] as $expected) {
             self::assertStringContainsString($expected, $html);
         }
+        // The map is generated from the non-executable domain policy, not
+        // hardcoded fake authorizations or CRUD links.
+        self::assertStringContainsString('Mapa de sete transições ilustrativas', $html);
+        self::assertStringContainsString('Cliente fictício', $html);
+        self::assertStringContainsString('Equipe Imagine fictícia', $html);
+        self::assertStringContainsString('Reabrir exemplo', $html);
+        self::assertStringContainsString('Nenhum perfil aqui é uma identidade autenticada', $html);
+        self::assertSame(7, count(\App\Presentation\DemoRequestWorkflowMap::rows()));
         self::assertStringContainsString('role="region"', $html);
         self::assertStringContainsString('tabindex="0"', $html);
         self::assertStringContainsString('scope="col"', $html);
