@@ -83,6 +83,21 @@ rls_query="SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnam
      'public.portal_browser_envelopes','SELECT')") == f ]] || exit 1
 [[ $(sql "$target" "SELECT count(*) FROM portal_browser_private.proof_key") == 1 ]] || exit 1
 
+# Both runtime identities must have zero direct table privileges after restore.
+# Include schema-qualified names to avoid search_path ambiguity.
+table_privileges_query="SELECT count(*)
+ FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+ CROSS JOIN (VALUES ('portal_browser_runtime'),('portal_browser_envelope_runtime')) AS roles(role)
+ WHERE n.nspname||'.'||c.relname IN
+ ('public.portal_identities','public.portal_auth_sessions',
+  'public.portal_memberships','public.portal_membership_grants',
+  'public.portal_organizations','public.portal_auth_attempt_buckets',
+  'public.portal_browser_envelopes','public.portal_service_resource_claims',
+  'portal_browser_private.proof_key')
+ AND has_table_privilege(roles.role,c.oid,
+     'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')"
+[[ $(sql "$target" "$table_privileges_query") == 0 ]] || exit 1
+
 # Check the source was never changed by the restore operation.
 [[ $(sql portal_identity_dev "$marker_query") == "$source_marker" ]] || exit 1
 printf 'PASS F338 isolated same-cluster restore: source untouched, RLS and ownership preserved.\n'
