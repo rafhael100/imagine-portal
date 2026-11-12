@@ -216,6 +216,57 @@ final class DemoPortalStaticExporterTest extends TestCase
             fileperms($this->temporaryDirectory.'/manifest.json') & 0777);
     }
 
+    public function test_all_exported_tables_have_keyboard_focusable_named_scroll_regions(): void
+    {
+        $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $tableCount = 0;
+        foreach ($pages as $page) {
+            $html = (string) file_get_contents($this->temporaryDirectory.'/'.$page);
+            $document = new \\DOMDocument('1.0', 'UTF-8');
+            $previous = libxml_use_internal_errors(true);
+            try {
+                self::assertTrue($document->loadHTML($html, LIBXML_NONET));
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            $xpath = new \\DOMXPath($document);
+            foreach ($document->getElementsByTagName('table') as $table) {
+                ++$tableCount;
+                $region = $table->parentNode;
+                self::assertInstanceOf(\\DOMElement::class, $region);
+                self::assertContains('pi-table-wrap',
+                    preg_split('/\\\\s+/', trim($region->getAttribute('class'))));
+                self::assertSame('region', $region->getAttribute('role'));
+                self::assertSame('0', $region->getAttribute('tabindex'));
+                $caption = $xpath->query('./caption', $table)?->item(0);
+                self::assertInstanceOf(\\DOMElement::class, $caption);
+                self::assertSame(trim($caption->textContent), $region->getAttribute('aria-label'));
+            }
+        }
+        self::assertGreaterThanOrEqual(4, $tableCount);
+    }
+
+    public function test_unfocusable_table_scroll_region_fails_offline_navigation_audit(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $path = $this->temporaryDirectory.'/requests.html';
+        $html = (string) file_get_contents($path);
+        $mutated = preg_replace(
+            '/(<div class="pi-table-wrap" role="region" aria-label="[^"]+") tabindex="0">/',
+            '$1>',
+            $html,
+            1,
+        );
+        self::assertIsString($mutated);
+        self::assertNotSame($html, $mutated);
+        file_put_contents($path, $mutated);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('keyboard-focusable scroll region');
+        (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory);
+    }
+
     public function test_manipulated_html_is_rejected_even_if_the_manifest_exists(): void
     {
         (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
