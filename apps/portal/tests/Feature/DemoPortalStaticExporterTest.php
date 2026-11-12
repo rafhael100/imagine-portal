@@ -157,6 +157,36 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
     }
 
+    public function test_cli_reports_actual_manifest_page_count(): void
+    {
+        $originalStorage = $this->app->storagePath();
+        $testStorage = $this->temporaryDirectory.'-storage';
+        self::assertTrue(mkdir($testStorage.'/app', 0700, true));
+        $this->app->useStoragePath($testStorage);
+        $destination = storage_path('app/portal-demo-preview');
+
+        try {
+            (new DemoPortalStaticExporter())->export($destination);
+            $count = count(DemoPortalArtifactManifest::pageNames());
+            self::assertSame(11, $count);
+            $this->artisan('portal:demo-verify')
+                ->expectsOutput('Verified '.$count.' synthetic HTML preview pages and local navigation. No publication or customer access.')
+                ->assertExitCode(0);
+        } finally {
+            $this->app->useStoragePath($originalStorage);
+            foreach (glob($destination.'/*') ?: [] as $path) {
+                if (is_file($path) && !is_link($path)) {
+                    unlink($path);
+                }
+            }
+            if (is_dir($destination)) {
+                rmdir($destination);
+            }
+            rmdir($testStorage.'/app');
+            rmdir($testStorage);
+        }
+    }
+
     public function test_exact_eleven_page_bundle_contains_verifiable_local_manifest(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
