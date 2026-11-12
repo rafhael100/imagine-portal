@@ -66,7 +66,18 @@ try{
             &&!str_contains($safeOutput,$verifier)
             &&!str_contains($safeOutput,$secret));
     }
+    // No clone, serialization, or second transfer of sensitive form data.
+    try {
+        serialize($request);
+        throw new RuntimeException('Sensitive request serialized unexpectedly');
+    }catch(LogicException){}
+    try {
+        $unused=clone $request;
+        throw new RuntimeException('Sensitive request cloned unexpectedly');
+    }catch(LogicException){}
     $transport=$request->takeForTrustedHttpsTransport();
+    $check(is_array($transport));
+    $check($request->takeForTrustedHttpsTransport()===null);
     $check($transport['url']==='https://oauth2.googleapis.com/token' &&
         $transport['method']==='POST' &&
         $transport['allowRedirects']===false &&
