@@ -315,7 +315,19 @@ final class PortalBrowserEnvelopePg18Test extends TestCase
             $response=$this->call($method,'https://portal.example.test/__pg-envelope/'.$path,[],
                 $cookie===null?[]:[config('session.cookie')=>$cookie],[],$server,json_encode($body,JSON_THROW_ON_ERROR));
             fwrite(STDERR,"HTTP integration: response ".$response->getStatusCode()."\n");
-            foreach($response->headers->getCookies()as$c)if($c->getName()===config('session.cookie'))$cookie=$c->getValue();
+            // F299: prove the actual PostgreSQL-backed browser response
+            // preserves the Portal-only host cookie security contract,
+            // including cookie refreshes, rotations and session logout.
+            self::assertSame('__Host-imagine-portal-session',config('session.cookie'));
+            foreach($response->headers->getCookies()as$c) {
+                if($c->getName()!==config('session.cookie'))continue;
+                self::assertTrue($c->isSecure(),'Host-only session must be HTTPS.');
+                self::assertTrue($c->isHttpOnly(),'Session cookie must be inaccessible to JavaScript.');
+                self::assertEmpty($c->getDomain(),'No Domain attribute for Portal session.');
+                self::assertSame('/',$c->getPath(),'__Host- cookie must be path /.');
+                self::assertSame('lax',strtolower((string)$c->getSameSite()));
+                $cookie=$c->getValue();
+            }
             return $response;
         };
         try{
