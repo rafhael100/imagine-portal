@@ -101,15 +101,18 @@ try {
     if(!in_array($q->fetchColumn(),[true,1,'t','1'],true))throw new RuntimeException();
     $roles=$db->query("SELECT count(*) FROM pg_roles WHERE rolname IN ('portal_browser_owner','portal_browser_runtime','portal_browser_envelope_owner','portal_browser_envelope_runtime') AND NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolbypassrls) AND ((rolname IN ('portal_browser_owner','portal_browser_envelope_owner') AND NOT rolcanlogin) OR (rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime') AND rolcanlogin))")->fetchColumn();
     if((int)$roles!==4)throw new RuntimeException();
-    $auth=new \App\Infrastructure\Identity\PostgresPortalBrowserAuthentication(
-        new PDO($dsn,'portal_browser_runtime',$config->value('identity_password'),$options),
-        'portal_identity_dev',$config->value('proof_key'),base64_decode($config->value('totp_key'),true),$config->value('scope_pepper')
-    );
+    // F329: provisioning verifies the same restricted composition that the
+    // browser candidate uses, not a separately assembled connection pair.
+    // No HTTP route, session manager or application service is registered.
+    $runtime=new \App\Infrastructure\Identity\PortalBrowserPrivateRuntime($config);
+    $auth=$runtime->authentication();
     if($auth->isActiveBusinessSession(bin2hex(random_bytes(32))))throw new RuntimeException();
-    $handler=new \App\Infrastructure\Identity\EncryptedPostgresPortalSessionHandler(
-        new PDO($dsn,'portal_browser_envelope_runtime',$config->value('envelope_password'),$options),
-        'portal_identity_dev',new \Illuminate\Encryption\Encrypter(base64_decode(substr($key,7),true),'AES-256-CBC')
+    // F329: this also validates the AES session key is independent from
+    // TOTP/HMAC/pepper and both PostgreSQL role passwords (F326/F327).
+    $creator=$runtime->sessionCreator(
+        new \Illuminate\Encryption\Encrypter(base64_decode(substr($key,7),true),'AES-256-CBC')
     );
+    $handler=$creator();
     $id=bin2hex(random_bytes(20));
     try{
         if(!$handler->write($id,'private-development-storage-probe')||$handler->read($id)!=='private-development-storage-probe')
