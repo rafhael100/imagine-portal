@@ -180,6 +180,33 @@ final class PortalBrowserSecretFileTest extends TestCase
                 ->value('identity_password'));
     }
 
+    public function test_writable_nonsticky_ancestor_is_refused_even_if_private_parent_is_secure():void
+    {
+        $outer=$this->directory.'/writable-ancestor';
+        $private=$outer.'/safe-private';
+        mkdir($outer,0700);
+        mkdir($private,0700);
+        $nested=$private.'/runtime.json';
+        file_put_contents($nested,json_encode($this->values,JSON_THROW_ON_ERROR));
+        chmod($nested,0600);
+        try{
+            self::assertSame($this->values['database'],
+                PortalBrowserSecretFile::load($nested,'https://portal.example.test')->value('database'));
+            chmod($outer,0777);
+            $this->refused($nested);
+            // A sticky directory (e.g. /tmp) is permitted if it contains
+            // a separate non-writable private directory.
+            chmod($outer,01777);
+            self::assertSame($this->values['database'],
+                PortalBrowserSecretFile::load($nested,'https://portal.example.test')->value('database'));
+        }finally{
+            chmod($outer,0700);
+            unlink($nested);
+            rmdir($private);
+            rmdir($outer);
+        }
+    }
+
     public function test_connection_components_cannot_inject_dsn_options():void
     {
         $this->values['host']='127.0.0.1;user=postgres';$this->write();$this->refused();
