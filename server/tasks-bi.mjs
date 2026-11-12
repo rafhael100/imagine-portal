@@ -68,7 +68,16 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
  rows=rows.filter(t=>(!filters.assignee||(filters.assignee==='none'?t.unassigned:t.assignee_id===filters.assignee))&&(!filters.client||t.client_id===filters.client)&&(!filters.product||t.product_id===filters.product)&&(!filters.stage||t.stage===filters.stage)&&(!filters.kind||t.kind===filters.kind)&&(!filters.status||(filters.status==='open'?t.active:t.status===filters.status))&&(!filters.priority||t.priority===filters.priority)&&(filters.archive==='all'||(filters.archive==='archived'?!!t.archived_at:!t.archived_at))&&(!filters.query||[t.title,t.instructions,t.note,t.client,t.order_title,t.id].join(' ').toLocaleLowerCase('pt-BR').includes(filters.query.toLocaleLowerCase('pt-BR')))&&(!filters.risk||(filters.risk==='unassigned'?t.active&&t.unassigned:filters.risk==='late'?t.overdue_days>0:filters.risk==='today'?t.active&&t.due_date===today:t.active&&t.due_date>today))&&inside(filters.basis==='due'?t.due_date:filters.basis==='completed'?day(t.completed_at):day(t.created_at)));
  const active=rows.filter(t=>t.active),done=rows.filter(t=>t.status==='done'),reliable=done.filter(t=>!t.completion_estimated),cycles=reliable.map(t=>t.cycle_days),ontime=reliable.filter(t=>t.on_time).length;
  const summary={total:rows.length,open:active.length,doing:active.filter(t=>t.status==='doing').length,blocked:active.filter(t=>t.status==='blocked').length,overdue:active.filter(t=>t.overdue_days>0).length,today:active.filter(t=>t.due_date===today).length,unassigned:active.filter(t=>t.unassigned).length,urgent:active.filter(t=>['critical','high'].includes(t.priority)).length,done:done.length,canceled:rows.filter(t=>t.status==='canceled').length,archived:rows.filter(t=>t.archived_at).length,cycle_mean:mean(cycles),cycle_median:median(cycles),on_time_percent:reliable.length?Math.round(ontime/reliable.length*100):null,on_time_sample:reliable.length,estimated_completions:done.length-reliable.length,oldest_open:active.length?Math.max(...active.map(t=>t.age_days)):null,due_changes:rows.reduce((s,t)=>s+t.due_changes,0)};
- const breakdown=key=>[...new Set(rows.map(t=>t[key]))].map(value=>({key:value||'',count:rows.filter(t=>t[key]===value).length})).sort((a,b)=>b.count-a.count);
+ // F283: group each dimension in one pass instead of refiltering the full
+ // cohort for every unique status, priority or kind.
+ const breakdown=key=>{
+  const counts=new Map();
+  for(const task of rows){
+   const value=task[key];
+   counts.set(value,(counts.get(value)||0)+1);
+  }
+  return [...counts].map(([value,count])=>({key:value||'',count})).sort((a,b)=>b.count-a.count);
+ };
  // F282: bucket tasks once per responsible person instead of filtering the
  // entire cohort for every assignee (O(N × unique assignees)).
  const workloadGroups=new Map();
@@ -100,7 +109,18 @@ export function buildTasksBI(db,params,clock=new Date(),exportAll=false){
   const d=new Date(m+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);m=d.toISOString().slice(0,7);
  }
  const aging=[[0,2,'0–2 dias'],[3,7,'3–7 dias'],[8,14,'8–14 dias'],[15,30,'15–30 dias'],[31,Infinity,'31 dias ou mais']].map(([min,max,label])=>({key:label,count:active.filter(t=>t.age_days>=min&&t.age_days<=max).length}));
- const risks=active.filter(t=>t.overdue_days||t.status==='blocked'||t.unassigned).sort((a,b)=>b.overdue_days-a.overdue_days).slice(0,8);
+ // F283: retain only the first eight highest overdue risks, preserving
+ // stable ordering for equal overdue days, without sorting all active items.
+ const risks=[];
+ for(const task of active){
+  if(!(task.overdue_days||task.status==='blocked'||task.unassigned))continue;
+  let index=risks.findIndex(existing=>task.overdue_days>existing.overdue_days);
+  if(index<0)index=risks.length;
+  if(index<8){
+   risks.splice(index,0,task);
+   if(risks.length>8)risks.pop();
+  }
+ }
  rows.sort((a,b)=>filters.sort==='due'?a.due_date.localeCompare(b.due_date):filters.sort==='newest'?b.created_at.localeCompare(a.created_at):filters.sort==='oldest'?a.created_at.localeCompare(b.created_at):b.overdue_days-a.overdue_days||({critical:0,high:1,normal:2,low:3}[a.priority]-{critical:0,high:1,normal:2,low:3}[b.priority])||a.due_date.localeCompare(b.due_date));
  const page=Math.max(1,Math.min(Math.ceil(rows.length/40)||1,parseInt(params.get('page'),10)||1));
  const clean=t=>{const {instructions,checklist,source_key,...r}=t;return r;};
