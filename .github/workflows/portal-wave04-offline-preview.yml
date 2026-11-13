@@ -45,7 +45,7 @@ jobs:
           php -l app/Presentation/PortablePortalStaticPreview.php
           php -l bin/export-portable-preview.php
           php artisan test --no-ansi --filter=PortalOfflineSidebarNavigationTest
-          test "$(php artisan route:list --json | php -r '$x=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($x);')" -eq 1
+          php artisan route:list --json | php -r '$routes=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); $uris=array_column($routes,"uri"); sort($uris); $expected=["up","storage/{path}"]; sort($expected); if($uris!==$expected){fwrite(STDERR,"Unexpected routes: ".json_encode($uris)."\\n"); exit(1);}'
           php bin/export-portable-preview.php
           test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 12
       - name: Check all eleven pages against the checksum manifest
