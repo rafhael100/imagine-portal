@@ -130,6 +130,21 @@ final class PurchaseRehearsalHttpTest extends TestCase
         $this->get($url)->assertOk()->assertDontSee('Salvar briefing de teste');
     }
 
+    public function test_commercial_offer_hint_uses_server_allowlist_and_does_not_choose_identity(): void
+    {
+        $base='/_rehearsal/purchase';
+        $this->scope->tenant='test-org-a';
+        foreach (['onepage','landing-pages','performance'] as $offer) {
+            $this->get($base.'?offer='.$offer)
+                ->assertOk()->assertSee('data-selected-offer="'.$offer.'"',false);
+        }
+        $this->get($base.'?offer=other')->assertNotFound();
+        $this->get($base.'?offer%5B%5D=onepage')->assertNotFound();
+        $this->get($base.'?offer=onepage&organization=test-org-b')->assertUnprocessable();
+        $this->scope->tenant=null;
+        $this->get($base.'?offer=onepage')->assertForbidden();
+    }
+
     public function test_runtime_failure_is_redacted_before_http_response(): void
     {
         $this->scope->tenant='test-org-a';
