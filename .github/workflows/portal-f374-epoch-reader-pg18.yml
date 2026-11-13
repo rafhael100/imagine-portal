@@ -1,0 +1,56 @@
+name: Portal F374 - Restricted live epoch read and signed witness (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php'
+      - 'apps/portal/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php'
+      - 'apps/portal/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php'
+      - 'infra/development/portal-recovery/test-f374-pg18.php'
+      - '.github/workflows/portal-f374-epoch-reader-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  scoped-epoch-reader-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Initialize isolated PostgreSQL18 with Portal identity foundation
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f374-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f374-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f374-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Real restricted epoch read with signed witness pre/post
+        run: |
+          set -euo pipefail
+          tool() {
+            sudo docker compose -p imagine-portal-f374-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F373_CI=DISPOSABLE_ONLY -e PORTAL_F374_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" provision "$@"
+          }
+          tool php -l /var/www/html/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php
+          tool php -l /opt/portal-recovery/test-f374-pg18.php
+          if tool php /opt/portal-recovery/test-f374-pg18.php extra; then
+            echo 'F374 must refuse nonzero CLI arguments.'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/test-f374-pg18.php
+      - name: Remove only disposable F374 PostgreSQL project
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f374-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
