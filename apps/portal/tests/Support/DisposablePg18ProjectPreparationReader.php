@@ -15,6 +15,19 @@ use Throwable;
  */
 final readonly class DisposablePg18ProjectPreparationReader
 {
+    // Names shown only to the reviewer of the synthetic offline preview.
+    // Product/checkpoint codes in the PostgreSQL schema remain unchanged.
+    private const CHECKPOINT_LABELS = [
+        'briefing' => 'Briefing',
+        'content' => 'Conteúdo',
+        'domain' => 'Domínio',
+        'consent' => 'Consentimento',
+        'goals' => 'Objetivos',
+        'ad_accounts' => 'Contas de anúncios',
+        'creatives' => 'Criativos',
+        'budget' => 'Orçamento',
+    ];
+
     private const PRODUCTS = [
         'sites_onepage' => [
             'Sites Imagine · Onepage',
@@ -156,7 +169,10 @@ SQL;
                         ? 'Revisão interna fictícia' : 'Rascunho de exemplo',
                     $reviewed.'/'.count($required).' itens revisados',
                     $missing===[] ? 'Sem itens pendentes no exemplo'
-                        : 'Ainda ilustrativos: '.implode(', ',$missing),
+                        : 'Pendente no exemplo: '.implode(', ',array_map(
+                            static fn (string $code): string => self::CHECKPOINT_LABELS[$code],
+                            $missing,
+                        )),
                 ];
             }
             $this->db->commit();
