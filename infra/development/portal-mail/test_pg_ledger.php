@@ -56,6 +56,11 @@ $db->exec('DROP TRIGGER email_ci_failure ON public.portal_identities; DROP FUNCT
 $db->exec("ALTER TABLE public.portal_development_email_challenges NO FORCE ROW LEVEL SECURITY");$deny(static fn()=>$ledger->consume($ref,$email,$token));
 $db->exec("ALTER TABLE public.portal_development_email_challenges FORCE ROW LEVEL SECURITY; GRANT SELECT ON public.portal_development_email_challenges TO portal_browser_runtime");$deny(static fn()=>$ledger->consume($ref,$email,$token));
 $db->exec("REVOKE SELECT ON public.portal_development_email_challenges FROM portal_browser_runtime");
+$second=new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_identity_dev','postgres',file_get_contents('/run/secrets/database-admin'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]);
+$otherLedger=new PgLedger($second,$emailKey,$proof);
+$db->beginTransaction();$db->query('SELECT reference FROM public.portal_development_email_challenges FOR UPDATE')->fetchAll();
+try{$deny(static fn()=>$otherLedger->consume($ref,$email,$token));}finally{$db->rollBack();}
+$check($state()['status']==='delivered');$check((bool)$unverified());
 $check($ledger->consume($ref,$email,$token));
 $deny(static fn()=>$ledger->consume($ref,$email,$token));
 $check(!(bool)$unverified());$check($state()['status']==='consumed');

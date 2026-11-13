@@ -1,6 +1,6 @@
 # Google Workspace relay — private development adapter
 
-This import-only Python standard-library adapter isolates SMTP delivery from account verification. It has no CLI, issuer, database connection, activation function, background worker, HTTP route or environment toggle. Importing or running the module sends nothing. It is not registered with the Laravel application.
+The import-only Python standard-library relay adapter isolates SMTP delivery from account verification. It has no CLI, issuer, database connection, activation function, background worker, HTTP route or environment toggle. Importing or running the module sends nothing. It is not registered with the Laravel application.
 
 ## Observed VPS evidence
 
@@ -24,3 +24,6 @@ Run `python3 -m unittest -v test_relay.py` from this directory. All eight tests 
 A reviewed issuer must bind the challenge to the existing identity, membership, organization, email and security revision; persist only its digest; handle expiry, attempts, revocation, single consumption, ambiguous delivery and restoration. Never pass secrets via shell arguments, environment, logs or chat. The existing service container is internally isolated; host SMTP reachability does not establish application-container egress.
 
 Do not call this adapter with a real verification challenge until that integration and the restore/revocation handling are implemented and tested. Do not mark email verified merely because SMTP accepts a message or the operator reports receipt of the plain test.
+
+## Private ledger integration
+See VERIFICATION.md for the new administrative PostgreSQL bridge and operator console. The relay remains import-only; the separate console requires operator control, explicit ENVIAR and hidden proof entry. This does not enable login or public application routes.
