@@ -211,7 +211,7 @@ final class PortalEmailProofLedgerPg18Test extends TestCase
         );
         self::rejected($this->admin,
             'DELETE FROM public.portal_memberships WHERE id=CAST(? AS uuid)',
-            [self::MEMBER], '23503'
+            [self::MEMBER], '23001'
         );
         self::assertSame(1,(int) $this->admin->query(
             'SELECT count(*) FROM public.portal_email_proof_challenges'
