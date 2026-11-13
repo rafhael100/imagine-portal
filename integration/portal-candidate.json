@@ -122,7 +122,7 @@
       "pullRequest": 600,
       "headBranch": "review/portal-first-enrollment-pg18-lab-2026-11-12",
       "baseBranch": "review/portal-first-invitation-pg18-lab-2026-11-12",
-      "headSha": "da0c894e71e3b00f75a83b4da6f1bfdc0e1481be",
+      "headSha": "c414afe42f39e3c4c84e3b1e917d5a848dd4c963",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
