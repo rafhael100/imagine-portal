@@ -45,6 +45,18 @@ final class IsolatedRestoreQuarantine
                 ||$meta['address']!=='127.0.0.1'){
                 return $refused;
             }
+            // Even though app roles have no CONNECT, a second administrator
+            // could be inspecting or mutating the isolated database. Refuse.
+            // This is a moment-in-time check, NOT a substitute for a true
+            // cluster-wide serving fence controlled by a separate authority.
+            $otherClients=(int)$this->db->query(
+                "SELECT count(*) FROM pg_catalog.pg_stat_activity
+                  WHERE datname=current_database()
+                    AND backend_type='client backend'
+                    AND pid<>pg_backend_pid()"
+            )->fetchColumn();
+            if($otherClients!==0)return $refused;
+
             // Protect against concurrent new sessions, grants and identity writes.
             $this->db->exec(
                 'LOCK TABLE public.portal_identities,public.portal_memberships,
