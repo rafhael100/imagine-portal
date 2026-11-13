@@ -10,6 +10,7 @@ if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing'
     || getenv('GITHUB_ACTIONS') !== 'true'
     || getenv('SITES_P0_AFTER_PURCHASE_LAB') !== '1'
     || getenv('SITES_F360_PG_LAB') !== '1'
+    || getenv('SITES_F361_OUTBOX_LAB') !== '1'
     || getenv('SITES_F363_NONCE_LAB') !== '1'
     || getenv('SITES_F364_BRIDGE_LAB') !== '1'
     || getenv('DB_CONNECTION') !== 'pgsql'
@@ -337,6 +338,64 @@ if($reportsDir!=='' && is_dir($reportsDir) && !is_link($reportsDir)) {
         throw new RuntimeException('CI evidence writing failed.');
     }
 }
+
+// DB-local worker rehearsal: claim and acknowledge the EXACT TWO events
+// created by this Portal checkout, not the five earlier f361 fixtures.
+// This ACK models a synthetic worker; it NEVER calls an external publisher.
+$worker = new PDO(
+    $dsn.'sites_f360_lab', 'sites_f361_worker',
+    'f361-fictional-outbox-worker-only', $options
+);
+p0check(
+    $worker->query("SELECT session_user")->fetchColumn()==='sites_f361_worker',
+    'independent restricted Sites worker login required.'
+);
+$claimedOps = [];
+for ($i=0; $i<2; ++$i) {
+    $claim = $worker->prepare('SELECT * FROM sites_f360.claim_next_outbox(?)');
+    $claim->execute([30]);
+    $event = $claim->fetch(PDO::FETCH_ASSOC);
+    p0check(is_array($event)
+        && $event['event_type']==='ProjectQueued'
+        && $event['tenant_ref']==='tenant-f360-b'
+        && str_starts_with($event['operation_ref'],'idem-p0-')
+        && (int)$event['delivery_attempts']===1,
+        'worker must lease a distinct Portal-originated Site event.'
+    );
+    $op = $event['operation_ref'];
+    p0check(!isset($claimedOps[$op]), 'worker must not claim the same leased event twice.');
+    $claimedOps[$op] = true;
+    $ack = $worker->prepare('SELECT sites_f360.ack_outbox(?,?,?::uuid)');
+    $ack->execute([$event['tenant_ref'],$op,'00000000-0000-0000-0000-000000000000']);
+    p0check(in_array($ack->fetchColumn(),[false,'f','0',0],true),
+        'stale or invented lease must not ACK an event.'
+    );
+    $ack->execute([$event['tenant_ref'],$op,$event['lease_ref']]);
+    p0check(in_array($ack->fetchColumn(),[true,'t','1',1],true),
+        'only the claimed lease token may ACK synthetic Sites outbox.'
+    );
+    $ack->execute([$event['tenant_ref'],$op,$event['lease_ref']]);
+    p0check(in_array($ack->fetchColumn(),[false,'f','0',0],true),
+        'the same event may not be acknowledged twice.'
+    );
+}
+$none=$worker->prepare('SELECT * FROM sites_f360.claim_next_outbox(?)');
+$none->execute([30]);
+p0check($none->fetch(PDO::FETCH_ASSOC)===false,
+    'no additional pending Site event may be delivered from checkout.'
+);
+$delivery = $sitesAdmin->query(
+    "SELECT count(*) AS total,
+       count(*) FILTER (WHERE delivery_state='delivered') AS acknowledged,
+       count(*) FILTER (WHERE delivery_state<>'delivered') AS unacknowledged
+     FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-p0-%'"
+)->fetch(PDO::FETCH_ASSOC);
+p0check((int)$delivery['total']===2
+    && (int)$delivery['acknowledged']===2
+    && (int)$delivery['unacknowledged']===0,
+    'exactly two Portal-originated events acknowledged by the database worker.'
+);
+echo "PASS P0: 2 restricted worker claims + 2 synthetic ACKs; no publisher invoked.\n";
 
 echo "PASS P0: 4 HTTP checkout rows -> 2 signed Sites admissions/outbox, 2 Performance denied.\n";
 echo "NO-GO: fictitious product mapping and proof keys, not real Portal IAM or Site serving.\n";
