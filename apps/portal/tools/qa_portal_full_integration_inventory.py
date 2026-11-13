@@ -29,6 +29,8 @@ def sha(revision: str) -> str:
 
 def group(path: str) -> str:
     # Categorization is a triage hint, NOT an AppSec/DBA determination.
+    # Treat authorization, providers and configuration as high-risk; never
+    # leave them hidden inside a generic other-files group.
     if (
         "/database/" in path
         or path.startswith("infra/")
@@ -36,9 +38,21 @@ def group(path: str) -> str:
         or "/Domain/Identity/" in path
         or "/Http/" in path
         or "/routes/" in path
+        or "/Domain/Authorization/" in path
+        or "/Domain/PortalAccess/Authority/" in path
+        or "/Models/Portal" in path
+        or "/Providers/" in path
+        or "/config/" in path
         or path.endswith(".sql")
     ):
         return "P0_authority_infrastructure_or_runtime"
+    if (
+        "/Domain/" in path
+        or "/Labs/" in path
+        or "/app/Console/" in path
+        or "/bin/" in path
+    ):
+        return "P1_domain_labs_or_operational_contracts"
     if (
         "/resources/views/" in path
         or "/Presentation/" in path
