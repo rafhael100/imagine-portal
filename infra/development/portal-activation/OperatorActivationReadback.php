@@ -108,7 +108,7 @@ final class OperatorActivationReadback
                          AND i.email_verified_at<=clock_timestamp()) AS email_ready,
                         (i.mfa_confirmed_at IS NOT NULL
                          AND i.mfa_confirmed_at<=clock_timestamp()) AS mfa_enrolled,
-                        (i.password_hash LIKE '$argon2id$%') AS password_enrolled
+                        (LEFT(i.password_hash,10)=(chr(36)||'argon2id'||chr(36))) AS password_enrolled
                    FROM public.portal_identities i
                    JOIN public.portal_memberships m ON m.identity_id=i.id
                    JOIN public.portal_organizations o ON o.id=m.organization_id
