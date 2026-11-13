@@ -6,9 +6,13 @@
 <p class="notice"><strong>Ambiente de homologação com dados fictícios.</strong> O pedido e o briefing são gravados no banco de teste. Não há conta de cliente, contrato jurídico, pagamento ou execução real de serviço. Use somente informações de exemplo.</p>
 @if($errors->any())<section role="alert"><h2>Confira os campos</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></section>@endif
 @if($order === null)
-<h1>Escolha o serviço para testar a contratação</h1><p>Selecione uma oferta e acompanhe seu pedido até o briefing.</p><div class="cards">
+<h1>Escolha o serviço para testar a contratação</h1><p>Selecione uma oferta e acompanhe seu pedido até o briefing.</p>
+@if($selectedOffer !== null)
+<p class="notice" role="status" data-comercial-handoff="confirmed">Oferta recebida do Imagine Comercial: <strong>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$selectedOffer] }}</strong>. Confira antes de criar um pedido fictício.</p>
+@endif
+<div class="cards">
 @foreach(['onepage'=>['Site Onepage','Apresente sua empresa em uma página.'],'landing-pages'=>['Landing Page','Uma página voltada para sua campanha.'],'performance'=>['Performance','Planeje uma campanha para seu negócio.']] as $slug=>$offer)
-<section class="card"><h2>{{ $offer[0] }}</h2><p>{{ $offer[1] }}</p><p>Valores e escopo comercial ainda não definidos nesta homologação.</p><form method="post" action="{{ route('rehearsal.orders.create') }}">@csrf<input type="hidden" name="product" value="{{ $slug }}"><input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}"><button type="submit">Criar pedido de teste</button></form></section>
+<section class="card" data-handoff-offer="{{ $slug }}" data-handoff-selected="{{ $slug === $selectedOffer ? 'true' : 'false' }}" @if($slug === $selectedOffer) style="border:3px solid #f9941d" @endif><h2>{{ $offer[0] }}</h2><p>{{ $offer[1] }}</p><p>Valores e escopo comercial ainda não definidos nesta homologação.</p><form method="post" action="{{ route('rehearsal.orders.create') }}">@csrf<input type="hidden" name="product" value="{{ $slug }}"><input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}"><button type="submit">Criar pedido de teste</button></form></section>
 @endforeach</div>
 @else
 <h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl></section>
