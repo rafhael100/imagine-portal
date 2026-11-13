@@ -1,0 +1,17 @@
+# F386 — Independent append-only revocation intent plus witness epoch CAS
+
+F385 confirmed a failed PostgreSQL revocation leaves an active backend session even if Laravel invalidates the browser envelope. F386 adds a **DORMANT, OFF-HOST CANDIDATE**, not a production integration.
+
+The standalone Worker F376 prototype now recognizes POST /v1/portal/revocation-intents. The endpoint is disabled unless an independently provisioned INTENT_PUBLISHER_HMAC_B64 (different from the F376 publisher secret) and D1 batch capability exist. It only accepts a strict 8-key JSON contract signed with HMAC-SHA256 using a distinct domain, method, path, timestamp (30-second tolerance) and exact body bytes. Body size is capped, and an immutable operator-pinned organization/instance overrides any caller-provided scope. The record contains **only a 128-bit random intent identifier and SHA256 of a high-entropy session reference**, not raw session tokens or customer information. Each accepted intent requires a strictly larger session floor.
+
+A separate D1 candidate schema adds revocation_intents with immutable UPDATE/DELETE refusal, foreign key to the witness epoch, unique request ID and unique per-session/sequence, and an INSERT trigger requiring the **current witnessed sequence** and monotonic floors. Worker invokes env.DB.batch([INSERT intent, UPDATE witness_epochs]) **atomically**, updating witness_epoch.sequence and session_floor in the same database transaction. The UPDATE requires the new intent row to exist with the matching target sequence. A successful HTTP 204 means ONLY that this independent candidate ledger and its witness epoch both advanced; **it does NOT mean local PostgreSQL session revocation has succeeded**.
+
+## Disposable integration evidence
+
+GitHub Actions runs Node 24 in-memory SQLite with a D1-compatible atomic batch adapter and an ephemeral Ed25519 signing key. Positive sequence 12→13; duplicate or stale intent, unchanged/decreasing session floor, incorrect HMAC, wrong tenant, malformed bodies and unavailable backend are rejected. A fault trigger on **the second SQL step** must roll back the first INSERT as well, with no orphaned intention. After removing the fault, replay-resistant sequence 13→14 works, and UPDATE/DELETE of saved intents is rejected. The real F376 Worker returns a fresh nonce-signed Ed25519 v2 witness. Separate PHP 8.3/8.4 F379 verifier confirms the **old PostgreSQL snapshot is rejected** even though its old SQL session may still be active after a failed local revoke; matching new epoch remains NO SERVING.
+
+## Operational gap / NO-GO
+
+No live independent D1 deployment, admin-separated control, hardware protected keys, verified off-host durability/backup anti-rollback, tenant-scalable IAM, witness-first integration in the Laravel logout controller, permission checking by session hash, signed acknowledgments of DB revocation, reconciliation queue, retry worker, expiry and legal-retention policy, rate limits, audit export, HA or DR. A privileged D1 administrator can roll back/drop an unprotected D1 database; SQL triggers alone are NOT a tamper-proof root of trust. A network timeout after successful intent publication is **ambiguous** and must be reconciled via a future authenticated lookup, never treated as authorization. The F382-F384 NO SERVING guards stay unregistered and production routes stay closed.
+
+No Wrangler deployment, Cloudflare billing, Leaseweb VPS change, DNS, real customer/session data, production migrations, main merge or release. Issue #64 remains OPEN/NO-GO.
