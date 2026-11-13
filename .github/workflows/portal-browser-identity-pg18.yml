@@ -181,3 +181,19 @@ jobs:
           php artisan test --no-ansi --filter=PortalBrowserAuthTransportTest
           php artisan test --no-ansi --filter=PortalDefaultDenyAuthorityBindingsTest
           test "$(php artisan route:list --json | php -r '$r=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($r);')" -eq 1
+      - name: Generate synthetic PG18 end-to-end Imagine HTML preview
+        run: |
+          set -euo pipefail
+          php -l bin/export-pg18-integration-showcase.php
+          php bin/export-pg18-integration-showcase.php
+          test -s storage/app/portal-pg18-integrated-showcase/index.html
+          test -s storage/app/portal-pg18-integrated-showcase/manifest.json
+          test "$(find storage/app/portal-pg18-integrated-showcase -maxdepth 1 -type f | wc -l)" -eq 2
+          php -r '$d="storage/app/portal-pg18-integrated-showcase/";$m=json_decode(file_get_contents($d."manifest.json"),true,512,JSON_THROW_ON_ERROR);if($m["production_approved"]!==false||$m["customer_access_approved"]!==false||$m["synthetic_only"]!==true||hash_file("sha256",$d."index.html")!==$m["html_sha256"])exit(2);'
+      - name: Preserve synthetic PG18 offline showcase for visual review
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-pg18-html-php${{ matrix.php }}
+          path: apps/portal/storage/app/portal-pg18-integrated-showcase/
+          if-no-files-found: error
+          retention-days: 7
