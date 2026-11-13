@@ -139,13 +139,32 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
                                                "table": index})
                         if name != "index.html":
                             nav = page.locator(".pi-sidebar nav")
-                            if nav.count() == 1:
-                                nav.evaluate("(e) => { e.scrollLeft = 0; }")
-                                nav.evaluate("(e) => { e.scrollLeft = 120; }")
+                            if nav.count() != 1:
+                                errors.append({"page": name, "width": width,
+                                               "reason": "missing_sidebar_navigation"})
+                            else:
                                 nav_tests += 1
-                                if nav.evaluate("(e) => e.scrollLeft") < 1:
+                                sidebar_links = nav.locator("a[data-preview-section]")
+                                if sidebar_links.count() != 8:
                                     errors.append({"page": name, "width": width,
-                                                   "reason": "mobile_navigation_not_scrollable"})
+                                                   "reason": "sidebar_local_links_missing"})
+                                else:
+                                    # Help/notices have no active client section;
+                                    # each of the eight client pages has one.
+                                    active_links = nav.locator("a[aria-current='page']")
+                                    expected_active = 1 if name in PAGES[:8] else 0
+                                    if active_links.count() != expected_active:
+                                        errors.append({"page": name, "width": width,
+                                                       "reason": "incorrect_sidebar_current_page"})
+                                    elif expected_active and active_links.first.get_attribute("href") != name:
+                                        errors.append({"page": name, "width": width,
+                                                       "reason": "sidebar_current_page_mismatch"})
+                                    nav.evaluate("(e) => { e.scrollLeft = 0; }")
+                                    sidebar_links.last.focus()
+                                    page.wait_for_timeout(75)
+                                    if nav.evaluate("(e) => e.scrollLeft") < 1:
+                                        errors.append({"page": name, "width": width,
+                                                       "reason": "sidebar_last_link_not_keyboard_reachable"})
         finally:
             browser.close()
     return {
