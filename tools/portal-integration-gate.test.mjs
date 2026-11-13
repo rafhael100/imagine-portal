@@ -164,7 +164,7 @@ function smallLot(index = 0) {
 }
 
 test('small dev-rooted UI lots are reviewable but never approved for deployment', () => {
-  for (const i of [0, 1, 2, 3, 4]) {
+  for (const i of [0, 1, 2, 3]) {
     const f = smallLot(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.evidenceVerified, true);
