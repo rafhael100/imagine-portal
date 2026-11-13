@@ -1,0 +1,35 @@
+name: Portal F368 - Independent PG18 witness vs stale restore (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f368-*'
+      - '.github/workflows/portal-f368-external-witness-pg18.yml'
+      - 'infra/development/portal-db/recovery_epoch_preflight.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-independent-pg18-clusters:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      COMPOSE_PROJECT_NAME: imagine-portal-f368-ci
+      PORTAL_RESTORE_WITNESS_CI: DISPOSABLE_ONLY
+      PORTAL_DB_DISPOSABLE_CI: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Preflight no writes outside disposable GitHub context
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          bash -n infra/development/portal-recovery/f368-two-clusters-ci.sh
+          python3 -m py_compile infra/development/portal-db/recovery_epoch_preflight.py
+          if env -u GITHUB_ACTIONS bash infra/development/portal-recovery/f368-two-clusters-ci.sh; then
+            echo 'F368 must fail when outside GitHub Actions.'
+            exit 1
+          fi
+      - name: Separate witness state must detect old Portal snapshot
+        run: bash infra/development/portal-recovery/f368-two-clusters-ci.sh
