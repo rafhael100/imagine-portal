@@ -42,6 +42,9 @@ jobs:
           coverage: none
       - name: Validate syntax and durable purchase behavior
         run: |
+          php -l apps/portal/app/Http/Controllers/PurchaseRehearsalController.php
+          php -l apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php
+          php -l apps/portal/tools/purchase_http_ci_router.php
           php -l apps/portal/app/Homologation/PersistedTestPurchase.php
           php -l apps/portal/tools/test_persisted_purchase.php
           php apps/portal/tools/test_persisted_purchase.php
