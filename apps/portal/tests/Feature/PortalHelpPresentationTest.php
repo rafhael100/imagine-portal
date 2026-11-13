@@ -90,9 +90,11 @@ final class PortalHelpPresentationTest extends TestCase
         foreach ([...array_column($sectionsBefore, 'value'), 'help'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('<main id="pi-content"', $html);
-            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'src=', 'action=', 'http://', 'https://'] as $forbidden) {
+            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'action=', 'http://', 'https://'] as $forbidden) {
                 self::assertStringNotContainsString($forbidden, $html);
             }
+            self::assertSame(1, substr_count($html, '<img '));
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
             $xpath = $this->navigation($html);
             $labels = array_map(
                 fn ($node) => trim($node->textContent),
@@ -111,7 +113,7 @@ final class PortalHelpPresentationTest extends TestCase
             self::assertSame(['#pi-content'], $links[1]);
         }
         self::assertSame($routesBefore, $snapshot());
-        self::assertSame(['up'], array_values(array_unique(array_column($routesBefore, 1))));
+        self::assertSame(['up', 'storage/{path}'], array_values(array_unique(array_column($routesBefore, 1))));
         self::assertSame($sectionsBefore, ClientSection::cases());
         self::assertNull(ClientSection::tryFrom('help'));
         self::assertNotContains('help', array_column($sectionsBefore, 'value'));

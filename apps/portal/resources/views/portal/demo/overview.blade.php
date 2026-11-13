@@ -22,5 +22,16 @@
     @else
         <x-portal.message title="Resumo ilustrativo indisponível" message="Os registros demonstrativos não são consistentes. Nenhum dado parcial será apresentado." tone="error" />
     @endif
-    <x-portal.panel title="Atividades recentes"><x-portal.empty-state title="Nenhuma atividade demonstrativa" message="As atualizações dos seus serviços poderão aparecer aqui." /></x-portal.panel>
+    <x-portal.panel title="Próximas etapas — acompanhamento ilustrativo">
+        <p>Resumo organizado pelas versões fictícias das solicitações, não por data. Nenhum prazo, atendimento ou atividade real está sendo informado.</p>
+        @php($demoActivity = \App\Presentation\DemoActivityFeed::rows())
+        @if (count($demoActivity) > 0 && $demoOverview->isConsistent())
+            <x-portal.table caption="Etapas de exemplo por serviço — sem envio ou prazo real"
+                :columns="['Solicitação', 'Serviço', 'Situação', 'Próxima etapa ilustrativa', 'Versão']"
+                :rows="$demoActivity" />
+        @else
+            <x-portal.empty-state title="Etapas ilustrativas indisponíveis"
+                message="Não há um conjunto consistente de referências para apresentar próximas etapas." />
+        @endif
+    </x-portal.panel>
 </x-portal.layout>

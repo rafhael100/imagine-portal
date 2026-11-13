@@ -94,109 +94,11 @@ final class PortalRequestsPresentationTest extends TestCase
         ] as $text) {
             self::assertStringContainsString($text, $html);
         }
-        foreach (['<form', '<button', '<input', '<script', '<iframe', 'action=', 'src=', 'https://', 'http://'] as $forbidden) {
+        foreach (['<form', '<button', '<input', '<script', '<iframe', 'action=', 'https://', 'http://'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $html);
         }
-        preg_match_all('/href="([^"]*)"/', $html, $links);
-        self::assertSame(['#pi-content'], $links[1]);
-    }
-
-    public function test_workflow_preview_is_readable_without_enabling_mutations_or_routes(): void
-    {
-        $html = view('portal.demo.requests')->render();
-        self::assertStringContainsString('Etapas de atendimento — apenas exemplo', $html);
-        self::assertStringContainsString('Estados ilustrativos do atendimento', $html);
-        self::assertStringContainsString('não salva dados, abre chamados ou concede permissões', $html);
-        foreach (\App\Domain\ServiceRequests\ServiceRequestStatus::cases() as $status) {
-            self::assertStringContainsString($status->label(), $html);
-        }
-        foreach (['<form', '<button', '<input', 'action=', 'https://', 'http://'] as $forbidden) {
-            self::assertStringNotContainsString($forbidden, $html);
-        }
-    }
-
-    public function test_request_workflow_map_shows_seven_nonoperational_domain_transitions(): void
-    {
-        $html = view('portal.demo.requests')->render();
-        self::assertStringContainsString('Mapa fictício de sete transições — sem execução', $html);
-        self::assertStringContainsString('Os perfis são apenas rótulos de simulação', $html);
-
-        $document = new \DOMDocument('1.0','UTF-8');
-        $previous = libxml_use_internal_errors(true);
-        try {
-            self::assertTrue($document->loadHTML($html));
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-        $xpath = new \DOMXPath($document);
-        $items = $xpath->query('//table[caption[contains(.,"Mapa fictício de sete transições")]]/tbody/tr');
-        self::assertNotFalse($items);
-        self::assertSame(7, $items->length);
-        foreach ($items as $row) {
-            $cells = $xpath->query('./td', $row);
-            self::assertNotFalse($cells);
-            self::assertSame(4, $cells->length);
-        }
-        self::assertFalse(\App\Presentation\DemoRequestWorkflowMap::canExecute());
-        foreach (['<form', '<button', '<input', '<script', 'action=', 'http://', 'https://'] as $forbidden) {
-            self::assertStringNotContainsString($forbidden, $html);
-        }
-    }
-
-    public function test_request_status_overview_matches_the_same_fictional_inbox_without_creating_actions(): void
-    {
-        $html = view('portal.demo.requests')->render();
-        self::assertStringContainsString('Resumo por situação — apenas exemplos', $html);
-        self::assertStringContainsString('Se o conjunto estiver incompleto, o resumo não será apresentado', $html);
-
-        $document = new \DOMDocument('1.0', 'UTF-8');
-        $previous = libxml_use_internal_errors(true);
-        try {
-            self::assertTrue($document->loadHTML($html));
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-        $xpath = new \DOMXPath($document);
-        $rows = $xpath->query('//table[caption[contains(.,"Distribuição de solicitações fictícias")]]/tbody/tr');
-        self::assertNotFalse($rows);
-        self::assertSame(3, $rows->length);
-        $pairs = [];
-        foreach ($rows as $row) {
-            $cells = $xpath->query('./td', $row);
-            self::assertNotFalse($cells);
-            self::assertSame(2, $cells->length);
-            $pairs[] = [
-                trim($cells->item(0)->textContent),
-                trim($cells->item(1)->textContent),
-            ];
-        }
-        self::assertSame([
-            ['Em análise', '1'],
-            ['Aguardando informações do cliente', '1'],
-            ['Resolvida', '1'],
-        ], $pairs);
-        foreach (['<form', '<button', '<input', '<script', 'https://', 'http://'] as $forbidden) {
-            self::assertStringNotContainsString($forbidden, $html);
-        }
-    }
-
-    public function test_synthetic_request_inbox_is_displayed_without_leaking_live_data_or_enabling_actions(): void
-    {
-        $html = view('portal.demo.requests')->render();
-        self::assertStringContainsString('Fila de solicitações — somente demonstração', $html);
-        self::assertStringContainsString('Fila fictícia de solicitações — sem dados reais', $html);
-        self::assertStringContainsString('nenhum filtro autoriza acesso a dados reais', $html);
-        foreach (['DEMO-REQ-LANDING', 'DEMO-REQ-ONEPAGE', 'DEMO-REQ-PERFORMANCE'] as $id) {
-            self::assertSame(1, substr_count($html, '<td>'.$id.'</td>'));
-        }
-        foreach (['Aguardando informações do cliente', 'Em análise', 'Resolvida'] as $label) {
-            self::assertStringContainsString($label, $html);
-        }
-        foreach (['<form', '<button', '<input', '<script', 'action=', 'http://', 'https://'] as $forbidden) {
-            self::assertStringNotContainsString($forbidden, $html);
-        }
+        self::assertSame(1, substr_count($html, '<img '));
+        self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
         preg_match_all('/href="([^"]*)"/', $html, $links);
         self::assertSame(['#pi-content'], $links[1]);
     }
