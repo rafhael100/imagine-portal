@@ -1,0 +1,45 @@
+name: Portal full integration diff inventory (review only)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/qa_portal_full_integration_inventory.py'
+      - '.github/workflows/portal-full-integration-diff-review.yml'
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch dev ref and enumerate complete changed-file inventory
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/dev/fast-track-portal-2026-11-05:refs/remotes/origin/dev/fast-track-portal-2026-11-05'
+          python3 -m py_compile apps/portal/tools/qa_portal_full_integration_inventory.py
+          python3 apps/portal/tools/qa_portal_full_integration_inventory.py --out portal-review-inventory
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          inventory=json.loads(Path('portal-review-inventory/inventory.json').read_text())
+          assert inventory['source']=='local_git_full_history_not_github_api'
+          assert inventory['production_approved'] is False
+          assert inventory['safe_to_merge'] is False
+          assert inventory['review_only'] is True
+          assert inventory['total_changed_files']==len(inventory['files'])
+          assert inventory['commits_ahead'] >= 0
+          assert inventory['commits_behind'] >= 0
+          assert Path('portal-review-inventory/summary.md').stat().st_size > 0
+          print('Complete Git inventory verified:', inventory['total_changed_files'], 'files.')
+          PY
+      - name: Store complete inventory for human integration review
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-full-integration-inventory
+          path: portal-review-inventory/
+          if-no-files-found: error
+          retention-days: 7
