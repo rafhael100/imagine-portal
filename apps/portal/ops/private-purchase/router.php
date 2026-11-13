@@ -31,11 +31,15 @@ foreach (['app.key'=>$config['app_key'],'app.debug'=>false,'session.driver'=>'fi
 $app['config']->set('cache.stores.file',['driver'=>'file','path'=>storage_path('framework/cache/data')]);
 $app->register(App\Providers\PurchaseRehearsalServiceProvider::class);
 $app->register(App\Providers\FullPortalPreviewServiceProvider::class);
-// Explicit shared synthetic workspace for the existing protected development operator.
-// This is not a real Portal principal, customer account or business permission.
-$app->instance(App\Homologation\PurchaseRehearsalScope::class,new class implements App\Homologation\PurchaseRehearsalScope {
- public function organization(Illuminate\Http\Request $request): ?string { return 'test-org-a'; }
-});
+// Test purchases require an actual synthetic CLIENT preview session. The
+// admin profile and unauthenticated operator cannot read or write test orders.
+// This is a private lab check, NEVER real customer identity or business IAM.
+$app->instance(
+ App\Homologation\PurchaseRehearsalScope::class,
+ new App\Homologation\PreviewClientPurchaseScope(
+  $app->make(App\Homologation\PreviewProfiles::class)
+ )
+);
 try {
  $pdo=new PDO('pgsql:host=database;port=5432;dbname=portal_purchase_rehearsal;connect_timeout=3',
   'purchase_rehearsal_a',$config['database_password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
