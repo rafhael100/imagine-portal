@@ -1,0 +1,22 @@
+name: Guided Landing Page journey (synthetic only)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/preview/guided/**'
+      - '.github/workflows/portal-guided-journey.yml'
+permissions:
+  contents: read
+jobs:
+  guided-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Syntax and browser journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/imagine-guided-venv
+          /tmp/imagine-guided-venv/bin/pip install --disable-pip-version-check 'playwright==1.56.0'
+          export CHROMIUM_PATH="$(command -v google-chrome || command -v chromium)"
+          /tmp/imagine-guided-venv/bin/python apps/portal/preview/guided/test_journey.py
