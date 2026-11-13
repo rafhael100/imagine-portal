@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3, 4, 5]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3, 4, 5]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -422,6 +422,11 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[5].headSha = m.isolatedLots[4].headSha; },
     m => { m.isolatedLots[5].requiredWorkflows.pop(); },
     m => { m.isolatedLots[5].requiredWorkflows = []; },
+    m => { m.isolatedLots[6].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[6].pullRequest = m.isolatedLots[5].pullRequest; },
+    m => { m.isolatedLots[6].headBranch = m.isolatedLots[5].headBranch; },
+    m => { m.isolatedLots[6].headSha = m.isolatedLots[5].headSha; },
+    m => { m.isolatedLots[6].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -510,4 +515,23 @@ test('sixth isolated database ledger stays after scoped proof and requires seven
   assert.equal(result.evidenceVerified, false);
   assert.equal(result.mergeApproved, false);
   assert.equal(result.deployApproved, false);
+});
+
+test('seventh offline proof lifecycle is reviewed as a child of the immutable ledger, not as production', () => {
+  const f = isolatedReview(6);
+  assert.equal(f.lot.pullRequest, 605);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[5].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 5);
+  const reviewed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(reviewed.evidenceVerified, true);
+  assert.equal(reviewed.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(reviewed.mergeApproved, false);
+  assert.equal(reviewed.deployApproved, false);
+  assert.equal(reviewed.antiRollbackApproved, false);
+  assert.equal(reviewed.customerAccessApproved, false);
+  f.runs[4].status = 'in_progress';
+  const incomplete = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(incomplete.evidenceVerified, false);
+  assert.equal(incomplete.mergeApproved, false);
+  assert.equal(incomplete.deployApproved, false);
 });
