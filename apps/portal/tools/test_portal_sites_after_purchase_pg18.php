@@ -203,6 +203,57 @@ p0check(p0denied(static fn()=> $encoder->build(
     $unpaid['id'], 'operation-p0-unpaid', 'idem-p0-unpaid'
 )), 'unapproved order must not become a signed Site contract.');
 
+// Even a paid synthetic site order is NOT eligible without a saved briefing.
+$unbriefed = (new RoleBoundTestPurchase($purchase))->create(
+    'TEST-p0-approved-unbriefed-'.bin2hex(random_bytes(8)), 'landing-pages'
+);
+$unbriefed = (new RoleBoundTestPurchase($purchase))->payment(
+    $unbriefed['id'], $unbriefed['revision'], 'approved'
+);
+p0check(p0denied(static fn()=> $encoder->build(
+    $unbriefed['id'], 'operation-p0-unbriefed', 'idem-p0-unbriefed'
+)), 'approved-only order without briefing must not become a Sites project.');
+
+// Prove the Portal->Sites bridge cannot read a fully approved, properly
+// briefed foreign business even when the displayed company name matches.
+$purchaseB = new PDO(
+    $dsn.'portal_purchase_rehearsal',
+    'purchase_rehearsal_b', 'ci-synthetic-b-only', $options
+);
+$foreignStore = new RoleBoundTestPurchase($purchaseB);
+p0check($foreignStore->organization() === 'test-org-b', 'DB tenant B identity required.');
+$otherOrder = $foreignStore->create(
+    'TEST-p0-foreign-business-'.bin2hex(random_bytes(8)), 'onepage'
+);
+$otherOrder = $foreignStore->payment(
+    $otherOrder['id'], $otherOrder['revision'], 'approved'
+);
+$otherOrder = $foreignStore->briefing(
+    $otherOrder['id'], $otherOrder['revision'],
+    [
+        'business' => SAMPLE_PURCHASE_BRIEFING,
+        'goal' => 'Site fictício de outra empresa',
+        'audience' => 'Público fictício',
+        'materials' => 'Arquivos sintéticos',
+    ]
+);
+p0check($otherOrder['payment'] === 'approved'
+    && $otherOrder['briefing']['business'] === SAMPLE_PURCHASE_BRIEFING,
+    'Foreign business must be a real fully completed synthetic checkout.'
+);
+$invisible = $purchase->prepare(
+    'SELECT count(*) FROM purchase_rehearsal.orders WHERE id=?'
+);
+$invisible->execute([$otherOrder['id']]);
+p0check((int)$invisible->fetchColumn() === 0,
+    'Role A must not read role B order, even through raw SQL.'
+);
+p0check(p0denied(static fn()=> $encoder->build(
+    $otherOrder['id'], 'operation-p0-other-business',
+    'idem-p0-other-business'
+)), 'a signed Sites project must not derive from another Portal company.'
+);
+
 $forged = $encoder->build($rows[0]['id'],
     'operation-p0-forged-tenant', 'idem-p0-forged-tenant');
 $forged['tenantRef']='tenant-f360-a';
