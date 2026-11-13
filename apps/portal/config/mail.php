@@ -14,7 +14,9 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    // No verification bearer may fall back to a log transport.
+    // Explicit delivery remains a separate AppSec/DBA approval gate.
+    'default' => env('MAIL_MAILER', 'array'),
 
     /*
     |--------------------------------------------------------------------------
@@ -83,7 +85,9 @@ return [
             'transport' => 'failover',
             'mailers' => [
                 'smtp',
-                'log',
+                // Never log verification bearers after a transport failure.
+                // This fallback captures only in memory, with no delivery.
+                'array',
             ],
             'retry_after' => 60,
         ],
