@@ -91,7 +91,7 @@ jobs:
                       raise SystemExit('Unsafe offline artifact file')
                   z.write(f,f.name)
           PY
-          "$RUNNER_TEMP/portal-preview-browser/bin/python" tools/qa_portable_preview.py storage/app/portal-preview-qa.zip --chromium "$BROWSER" | tee "$RUNNER_TEMP/offline-browser-qa.json"
+          "$RUNNER_TEMP/portal-preview-browser/bin/python" tools/qa_portable_preview.py storage/app/portal-preview-qa.zip --chromium "$BROWSER" --screenshots-dir storage/app/portal-visual-review | tee "$RUNNER_TEMP/offline-browser-qa.json"
           python3 - <<'PY'
           import os,json
           from pathlib import Path
@@ -102,11 +102,37 @@ jobs:
           assert report['mobile_menu_checks']==10
           assert report['offline_navigation_checks']==11
           assert report['authorizes_production'] is False
+          assert report['visual_evidence_count'] == 6
+          import hashlib
+          root = Path('storage/app/portal-visual-review')
+          manifest = json.loads((root/'screenshots-manifest.json').read_text())
+          assert manifest['synthetic_only'] is True
+          assert manifest['safe_for_production'] is False
+          assert manifest['customer_data_present'] is False
+          records = manifest['screenshots']
+          assert len(records) == 6
+          assert len({r['name'] for r in records}) == 6
+          assert {r['page'] for r in records} == {'overview.html', 'services.html', 'preparation.html'}
+          assert {r['viewport'] for r in records} == {390, 1440}
+          assert {p.name for p in root.iterdir()} == {'screenshots-manifest.json'} | {r['name'] for r in records}
+          for r in records:
+              payload = (root/r['name']).read_bytes()
+              assert payload.startswith(b'\x89PNG\r\n\x1a\n')
+              assert hashlib.sha256(payload).hexdigest() == r['sha256']
+              assert len(payload) == r['bytes']
           PY
       - name: Preserve offline review package without publishing it
         uses: actions/upload-artifact@v5
         with:
           name: imagine-portal-wave04-offline-html-php${{ matrix.php }}
           path: apps/portal/storage/app/portal-demo-static/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Preserve visual review screenshots, not customer data
+        if: matrix.php == '8.3'
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-ui-visual-review
+          path: apps/portal/storage/app/portal-visual-review/
           if-no-files-found: error
           retention-days: 7
