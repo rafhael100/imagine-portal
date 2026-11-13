@@ -18,7 +18,7 @@ $app->register(App\Providers\PurchaseRehearsalServiceProvider::class);
 $app->instance(App\Homologation\PurchaseRehearsalScope::class,new class implements App\Homologation\PurchaseRehearsalScope {
     public function organization(Illuminate\Http\Request $request): ?string { return 'test-org-a'; }
 });
-$app->instance(App\Homologation\PersistedTestPurchase::class,new App\Homologation\PersistedTestPurchase(
+$app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase(
     new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_purchase_rehearsal','purchase_rehearsal_a','ci-synthetic-a-only')
 ));
 $request=Illuminate\Http\Request::capture();
