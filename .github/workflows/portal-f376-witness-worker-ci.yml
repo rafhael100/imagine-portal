@@ -1,0 +1,41 @@
+name: Portal F376 - Isolated D1 witness protocol (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f376-worker/**'
+      - '.github/workflows/portal-f376-witness-worker-ci.yml'
+permissions:
+  contents: read
+jobs:
+  sqlite-cas-and-ed25519-interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      PORTAL_F376_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Test actual SQLite monotonicity and signed receipt interoperability
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          node --check infra/development/portal-recovery/f376-worker/src/witness.mjs
+          node --check infra/development/portal-recovery/f376-worker/test/witness.test.mjs
+          php -l infra/development/portal-recovery/f376-worker/test/test-php-interop.php
+          scratch="$(mktemp -d)"
+          trap 'rm -rf -- "$scratch"' EXIT
+          chmod 700 "$scratch"
+          export F376_INTEROP_DIR="$scratch"
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs
+          php infra/development/portal-recovery/f376-worker/test/test-php-interop.php "$scratch"
