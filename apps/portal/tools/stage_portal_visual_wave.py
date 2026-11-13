@@ -107,6 +107,7 @@ def build(root: Path, worktree: Path, out: Path) -> dict:
         "schema": "imagine.portal.visual-wave-rehearsal.v1",
         "source_review_head": head,
         "dev_base_sha": base,
+        "dev_base_tree_sha": git(worktree, "rev-parse", "HEAD^{tree}").decode().strip(),
         "changed_files": changed,
         "file_count": len(changed),
         "logo_blob_sha1": blob,
