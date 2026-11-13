@@ -46,7 +46,8 @@ CREATE TABLE portal_browser_private.lab_initial_email_proofs (
     identity_id uuid PRIMARY KEY REFERENCES public.portal_identities(id) ON DELETE RESTRICT,
     proof_sha256 char(64) NOT NULL CHECK(proof_sha256 ~ '^[a-f0-9]{64}$'),
     expires_at timestamptz NOT NULL,
-    consumed_at timestamptz
+    consumed_at timestamptz,
+    attempts integer NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 5)
 )
 SQL);
         $this->enrollment = new DisposableFirstEnrollment($this->admin);
@@ -157,6 +158,30 @@ SQL);
         self::assertFalse($this->enrollment->confirmEmail($ids['identity'],$token));
         self::assertFalse($this->enrollment->confirmEmail(
             $ids['identity'],str_repeat('b',64)
+        ));
+    }
+
+    public function test_five_wrong_email_proofs_lock_out_even_a_later_correct_receipt(): void
+    {
+        $ids = $this->invite();
+        $token = $this->enrollment->issueEmailProof($ids['identity']);
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            self::assertFalse($this->enrollment->confirmEmail(
+                $ids['identity'], str_repeat('f', 64)
+            ));
+            self::assertSame($attempt, (int) $this->admin->query(
+                'SELECT attempts FROM portal_browser_private.lab_initial_email_proofs'
+            )->fetchColumn());
+        }
+        self::assertFalse($this->enrollment->confirmEmail($ids['identity'], $token));
+        self::assertSame(5, (int) $this->admin->query(
+            'SELECT attempts FROM portal_browser_private.lab_initial_email_proofs'
+        )->fetchColumn());
+        self::assertNull($this->admin->query(
+            'SELECT email_verified_at FROM public.portal_identities'
+        )->fetchColumn());
+        self::assertFalse($this->enrollment->setFirstPassword(
+            $ids['identity'], 'synthetic-strong-lab-password'
         ));
     }
 
