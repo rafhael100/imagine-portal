@@ -46,6 +46,7 @@ jobs:
           php -l apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php
           php -l apps/portal/tools/purchase_http_ci_router.php
           php -l apps/portal/app/Homologation/PersistedTestPurchase.php
+          php -l apps/portal/app/Homologation/RoleBoundTestPurchase.php
           php -l apps/portal/tools/test_persisted_purchase.php
           php apps/portal/tools/test_persisted_purchase.php
 
