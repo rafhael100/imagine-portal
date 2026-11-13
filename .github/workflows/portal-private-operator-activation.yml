@@ -41,12 +41,15 @@ jobs:
           tool php -l /opt/portal-mail/bridge.php
           tool php -l /opt/portal-mail/test_pg_ledger.php
           tool php -l /opt/portal-activation/OperatorActivation.php
+          tool php -l /opt/portal-activation/OperatorActivationReadback.php
+          tool php -l /opt/portal-activation/status.php
           tool php -l /opt/portal-activation/bootstrap.php
           tool php -l /opt/portal-activation/activate.php
           tool php -l /opt/portal-activation/probe-login.php
           tool php -l /opt/portal-activation/test_activation.php
           if tool php /opt/portal-activation/activate.php < /dev/null; then exit 1; fi
           if tool php /opt/portal-activation/probe-login.php < /dev/null; then exit 1; fi
+          if tool php /opt/portal-activation/status.php < /dev/null; then exit 1; fi
           tool php /opt/portal-activation/test_activation.php < /dev/null
       - name: Always remove only the disposable enrollment project
         if: always()

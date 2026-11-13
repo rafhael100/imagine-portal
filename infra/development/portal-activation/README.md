@@ -30,3 +30,15 @@ Snapshot restore can resurrect previously revoked authentication state. #64 rema
 ## Verification
 
 Dedicated GitHub CI installs only a disposable foundation, reuses the existing synthetic enrollment/email-ledger rehearsal, and adds activation refusal/atomicity/credential preservation plus actual password+MFA and permission-denial/session-revocation tests. No real email or operator credentials are used. Local PHP/PostgreSQL is unavailable; report exact CI results rather than claiming local PHP passes. Bash syntax is checked locally. Operational activation still requires the operator's explicit ATIVAR and a real credential probe in their private console.
+
+
+## Next step: read-only private activation status (candidate follow-up)
+
+The new `status` subcommand is a read-only snapshot observation. It requires the same root-only pinned private checkout, genuine operator TTY, staging environment, PostgreSQL 18 loopback, private proof key and restricted runtime-role/RLS posture. It never reads the password or authenticator code, starts a user session, activates a membership or gives business permissions. Unlike `activate` and `probe-login`, its wrapper does **not** make unnecessary backups because it performs no data mutations.
+
+From the already pinned authorized private checkout, a human operator can use:
+`sudo bash /srv/imagine/portal-activation/infra/development/portal-activation/run.sh status`
+
+Possible messages: `INVITED_VERIFIED_PRIVATE_ONLY` means not activated; `ACTIVE_PRIVATE_STATUS_ONLY` means invited identity/membership are now both active, with no business grants and no unrevoked sessions. `NO_GO` covers unsafe/mixed states, missing proof, unexpected user/org, session activity, RLS or role privilege drift. No result proves password/MFA actually worked or that the Portal is ready for public traffic.
+
+**IMPORTANT:** the PR implementing this status command is a separate draft and MUST be independently reviewed, pinned by commit and placed into the existing private checkout only through the authorized operational process. The CI is disposable; it does NOT touch the Leaseweb VPS. No new deployment/activation is assumed. Restore anti-rollback issue #64 remains **OPEN**, and public serving stays **NO-GO**.
