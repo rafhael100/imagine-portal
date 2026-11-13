@@ -87,7 +87,8 @@ final readonly class PinnedHttpsWitnessPublisherCandidate
         }
         if (preg_match('/\A[A-Za-z0-9+\/]{43}=\z/D', $publisherHmacBase64) !== 1
             || !is_string($key = base64_decode($publisherHmacBase64, true))
-            || strlen($key) !== 32) {
+            || strlen($key) !== 32
+            || base64_encode($key) !== $publisherHmacBase64) {
             return self::result('PUBLISH_INPUT_DENIED');
         }
 
@@ -113,6 +114,7 @@ final readonly class PinnedHttpsWitnessPublisherCandidate
             throw new RuntimeException('Independent witness publisher unavailable.');
         }
         $received = '';
+        $headerBytes = 0;
         try {
             $options = [
                 CURLOPT_URL => $this->endpoint,
@@ -140,6 +142,10 @@ final readonly class PinnedHttpsWitnessPublisherCandidate
                     'X-Imagine-Timestamp: '.$now,
                     'X-Imagine-Signature: '.$mac,
                 ],
+                CURLOPT_HEADERFUNCTION => static function($ch,string $line)use(&$headerBytes):int {
+                    $headerBytes += strlen($line);
+                    return $headerBytes <= 4096 ? strlen($line) : 0;
+                },
                 CURLOPT_WRITEFUNCTION => static function($ch,string $chunk)use(&$received):int {
                     if (strlen($received)+strlen($chunk)>128) return 0;
                     $received.=$chunk;
