@@ -7,7 +7,10 @@ the VPS, or make a service remotely accessible. Binds only 127.0.0.1.
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
+from hashlib import sha1, sha256
+from html.parser import HTMLParser
+import base64
+import binascii
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -34,6 +37,77 @@ BAD_TAG = re.compile(rb"<\s*(?:script|form|input|button|iframe|object|embed)\b",
 
 class BundleRefused(ValueError):
     """A preview bundle is invalid, unapproved or unsafe to serve."""
+
+
+class SafePreviewHTML(HTMLParser):
+    """Allowlist local synthetic hyperlinks and the EXACT original Imagine logo."""
+
+    BANNED = frozenset({
+        "script", "form", "input", "button", "iframe", "object", "embed",
+        "svg", "math", "video", "audio", "source", "link", "base",
+        "textarea", "select", "template",
+    })
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.landmarks: dict[str, int] = {"main": 0, "h1": 0, "title": 0}
+        self._style_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self.BANNED:
+            raise BundleRefused("Forbidden active HTML tag.")
+        if tag in self.landmarks:
+            self.landmarks[tag] += 1
+        if tag == "style":
+            self._style_depth += 1
+        for key, value in attrs:
+            name = key.lower()
+            if (name.startswith("on") or name in {
+                "srcdoc", "srcset", "formaction", "action", "xlink:href",
+            }):
+                raise BundleRefused("Forbidden executable HTML attribute.")
+            if name == "href" and (tag != "a" or value not in PAGES | {"#pi-content"}):
+                raise BundleRefused("Non-local or unsafe HTML hyperlink.")
+            if name == "src":
+                if tag != "img" or not isinstance(value, str) or not value.startswith(
+                    "data:image/png;base64,"
+                ):
+                    raise BundleRefused("Unexpected image reference.")
+                try:
+                    image = base64.b64decode(value.split(",", 1)[1], validate=True)
+                except (ValueError, binascii.Error) as exc:
+                    raise BundleRefused("Malformed embedded logo.") from exc
+                if (len(image) != 5594 or sha1(
+                    b"blob " + str(len(image)).encode("ascii") + b"\x00" + image
+                ).hexdigest() != LOGO_BLOB):
+                    raise BundleRefused("Image does not match original Imagine logo.")
+            if name == "http-equiv" and (
+                tag != "meta" or not isinstance(value, str)
+                or value.lower() != "content-security-policy"
+            ):
+                raise BundleRefused("HTML refresh/redirect or unknown HTTP-equivalent.")
+            if name == "style" and isinstance(value, str) and re.search(
+                r"url\s*\(|@import|expression\s*\(|-moz-binding", value, re.I
+            ):
+                raise BundleRefused("CSS import or external resource prohibited.")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "style":
+            self._style_depth = max(0, self._style_depth - 1)
+
+    def handle_data(self, data: str) -> None:
+        if self._style_depth and re.search(
+            r"@import|url\s*\(|expression\s*\(", data, re.I
+        ):
+            raise BundleRefused("CSS in style tag contains an external resource.")
+
+    def assert_landmarks(self) -> None:
+        if any(count != 1 for count in self.landmarks.values()):
+            raise BundleRefused("HTML must contain exactly one main, title and h1.")
 
 
 def load_verified_bundle(path: Path) -> dict[str, bytes]:
@@ -93,9 +167,13 @@ def load_verified_bundle(path: Path) -> dict[str, bytes]:
             or BAD_TAG.search(payload)):
             raise BundleRefused("Preview contains an external link or active HTML element.")
         try:
-            payload.decode("utf-8", "strict")
+            html = payload.decode("utf-8", "strict")
         except UnicodeDecodeError as exc:
             raise BundleRefused("Invalid UTF-8 HTML.") from exc
+        parser = SafePreviewHTML()
+        parser.feed(html)
+        parser.close()
+        parser.assert_landmarks()
     if observed != PAGES:
         raise BundleRefused("Preview manifest omitted a page.")
     del blobs[MANIFEST]  # Never expose the inventory or manifest over HTTP.
