@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 9 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 11 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -97,6 +97,20 @@ export function validateManifest(m) {
       // existing synthetic rollback lab, not operational main/dev.
       m.isolatedLots[8]?.baseBranch !== m.isolatedLots[1]?.headBranch ||
       m.isolatedLots[8]?.requiredWorkflows?.length !== 2 ||
+      m.isolatedLots[9]?.pullRequest !== 614 ||
+      m.isolatedLots[9]?.headBranch !== 'review/portal-sec-r03-attestation-verifier-domain-2026-11-13' ||
+      m.isolatedLots[9]?.baseBranch !== m.isolatedLots[8]?.headBranch ||
+      m.isolatedLots[9]?.requiredWorkflows?.length !== 2 ||
+      m.isolatedLots[10]?.pullRequest !== 615 ||
+      m.isolatedLots[10]?.headBranch !== 'review/portal-sec-r03-witness-reader-default-deny-2026-11-13' ||
+      // Laravel's witness transport remains denied even if synthetic
+      // signatures pass: no live external endpoint or serving authority.
+      m.isolatedLots[10]?.baseBranch !== m.isolatedLots[9]?.headBranch ||
+      m.isolatedLots[10]?.requiredWorkflows?.length !== 2 ||
+      [9, 10].some(i => [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+      ].some(name => !m.isolatedLots[i]?.requiredWorkflows?.includes(name))) ||
       [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',
