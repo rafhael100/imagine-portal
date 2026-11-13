@@ -66,7 +66,10 @@ const server=https.createServer({cert:readFileSync(cert),key:readFileSync(key)},
     if(scenario==='redirect'){
       res.writeHead(302,{'Cache-Control':'no-store','Location':'https://different.invalid/'});res.end();return;
     }
-    if(scenario==='timeout') await new Promise(resolve=>setTimeout(resolve,2100));
+    if(scenario==='timeout') {
+      await new Promise(resolve=>setTimeout(resolve,2100));
+      res.writeHead(503,{'Cache-Control':'no-store'});res.end();return;
+    }
     if(scenario==='unexpected-body'){
       res.writeHead(200,{'Cache-Control':'no-store','Content-Type':'text/plain'});res.end('not empty');return;
     }
