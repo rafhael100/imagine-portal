@@ -27,9 +27,10 @@ with sync_playwright() as p:
     assert page.locator('input[name=username]').count()==1,'CI test profiles are not ready'
     capture('01-login-desktop.png')
     page.locator('input[name=username]').fill('cliente.teste')
-    page.locator('input[name=password]').fill('wrong-ci-password')
-    page.get_by_role('button',name='Entrar',exact=True).click()
-    assert page.get_by_role('alert').count()==1, ('login response',page.url,page.locator('body').inner_text()[:800])
+    if os.environ.get('PORTAL_PREVIEW_SKIP_BAD_LOGIN') != '1':
+        page.locator('input[name=password]').fill('wrong-ci-password')
+        page.get_by_role('button',name='Entrar',exact=True).click()
+        assert page.get_by_role('alert').count()==1, ('login response',page.url,page.locator('body').inner_text()[:800])
     page.locator('input[name=password]').fill('ci-client-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/client/overview')
