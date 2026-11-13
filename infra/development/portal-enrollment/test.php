@@ -25,7 +25,7 @@ $deny(static fn()=>$prepare('short'));
 $deny(static fn()=>$prepare('synthetic-password-only','not-six-digits'));
 $deny(static fn()=>$prepare('synthetic-password-only',null,str_repeat('0',64)));
 $check((int)$db->query('SELECT count(*) FROM public.portal_identities')->fetchColumn()===0);
-$db->exec("CREATE FUNCTION public.enrollment_ci_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic enrollment failure'; END $$");
+$db->exec("CREATE FUNCTION public.enrollment_ci_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic enrollment failure'; END; $");
 $db->exec("CREATE TRIGGER enrollment_ci_failure BEFORE INSERT ON public.portal_memberships FOR EACH ROW EXECUTE FUNCTION public.enrollment_ci_failure()");
 $deny(static fn()=>$prepare());
 foreach(['portal_identities','portal_organizations','portal_memberships']as$table)$check((int)$db->query('SELECT count(*) FROM public.'.$table)->fetchColumn()===0);
