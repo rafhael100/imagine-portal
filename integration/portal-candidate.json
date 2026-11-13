@@ -78,7 +78,7 @@
       "pullRequest": 596,
       "headBranch": "feat/portal-private-login-ui-2026-11-12",
       "baseBranch": "ops/portal-private-auth-deployment-2026-11-12",
-      "headSha": "9eeb9935f5e37b7cc7a964591ab5d9778c927fac",
+      "headSha": "3148f06ce400d0ac31d0016ca9b50d5a795319e0",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Portal private login UI flow",
@@ -97,7 +97,7 @@
       "pullRequest": 597,
       "headBranch": "review/portal-sec-r03-restore-fence-contract-2026-11-12",
       "baseBranch": "dev/fast-track-portal-2026-11-05",
-      "headSha": "f8d05c79207562eba56d8711e30447722e0436a6",
+      "headSha": "f1868a7c04271f9fb1d077964a1eae5ff65c3c2a",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
