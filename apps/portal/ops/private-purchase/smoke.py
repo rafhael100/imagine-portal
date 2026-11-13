@@ -46,7 +46,7 @@ def redirect(headers):
 for product in ['onepage','landing-pages','performance']:
     code,headers,body,fields=request(PREFIX)
     assert code==200 and '_token' in fields
-    assert 'Secure' in '\n'.join(headers.get_all('Set-Cookie',[]))
+    assert 'secure' in '\n'.join(headers.get_all('Set-Cookie',[])).lower()
     code,headers,_,_=request(PREFIX+'/orders',{'_token':fields['_token'],'product':product,'request_key':'TEST-vps-'+secrets.token_hex(16)})
     assert code==302
     order=redirect(headers)
