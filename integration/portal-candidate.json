@@ -103,6 +103,20 @@
         "Testes do portal",
         "Validacao isolada Laravel F1-01-A"
       ]
+    },
+    {
+      "pullRequest": 598,
+      "headBranch": "review/portal-first-invitation-pg18-lab-2026-11-12",
+      "baseBranch": "feat/portal-private-login-ui-2026-11-12",
+      "headSha": "d60933f77b184df408fb0bd295b17b939c4ceaef",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal browser identity - PostgreSQL 18 candidate"
+      ]
     }
   ]
 }
