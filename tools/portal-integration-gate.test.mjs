@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605, 607, 611]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605, 607, 611, 614, 615]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -438,6 +438,16 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[8].headBranch = m.isolatedLots[1].headBranch; },
     m => { m.isolatedLots[8].headSha = m.isolatedLots[1].headSha; },
     m => { m.isolatedLots[8].requiredWorkflows = []; },
+    m => { m.isolatedLots[9].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[9].pullRequest = m.isolatedLots[8].pullRequest; },
+    m => { m.isolatedLots[9].headSha = m.isolatedLots[8].headSha; },
+    m => { m.isolatedLots[9].requiredWorkflows = []; },
+    m => { m.isolatedLots[10].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[10].baseBranch = m.isolatedLots[8].headBranch; },
+    m => { m.isolatedLots[10].pullRequest = m.isolatedLots[9].pullRequest; },
+    m => { m.isolatedLots[10].headSha = m.isolatedLots[9].headSha; },
+    m => { m.isolatedLots[10].headBranch = m.isolatedLots[9].headBranch; },
+    m => { m.isolatedLots[10].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -584,4 +594,38 @@ test('ninth isolated signed-witness rehearsal remains a child of the prior rollb
   assert.equal(blocked.evidenceVerified, false);
   assert.equal(blocked.antiRollbackApproved, false);
   assert.equal(blocked.mergeApproved, false);
+});
+
+test('first-party signature verifier stays on synthetic signer ancestry and never unlocks customers', () => {
+  const f = isolatedReview(9);
+  assert.equal(f.lot.pullRequest, 614);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[8].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 2);
+  const reviewed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(reviewed.evidenceVerified, true);
+  assert.equal(reviewed.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(reviewed.mergeApproved, false);
+  assert.equal(reviewed.deployApproved, false);
+  assert.equal(reviewed.antiRollbackApproved, false);
+  assert.equal(reviewed.customerAccessApproved, false);
+  f.runs[1].status = 'in_progress';
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+});
+
+test('deny-by-default Laravel witness binding is not a recovery or login permission', () => {
+  const f = isolatedReview(10);
+  assert.equal(f.lot.pullRequest, 615);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[9].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 2);
+  let reviewed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(reviewed.evidenceVerified, true);
+  assert.equal(reviewed.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(reviewed.mergeApproved, false);
+  assert.equal(reviewed.deployApproved, false);
+  assert.equal(reviewed.antiRollbackApproved, false);
+  assert.equal(reviewed.customerAccessApproved, false);
+  f.runs[0].conclusion = 'failure';
+  reviewed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(reviewed.evidenceVerified, false);
+  assert.equal(reviewed.deployApproved, false);
 });
