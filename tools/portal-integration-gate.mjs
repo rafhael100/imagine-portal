@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 5 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 6 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -73,6 +73,21 @@ export function validateManifest(m) {
       // enrollment lab, never retargeted to dev/main or the large candidate.
       m.isolatedLots[4]?.baseBranch !== m.isolatedLots[3]?.headBranch ||
       m.isolatedLots[4]?.requiredWorkflows?.length !== 6 ||
+      m.isolatedLots[5]?.pullRequest !== 603 ||
+      m.isolatedLots[5]?.headBranch !== 'review/portal-email-proof-ledger-pg18-2026-11-12' ||
+      // Immutable default-deny ledger is strictly a child of scoped
+      // email proof, never a main/dev credential issuer.
+      m.isolatedLots[5]?.baseBranch !== m.isolatedLots[4]?.headBranch ||
+      m.isolatedLots[5]?.requiredWorkflows?.length !== 7 ||
+      [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+        'Portal GSC F102/F105/F107 — synthetic OAuth security contracts',
+        'Portal F64 - Private Container Homologation Smoke',
+        'Portal browser identity - PostgreSQL 18 candidate',
+        'Portal browser auth - private Docker rehearsal',
+        'Portal private persistent database foundation',
+      ].some(name => !m.isolatedLots[5]?.requiredWorkflows?.includes(name)) ||
       [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',
