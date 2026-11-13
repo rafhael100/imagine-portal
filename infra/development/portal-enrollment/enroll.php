@@ -32,7 +32,7 @@ try{
     $name=$read('Nome da organização de desenvolvimento: ');
     $password=$read('Senha (mínimo 12 caracteres): ',true);
     $confirmation=$read('Repita a senha: ',true);
-    if(!hash_equals($password,$confirmation))throw new RuntimeException();
+    if(!hash_equals($password,$confirmation)||\App\Domain\Identity\Security\PortalPasswordCredential::makeHash($password)===null)throw new RuntimeException();
     $alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';$secret='';
     for($i=0;$i<32;$i++)$secret.=$alphabet[random_int(0,31)];
     fwrite(STDOUT,"Cadastre manualmente no autenticador: Imagine Portal (SHA1, 6 dígitos, 30 segundos)\nChave: ".$secret."\n");

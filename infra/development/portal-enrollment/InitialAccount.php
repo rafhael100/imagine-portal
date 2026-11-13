@@ -29,7 +29,7 @@ final class InitialAccount
         if($hash===null||$cipher===null||$counter===null)
             throw new RuntimeException('Initial account preparation refused.');
         $actor=$db->query("SELECT current_database() db,current_user actor,session_user login,
-            current_setting('server_version_num')::int/10000 version,inet_client_addr()::text address")->fetch(PDO::FETCH_ASSOC);
+            current_setting('server_version_num')::int/10000 version,host(inet_client_addr()) address")->fetch(PDO::FETCH_ASSOC);
         if($actor['db']!=='portal_identity_dev'||$actor['actor']!=='postgres'
             ||$actor['login']!=='postgres'||(int)$actor['version']!==18||$actor['address']!=='127.0.0.1')
             throw new RuntimeException('Private development database required.');
