@@ -156,6 +156,11 @@ chmod 0600 "$scratch/restored.json" "$scratch/witness.json"
 [[ "$(sql "$target" 'SELECT witnessed_sequence FROM public.portal_restore_epoch_f368')" == 12 ]]
 [[ "$(wsql 'SELECT sequence FROM public.portal_f368_independent_witness')" == 13 ]]
 blocked
+# F369: sign the independent-cluster witness observation with an ephemeral
+# Ed25519 key that is never present in the Portal backup. Verify in actual
+# dormant Portal Infrastructure code, including forged signature negative.
+php infra/development/portal-recovery/test-f369.php \
+ "$scratch/restored.json" "$scratch/witness.json"
 
 # Reuse the F365 Core quarantine on restored copy; still NO serving.
 tool php /opt/portal-recovery/run-ci.php
