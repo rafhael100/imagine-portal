@@ -258,7 +258,8 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
     {
         $directory=sys_get_temp_dir().'/portal-real-pg-http-'.bin2hex(random_bytes(12));
         mkdir($directory,0700);
-        config(['app.url'=>'https://portal.example.test','session.driver'=>'file','session.files'=>$directory,'session.encrypt'=>true]);
+        config(['app.url'=>'https://portal.example.test','session.driver'=>'file','session.files'=>$directory,'session.encrypt'=>true,
+            'portal_development_auth.organization'=>self::ORG]);
         $this->app->instance(PortalBrowserAuthentication::class,$this->adapter);
         Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void{
             Route::get('/__pg-auth/csrf',[PortalBrowserAuthController::class,'csrf']);
@@ -1133,6 +1134,7 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             'totp_key'=>base64_encode($this->key),'scope_pepper'=>$this->pepper];
         file_put_contents($path,json_encode($v,JSON_THROW_ON_ERROR));chmod($path,0600);
         config(['portal_development_auth.enabled'=>true,'portal_development_auth.secret_file'=>$path,
+            'portal_development_auth.organization'=>self::ORG,
             'app.env'=>'staging','app.debug'=>false,'app.url'=>'https://portal-dev.imaginecomunica.com.br',
             'session.driver'=>'portal_private_pg','session.encrypt'=>false,'session.serialization'=>'json']);
         $this->app->instance('encrypter',new Encrypter(random_bytes(32),'AES-256-CBC'));

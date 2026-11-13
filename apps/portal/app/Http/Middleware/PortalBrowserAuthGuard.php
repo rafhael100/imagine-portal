@@ -48,6 +48,9 @@ final class PortalBrowserAuthGuard
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'no-referrer');
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
         return $response;
     }
 }
