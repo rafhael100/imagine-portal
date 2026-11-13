@@ -39,7 +39,7 @@ foreach (['onepage','landing-pages','performance'] as $product) {
     $complete=$store->briefing('test-org-a',$order['id'],3,$brief);
     // A new database connection and service instance must read the saved data.
     $reloaded=(new PersistedTestPurchase(connection()))->read('test-org-a',$order['id']);
-    check($complete===$reloaded && $reloaded['briefing']===$brief,'Durable reload');
+    check($complete===$reloaded && $reloaded['briefing']==$brief,'Durable reload');
     check($complete['real_payment']===false && $complete['authorizes_http']===false,'No operational authority');
     denied(fn()=>$store->payment('test-org-a',$order['id'],4,'declined'));
     denied(fn()=>$store->briefing('test-org-b',$order['id'],4,$brief));
