@@ -183,6 +183,7 @@ foreach ([
     'DEMO-REQ-ONEPAGE','DEMO-REQ-LANDING','DEMO-REQ-PERFORMANCE',
     'LABORATÓRIO DESCARTÁVEL','noindex,nofollow',
     'Visão geral dos serviços','6/10',
+    'Conteúdo','Consentimento','Criativos','Orçamento',
     'href="#pi-pg18-projects"','href="#pi-pg18-requests"',
 ] as $expected) {
     if (!str_contains($html,$expected)) {
