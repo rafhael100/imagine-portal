@@ -66,10 +66,21 @@ final readonly class DisposableFirstEnrollment
                 "UPDATE portal_browser_private.lab_initial_email_proofs
                  SET consumed_at=clock_timestamp()
                  WHERE identity_id=CAST(? AS uuid) AND proof_sha256=?
-                   AND consumed_at IS NULL AND expires_at>clock_timestamp()"
+                   AND consumed_at IS NULL AND expires_at>clock_timestamp()
+                   AND attempts<5"
             );
             $claim->execute([$identityId, hash('sha256', $proof)]);
             if ($claim->rowCount() !== 1) {
+                // Invalid proofs cannot be tried forever. Count the
+                // attempts atomically, even though the email confirmation
+                // itself is rejected; a later valid token is fenced.
+                $failed = $this->db->prepare(
+                    "UPDATE portal_browser_private.lab_initial_email_proofs
+                     SET attempts=attempts+1 WHERE identity_id=CAST(? AS uuid)
+                       AND consumed_at IS NULL AND expires_at>clock_timestamp()
+                       AND attempts<5"
+                );
+                $failed->execute([$identityId]);
                 return false;
             }
             $update = $this->db->prepare(
