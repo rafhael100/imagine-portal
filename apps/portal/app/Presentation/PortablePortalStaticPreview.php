@@ -82,7 +82,7 @@ final class PortablePortalStaticPreview
                 }
 
                 $html = $this->linkOfflineSidebar($html, $known);
-                $html = str_replace('<body>', '<body>'.$this->navigation($known, $name), $html);
+                $html = str_replace('<body>', '<body>'.$this->navigation($known, $name).$this->guidedJourney($name), $html);
                 $this->assertOfflineOnly($html, $known, $logoDataUrl);
                 $this->writePage($staging, $name, $html);
                 $records[] = $this->record($name, $html);
@@ -203,6 +203,58 @@ final class PortablePortalStaticPreview
             .$links.'</nav>';
     }
 
+    /**
+     * A six-step reviewer walk-through over local files only. It is never
+     * mounted as an authenticated, transactional or operational journey.
+     */
+    private function guidedJourney(string $current): string
+    {
+        $steps = [
+            'overview.html' => 'Conhecer o painel',
+            'available.html' => 'Explorar serviços',
+            'requests.html' => 'Conferir solicitações',
+            'preparation.html' => 'Revisar materiais',
+            'journey.html' => 'Acompanhar etapas',
+            'services.html' => 'Rever meus serviços',
+        ];
+        $names = array_keys($steps);
+        $position = array_search($current, $names, true);
+        if ($position === false) {
+            return '';
+        }
+        $previous = $position > 0 ? $names[$position - 1] : null;
+        $next = $position < count($names) - 1 ? $names[$position + 1] : null;
+        $label = htmlspecialchars($steps[$current], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        $linkStyle = 'display:inline-block;padding:8px 12px;border-radius:8px;'
+            .'border:1px solid #d8a15d;background:#fff;color:#994b00;'
+            .'text-decoration:underline;font:600 13px/1.4 Arial,sans-serif;';
+        $links = '';
+        if ($previous !== null) {
+            $links .= '<a data-guide-prev href="'.$previous.'" style="'.$linkStyle.'">'
+                .'Etapa anterior</a>';
+        }
+        if ($next !== null) {
+            $links .= '<a data-guide-next href="'.$next.'" style="'.$linkStyle.'">'
+                .'Próxima etapa</a>';
+        } else {
+            $links .= '<a data-guide-end href="index.html" style="'.$linkStyle.'">'
+                .'Voltar ao índice</a>';
+        }
+
+        return '<nav class="pi-guided-flow" data-guided-flow="portal"'
+            .' data-step-number="'.($position + 1).'"'
+            .' aria-label="Roteiro guiado de homologação fictícia"'
+            .' style="box-sizing:border-box;padding:14px 18px;'
+            .'background:#fff1e0;border-bottom:1px solid #f9941d;'
+            .'color:#171b19;font:13px/1.6 Arial,sans-serif">'
+            .'<strong>Teste guiado · Etapa '.($position + 1).' de '.count($steps).'</strong>'
+            .' <span aria-current="step">'.$label.'</span>'
+            .'<p style="margin:4px 0 10px">Navegação ilustrativa e offline. '
+            .'Não envia solicitações nem ativa clientes, serviços ou publicações.</p>'
+            .'<div style="display:flex;flex-wrap:wrap;gap:8px">'.$links.'</div></nav>';
+    }
+
     /** @param list<string> $known */
     private function index(array $known): string
     {
@@ -230,7 +282,10 @@ final class PortablePortalStaticPreview
             .'<main id="pi-content"><h1>Imagine Portal · prévia visual</h1>'
             .'<p>Esta é uma prévia <strong>offline e fictícia</strong> da identidade original Imagine. '
             .'Não há login, contratos assinados, clientes, pagamentos ou publicação de sites.</p>'
-            .'<ul>'.$links.'</ul></main></body></html>';
+            .'<section aria-label="Roteiro guiado de avaliação"><h2>Teste guiado em seis etapas</h2>'
+            .'<p>Use um percurso contínuo pelas telas fictícias, sem login nem envio de dados.</p>'
+            .'<p><a data-guide-start href="overview.html">Iniciar o roteiro de exemplo</a></p></section>'
+            .'<h2>Outras telas disponíveis</h2><ul>'.$links.'</ul></main></body></html>';
     }
 
     /** @param list<string> $known */
