@@ -1,0 +1,42 @@
+name: Portal persisted synthetic purchase
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/**'
+      - 'apps/portal/tools/test_persisted_purchase.php'
+      - '.github/workflows/portal-persisted-purchase.yml'
+permissions:
+  contents: read
+jobs:
+  persisted-purchase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: portal_purchase_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_purchase_rehearsal"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP and PostgreSQL driver
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Validate syntax and durable purchase behavior
+        run: |
+          php -l apps/portal/app/Homologation/PersistedTestPurchase.php
+          php -l apps/portal/app/Homologation/RoleBoundTestPurchase.php
+          php -l apps/portal/tools/test_persisted_purchase.php
+          php apps/portal/tools/test_persisted_purchase.php
