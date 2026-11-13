@@ -108,7 +108,7 @@
       "pullRequest": 598,
       "headBranch": "review/portal-first-invitation-pg18-lab-2026-11-12",
       "baseBranch": "feat/portal-private-login-ui-2026-11-12",
-      "headSha": "d60933f77b184df408fb0bd295b17b939c4ceaef",
+      "headSha": "b52d4ee1fa2782d4e5c8deb3491707fb1be64ec5",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
