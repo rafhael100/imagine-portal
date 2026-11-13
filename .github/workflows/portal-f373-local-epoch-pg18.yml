@@ -1,0 +1,52 @@
+name: Portal F373 - Recovery epoch closed schema PostgreSQL 18 (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/database/migrations/2026_11_13_000018_create_portal_recovery_epoch_candidates.php'
+      - 'infra/development/portal-recovery/test-f373-pg18.php'
+      - '.github/workflows/portal-f373-local-epoch-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  quarantine-only-recovery-epoch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Fresh disposable PostgreSQL 18 foundation
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f373-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f373-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f373-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Install candidate migration on runner only, assert negative RLS and monotonic fences
+        run: |
+          set -euo pipefail
+          tool() {
+            sudo docker compose -p imagine-portal-f373-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F373_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" provision "$@"
+          }
+          tool php -l /var/www/html/database/migrations/2026_11_13_000018_create_portal_recovery_epoch_candidates.php
+          tool php -l /opt/portal-recovery/test-f373-pg18.php
+          if tool php /opt/portal-recovery/test-f373-pg18.php extra; then
+            echo 'Candidate migration test must refuse unexpected CLI args'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/test-f373-pg18.php
+      - name: Always dispose only the f373 runner cluster
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f373-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
