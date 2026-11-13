@@ -20,6 +20,7 @@ with sync_playwright() as p:
     page.locator('#next').click()
     assert page.locator('#error').inner_text()
     page.locator('#company').fill('<img src=x onerror=alert(1)>')
+    page.locator('#feedback summary').click()
     page.locator('#notes').fill('Rever orientação do briefing')
     page.locator('#next').click()
     assert page.locator('img').count() == 0
