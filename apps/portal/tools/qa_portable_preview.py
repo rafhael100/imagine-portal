@@ -61,6 +61,8 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
     scroll_tests = 0
     nav_tests = 0
     offline_nav_checks = 0
+    mobile_header_checks = 0
+    max_mobile_header_height = 0.0
     visual_evidence: list[dict] = []
     with sync_playwright() as p:
         options = {"headless": True, "args": [
@@ -87,7 +89,8 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
                           main: document.querySelectorAll('main').length,
                           title: document.querySelectorAll('h1').length,
                           images: document.querySelectorAll('img').length,
-                          nav: document.querySelector('.pi-sidebar nav')?.scrollWidth || 0
+                          nav: document.querySelector('.pi-sidebar nav')?.scrollWidth || 0,
+                          sidebar_height: document.querySelector('.pi-sidebar')?.getBoundingClientRect().height || 0
                         })"""
                     )
                     if metrics["doc"] > width + 1 or metrics["body"] > width + 1:
@@ -99,6 +102,17 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
                     if metrics["images"] != (0 if name == "index.html" else 1):
                         errors.append({"page": name, "width": width,
                                        "reason": "unexpected_image_count"})
+                    if width == 390 and name != "index.html":
+                        mobile_header_checks += 1
+                        max_mobile_header_height = max(
+                            max_mobile_header_height, metrics["sidebar_height"]
+                        )
+                        if metrics["sidebar_height"] > 260:
+                            errors.append({
+                                "page": name, "width": width,
+                                "reason": "mobile_header_consumes_too_much_vertical_space",
+                                "sidebar_height": metrics["sidebar_height"],
+                            })
                     if width == 320:
                         # The review-only navigation must remain on one
                         # horizontal line and be reachable by tab focus.
@@ -209,6 +223,9 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
         "pages": len(PAGES),
         "keyboard_table_checks": scroll_tests,
         "mobile_menu_checks": nav_tests,
+        "mobile_header_checks": mobile_header_checks,
+        "max_mobile_header_height": round(max_mobile_header_height, 2),
+        "mobile_header_limit_px": 260,
         "offline_navigation_checks": offline_nav_checks,
         "manifest_integrity_verified": True,
         "passed": not errors,
