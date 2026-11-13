@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'apps/portal/tools/serve_private_preview.py'
+      - 'apps/portal/tools/iniciar_previa_imagine_windows.cmd'
       - 'apps/portal/tests/test_private_preview_http.py'
       - 'docs/PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md'
       - '.github/workflows/portal-private-preview-http-ci.yml'
@@ -164,13 +165,62 @@ jobs:
                   worker.join(timeout=5)
           print('PASS: real original Imagine UI artifact served only via isolated loopback; NO-GO production.')
           PY
-      - name: Preserve verified ZIP and viewer as short-lived CI review artifact
+      - name: Package exact reviewed HTML, viewer, Windows launcher and runbook
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$RUNNER_TEMP/imagine-p0-private-review"
+          mkdir -p "$package"
+          cp "$RUNNER_TEMP/imagine-original-ui-synthetic.zip" "$package/"
+          cp apps/portal/tools/serve_private_preview.py "$package/"
+          cp apps/portal/tools/iniciar_previa_imagine_windows.cmd "$package/"
+          cp docs/PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md "$package/"
+          test "$(find "$package" -maxdepth 1 -type f | wc -l)" -eq 4
+      - name: Archive verified ZIP and Windows-compatible viewer
         uses: actions/upload-artifact@v5
         with:
           name: imagine-p0-private-html-review-only
-          path: |
-            ${{ runner.temp }}/imagine-original-ui-synthetic.zip
-            apps/portal/tools/serve_private_preview.py
-            docs/PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md
+          path: ${{ runner.temp }}/imagine-p0-private-review/
           if-no-files-found: error
           retention-days: 7
+
+  windows-11-private-review-smoke:
+    name: Windows / Python 3.12 / verified ZIP / localhost only
+    needs: real-imagine-ui-bundle-readonly
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - name: Checkout Python security regression suite
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run ZIP/Host/HTTP negative tests on Windows
+        shell: pwsh
+        run: |
+          python -B -m unittest discover -s apps/portal/tests -p test_private_preview_http.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Windows private HTTP tests failed" }
+      - name: Fetch the same PHP-generated synthetic review artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: imagine-p0-private-html-review-only
+          path: private-preview
+      - name: Audit Windows package and verify all eleven original pages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = Join-Path $PWD 'private-preview'
+          $expected = @('imagine-original-ui-synthetic.zip', 'serve_private_preview.py', 'iniciar_previa_imagine_windows.cmd', 'PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md')
+          $actual = @(Get-ChildItem -LiteralPath $folder -File | ForEach-Object { $_.Name })
+          $diff = @(Compare-Object -ReferenceObject $expected -DifferenceObject $actual)
+          if ($diff.Count -ne 0) { throw 'Unexpected Windows package files' }
+          $launcher = Get-Content -Raw (Join-Path $folder 'iniciar_previa_imagine_windows.cmd')
+          if (-not $launcher.Contains('choice /C SN') -or -not $launcher.Contains('--check') -or -not $launcher.Contains('--serve') -or -not $launcher.Contains('127.0.0.1')) {
+            throw 'Launcher must verify, ask consent and be local-only'
+          }
+          python (Join-Path $folder 'serve_private_preview.py') --zip (Join-Path $folder 'imagine-original-ui-synthetic.zip') --check
+          if ($LASTEXITCODE -ne 0) { throw 'Windows real UI bundle integrity failed' }
+          Write-Output 'Windows test validated the real 11-page Imagine review package; no server started.'
