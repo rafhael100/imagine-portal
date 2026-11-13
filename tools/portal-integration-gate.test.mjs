@@ -340,3 +340,81 @@ test('final visual-browser lot allows at most 25 committed steps, never auto-rel
   assert.equal(oversized.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
   assert.equal(oversized.deployApproved, false);
 });
+
+
+function isolatedReview(index) {
+  const f = fixture();
+  const lot = f.m.isolatedLots[index];
+  f.pr.number = lot.pullRequest;
+  f.pr.head.ref = lot.headBranch;
+  f.pr.head.sha = lot.headSha;
+  f.pr.base.ref = lot.baseBranch;
+  f.runs = lot.requiredWorkflows.map((name, i) => ({
+    id: 3000 + i, run_attempt: 1, name, event: 'pull_request',
+    head_sha: lot.headSha, head_branch: lot.headBranch,
+    pull_requests: [{ number: lot.pullRequest,
+      head: { ref: lot.headBranch }, base: { ref: lot.baseBranch } }],
+    status: 'completed', conclusion: 'success',
+  }));
+  f.comparison.ahead_by = 15;
+  return { ...f, lot };
+}
+
+test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597]);
+  assert.equal(manifest.reviewLots.length, 4);
+  for (const i of [0, 1]) {
+    const f = isolatedReview(i);
+    const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+    assert.equal(result.comparisonBase, f.lot.baseBranch);
+    assert.equal(result.evidenceVerified, true);
+    assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+    assert.equal(result.mergeApproved, false);
+    assert.equal(result.deployApproved, false);
+    assert.equal(result.customerAccessApproved, false);
+    assert.equal(result.antiRollbackApproved, false);
+  }
+});
+
+test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
+  for (const i of [0, 1]) {
+    const f = isolatedReview(i);
+    f.pr.head.sha = 'a'.repeat(40);
+    assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+    f.pr.head.sha = f.lot.headSha;
+    f.runs[0].conclusion = 'failure';
+    assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+    f.runs[0].conclusion = 'success';
+    f.pr.base.ref = 'main';
+    assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+    f.pr.base.ref = f.lot.baseBranch;
+    f.comparison.behind_by = 1;
+    assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+  }
+});
+
+test('independent lot manifest blocks any duplicate, retarget, missing workflow or too-large limit', () => {
+  for (const change of [
+    m => { m.isolatedLots.pop(); },
+    m => { m.isolatedLots[0].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[1].baseBranch = m.isolatedLots[0].baseBranch; },
+    m => { m.isolatedLots[0].pullRequest = m.reviewLots[0].pullRequest; },
+    m => { m.isolatedLots[1].headSha = m.reviewLots[3].headSha; },
+    m => { m.isolatedLots[0].requiredWorkflows.pop(); m.isolatedLots[0].requiredWorkflows = []; },
+    m => { m.isolatedLots[1].requiredWorkflows.push(m.isolatedLots[1].requiredWorkflows[0]); },
+    m => { m.isolatedLots[0].maxCommits = 21; },
+  ]) {
+    const m = structuredClone(manifest);
+    change(m);
+    assert.throws(() => validateManifest(m), /INVALID_REVIEW_MANIFEST/);
+  }
+});
+
+test('an independent review lot of 21 commits is split, never folded into UI or merged', () => {
+  const f = isolatedReview(0);
+  f.comparison.ahead_by = 21;
+  const decision = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(decision.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
+  assert.equal(decision.mergeApproved, false);
+  assert.equal(decision.deployApproved, false);
+});
