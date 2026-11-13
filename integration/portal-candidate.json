@@ -72,5 +72,37 @@
         "Validacao isolada Laravel F1-01-A"
       ]
     }
+  ],
+  "isolatedLots": [
+    {
+      "pullRequest": 596,
+      "headBranch": "feat/portal-private-login-ui-2026-11-12",
+      "baseBranch": "ops/portal-private-auth-deployment-2026-11-12",
+      "headSha": "9eeb9935f5e37b7cc7a964591ab5d9778c927fac",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Portal private login UI flow",
+        "Portal browser identity - PostgreSQL 18 candidate",
+        "Portal browser auth - private Docker rehearsal",
+        "Portal private auth gateway - disposable deployment rehearsal",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal F94 - Laravel ingress source NO-GO imports",
+        "Portal F111 - Invitation identity NO-GO release fence",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 597,
+      "headBranch": "review/portal-sec-r03-restore-fence-contract-2026-11-12",
+      "baseBranch": "dev/fast-track-portal-2026-11-05",
+      "headSha": "f8d05c79207562eba56d8711e30447722e0436a6",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    }
   ]
 }
