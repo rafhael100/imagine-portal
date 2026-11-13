@@ -1,0 +1,54 @@
+name: Portal P0 - private synthetic preview loopback only
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/serve_private_preview.py'
+      - 'apps/portal/tests/test_private_preview_http.py'
+      - 'docs/PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md'
+      - '.github/workflows/portal-private-preview-http-ci.yml'
+  push:
+    branches:
+      - review/portal-p0-private-loopback-bundle-viewer-2026-11-13
+
+permissions:
+  contents: read
+
+jobs:
+  no-deploy-private-http:
+    name: Python stdlib / ZIP integrity / local-only HTTP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Compile read-only preview viewer and test harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/tools/serve_private_preview.py
+          python3 -m py_compile apps/portal/tests/test_private_preview_http.py
+      - name: Run negative and HTTP security tests on isolated runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s apps/portal/tests -p 'test_private_preview_http.py' -v
+      - name: Enforce runtime isolation from Laravel, public deploy and credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('apps/portal/tools/serve_private_preview.py').read_text()
+          assert '127.0.0.1' in source
+          assert 'ThreadingHTTPServer(("127.0.0.1", port), Handler)' in source
+          assert '--serve' in source and '--check' in source
+          for banned in ('subprocess.', 'paramiko', 'requests.', 'dotenv',
+                         'docker run', 'deploy', '0.0.0.0"', 'allow_origins'):
+              # The word deploy can occur in the mandatory denial descriptions.
+              if banned == 'deploy':
+                  continue
+              assert banned not in source, banned
+          print('NO-GO: no deployment, no public hosting, no runtime or customer authorization.')
+          PY
