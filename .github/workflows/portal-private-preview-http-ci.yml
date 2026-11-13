@@ -61,3 +61,106 @@ jobs:
           assert 'docker run' not in source
           print('NO-GO: no deployment, no public hosting, no runtime or customer authorization.')
           PY
+
+  real-imagine-ui-bundle-readonly:
+    name: PHP 8.4 synthetic original-logo UI ZIP / strict private HTTP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - name: Checkout private viewer under test
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Checkout verified exact Imagine original UI candidate, NO-GO
+        uses: actions/checkout@v5
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 47e443c204c4085eb5ca899703b9a985e19821cc
+          path: _original_imagine_ui_candidate
+          persist-credentials: false
+      - name: Verify immutable original-logo UI revision and local-only workflow scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C _original_imagine_ui_candidate rev-parse HEAD)" = "47e443c204c4085eb5ca899703b9a985e19821cc"
+          test -f _original_imagine_ui_candidate/apps/portal/bin/export-portable-preview.php
+          test -f _original_imagine_ui_candidate/apps/portal/public/assets/logo-imagine.png
+          test -f apps/portal/tools/serve_private_preview.py
+      - name: Prepare disposable PHP 8.4 with exact original Portal candidate dependencies
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+          extensions: dom, mbstring, xml, pdo, pdo_sqlite, intl, bcmath, curl, zip
+      - name: Export real synthetic Imagine HTML package in ephemeral runner
+        shell: bash
+        working-directory: _original_imagine_ui_candidate/apps/portal
+        env:
+          APP_ENV: testing
+          PORTAL_ALLOW_LOCAL_STATIC_PREVIEW: '1'
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php bin/export-portable-preview.php
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 12
+      - name: Verify exact real UI ZIP and HTTP read-only access using viewer under test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          import os
+          root=Path("_original_imagine_ui_candidate/apps/portal/storage/app/portal-demo-static")
+          target=Path(os.environ["RUNNER_TEMP"])/"imagine-original-ui-synthetic.zip"
+          assert root.is_dir() and not root.is_symlink()
+          with ZipFile(target,"w",ZIP_DEFLATED) as archive:
+              for file in sorted(root.iterdir()):
+                  assert file.is_file() and not file.is_symlink()
+                  archive.write(file,file.name)
+          print("Private synthetic UI package created inside disposable CI runner only.")
+          PY
+          python3 apps/portal/tools/serve_private_preview.py \
+            --zip "$RUNNER_TEMP/imagine-original-ui-synthetic.zip" --check
+          python3 - <<'PY'
+          from contextlib import closing
+          from http.client import HTTPConnection
+          import importlib.util, os
+          from pathlib import Path
+          from threading import Thread
+          path=Path('apps/portal/tools/serve_private_preview.py')
+          spec=importlib.util.spec_from_file_location('real_imagine_preview',path)
+          assert spec and spec.loader
+          viewer=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(viewer)
+          pages=viewer.load_verified_bundle(
+              Path(os.environ['RUNNER_TEMP'])/'imagine-original-ui-synthetic.zip')
+          assert len(pages)==11 and b'data-guide-start' in pages['index.html']
+          assert b'data-guided-flow' in pages['overview.html']
+          with viewer.create_local_server(pages,0) as server:
+              assert server.server_address[0]=='127.0.0.1'
+              worker=Thread(target=server.serve_forever, daemon=True)
+              worker.start()
+              try:
+                  for page in ('index.html','overview.html','available.html',
+                               'requests.html','preparation.html','journey.html','services.html'):
+                      with closing(HTTPConnection('127.0.0.1',server.server_port,timeout=5)) as c:
+                          c.request('GET','/'+page)
+                          response=c.getresponse()
+                          assert response.status==200, page
+                          assert response.read()==pages[page]
+                          assert response.getheader('Cache-Control')=='no-store, max-age=0'
+                  with closing(HTTPConnection('127.0.0.1',server.server_port,timeout=5)) as c:
+                      c.request('GET','/manifest.json')
+                      response=c.getresponse()
+                      assert response.status==404
+                      assert response.read()==b''
+              finally:
+                  server.shutdown()
+                  worker.join(timeout=5)
+          print('PASS: real original Imagine UI artifact served only via isolated loopback; NO-GO production.')
+          PY
