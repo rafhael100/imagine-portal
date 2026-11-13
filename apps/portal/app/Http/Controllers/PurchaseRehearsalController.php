@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace App\Http\Controllers;
 
-use App\Homologation\PersistedTestPurchase;
+use App\Homologation\RoleBoundTestPurchase;
 use App\Homologation\PurchaseRehearsalScope;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -11,54 +11,61 @@ use InvalidArgumentException;
 
 final class PurchaseRehearsalController
 {
-    private function tenant(Request $request): string
+    /**
+     * HTTP server scope must match the authenticated, restricted PostgreSQL
+     * login. A request field or a scope fixture cannot elevate database access.
+     */
+    private function store(Request $request): RoleBoundTestPurchase
     {
-        $tenant=app(PurchaseRehearsalScope::class)->organization($request);
-        abort_unless(in_array($tenant,['test-org-a','test-org-b'],true),403);
-        return $tenant;
+        $tenant = app(PurchaseRehearsalScope::class)->organization($request);
+        abort_unless(in_array($tenant, ['test-org-a','test-org-b'], true), 403);
+        abort_unless(app()->bound(RoleBoundTestPurchase::class), 503);
+        $store = app(RoleBoundTestPurchase::class);
+        abort_unless(hash_equals($store->organization(), $tenant), 403);
+        return $store;
     }
 
     public function index(Request $request)
     {
-        $this->tenant($request);
+        $this->store($request);
         return $this->page(null);
     }
 
     public function create(Request $request)
     {
-        $tenant=$this->tenant($request);
+        $store=$this->store($request);
         $this->fields($request,['product','request_key']);
         $data=$request->validate(['product'=>'required|string|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D']);
-        try { $order=app(PersistedTestPurchase::class)->create($tenant,$data['request_key'],$data['product']); }
+        try { $order=$store->create($data['request_key'],$data['product']); }
         catch (InvalidArgumentException|RuntimeException) { abort(409,'Não foi possível criar o pedido de teste.'); }
         return redirect()->route('rehearsal.orders.show',['id'=>$order['id']]);
     }
 
     public function show(Request $request,string $id)
     {
-        $tenant=$this->tenant($request);
-        try { $order=app(PersistedTestPurchase::class)->read($tenant,$id); }
+        $store=$this->store($request);
+        try { $order=$store->read($id); }
         catch (InvalidArgumentException|RuntimeException) { abort(404); }
         return $this->page($order);
     }
 
     public function payment(Request $request,string $id)
     {
-        $tenant=$this->tenant($request);
+        $store=$this->store($request);
         $this->fields($request,['revision','outcome','sample_ack']);
         $data=$request->validate(['revision'=>'required|integer|min:0|max:100000','outcome'=>'required|in:approved,pending,declined','sample_ack'=>'accepted']);
-        try { app(PersistedTestPurchase::class)->payment($tenant,$id,(int)$data['revision'],$data['outcome']); }
+        try { $store->payment($id,(int)$data['revision'],$data['outcome']); }
         catch (InvalidArgumentException|RuntimeException) { abort(409,'Atualize o pedido de teste antes de tentar novamente.'); }
         return redirect()->route('rehearsal.orders.show',['id'=>$id]);
     }
 
     public function briefing(Request $request,string $id)
     {
-        $tenant=$this->tenant($request);
+        $store=$this->store($request);
         $this->fields($request,['revision','business','goal','audience','materials']);
         $data=$request->validate(['revision'=>'required|integer|min:0|max:100000','business'=>'required|string|max:200','goal'=>'required|string|max:200','audience'=>'required|string|max:200','materials'=>'required|string|max:200']);
         $revision=(int)$data['revision']; unset($data['revision']);
-        try { app(PersistedTestPurchase::class)->briefing($tenant,$id,$revision,$data); }
+        try { $store->briefing($id,$revision,$data); }
         catch (InvalidArgumentException|RuntimeException) { abort(409,'Briefing indisponível para este estado do pedido.'); }
         return redirect()->route('rehearsal.orders.show',['id'=>$id]);
     }
