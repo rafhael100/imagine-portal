@@ -1,0 +1,76 @@
+name: Portal isolated persistent private preview
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/ops/private-purchase/**'
+      - 'apps/portal/app/Homologation/**'
+      - 'apps/portal/app/Http/Controllers/PurchaseRehearsalController.php'
+      - 'apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php'
+      - 'apps/portal/resources/views/portal/rehearsal/**'
+      - 'apps/portal/tools/test_purchase_browser.py'
+      - '.github/workflows/portal-private-purchase-preview.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Build existing locked runtime from official base images
+        run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
+      - name: Build isolated purchase application before generating private files
+        working-directory: apps/portal/ops/private-purchase
+        run: docker compose build application
+      - name: Start new disposable isolated database and loopback gateway
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          sudo python3 prepare.py
+          docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          docker compose -f compose.yaml -f compose.ci.yaml up -d
+          python3 - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Private preview readiness failed')
+          PY
+          test "$(docker inspect imagine-purchase-preview-database-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
+          test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
+      - name: Real Chromium and persistent restart
+        env:
+          PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+        run: |
+          python3 -m venv /tmp/private-purchase-browser
+          /tmp/private-purchase-browser/bin/pip install playwright==1.56.0
+          /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
+          cd apps/portal/ops/private-purchase
+          docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
+          docker compose restart database application
+          python3 - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Private preview restart failed')
+          PY
+          docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
+          cmp /tmp/purchase-count-before /tmp/purchase-count-after
+      - name: Stop only disposable CI stack
+        if: always()
+        working-directory: apps/portal/ops/private-purchase
+        run: docker compose down --volumes
