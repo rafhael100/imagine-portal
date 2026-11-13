@@ -91,21 +91,6 @@ with ThreadingHTTPServer(
                         ).count() == 1
                         assert page.locator('p[data-comercial-handoff="confirmed"]').count() == 1
                         selected = page.locator(
-                            f'section[data-handoff-offer="{product}"]'
-                            '[data-handoff-selected="true"]'
-                        )
-                        # Assert the only selected offering, not merely text hint.
-                        selected = page.locator(
-                            f'section[data-handoff-offer="{product}"]'
-                            '[data-handoff-selected="true"]'
-                        )
-                        assert selected.count() == 0  # Attribute lives on the same section.
-                        selected = page.locator(
-                            f'section[data-handoff-offer="{product}"]'
-                            '[data-handoff-selected="true"]'.replace('][', '][')
-                        )
-                        # Use a single node with both attributes, avoiding CSS descendent matching.
-                        selected = page.locator(
                             f'section[data-handoff-offer="{product}"][data-handoff-selected="true"]'
                         )
                         assert selected.count() == 1
