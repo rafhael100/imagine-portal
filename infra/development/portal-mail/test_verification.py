@@ -9,7 +9,7 @@ from verification import (IssuedChallenge, VerificationCoordinator,
 
 class VerificationFlowTests(unittest.TestCase):
     REFERENCE = "1" * 32
-    TOKEN = "a" * 64
+    TOKEN = "023456"
 
     def setUp(self):
         self.ledger = MagicMock()
@@ -18,7 +18,7 @@ class VerificationFlowTests(unittest.TestCase):
             self.REFERENCE, WorkspaceRelay.RECIPIENT)
         self.ledger.mark_accepted.return_value = True
         self.flow = VerificationCoordinator(self.ledger, self.transport)
-        self.random = patch("verification.secrets.token_hex", return_value=self.TOKEN)
+        self.random = patch("verification.secrets.randbelow", return_value=23456)
         self.generate = self.random.start()
         self.addCleanup(self.random.stop)
 
@@ -27,9 +27,9 @@ class VerificationFlowTests(unittest.TestCase):
         calls.attach_mock(self.ledger, "ledger")
         calls.attach_mock(self.transport, "transport")
         receipt = self.flow.send(WorkspaceRelay.RECIPIENT)
-        self.generate.assert_called_once_with(32)
+        self.generate.assert_called_once_with(1_000_000)
         self.ledger.reserve.assert_called_once_with(
-            WorkspaceRelay.RECIPIENT, self.TOKEN, 540)
+            WorkspaceRelay.RECIPIENT, self.TOKEN, 900)
         self.assertEqual([c[0] for c in calls.mock_calls],
                          ["ledger.reserve", "transport.deliver", "ledger.mark_accepted"])
         self.assertNotIn(self.TOKEN, repr(receipt))
@@ -90,7 +90,7 @@ class VerificationFlowTests(unittest.TestCase):
             self.fail("Failure must be explicit")
 
     def test_malformed_confirmations_never_reach_ledger(self):
-        for token in ["", "a" * 63, "A" * 64, "a" * 64 + "\n", None]:
+        for token in ["", "12345", "1234567", "１２３４５６", "123456\n", "a" * 64, None]:
             with self.assertRaises(VerificationError):
                 self.flow.confirm(self.REFERENCE, token)
         self.ledger.consume.assert_not_called()
