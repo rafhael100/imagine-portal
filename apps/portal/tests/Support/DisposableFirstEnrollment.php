@@ -185,7 +185,9 @@ final readonly class DisposableFirstEnrollment
                 "SELECT i.status AS identity_status,i.email_normalized,
                         i.email_verified_at,i.password_hash,i.mfa_secret_ciphertext,
                         i.mfa_confirmed_at,i.mfa_last_used_counter,
+                        i.security_revision AS identity_revision,
                         m.id AS membership_id,m.status AS member_status,m.role,
+                        m.organization_id,
                         o.status AS organization_status
                  FROM public.portal_identities i
                  JOIN public.portal_memberships m ON m.identity_id=i.id
@@ -217,12 +219,16 @@ final readonly class DisposableFirstEnrollment
                 }
             }
             $claim = $this->db->prepare(
-                "SELECT consumed_at FROM portal_browser_private.lab_initial_email_proofs
+                "SELECT consumed_at,organization_id,identity_revision
+                 FROM portal_browser_private.lab_initial_email_proofs
                  WHERE identity_id=CAST(? AS uuid) FOR UPDATE"
             );
             $claim->execute([$identityId]);
             $receipt = $claim->fetch(PDO::FETCH_ASSOC);
-            if (!is_array($receipt) || $receipt['consumed_at'] === null) {
+            if (!is_array($receipt) || $receipt['consumed_at'] === null
+                || $receipt['organization_id'] !== $organizationId
+                || $row['organization_id'] !== $organizationId
+                || (int) $receipt['identity_revision'] !== (int) $row['identity_revision']) {
                 return false;
             }
             $now = (int) $this->db->query(
