@@ -8,6 +8,9 @@
  * Scope is fixed by operator-controlled deployment bindings (one isolated
  * organization/instance per deployment), not by a caller's query or headers.
  */
+import { recordRevocationIntent } from '../../f386-worker/intent.mjs';
+
+const INTENT_PATH = '/v1/portal/revocation-intents';
 const GET_PATH = '/v1/portal/recovery-witness';
 const CHALLENGE_PATH = '/v2/portal/recovery-witness';
 const CHALLENGE_SCHEMA = 'imagine.portal.f379.challenged-witness.v1';
@@ -260,6 +263,10 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === GET_PATH) {
         return await getSigned(env, env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
+      }
+      if (request.method === 'POST' && url.pathname === INTENT_PATH) {
+        return await recordRevocationIntent(request, env,
+          env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
       }
       if (request.method === 'POST' && url.pathname === WRITE_PATH) {
         return await advance(request, env, env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
