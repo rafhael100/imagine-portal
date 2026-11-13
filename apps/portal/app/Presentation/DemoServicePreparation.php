@@ -18,7 +18,7 @@ final class DemoServicePreparation
         ],
         'DEMO-SVC-LANDING' => [
             'Sites Imagine · Landing Page',
-            'Objetivo e conteúdo; formulário e consentimento; domínio pendente',
+            'Objetivo e conteúdo; Formulário e Consentimento; domínio pendente',
             'DEMO-REQ-LANDING',
         ],
         'DEMO-SVC-PERFORMANCE' => [
