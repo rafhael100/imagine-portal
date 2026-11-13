@@ -32,7 +32,7 @@ final class DisposablePg18ShowcaseOverview
                 || !is_string($row[1]) || $row[1] === ''
                 || isset($projects[$row[1]])
                 || !is_string($row[3])
-                || preg_match('/\\A([0-9]{1,2})\\/([0-9]{1,2}) itens revisados\\z/uD', $row[3], $matches) !== 1) {
+                || preg_match('/\A([0-9]{1,2})\/([0-9]{1,2}) itens revisados\z/uD', $row[3], $matches) !== 1) {
                 throw new RuntimeException('Malformed or duplicated synthetic project.');
             }
             $done = (int) $matches[1];
