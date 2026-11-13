@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require dirname(__DIR__,4).'/apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php';
+require dirname(__DIR__,5).'/apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php';
 
 use App\Infrastructure\Recovery\IndependentWitnessCandidateVerifier as Verifier;
 
