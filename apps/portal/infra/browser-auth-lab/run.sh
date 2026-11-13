@@ -25,6 +25,14 @@ php -r '
 $db=new PDO("pgsql:host=127.0.0.1;port=5432;dbname=portal_browser_lab","postgres",getenv("PGPASSWORD"),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 if($db->query("SELECT current_database()")->fetchColumn()!=="portal_browser_lab"){exit(1);}
 $db->exec(file_get_contents("database/security/portal_browser_auth.sql"));
+// The principal reader is installed ONLY into this disposable PostgreSQL lab.
+// Keep execution restricted to the existing runtime role; no HTTP serving.
+$db->exec(file_get_contents("database/security/portal_browser_principal_candidate.sql"));
+$exists = $db->prepare("SELECT to_regprocedure(?) IS NOT NULL");
+$exists->execute(["public.portal_browser_principal_candidate(text)"]);
+if (!$exists->fetchColumn()) {
+    throw new RuntimeException("Synthetic principal SQL function was not installed");
+}
 $db->exec(file_get_contents("database/security/portal_browser_envelopes.sql"));
 $db->exec("ALTER ROLE portal_browser_runtime LOGIN PASSWORD ".$db->quote(getenv("PORTAL_BROWSER_RUNTIME_PASSWORD")));
 $db->exec("ALTER ROLE portal_browser_envelope_runtime LOGIN PASSWORD ".$db->quote(getenv("PORTAL_BROWSER_ENVELOPE_PASSWORD")));

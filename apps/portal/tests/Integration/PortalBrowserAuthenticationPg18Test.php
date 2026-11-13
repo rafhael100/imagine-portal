@@ -1178,4 +1178,108 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
             unlink($path);rmdir($directory);
         }
     }
+
+    public function test_principal_candidate_resolves_sql_identity_after_mfa_and_denies_after_logout(): void
+    {
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader($this->runtime,'portal_browser_lab');
+        $pending=$this->begin();
+        self::assertNull($reader->read($pending));
+        self::assertNull($reader->read('invalid'));
+        self::assertNull($reader->read(str_repeat('f',64)));
+        $active=$this->adapter->completeMfa($pending,$this->otp(),'192.0.2.1');
+        self::assertIsString($active);
+        $principal=$reader->read($active);
+        self::assertIsArray($principal);
+        self::assertSame(self::ACTOR,$principal['identity_id']);
+        self::assertSame(self::ORG,$principal['organization_id']);
+        self::assertSame(self::MEMBER,$principal['membership_id']);
+        self::assertSame(1,$principal['identity_revision']);
+        self::assertSame(1,$principal['membership_revision']);
+        self::assertSame(1,$principal['organization_revision']);
+        self::assertFalse($principal['authorizes_http']);
+        self::assertArrayNotHasKey('email',$principal);
+        self::assertArrayNotHasKey('password_hash',$principal);
+        self::assertStringNotContainsString($active,json_encode($principal));
+        self::assertSame(0,(int)$this->admin->query('SELECT count(*) FROM public.portal_membership_grants')->fetchColumn());
+        self::assertTrue($this->adapter->revoke($active));
+        self::assertNull($reader->read($active));
+    }
+
+    public function test_principal_candidate_fails_after_membership_revision_changes(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader($this->runtime,'portal_browser_lab');
+        self::assertNotNull($reader->read($active));
+        $this->admin->exec("UPDATE public.portal_memberships SET role='manager'");
+        self::assertNull($reader->read($active));
+    }
+
+    public function test_principal_candidate_fails_after_organization_revision_changes(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader($this->runtime,'portal_browser_lab');
+        self::assertNotNull($reader->read($active));
+        $this->admin->exec('UPDATE public.portal_organizations SET security_revision=security_revision+1');
+        self::assertNull($reader->read($active));
+    }
+
+    public function test_principal_observation_denies_suspended_identity_after_mfa(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertSame(self::ACTOR,$reader->read($active)['identity_id'] ?? null);
+        // Existing committed MFA session must never imply a valid identity
+        // after the account is suspended or its security revision changes.
+        $this->admin->exec("UPDATE public.portal_identities SET status='suspended',security_revision=security_revision+1");
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_principal_observation_denies_revoked_membership_after_mfa(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertSame(self::MEMBER,$reader->read($active)['membership_id'] ?? null);
+        $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_principal_observation_denies_unverified_changed_email(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertNotNull($reader->read($active));
+        $this->admin->exec(
+            "UPDATE public.portal_identities SET email_normalized='changed@example.invalid',email_verified_at=NULL"
+        );
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_principal_reader_refuses_admin_and_ambient_transaction(): void
+    {
+        try {
+            new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader($this->admin,'portal_browser_lab');
+            self::fail('Administrative reader must be refused.');
+        } catch (RuntimeException $e) { self::assertSame('Portal principal observation unavailable.',$e->getMessage()); }
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader($this->runtime,'portal_browser_lab');
+        $this->runtime->beginTransaction();
+        try {
+            $reader->read($active);
+            self::fail('Ambient transaction must be refused.');
+        } catch (RuntimeException $e) { self::assertSame('Portal principal observation unavailable.',$e->getMessage()); }
+        finally { $this->runtime->rollBack(); }
+        self::assertNotNull($reader->read($active));
+        $this->deniedSql('SELECT * FROM public.portal_identities');
+        $this->deniedSql('SELECT * FROM portal_browser_private.proof_key');
+    }
+
 }

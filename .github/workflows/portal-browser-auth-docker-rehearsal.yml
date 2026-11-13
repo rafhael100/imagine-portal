@@ -29,6 +29,13 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Fail fast on invalid shell or missing disposable identity SQL
+        run: |
+          set -euo pipefail
+          sh -n apps/portal/infra/browser-auth-lab/run.sh
+          test -s apps/portal/database/security/portal_browser_principal_candidate.sql
+          grep -Fq 'database/security/portal_browser_principal_candidate.sql' apps/portal/infra/browser-auth-lab/run.sh
+          echo 'PASS Docker rehearsal shell and isolated principal SQL preflight'
       - name: Validate internal-only compose and run disposable integration
         run: |
           set -euo pipefail
