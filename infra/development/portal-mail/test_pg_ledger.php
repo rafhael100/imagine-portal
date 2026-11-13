@@ -11,21 +11,29 @@ $reset=static function()use($db,$prepare):void{
     $db->exec('TRUNCATE public.portal_development_email_challenges,public.portal_auth_sessions,public.portal_membership_grants,public.portal_service_resource_claims,public.portal_memberships,public.portal_identities,public.portal_organizations CASCADE');
     $prepare();
 };
-$issue=static function()use($ledger,$email):array{$token=bin2hex(random_bytes(32));$r=$ledger->reserve($email,$token,540);return [$r['reference'],$token];};
+$issue=static function()use($ledger,$email):array{$token='123456';$r=$ledger->reserve($email,$token,300);return [$r['reference'],$token];};
 $state=static fn()=>$db->query('SELECT * FROM public.portal_development_email_challenges')->fetch(PDO::FETCH_ASSOC);
 $unverified=static fn()=>$db->query('SELECT email_verified_at IS NULL FROM public.portal_identities')->fetchColumn();
 $deny(static fn()=>$ledger->install());
 [$ref,$token]=$issue();$row=$state();
+$check((int)$db->query("SELECT EXTRACT(epoch FROM expires_at-issued_at) FROM public.portal_development_email_challenges")->fetchColumn()===300);
+$deny(static fn()=>$ledger->reserve($email,str_repeat('a',64),300));
 $check($row['status']==='reserved'&&$row['digest']!==$token&&$row['email_normalized']===$email);
 $check(!$ledger->consume($ref,$email,$token));
 $deny(static fn()=>$issue());
 $check($ledger->accepted($ref,$email));
 $check(!$ledger->accepted($ref,$email));
-for($i=1;$i<=5;$i++){$check(!$ledger->consume($ref,$email,str_repeat('0',64)));$check((int)$state()['attempts']===$i);}
+for($i=1;$i<=5;$i++){$check(!$ledger->consume($ref,$email,'654321'));$check((int)$state()['attempts']===$i);}
 $check($state()['status']==='blocked');$check(!$ledger->consume($ref,$email,$token));$check((bool)$unverified());
 $deny(static fn()=>$db->exec("UPDATE public.portal_development_email_challenges SET status='delivered',attempts=0"));
 $reset();[$ref,$token]=$issue();$ledger->accepted($ref,$email);$ledger->revoke($ref);
 $check($state()['status']==='revoked');$check(!$ledger->consume($ref,$email,$token));$check((bool)$unverified());
+$deny(static fn()=>$issue()); // revoked proof does not bypass the 60s resend cooldown
+$reset();[$ref,$token]=$issue();$ledger->revoke($ref);$row=$state();
+$db->exec('DELETE FROM public.portal_development_email_challenges');
+$q=$db->prepare("INSERT INTO public.portal_development_email_challenges(reference,identity_id,organization_id,membership_id,email_normalized,identity_revision,membership_revision,organization_revision,marker,digest,status,issued_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,'revoked',statement_timestamp()-interval '10 minutes',statement_timestamp()-interval '5 minutes')");
+for($i=0;$i<3;$i++){$copy=$row;$copy['reference']=bin2hex(random_bytes(16));$q->execute(array_map(static fn($k)=>$copy[$k],['reference','identity_id','organization_id','membership_id','email_normalized','identity_revision','membership_revision','organization_revision','marker','digest']));}
+$deny(static fn()=>$issue()); // three requests in an hour exhaust issuance budget
 $reset();[$ref,$token]=$issue();$ledger->accepted($ref,$email);
 $otherKey=new PgLedger($db,random_bytes(32),$proof);$check(!$otherKey->consume($ref,$email,$token));$check((int)$state()['attempts']===1);
 $reset();[$ref,$token]=$issue();$ledger->accepted($ref,$email);

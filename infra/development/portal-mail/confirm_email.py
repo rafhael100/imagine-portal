@@ -10,11 +10,11 @@ from verification import VerificationCoordinator, VerificationUnavailable
 
 
 def normalize_code(value):
-    # Clipboard formatting is not part of the hexadecimal bearer. No prefix,
+    # Clipboard formatting is not part of the numeric code. No prefix,
     # punctuation or arbitrary text is removed; those inputs still fail.
     value = value.replace("\x1b[200~", "").replace("\x1b[201~", "")
-    result = "".join(value.split()).lower()
-    if re.fullmatch(r"[a-f0-9]{64}", result) is None:
+    result = "".join(value.split())
+    if re.fullmatch(r"[0-9]{6}", result) is None:
         raise ValueError("invalid-code-format")
     return result
 
@@ -36,16 +36,16 @@ def main():
             return 1
         receipt = flow.send(WorkspaceRelay.RECIPIENT)
         reference = receipt.reference
-        print("Google aceitou a mensagem. Abra seu e-mail; validade de 9 minutos.")
+        print("Google aceitou a mensagem. Abra seu e-mail; validade de 5 minutos.")
         print("Cole o codigo apenas neste console. Nao envie no chat.")
         for attempt in range(5):
-            token = getpass.getpass("Codigo recebido por e-mail (digitacao oculta): ")
+            token = getpass.getpass("Codigo de 6 numeros recebido por e-mail (digitacao oculta): ")
             try:
                 try:
                     token = normalize_code(token)
                 except ValueError:
                     print("Entrada recebida com " + str(len(token))
-                          + " caracteres; esperado: codigo hexadecimal de 64 caracteres.")
+                          + " caracteres; esperado: codigo de 6 numeros.")
                     print("A entrada nao foi comparada com o banco. Confira a colagem no console.")
                     continue
                 result = flow.confirm(reference, token)

@@ -104,7 +104,7 @@ SQL);
     }
     private function digest(array $s,string $ref,string $token):string
     {
-        $a=['imagine-private-email-v1',$ref];
+        $a=['imagine-private-email-v2-six-digits',$ref];
         foreach(['identity_id','organization_id','membership_id','email_normalized','identity_revision','membership_revision','organization_revision','marker']as$f)$a[]=(string)$s[$f];
         $a[]=$token;return hash_hmac('sha256',json_encode($a,JSON_THROW_ON_ERROR),$this->key);
     }
@@ -121,11 +121,15 @@ SQL);
     private function live(array $r):bool{return in_array($r['fresh'],[true,1,'t','1'],true)&&in_array($r['status'],['reserved','delivered'],true)&&$r['marker']===$this->marker;}
     public function reserve(string $email,string $token,int $ttl):array
     {
-        if($ttl!==540||preg_match('/\A[a-f0-9]{64}\z/D',$token)!==1)throw new RuntimeException();
+        if($ttl!==300||preg_match('/\A[0-9]{6}\z/D',$token)!==1)throw new RuntimeException();
         return $this->tx(function()use($email,$token):array{
-            $s=$this->scope($email);$ref=bin2hex(random_bytes(16));
+            $s=$this->scope($email);
+            // Issuance cannot reset the guessing budget by unlimited resends.
+            $q=$this->db->prepare("SELECT count(*) hour_count,count(*) FILTER(WHERE issued_at>clock_timestamp()-interval '60 seconds') recent_count FROM public.portal_development_email_challenges WHERE identity_id=? AND issued_at>clock_timestamp()-interval '1 hour'");$q->execute([$s['identity_id']]);$rate=$q->fetch(PDO::FETCH_ASSOC);
+            if((int)$rate['hour_count']>=3||(int)$rate['recent_count']>0)throw new RuntimeException();
+            $ref=bin2hex(random_bytes(16));
             $q=$this->db->prepare("INSERT INTO public.portal_development_email_challenges(reference,identity_id,organization_id,membership_id,email_normalized,identity_revision,membership_revision,organization_revision,marker,digest,status,issued_at,expires_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',statement_timestamp(),statement_timestamp()+interval '9 minutes')");
+                VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',statement_timestamp(),statement_timestamp()+interval '5 minutes')");
             $q->execute([$ref,$s['identity_id'],$s['organization_id'],$s['membership_id'],$email,$s['identity_revision'],$s['membership_revision'],$s['organization_revision'],$this->marker,$this->digest($s,$ref,$token)]);
             return ['reference'=>$ref,'recipient'=>$email];
         });
@@ -147,7 +151,7 @@ SQL);
     }
     public function consume(string $ref,string $email,string $token):bool
     {
-        if(preg_match('/\A[a-f0-9]{64}\z/D',$token)!==1)return false;
+        if(preg_match('/\A[0-9]{6}\z/D',$token)!==1)return false;
         return $this->tx(function()use($ref,$email,$token):bool{
             $s=$this->scope($email);$r=$this->row($ref);
             if(!$r||!$this->live($r)||$r['status']!=='delivered'||!$this->bound($r,$s))return false;

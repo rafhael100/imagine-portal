@@ -66,7 +66,7 @@ class VerificationReceipt:
 
 
 class VerificationCoordinator:
-    TTL_SECONDS = 540
+    TTL_SECONDS = 300
 
     def __init__(self, ledger: ProofLedger, transport: WorkspaceRelay):
         self._ledger = ledger
@@ -75,7 +75,7 @@ class VerificationCoordinator:
     def send(self, recipient: str) -> VerificationReceipt:
         if recipient != WorkspaceRelay.RECIPIENT:
             raise VerificationError("verification-not-issued")
-        token = secrets.token_hex(32)
+        token = f"{secrets.randbelow(1_000_000):06d}"
         issued = None
         accepted = False
         failed = False
@@ -90,7 +90,7 @@ class VerificationCoordinator:
                 subject="Imagine - Confirme seu e-mail",
                 text=("Confirmacao privada do Portal Imagine.\n"
                       "Copie este codigo somente para o console privado de cadastro:\n"
-                      + token + "\nValidade: 9 minutos. Uso unico.\n"
+                      + token + "\nValidade: 5 minutos. Uso unico.\n"
                       "Esta confirmacao nao ativa o login nem libera servicos.\n"
                       "Nao compartilhe o codigo no chat.\n"),
             )
@@ -117,7 +117,7 @@ class VerificationCoordinator:
         if (not isinstance(reference, str)
                 or re.fullmatch(r"[a-f0-9]{32}", reference) is None
                 or not isinstance(token, str)
-                or re.fullmatch(r"[a-f0-9]{64}", token) is None):
+                or re.fullmatch(r"[0-9]{6}", token) is None):
             raise VerificationError("verification-not-confirmed")
         verified = False
         unavailable = False

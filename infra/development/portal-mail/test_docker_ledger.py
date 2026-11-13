@@ -10,12 +10,12 @@ from relay import WorkspaceRelay
 
 class BridgeTests(unittest.TestCase):
     def test_bearer_is_only_in_private_child_stdin(self):
-        token = "b" * 64
+        token = "023456"
         output = json.dumps(dict(ok=True, value=dict(reference="c" * 32,
                                                       recipient=WorkspaceRelay.RECIPIENT)))
         with patch("docker_ledger.subprocess.run", return_value=
                    subprocess.CompletedProcess([], 0, output, "")) as run:
-            result = DockerLedger().reserve(WorkspaceRelay.RECIPIENT, token, 540)
+            result = DockerLedger().reserve(WorkspaceRelay.RECIPIENT, token, 300)
         args = run.call_args
         self.assertNotIn(token, " ".join(args.args[0]))
         self.assertEqual(json.loads(args.kwargs["input"])["token"], token)
@@ -28,7 +28,7 @@ class BridgeTests(unittest.TestCase):
         with patch("docker_ledger.subprocess.run", return_value=
                    subprocess.CompletedProcess([], 1, "private-bearer", "private-error")):
             try:
-                DockerLedger().consume("c" * 32, "b" * 64)
+                DockerLedger().consume("c" * 32, "023456")
             except LedgerError as error:
                 rendered = "".join(traceback.format_exception(error))
                 self.assertNotIn("private-bearer", rendered)
@@ -41,7 +41,7 @@ class BridgeTests(unittest.TestCase):
         with patch("docker_ledger.subprocess.run", side_effect=
                    subprocess.TimeoutExpired("child", 25, output="private")) as run:
             with self.assertRaises(LedgerError):
-                DockerLedger().consume("c" * 32, "b" * 64)
+                DockerLedger().consume("c" * 32, "023456")
         run.assert_called_once()
 
     def test_non_tty_operator_entrypoint_refuses_execution(self):

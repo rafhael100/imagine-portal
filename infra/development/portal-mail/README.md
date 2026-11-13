@@ -27,3 +27,6 @@ Do not call this adapter with a real verification challenge until that integrati
 
 ## Private ledger integration
 See VERIFICATION.md for the new administrative PostgreSQL bridge and operator console. The relay remains import-only; the separate console requires operator control, explicit ENVIAR and hidden proof entry. This does not enable login or public application routes.
+
+## Six-digit operator code
+The operator requested a human-readable numeric code because the remote console cannot paste reliably. New issuance uses secrets.randbelow(1_000_000), zero-padded to exactly six ASCII digits. No code is stored in plaintext: the existing independent HMAC key binds it to all scope fields. Maximum five failed comparisons per challenge, five-minute database expiry, minimum 60 seconds between requests and at most three issued challenges per identity/hour (including revoked/blocked ones). These rate checks share the identity scope lock, so concurrent resend cannot bypass them. Never reset historical attempts to bypass throttling. The database's existing immutable table still allows at most nine minutes structurally; the issuer only accepts TTL=300 and writes exactly five minutes. No table migration or key reset is needed. The HMAC domain changes to v2-six-digits; old 64-character codes must be revoked, not reused.
