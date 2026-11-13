@@ -58,9 +58,14 @@ final readonly class DisposablePg18ProjectInboxReader
             $this->database->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
 
             $project = $this->database->prepare(
-                'SELECT p.project_ref,p.state,o.status AS organization_state
+                'SELECT p.project_ref,p.state,o.status AS organization_state,
+                        p.source_claim_id,c.state AS claim_state
                    FROM public.portal_service_projects p
                    JOIN public.portal_organizations o ON o.id=p.organization_id
+                   LEFT JOIN public.portal_service_resource_claims c
+                     ON c.id=p.source_claim_id
+                    AND c.organization_id=p.organization_id
+                    AND c.product_code=p.product_code
                   WHERE p.id=CAST(? AS uuid)
                     AND p.organization_id=CAST(? AS uuid)'
             );
@@ -68,7 +73,8 @@ final readonly class DisposablePg18ProjectInboxReader
             $row = $project->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)
                 || !in_array($row['state'], ['draft', 'review'], true)
-                || $row['organization_state'] !== 'active') {
+                || $row['organization_state'] !== 'active'
+                || ($row['source_claim_id'] !== null && $row['claim_state'] !== 'candidate')) {
                 $this->database->rollBack();
                 return RequestInboxPreviewResult::rejected('invalid_preview_input');
             }
