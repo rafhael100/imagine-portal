@@ -146,6 +146,7 @@ sql portal_identity_dev "BEGIN;
 [[ "$(sql portal_identity_dev 'SELECT witnessed_sequence FROM public.portal_restore_epoch_f378')" == 13 ]]
 sql portal_identity_dev "$epoch_json" > "$scratch/snapshot.json"
 chmod 600 "$scratch/snapshot.json"
+fetch_witness
 php "$base/test/f378-verify-witness.php" matched "$scratch/snapshot.json" \
  "$scratch/witness.json" "$scratch/signing-public.hex"
 
@@ -162,6 +163,7 @@ pg pg_restore -h 127.0.0.1 -U postgres --exit-on-error --dbname="$target" \
 [[ "$(sql "$target" "SELECT public.portal_browser_active('$token')")" == t ]]
 sql "$target" "$epoch_json" > "$scratch/snapshot.json"
 chmod 600 "$scratch/snapshot.json"
+fetch_witness
 php "$base/test/f378-verify-witness.php" stale "$scratch/snapshot.json" \
  "$scratch/witness.json" "$scratch/signing-public.hex"
 tool php /opt/portal-recovery/run-ci.php
