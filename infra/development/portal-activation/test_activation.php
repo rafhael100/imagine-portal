@@ -1,0 +1,48 @@
+<?php
+declare(strict_types=1);
+if(getenv('GITHUB_ACTIONS')!=='true'||getenv('PORTAL_ENROLLMENT_CI')!=='DISPOSABLE_ONLY')exit(64);
+require '/opt/portal-mail/test_pg_ledger.php';
+require __DIR__.'/OperatorActivation.php';
+use Imagine\Development\OperatorActivation;
+$activation=new OperatorActivation($db,$proof,$key);
+$verified=static function()use($reset,$issue,$ledger,$email):void{$reset();[$r,$t]=$issue();$ledger->accepted($r,$email);$ledger->consume($r,$email,$t);};
+$verified();$before=$db->query('SELECT password_hash,mfa_secret_ciphertext,mfa_last_used_counter,email_verified_at,security_revision FROM public.portal_identities')->fetch(PDO::FETCH_ASSOC);
+$inspection=$activation->inspect($email);$check($inspection['activation_applied']===false);
+$check($db->query('SELECT status FROM public.portal_identities')->fetchColumn()==='invited');
+$deny(static fn()=>(new OperatorActivation($db,str_repeat('0',64),$key))->inspect($email));
+$deny(static fn()=>(new OperatorActivation($db,$proof,random_bytes(32)))->inspect($email));
+$deny(static fn()=>$activation->inspect('other@example.invalid'));
+$reset();$deny(static fn()=>$activation->activate($email));
+$db->exec('UPDATE public.portal_identities SET email_verified_at=clock_timestamp()');$deny(static fn()=>$activation->activate($email));
+$verified();$db->exec('ALTER TABLE public.portal_identities NO FORCE ROW LEVEL SECURITY');$deny(static fn()=>$activation->activate($email));$db->exec('ALTER TABLE public.portal_identities FORCE ROW LEVEL SECURITY');
+$db->exec('GRANT SELECT ON public.portal_identities TO portal_browser_runtime');$deny(static fn()=>$activation->activate($email));$db->exec('REVOKE SELECT ON public.portal_identities FROM portal_browser_runtime');
+$db->exec('UPDATE public.portal_memberships SET membership_revision=membership_revision+1');$deny(static fn()=>$activation->activate($email));
+$verified();
+$db->exec(<<<'SQL'
+CREATE FUNCTION public.activation_ci_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Synthetic membership write failure'; END; $$;
+CREATE TRIGGER activation_ci_failure BEFORE UPDATE ON public.portal_memberships FOR EACH ROW EXECUTE FUNCTION public.activation_ci_failure();
+SQL);
+$deny(static fn()=>$activation->activate($email));
+$check($db->query('SELECT status FROM public.portal_identities')->fetchColumn()==='invited');
+$check($db->query('SELECT status FROM public.portal_memberships')->fetchColumn()==='invited');
+$db->exec('DROP TRIGGER activation_ci_failure ON public.portal_memberships; DROP FUNCTION public.activation_ci_failure()');
+$before=$db->query('SELECT password_hash,mfa_secret_ciphertext,mfa_last_used_counter,email_verified_at,security_revision FROM public.portal_identities')->fetch(PDO::FETCH_ASSOC);
+$result=$activation->activate($email);$check($result['activation_applied']===true&&$result['grants_created']===false&&$result['session_created']===false);
+$after=$db->query('SELECT password_hash,mfa_secret_ciphertext,mfa_last_used_counter,email_verified_at,security_revision FROM public.portal_identities')->fetch(PDO::FETCH_ASSOC);
+foreach(['password_hash','mfa_secret_ciphertext','mfa_last_used_counter','email_verified_at']as$f)$check($after[$f]===$before[$f]);
+$check((int)$after['security_revision']>(int)$before['security_revision']);
+$check($db->query('SELECT status FROM public.portal_memberships')->fetchColumn()==='active');
+$check((int)$db->query('SELECT count(*) FROM public.portal_auth_sessions')->fetchColumn()===0);
+$check((int)$db->query('SELECT count(*) FROM public.portal_membership_grants')->fetchColumn()===0);
+$deny(static fn()=>$activation->activate($email));
+$check($auth->beginPassword($email,'wrong-synthetic-password',$result['organization'],'192.0.2.11')===null);
+$pending=$auth->beginPassword($email,'synthetic-password-only',$result['organization'],'192.0.2.11');$check(is_string($pending));
+$check(!$auth->isActiveBusinessSession($pending));$check($auth->completeMfa($pending,'not-six','192.0.2.11')===null);
+$last=(int)$db->query('SELECT mfa_last_used_counter FROM public.portal_identities')->fetchColumn();$counter=max(intdiv(time(),30),$last+1);
+$digest=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);$offset=ord(substr($digest,-1))&15;$value=unpack('N',substr($digest,$offset,4))[1]&0x7fffffff;$code=str_pad((string)($value%1000000),6,'0',STR_PAD_LEFT);
+$active=$auth->completeMfa($pending,$code,'192.0.2.11');$check(is_string($active));$check($auth->isActiveBusinessSession($active));
+$check($auth->completeMfa($pending,$code,'192.0.2.11')===null);
+foreach(['services.view','services.manage','billing.view','members.manage']as$permission){$q=$runtime->prepare('SELECT public.portal_browser_permission_preflight(?,CAST(? AS uuid),?)');$q->execute([hash('sha256',$active),$result['organization'],$permission]);$check(!in_array($q->fetchColumn(),[true,1,'t','1'],true));}
+$check($auth->revoke($active));$check(!$auth->isActiveBusinessSession($active));
+$check((int)$db->query("SELECT count(*) FROM public.portal_auth_sessions WHERE status<>'revoked'")->fetchColumn()===0);
+echo 'PASS private operator activation: '.$checks." cumulative checks; password + MFA authenticated, business denied, session revoked\n";
