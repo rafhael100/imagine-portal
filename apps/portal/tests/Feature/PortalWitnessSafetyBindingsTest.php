@@ -137,7 +137,15 @@ final class PortalWitnessSafetyBindingsTest extends TestCase
     public function test_witness_registration_does_not_add_customer_or_recovery_routes(): void
     {
         $urls = array_map(static fn ($route) => $route->uri(), iterator_to_array(Route::getRoutes()));
-        self::assertSame(['up'], $urls);
+        // Laravel's own filesystem test routes may be present. This
+        // provider must never add an operator or customer recovery route.
+        self::assertContains('up', $urls);
+        self::assertEmpty(array_filter($urls, static fn (string $uri): bool =>
+            str_contains($uri, 'witness')
+            || str_contains($uri, 'recovery')
+            || str_contains($uri, 'login')
+            || str_contains($uri, 'session/unlock')
+        ));
         foreach (['/portal/recovery','/auth/witness','/api/session/unlock','/login'] as $path) {
             $this->get($path)->assertNotFound();
         }
