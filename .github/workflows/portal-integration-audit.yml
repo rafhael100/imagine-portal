@@ -5,6 +5,7 @@ on:
       - dev/fast-track-portal-2026-11-05
       # This lightweight review PR is based on #579, not directly on dev.
       - review/portal-integration-gate-dev-pilot-2026-11-12
+      - review/portal-integration-gate-email-proof-2026-11-12
     paths:
       - integration/portal-candidate.json
       - tools/portal-integration-gate.mjs
