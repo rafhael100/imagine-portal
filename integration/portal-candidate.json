@@ -162,6 +162,20 @@
         "Portal browser auth - private Docker rehearsal",
         "Portal private persistent database foundation"
       ]
+    },
+    {
+      "pullRequest": 605,
+      "headBranch": "review/portal-persisted-email-proof-pg18-lab-2026-11-12",
+      "baseBranch": "review/portal-email-proof-ledger-pg18-2026-11-12",
+      "headSha": "7f277fdc235a5909b6a9f7b8822c5068a002beda",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal browser identity - PostgreSQL 18 candidate"
+      ]
     }
   ]
 }
