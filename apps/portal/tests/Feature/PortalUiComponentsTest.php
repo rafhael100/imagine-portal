@@ -18,9 +18,9 @@ final class PortalUiComponentsTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_all_seven_unmounted_screens_render_semantic_demo_content(): void
+    public function test_all_eight_unmounted_screens_render_semantic_demo_content(): void
     {
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
+        foreach (['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('lang="pt-BR"', $html);
             self::assertStringContainsString('name="viewport"', $html);
@@ -33,7 +33,8 @@ final class PortalUiComponentsTest extends TestCase
             self::assertStringNotContainsString('<form', $html);
             self::assertStringNotContainsString('<script', $html);
             self::assertStringNotContainsString('<iframe', $html);
-            self::assertStringNotContainsString('src=', $html);
+            self::assertSame(1, substr_count($html, '<img '));
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
             preg_match_all('/href="([^"]*)"/', $html, $links);
             self::assertSame(['#pi-content'], $links[1]);
         }
@@ -59,7 +60,10 @@ final class PortalUiComponentsTest extends TestCase
         foreach ($templates as $template) {
             $html = Blade::render($template, compact('attack'));
             self::assertStringContainsString(e($attack), $html);
-            self::assertStringNotContainsString('<img', $html);
+            // Only the full demo layout may contain the fixed first-party logo.
+            $allowedLogoCount = str_contains($template, '<x-portal.layout') ? 1 : 0;
+            self::assertSame($allowedLogoCount, substr_count($html, '<img '));
+            self::assertSame($allowedLogoCount, substr_count($html, 'src="/assets/logo-imagine.png"'));
             self::assertStringNotContainsString($attack, $html);
         }
     }
@@ -111,7 +115,7 @@ final class PortalUiComponentsTest extends TestCase
         foreach ($this->app['router']->getRoutes() as $route) {
             $routesBefore[] = [$route->methods(), $route->uri(), $route->getActionName()];
         }
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
+        foreach (['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             view('portal.demo.'.$screen)->render();
         }
         $routesAfter = [];
@@ -119,8 +123,8 @@ final class PortalUiComponentsTest extends TestCase
             $routesAfter[] = [$route->methods(), $route->uri(), $route->getActionName()];
         }
         self::assertSame($routesBefore, $routesAfter);
-        // Existing framework routes: health-check and the local disk's signed file endpoint.
-        // The filesystem already has serve=true; rendering must not add any routes.
+        // Integrated review deliberately exposes only the health-check.
+        // Neither the old signed-file route nor customer Portal routes are mounted.
         self::assertSame(['up'], array_values(array_unique(array_column($routesAfter, 1))));
         self::assertFalse($this->app['session']->isStarted());
     }

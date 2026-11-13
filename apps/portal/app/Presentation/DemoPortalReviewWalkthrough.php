@@ -18,6 +18,8 @@ final class DemoPortalReviewWalkthrough
                 'description'=>'Verifique a apresentação inicial da empresa fictícia.'],
             ['href'=>'services.html','title'=>'Meus serviços',
                 'description'=>'Revise como serviços simulados são organizados.'],
+            ['href'=>'preparation.html','title'=>'Preparação dos serviços',
+                'description'=>'Confira requisitos ilustrativos de Onepage, Landing Page e Performance AI, sem envio.'],
             ['href'=>'available.html','title'=>'Catálogo ilustrativo',
                 'description'=>'Compare a apresentação de Onepage e Landing Page, sem compra.'],
             ['href'=>'contracts.html','title'=>'Contratos demonstrativos',

@@ -65,6 +65,9 @@ final class DemoPortalStaticExporter
                 preg_match('~(?:https?:)?//~i', $html) === 1) {
                 throw new LogicException('The demo view is not suitable for offline static export.');
             }
+            // Check unsafe raw HTML *before* embedding base64: random PNG
+            // bytes may contain "//", which is not a network URL.
+            $html = $this->toStrictOfflineHtml($html);
             // F138: mark the current exported page without adding JS routes
             // or falsely granting a clickable customer Portal menu.
             $pageNav = str_replace(
@@ -89,6 +92,7 @@ final class DemoPortalStaticExporter
             || preg_match('~(?:https?:)?//~i', $reviewHtml) === 1) {
             throw new LogicException('The delivery-review preview is not safe for offline export.');
         }
+        $reviewHtml = $this->toStrictOfflineHtml($reviewHtml);
         $reviewNav = str_replace(
             'href="delivery-review.html"',
             'href="delivery-review.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
@@ -111,6 +115,7 @@ final class DemoPortalStaticExporter
                 || preg_match('~(?:https?:)?//~i', $extraHtml) === 1) {
                 throw new LogicException('Extra demo illustration is not safe for offline export.');
             }
+            $extraHtml = $this->toStrictOfflineHtml($extraHtml);
             $extraNav = str_replace(
                 'href="' . $slug . '.html"',
                 'href="' . $slug . '.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
@@ -140,7 +145,7 @@ final class DemoPortalStaticExporter
         $allowed = array_fill_keys(DemoPortalArtifactManifest::pageNames(), true);
         $walkthroughSeen = [];
         $walkthrough = '<section aria-labelledby="pi-review-route"><h2 id="pi-review-route">Roteiro de avaliação interna</h2>' .
-            '<p>Estas etapas são apenas uma sequência sugerida para avaliar dez telas fictícias. Não registram tarefas nem ações de clientes.</p><ol>';
+            '<p>Estas etapas são apenas uma sequência sugerida para avaliar telas fictícias. Não registram tarefas nem ações de clientes.</p><ol>';
         foreach (DemoPortalReviewWalkthrough::steps() as $step) {
             $href = $step['href'];
             if (!isset($allowed[$href]) || $href === 'index.html' || isset($walkthroughSeen[$href])) {
@@ -221,6 +226,47 @@ final class DemoPortalStaticExporter
                 @unlink($claimFile);
             }
         }
+    }
+
+
+    /**
+     * Export only the pinned official Imagine logo, embedded in the offline
+     * HTML, under the *stricter* legacy export CSP (no network image sources).
+     * Runtime Blade is unchanged and no public customer route is created.
+     */
+    private function toStrictOfflineHtml(string $html): string
+    {
+        $logo = public_path('assets/logo-imagine.png');
+        if (!is_file($logo) || is_link($logo) || filesize($logo) !== 5594) {
+            throw new LogicException('Official Imagine logo is missing or changed.');
+        }
+        $bytes = file_get_contents($logo);
+        if (!is_string($bytes) || strlen($bytes) !== 5594
+            || sha1('blob '.strlen($bytes)."\0".$bytes)
+                !== '678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77') {
+            throw new LogicException('Official Imagine logo failed integrity verification.');
+        }
+        $original = 'src="/assets/logo-imagine.png"';
+        if (substr_count($html, $original) !== 1) {
+            throw new LogicException('Offline preview must contain exactly one original Imagine logo.');
+        }
+        $html = str_replace(
+            $original, 'src="data:image/png;base64,'.base64_encode($bytes).'"', $html,
+        );
+
+        $csp = '<meta http-equiv="Content-Security-Policy" content="'
+            .htmlspecialchars(
+                DemoPortalNavigationAudit::OFFLINE_CSP,
+                ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8',
+            ).'">';
+        $html = preg_replace(
+            '~<meta http-equiv="Content-Security-Policy" content="[^"]*">~',
+            $csp, $html, -1, $count,
+        );
+        if (!is_string($html) || $count !== 1) {
+            throw new LogicException('Offline preview CSP is missing or duplicated.');
+        }
+        return $html;
     }
 
     public static function authorizesCustomerAccess(): bool { return false; }

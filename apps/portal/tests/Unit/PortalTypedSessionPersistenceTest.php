@@ -61,7 +61,10 @@ final class PortalTypedSessionPersistenceTest extends TestCase
             try {
                 $unused = $session->session_purpose;
                 unset($unused);
-            } catch (ValueError) {
+            } catch (ValueError $error) {
+                // PHPUnit's strict integration job requires an actual
+                // assertion for every invalid enum cast, not only a catch.
+                self::assertNotSame('', $error->getMessage());
                 continue;
             }
             self::fail('Unrecognized session purpose unexpectedly hydrated: '.$invalid);

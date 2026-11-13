@@ -44,7 +44,7 @@ final class DemoPortalStaticExporterTest extends TestCase
     public function test_export_creates_navigable_index_and_read_only_review_preview(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
-        self::assertCount(11, $pages);
+        self::assertCount(12, $pages);
         self::assertContains('index.html', $pages);
         self::assertContains('requests.html', $pages);
         self::assertContains('delivery-review.html', $pages);
@@ -95,7 +95,7 @@ final class DemoPortalStaticExporterTest extends TestCase
             self::assertStringContainsString('href="'.$slug.'.html"', $index);
         }
 
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $section) {
+        foreach (['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'] as $section) {
             self::assertContains($section . '.html', $pages);
             self::assertFileExists($this->temporaryDirectory . '/' . $section . '.html');
             self::assertStringContainsString('href="' . $section . '.html"', $index);
@@ -112,6 +112,48 @@ final class DemoPortalStaticExporterTest extends TestCase
             self::assertStringNotContainsString('http://', $html);
             self::assertStringNotContainsString('https://', $html);
         }
+    }
+
+    public function test_legacy_offline_export_embeds_only_the_approved_imagine_logo_and_strict_csp(): void
+    {
+        $pages=(new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        self::assertCount(12,$pages);
+        foreach ($pages as $name) {
+            $html=(string)file_get_contents($this->temporaryDirectory.'/'.$name);
+            self::assertStringNotContainsString('src="/assets/logo-imagine.png"',$html);
+            if ($name==='index.html') {
+                self::assertSame(0,substr_count($html,'<img '));
+                continue;
+            }
+            self::assertSame(1,substr_count($html,'<img '));
+            self::assertSame(1,substr_count($html,'src="data:image/png;base64,'));
+            self::assertSame(1,substr_count($html,'src='));
+            self::assertMatchesRegularExpression(
+                '/src="data:image\/png;base64,([A-Za-z0-9+\/=]+)"/D',$html,
+            );
+            preg_match('/src="data:image\/png;base64,([A-Za-z0-9+\/=]+)"/D',$html,$match);
+            $bytes=base64_decode($match[1],true);
+            self::assertIsString($bytes);
+            self::assertSame(5594,strlen($bytes));
+            self::assertSame('678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77',
+                sha1('blob '.strlen($bytes)."\0".$bytes));
+            $doc=new \DOMDocument('1.0','UTF-8');
+            $prior=libxml_use_internal_errors(true);
+            try {
+                self::assertTrue($doc->loadHTML($html,LIBXML_NONET));
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($prior);
+            }
+            $policy=(new \DOMXPath($doc))->query(
+                '//meta[@http-equiv="Content-Security-Policy"]'
+            );
+            self::assertCount(1,$policy);
+            self::assertSame(DemoPortalNavigationAudit::OFFLINE_CSP,
+                $policy->item(0)->getAttribute('content'));
+        }
+        self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
+        self::assertTrue((new DemoPortalArtifactManifest())->verify($this->temporaryDirectory));
     }
 
     public function test_index_guides_reviewer_through_each_offline_screen_without_client_actions(): void
@@ -132,8 +174,8 @@ final class DemoPortalStaticExporterTest extends TestCase
         $xpath = new \DOMXPath($document);
         $items = $xpath->query('//section[@aria-labelledby="pi-review-route"]/ol/li');
         self::assertNotFalse($items);
-        self::assertCount(10, DemoPortalReviewWalkthrough::steps());
-        self::assertSame(10, $items->length);
+        self::assertCount(11, DemoPortalReviewWalkthrough::steps());
+        self::assertSame(11, $items->length);
 
         $seen = [];
         foreach (DemoPortalReviewWalkthrough::steps() as $position => $step) {
@@ -168,7 +210,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         try {
             (new DemoPortalStaticExporter())->export($destination);
             $count = count(DemoPortalArtifactManifest::pageNames());
-            self::assertSame(11, $count);
+            self::assertSame(12, $count);
             // Use the real console kernel; InteractsWithConsole::artisan()
             // depends on optional Mockery, which is absent from the pinned
             // production-only Composer lockfile used by isolated CI.
@@ -194,7 +236,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         }
     }
 
-    public function test_exact_eleven_page_bundle_contains_verifiable_local_manifest(): void
+    public function test_exact_twelve_page_bundle_contains_verifiable_local_manifest(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
         self::assertSame(DemoPortalArtifactManifest::pageNames(), $pages);
@@ -211,7 +253,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertSame(true, $json['synthetic_only']);
         self::assertSame(false, $json['authorizes_customer_access']);
         self::assertSame(false, $json['authorizes_deployment']);
-        self::assertCount(11, $json['pages']);
+        self::assertCount(12, $json['pages']);
         self::assertSame(0600,
             fileperms($this->temporaryDirectory.'/manifest.json') & 0777);
     }
@@ -476,8 +518,8 @@ final class DemoPortalStaticExporterTest extends TestCase
 
     public function test_failed_review_render_never_leaves_partial_html_or_target(): void
     {
-        // Force failure late, after the exporter has staged the seven client
-        // previews but before it can rename the complete eleven-page bundle.
+        // Force failure late, after the exporter has staged the eight client
+        // previews but before it can rename the complete twelve-page bundle.
         $this->app['view']->composer('portal.demo.delivery-review',
             static function (): void {
                 throw new \RuntimeException('Intentional F134 fixture failure');
@@ -497,7 +539,7 @@ final class DemoPortalStaticExporterTest extends TestCase
     public function test_completed_demo_export_has_private_directory_and_file_permissions(): void
     {
         $files = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
-        self::assertCount(11, $files);
+        self::assertCount(12, $files);
         self::assertSame(0700, fileperms($this->temporaryDirectory) & 0777);
         foreach ($files as $name) {
             self::assertSame(0600,

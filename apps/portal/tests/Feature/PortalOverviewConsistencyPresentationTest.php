@@ -54,7 +54,10 @@ final class PortalOverviewConsistencyPresentationTest extends TestCase
             }
             self::assertSame(1, substr_count($html, '<td>'.$row[0].'</td>'));
         }
-        self::assertSame(4, substr_count($html, 'scope="col"'));
+        self::assertSame(9, substr_count($html, 'scope="col"'));
+        self::assertStringContainsString(
+            'Etapas de exemplo por serviço — sem envio ou prazo real', $html,
+        );
         self::assertStringContainsString('Sites Imagine · Onepage', $html);
         self::assertStringContainsString('Sites Imagine · Landing Page', $html);
         self::assertStringContainsString('Performance AI', $html);
@@ -64,9 +67,14 @@ final class PortalOverviewConsistencyPresentationTest extends TestCase
     {
         $html = view('portal.demo.overview')->render();
 
-        foreach (['<form', '<input', '<button', '<script', '<iframe', 'action=', 'src=', 'http://', 'https://'] as $forbidden) {
+        foreach (['<form', '<input', '<button', '<script', '<iframe', 'action=', 'http://', 'https://'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $html);
         }
+        // One *pinned first-party* image is allowed; all additional img/src
+        // surfaces remain forbidden even in this static demonstration.
+        self::assertSame(1, substr_count($html, '<img '));
+        self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
+        self::assertSame(1, substr_count($html, 'src='));
         preg_match_all('/href="([^"]*)"/', $html, $links);
         self::assertSame(['#pi-content'], $links[1]);
         self::assertFalse($this->app['session']->isStarted());

@@ -84,30 +84,66 @@ jobs:
       - name: Testes Laravel sem banco ou servicos externos
         run: php artisan test --no-ansi
 
-      - name: Gerar prévia HTML DEMO offline (somente PHP 8.3)
+      - name: Validar sintaxe do QA responsivo reproduzível
+        if: matrix.php == '8.3'
+        run: python -m py_compile tools/qa_portable_preview.py
+
+      - name: Gerar prévia visual offline e fictícia da identidade Imagine
         if: matrix.php == '8.3'
         run: |
           set -euo pipefail
-          test ! -e storage/app/portal-demo-preview
-          php artisan portal:demo-export
-          test -s storage/app/portal-demo-preview/index.html
-          test -s storage/app/portal-demo-preview/requests.html
-          test -s storage/app/portal-demo-preview/delivery-review.html
-          test -s storage/app/portal-demo-preview/help.html
-          test -s storage/app/portal-demo-preview/notices.html
-          test "$(find storage/app/portal-demo-preview -maxdepth 1 -type f -name '*.html' | wc -l)" -eq 11
-          php artisan portal:demo-verify
+          php bin/export-portable-preview.php
+          test -s storage/app/portal-demo-static/index.html
+          test -s storage/app/portal-demo-static/manifest.json
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 12
 
-      - name: Arquivar apenas HTML fictício e manifesto de integridade para revisão visual
+      - name: Executar QA real offline no Chromium (10 páginas × 7 larguras)
+        if: matrix.php == '8.3'
+        run: |
+          set -euo pipefail
+          # Reuse the browser already present in the hosted Ubuntu runner.
+          # No additional cloud services, production domain or credentials.
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$BROWSER"
+          python3 -m venv "$RUNNER_TEMP/portal-browser-qa"
+          "$RUNNER_TEMP/portal-browser-qa/bin/python" -m pip install --disable-pip-version-check --no-cache-dir "playwright==1.56.0"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          root = Path("storage/app/portal-demo-static")
+          target = Path("storage/app/portal-browser-qa.zip")
+          with ZipFile(target, "w", ZIP_DEFLATED) as archive:
+              for path in sorted(root.iterdir()):
+                  if not path.is_file() or path.is_symlink():
+                      raise SystemExit("Refusing unexpected preview entry")
+                  archive.write(path, path.name)
+          PY
+          "$RUNNER_TEMP/portal-browser-qa/bin/python" tools/qa_portable_preview.py \
+            storage/app/portal-browser-qa.zip --chromium "$BROWSER" \
+            | tee "$RUNNER_TEMP/portal-browser-qa-report.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                               "portal-browser-qa-report.json").read_text())
+          assert report["passed"] is True
+          assert report["manifest_integrity_verified"] is True
+          assert report["screens"] == 77 and report["pages"] == 11
+          assert report["mobile_menu_checks"] == 10
+          assert report["offline_navigation_checks"] == 11
+          assert report["keyboard_table_checks"] == 8
+          assert report["authorizes_production"] is False
+          PY
+
+      - name: Arquivar prévia HTML navegável para revisão visual (sem publicação)
         if: matrix.php == '8.3'
         uses: actions/upload-artifact@v5
         with:
-          name: portal-demo-preview-f58
-          path: |
-            apps/portal/storage/app/portal-demo-preview/*.html
-            apps/portal/storage/app/portal-demo-preview/manifest.json
+          name: imagine-portal-original-brand-offline-preview
+          path: apps/portal/storage/app/portal-demo-static/
           if-no-files-found: error
-          retention-days: 2
+          retention-days: 7
+          compression-level: 9
 
       - name: Arquivar copia de evidencia do lock versionado
         if: matrix.php == '8.3' && always()
