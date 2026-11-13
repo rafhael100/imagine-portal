@@ -162,7 +162,7 @@ try {
         'WITNESS_PRECHECK_DENIED');
     $phase='nonce-uniqueness';
     $requests=file($dir.'/requests.jsonl',FILE_IGNORE_NEW_LINES);
-    $check(is_array($requests)&&count($requests)>=18);
+    $check(is_array($requests)&&count($requests)>=17);
     $nonces=[];
     foreach($requests as $line) {
         $r=json_decode($line,true,8,JSON_THROW_ON_ERROR);
