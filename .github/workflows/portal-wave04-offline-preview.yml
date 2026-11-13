@@ -105,6 +105,9 @@ jobs:
           assert report['offline_navigation_checks']==11
           assert report['guided_flow_pages']==6
           assert report['guided_flow_clicks']==7
+          assert report['loopback_http_navigation_checks']==17
+          assert report['loopback_scope']=='127.0.0.1-only'
+          assert report['public_endpoint_tested'] is False
           assert report['authorizes_production'] is False
           assert report['visual_evidence_count'] == 6
           import hashlib
