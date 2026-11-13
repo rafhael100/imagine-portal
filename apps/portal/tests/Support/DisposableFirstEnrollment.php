@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Domain\Identity\Security\PortalEmailProof;
 use App\Domain\Identity\Security\PortalPasswordCredential;
 use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Domain\Identity\Security\PortalTotpVerifier;
@@ -19,33 +20,46 @@ use Throwable;
  */
 final readonly class DisposableFirstEnrollment
 {
-    public function __construct(private PDO $db)
+    public function __construct(private PDO $db, private string $emailProofKey)
     {
     }
 
-    /** Random proof for a fictional email; never use with actual people. */
+    /** Scoped random proof for a fictional inbox, never sent to a real user. */
     public function issueEmailProof(string $identityId): string
     {
         $this->requireLab();
-        $token = bin2hex(random_bytes(32));
-        return $this->transaction(function () use ($identityId, $token): string {
+        return $this->transaction(function () use ($identityId): string {
             $identity = $this->identity($identityId);
+            $context = $this->emailContext($identityId);
             if ($identity === null || $identity['status'] !== 'invited'
                 || $identity['email_verified_at'] !== null
-                || !str_ends_with($identity['email_normalized'], '@example.invalid')) {
+                || $context === null || $context['member_status'] !== 'invited'
+                || !str_ends_with($context['email_normalized'], '@example.invalid')) {
                 throw new RuntimeException('Enrollment precondition refused.');
+            }
+            $pair = PortalEmailProof::issue(
+                $identityId, $context['organization_id'],
+                $context['email_normalized'], (int) $context['security_revision'],
+                $this->emailProofKey,
+            );
+            if ($pair === null) {
+                throw new RuntimeException('Enrollment proof scope refused.');
             }
             $query = $this->db->prepare(
                 "INSERT INTO portal_browser_private.lab_initial_email_proofs
-                    (identity_id,proof_sha256,expires_at)
-                 VALUES(CAST(? AS uuid),?,clock_timestamp()+interval '10 minutes')
+                    (identity_id,organization_id,identity_revision,proof_digest,expires_at)
+                 VALUES(CAST(? AS uuid),CAST(? AS uuid),?,?,
+                        clock_timestamp()+interval '10 minutes')
                  ON CONFLICT (identity_id) DO NOTHING"
             );
-            $query->execute([$identityId, hash('sha256', $token)]);
+            $query->execute([
+                $identityId, $context['organization_id'],
+                $context['security_revision'], $pair['digest'],
+            ]);
             if ($query->rowCount() !== 1) {
                 throw new RuntimeException('Enrollment proof already issued.');
             }
-            return $token;
+            return $pair['token'];
         });
     }
 
@@ -57,43 +71,66 @@ final readonly class DisposableFirstEnrollment
         }
         return $this->transaction(function () use ($identityId, $proof): bool {
             $identity = $this->identity($identityId);
+            $context = $this->emailContext($identityId);
             if ($identity === null || $identity['status'] !== 'invited'
                 || $identity['email_verified_at'] !== null
-                || !str_ends_with($identity['email_normalized'], '@example.invalid')) {
+                || $context === null || $context['member_status'] !== 'invited'
+                || !str_ends_with($context['email_normalized'], '@example.invalid')) {
                 return false;
             }
-            $claim = $this->db->prepare(
-                "UPDATE portal_browser_private.lab_initial_email_proofs
-                 SET consumed_at=clock_timestamp()
-                 WHERE identity_id=CAST(? AS uuid) AND proof_sha256=?
-                   AND consumed_at IS NULL AND expires_at>clock_timestamp()
-                   AND attempts<5"
+            $q = $this->db->prepare(
+                "SELECT organization_id,identity_revision,proof_digest
+                 FROM portal_browser_private.lab_initial_email_proofs
+                 WHERE identity_id=CAST(? AS uuid) FOR UPDATE"
             );
-            $claim->execute([$identityId, hash('sha256', $proof)]);
-            if ($claim->rowCount() !== 1) {
-                // Invalid proofs cannot be tried forever. Count the
-                // attempts atomically, even though the email confirmation
-                // itself is rejected; a later valid token is fenced.
-                $failed = $this->db->prepare(
+            $q->execute([$identityId]);
+            $stored = $q->fetch(PDO::FETCH_ASSOC);
+            $scopeMatches = is_array($stored)
+                && $stored['organization_id'] === $context['organization_id']
+                && (int) $stored['identity_revision'] === (int) $context['security_revision'];
+            $valid = $scopeMatches && PortalEmailProof::matches(
+                $proof, trim((string) $stored['proof_digest']),
+                $identityId, $context['organization_id'],
+                $context['email_normalized'], (int) $context['security_revision'],
+                $this->emailProofKey,
+            );
+            if ($valid) {
+                $claim = $this->db->prepare(
                     "UPDATE portal_browser_private.lab_initial_email_proofs
-                     SET attempts=attempts+1 WHERE identity_id=CAST(? AS uuid)
+                     SET consumed_at=clock_timestamp()
+                     WHERE identity_id=CAST(? AS uuid) AND proof_digest=?
+                       AND organization_id=CAST(? AS uuid) AND identity_revision=?
                        AND consumed_at IS NULL AND expires_at>clock_timestamp()
                        AND attempts<5"
                 );
-                $failed->execute([$identityId]);
-                return false;
+                $claim->execute([
+                    $identityId, $stored['proof_digest'],
+                    $context['organization_id'], $context['security_revision'],
+                ]);
+                if ($claim->rowCount() === 1) {
+                    $update = $this->db->prepare(
+                        "UPDATE public.portal_identities
+                         SET email_verified_at=clock_timestamp(),updated_at=clock_timestamp()
+                         WHERE id=CAST(? AS uuid) AND status='invited'
+                           AND email_verified_at IS NULL"
+                    );
+                    $update->execute([$identityId]);
+                    if ($update->rowCount() !== 1) {
+                        throw new RuntimeException('Enrollment email update unavailable.');
+                    }
+                    return true;
+                }
             }
-            $update = $this->db->prepare(
-                "UPDATE public.portal_identities
-                 SET email_verified_at=clock_timestamp(), updated_at=clock_timestamp()
-                 WHERE id=CAST(? AS uuid) AND status='invited'
-                   AND email_verified_at IS NULL"
+            // Invalid proof or mismatched tenant/revision: bounded,
+            // durable attempts prevent a guess/replay from succeeding later.
+            $failed = $this->db->prepare(
+                "UPDATE portal_browser_private.lab_initial_email_proofs
+                 SET attempts=attempts+1 WHERE identity_id=CAST(? AS uuid)
+                   AND consumed_at IS NULL AND expires_at>clock_timestamp()
+                   AND attempts<5"
             );
-            $update->execute([$identityId]);
-            if ($update->rowCount() !== 1) {
-                throw new RuntimeException('Enrollment email update unavailable.');
-            }
-            return true;
+            $failed->execute([$identityId]);
+            return false;
         });
     }
 
@@ -232,6 +269,23 @@ final readonly class DisposableFirstEnrollment
         return is_array($row) ? $row : null;
     }
 
+    /** @return array<string,mixed>|null */
+    private function emailContext(string $identityId): ?array
+    {
+        // A first operator belongs to exactly one invited membership.
+        // Any extra tenant relationship makes initial enrollment ambiguous.
+        $q = $this->db->prepare(
+            "SELECT m.organization_id,m.status AS member_status,
+                    i.email_normalized,i.security_revision
+             FROM public.portal_identities i
+             JOIN public.portal_memberships m ON m.identity_id=i.id
+             WHERE i.id=CAST(? AS uuid) FOR UPDATE OF i,m"
+        );
+        $q->execute([$identityId]);
+        $rows = $q->fetchAll(PDO::FETCH_ASSOC);
+        return count($rows) === 1 ? $rows[0] : null;
+    }
+
     private function requireLab(): void
     {
         try {
@@ -240,6 +294,7 @@ final readonly class DisposableFirstEnrollment
                 || getenv('PGHOST') !== '127.0.0.1'
                 || getenv('PGPORT') !== '5432'
                 || getenv('PGDATABASE') !== 'portal_browser_lab'
+                || strlen($this->emailProofKey) !== 32
                 || $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql'
                 || $this->db->inTransaction()) {
                 throw new RuntimeException('Lab gate refused.');
