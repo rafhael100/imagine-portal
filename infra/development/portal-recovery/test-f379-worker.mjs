@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { createHmac, generateKeyPairSync, randomBytes, verify as edVerify } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, writeFileSync } from 'node:fs';
-import worker from '../f376-worker/src/witness.mjs';
+import worker from './f376-worker/src/witness.mjs';
 
 const database=new DatabaseSync(':memory:');
-database.exec(readFileSync(new URL('../f376-worker/schema.sql',import.meta.url),'utf8'));
+database.exec(readFileSync(new URL('./f376-worker/schema.sql',import.meta.url),'utf8'));
 database.prepare(
  'INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)',
 ).run('org_f379','instance_f379',5,3,7,12,Math.floor(Date.now()/1000));
