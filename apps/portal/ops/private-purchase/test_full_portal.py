@@ -26,6 +26,9 @@ with sync_playwright() as p:
     assert page.get_by_text('sem cobrança').count()>=1 or page.get_by_text('Pagamentos e contratações são simulados').count()>=1
     page.reload()
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Reload must re-read PostgreSQL, not browser storage'
+    page.goto(BASE+'/client/finance')
+    assert page.locator('tr[data-preview-order-row]').count()==3, 'Client finance must read the same persisted fake payments'
+    assert page.get_by_text('Não existem faturas, cobranças nem recibos reais aqui.').count()==1
     for section in ['overview','services','available','contracts','finance','requests','journey','delivery-review','files','notices','modules','account','help']:
         response=page.goto(BASE+'/client/'+section)
         assert response.status==200,(section,response.status)
