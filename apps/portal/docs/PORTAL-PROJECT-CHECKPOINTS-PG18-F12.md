@@ -19,3 +19,7 @@ Uma segunda trigger impede `draft → review` até que todos os códigos exigido
 ## Fora de escopo
 
 A demonstração visual da PR #623 não executa essas migrations, não acessa contas e não grava arquivos reais. Nenhum endpoint HTTP, API de editor, envio de documentos, confirmação de aprovação, cobrança ou anúncio é ativado por essa estrutura. A prova de origem do claim, as assinaturas reais e o serviço externo ainda necessitam homologação, autenticação Portal/MFA, anti-rollback independente (issue #64) e autorização AppSec/DBA e de integração (issue #341). O código permanece em PR DRAFT e não é aplicado a VPS, `dev` nem `main`.
+
+### Proteção de validade no momento da revisão
+
+A ligação ao recurso candidato não é prova eterna de propriedade: o claim pode ter sido **retirado após a associação**. A trigger de revisão agora bloqueia até verificar, na mesma transação com locks `FOR SHARE`, que o claim ainda está `candidate`, pertence à mesma empresa/produto e a organização ainda está `active`. Testes adversariais cobrem claim retirado e empresa suspensa **depois** de todos os checklists concluídos; ambos devem permanecer em `draft` sem acesso. Uma eventual alteração após a revisão continua dependendo de validação de autoridade em cada leitura operacional; não existe acesso por essa estrutura.
