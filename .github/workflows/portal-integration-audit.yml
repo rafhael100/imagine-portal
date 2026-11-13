@@ -9,6 +9,7 @@ on:
       - review/portal-integration-gate-email-ledger-2026-11-12
       - review/portal-integration-gate-persisted-email-proof-2026-11-12
       - review/portal-integration-gate-email-transport-2026-11-12
+      - review/portal-integration-gate-signed-witness-2026-11-13
     paths:
       - integration/portal-candidate.json
       - tools/portal-integration-gate.mjs
