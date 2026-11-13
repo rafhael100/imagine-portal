@@ -39,7 +39,7 @@ jobs:
           import time, urllib.request
           for attempt in range(60):
               try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_preview/portal').status==200
                   break
               except Exception:
                   time.sleep(1)
@@ -53,6 +53,7 @@ jobs:
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_PREVIEW_LOGIN_REQUIRED: '1'
           PORTAL_PREVIEW_SCREENSHOTS_DIR: ${{ runner.temp }}/portal-review-shots
         run: |
           python3 -m venv /tmp/private-purchase-browser
@@ -66,7 +67,7 @@ jobs:
           import time, urllib.request
           for attempt in range(60):
               try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_preview/portal').status==200
                   break
               except Exception:
                   time.sleep(1)
