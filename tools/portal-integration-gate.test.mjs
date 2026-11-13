@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1]) {
+  for (const i of [0, 1, 2]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1]) {
+  for (const i of [0, 1, 2]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -403,6 +403,10 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[0].requiredWorkflows.pop(); m.isolatedLots[0].requiredWorkflows = []; },
     m => { m.isolatedLots[1].requiredWorkflows.push(m.isolatedLots[1].requiredWorkflows[0]); },
     m => { m.isolatedLots[0].maxCommits = 21; },
+    m => { m.isolatedLots[2].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[2].headBranch = m.isolatedLots[0].headBranch; },
+    m => { m.isolatedLots[2].pullRequest = m.isolatedLots[1].pullRequest; },
+    m => { m.isolatedLots[2].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -417,4 +421,19 @@ test('an independent review lot of 21 commits is split, never folded into UI or 
   assert.equal(decision.decision, 'BLOCKED_SPLIT_INTEGRATION_LOTS');
   assert.equal(decision.mergeApproved, false);
   assert.equal(decision.deployApproved, false);
+});
+
+
+test('third isolated lab cannot be detached from private login or mistaken for operator enrollment', () => {
+  const f = isolatedReview(2);
+  assert.equal(f.lot.pullRequest, 598);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[0].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 5);
+  const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, true);
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.customerAccessApproved, false);
+  assert.equal(result.antiRollbackApproved, false);
+  f.runs[4].status = 'in_progress';
+  assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
 });
