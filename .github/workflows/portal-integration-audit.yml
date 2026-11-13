@@ -1,0 +1,41 @@
+name: Portal integration audit (read-only, NO-GO)
+on:
+  pull_request:
+    branches:
+      - dev/fast-track-portal-2026-11-05
+    paths:
+      - integration/portal-candidate.json
+      - tools/portal-integration-gate.mjs
+      - tools/portal-integration-gate.test.mjs
+      - .github/workflows/portal-integration-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+jobs:
+  verify-reviewed-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enforce immutable local deny-by-default integration contract
+        run: |
+          set -euo pipefail
+          node --check tools/portal-integration-gate.mjs
+          node --test tools/portal-integration-gate.test.mjs
+      - name: Verify exact PR SHA, nine Actions workflows and dev ancestry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node tools/portal-integration-gate.mjs --verify-github
+      - name: Explicit NO-GO for deploy and automatic merge
+        run: |
+          echo 'Review evidence verified, but deployment and merge remain NOT APPROVED.'
+          echo 'Full candidate requires split into independently reviewable lots.'

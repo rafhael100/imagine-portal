@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "repository": "rafhael100/imagine-portal",
+  "targetBranch": "dev/fast-track-portal-2026-11-05",
+  "candidate": {
+    "pullRequest": 578,
+    "headBranch": "review/portal-int-ui-pg-f351-combined-ci-2026-11-12",
+    "baseBranch": "review/portal-laravel-f350-restored-contract-negative-tests-2026-11-12",
+    "headSha": "c632178b0d19185422e8760bd5e0211eaf725131"
+  },
+  "maxCommitsPerIntegrationLot": 50,
+  "requiredWorkflows": [
+    "Testes do portal",
+    "Validacao isolada Laravel F1-01-A",
+    "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+    "Portal F132 - CRM candidate CORE-INT02 compatibility",
+    "Portal F133 - Sites candidate contract parity",
+    "Portal F22 - PHP Laravel adapter vs disposable PG18",
+    "Portal browser identity - PostgreSQL 18 candidate",
+    "Portal F64 - Private Container Homologation Smoke",
+    "Portal private persistent database foundation"
+  ],
+  "policy": {
+    "mergeApproved": false,
+    "deployApproved": false,
+    "antiRollbackResolved": false,
+    "independentAppSecDbaApproved": false,
+    "operationalRecoveryApproved": false
+  },
+  "reviewLots": [
+    {
+      "pullRequest": 588,
+      "headBranch": "review/portal-ui-overview-cumulative-dev-2026-11-12",
+      "baseBranch": "dev/fast-track-portal-2026-11-05",
+      "headSha": "735606ed00dcb669daf0ee8e72552c632ee05402",
+      "maxCommits": 50,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 592,
+      "headBranch": "review/portal-ui-sites-editorial-on-overview-2026-11-12",
+      "baseBranch": "review/portal-ui-overview-cumulative-dev-2026-11-12",
+      "headSha": "559521d3dc384e686b186bffe706cf49f1fa3328",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 594,
+      "headBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
+      "baseBranch": "review/portal-ui-sites-editorial-on-overview-2026-11-12",
+      "headSha": "1b0f97f6fcb09fc0bc54c4a43c1d1861108e1b63",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 595,
+      "headBranch": "review/portal-portable-visual-preview-2026-11-12",
+      "baseBranch": "review/portal-brand-original-node-on-ui-2026-11-12",
+      "headSha": "8163ab6bc471563926fae930f0cea409573a9c39",
+      "maxCommits": 25,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    }
+  ],
+  "isolatedLots": [
+    {
+      "pullRequest": 596,
+      "headBranch": "feat/portal-private-login-ui-2026-11-12",
+      "baseBranch": "ops/portal-private-auth-deployment-2026-11-12",
+      "headSha": "3148f06ce400d0ac31d0016ca9b50d5a795319e0",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Portal private login UI flow",
+        "Portal browser identity - PostgreSQL 18 candidate",
+        "Portal browser auth - private Docker rehearsal",
+        "Portal private auth gateway - disposable deployment rehearsal",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal F94 - Laravel ingress source NO-GO imports",
+        "Portal F111 - Invitation identity NO-GO release fence",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 597,
+      "headBranch": "review/portal-sec-r03-restore-fence-contract-2026-11-12",
+      "baseBranch": "dev/fast-track-portal-2026-11-05",
+      "headSha": "f1868a7c04271f9fb1d077964a1eae5ff65c3c2a",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 598,
+      "headBranch": "review/portal-first-invitation-pg18-lab-2026-11-12",
+      "baseBranch": "feat/portal-private-login-ui-2026-11-12",
+      "headSha": "b52d4ee1fa2782d4e5c8deb3491707fb1be64ec5",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal browser identity - PostgreSQL 18 candidate"
+      ]
+    },
+    {
+      "pullRequest": 600,
+      "headBranch": "review/portal-first-enrollment-pg18-lab-2026-11-12",
+      "baseBranch": "review/portal-first-invitation-pg18-lab-2026-11-12",
+      "headSha": "c414afe42f39e3c4c84e3b1e917d5a848dd4c963",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal browser identity - PostgreSQL 18 candidate"
+      ]
+    }
+  ]
+}
