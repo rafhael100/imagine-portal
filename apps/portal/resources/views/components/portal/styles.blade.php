@@ -26,4 +26,21 @@ h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.035em;margin:4px 0}h2{font-si
 @media(max-width:1050px){.pi-record>div{grid-template-columns:minmax(0,1fr);gap:4px}}
 @media(max-width:640px){.pi-sidebar{padding:15px 16px;gap:8px}.pi-nav-title{margin:8px 0 0}.pi-sidebar nav{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin;margin:5px 0 0;padding:2px 0 10px}.pi-sidebar ul{display:grid;grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:max-content;gap:6px;width:max-content}.pi-sidebar li>span,.pi-sidebar li>a{white-space:nowrap;padding:10px 12px}.pi-sidebar .pi-current{padding-left:9px}.pi-sidebar-note{margin:0;padding-top:10px;font-size:10px}}
 
+
+/* Keep the branded header compact on phones, without removing navigation
+   or the offline/synthetic safety explanations. Desktop remains untouched. */
+@media(max-width:640px){
+  .pi-sidebar{padding:12px 16px;gap:5px}
+  .pi-brand{display:flex;align-items:center;gap:12px;max-width:none}
+  .pi-brand img{width:128px;flex:none}
+  .pi-brand small{font-size:10px;line-height:1.35;letter-spacing:.02em;max-width:120px}
+  .pi-nav-title{margin:0;font-size:10px;letter-spacing:.1em}
+  .pi-sidebar nav{margin:0;padding:2px 0 5px}
+  .pi-sidebar-note{padding-top:7px;font-size:10px;line-height:1.4}
+  .pi-main{padding-top:14px}
+  .pi-header{padding:14px 16px;margin-bottom:14px}
+  .pi-content{gap:14px;margin-top:14px}
+  .pi-message{padding:12px 14px}
+}
+
 </style>
