@@ -203,10 +203,10 @@ jobs:
           assert claims['cross_tenant_forgeries_accepted']==0
           assert claims['network_scope']=='loopback_only'
           assert claims['synthetic_only'] is True
-          for f in ('business_iam_authenticated','external_revocation_verified','real_payment_processed',
+          for flag in ('business_iam_authenticated','external_revocation_verified','real_payment_processed',
                     'customer_data_used','site_publishing_authorized','crm_delivery_authorized',
                     'vps_deployed','production_released'):
-              assert claims[f] is False, f
+              assert claims[flag] is False, flag
           data=f.read_bytes()
           assert len(data)<8000
           for marker in (b'@',b'TEST-',b'Empresa',b'password',b'Bearer ',b'Cookie:'):
