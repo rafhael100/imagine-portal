@@ -69,7 +69,7 @@ jobs:
           node scripts/verify-dist.mjs
           cd ..
           python3 apps/portal/tools/prepare_comercial_php_handoff_lab.py _comercial_candidate/dist "$RUNNER_TEMP/comercial-php-handoff-lab"
-          node _comercial_candidate/scripts/verify-dist.mjs
+          (cd _comercial_candidate && node scripts/verify-dist.mjs)
           test -f "$RUNNER_TEMP/comercial-php-handoff-lab/index.html"
       - name: Setup real Laravel and isolated PostgreSQL role-bound purchase
         working-directory: apps/portal
