@@ -6,7 +6,7 @@
     <nav aria-label="Seções ilustrativas do Portal">
         <ul>
             @foreach (\App\Presentation\ClientSection::cases() as $section)
-                <li><span class="{{ $activeSection === $section ? 'pi-current' : '' }}" @if($activeSection === $section) aria-current="page" @endif>{{ $section->label() }}</span></li>
+                <li><span data-preview-section="{{ $section->value }}" class="{{ $activeSection === $section ? 'pi-current' : '' }}" @if($activeSection === $section) aria-current="page" @endif>{{ $section->label() }}</span></li>
             @endforeach
         </ul>
     </nav>
