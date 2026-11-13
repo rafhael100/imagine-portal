@@ -9,6 +9,7 @@
  * organization/instance per deployment), not by a caller's query or headers.
  */
 import { recordRevocationIntent } from '../../f386-worker/intent.mjs';
+import { readbackRevocationIntent } from '../../f387-worker/readback.mjs';
 
 const INTENT_PATH = '/v1/portal/revocation-intents';
 const GET_PATH = '/v1/portal/recovery-witness';
@@ -263,6 +264,10 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === GET_PATH) {
         return await getSigned(env, env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
+      }
+      if (request.method === 'GET' && url.pathname.startsWith(INTENT_PATH+'/')) {
+        return await readbackRevocationIntent(request, env,
+          env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
       }
       if (request.method === 'POST' && url.pathname === INTENT_PATH) {
         return await recordRevocationIntent(request, env,
