@@ -50,8 +50,7 @@ final class PortalWitnessHttpNoServingGateTest extends TestCase
 
     private function route(int &$actions): void
     {
-        Route::middleware('web')
-            ->middleware(PortalWitnessNoServingHttpGuard::class)
+        Route::middleware(['web', PortalWitnessNoServingHttpGuard::class])
             ->match(['GET', 'POST', 'HEAD'], '/__f382/internal-diagnostic', static function () use (&$actions): Response {
                 $actions++;
                 return response()->json(['should_never_be_returned' => true]);
