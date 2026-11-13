@@ -1,0 +1,17 @@
+name: Private Workspace relay adapter
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-mail/**'
+      - '.github/workflows/portal-workspace-relay.yml'
+permissions:
+  contents: read
+jobs:
+  mock-transport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test transport without network or credentials
+        working-directory: infra/development/portal-mail
+        run: python3 -m unittest -v test_relay.py
