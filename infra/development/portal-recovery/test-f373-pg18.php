@@ -4,6 +4,7 @@ if(PHP_SAPI!=='cli'||$argc!==1||getenv('GITHUB_ACTIONS')!=='true'
     ||getenv('RUNNER_ENVIRONMENT')!=='github-hosted'
     ||getenv('PORTAL_F373_CI')!=='DISPOSABLE_ONLY')exit(64);
 
+try {
 require '/opt/portal-recovery/seed-ci.php';
 
 // Bootstrap the SAME Laravel framework and reviewed migration class, with
@@ -27,7 +28,10 @@ $migration=require '/var/www/html/database/migrations/2026_11_13_000018_create_p
 $migration->up();
 $checks=0;
 $assert=static function(bool $value)use(&$checks):void{
-    if(!$value)throw new RuntimeException('F373 PostgreSQL invariant failed');
+    if(!$value){
+        $frame=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,2)[1]??[];
+        throw new RuntimeException('F373 invariant at synthetic test line '.($frame['line']??0));
+    }
     $checks++;
 };
 $denied=static function(callable $action)use($assert):void{
@@ -119,3 +123,8 @@ $denied(static fn()=>$migration->down());
 $assert((int)$db->query("SELECT count(*) FROM public.portal_recovery_epoch_candidates")->fetchColumn()===1);
 $assert(!$auth->isActiveBusinessSession(str_repeat('0',64)));
 echo "PASS F373: $checks quarantined PostgreSQL18 epoch constraints, FORCE RLS, NOLOGIN reader and monotonic trigger checks; NO SERVING.\n";
+
+} catch(Throwable $error) {
+    fwrite(STDERR, 'FAIL F373: '.preg_replace('/[^A-Za-z0-9 _.-]/','', $error->getMessage())."\n");
+    exit(1);
+}
