@@ -1,0 +1,112 @@
+name: Portal WAVE04 - Previa offline navegavel Imagine
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Presentation/PortablePortalStaticPreview.php'
+      - 'apps/portal/bin/export-portable-preview.php'
+      - 'apps/portal/tests/Feature/PortalOfflineSidebarNavigationTest.php'
+      - 'apps/portal/tools/qa_portable_preview.py'
+      - '.github/workflows/portal-wave04-offline-preview.yml'
+permissions:
+  contents: read
+jobs:
+  offline-preview:
+    name: Navegacao e integridade / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/portal
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: dom, mbstring, xml, pdo, pdo_sqlite, intl, bcmath, curl, zip
+      - name: Install frozen vendor dependencies and disposable application key
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Verify offline-only sidebar and original-logo integrity
+        run: |
+          set -euo pipefail
+          php -l app/Presentation/PortablePortalStaticPreview.php
+          php -l bin/export-portable-preview.php
+          php artisan test --no-ansi --filter=PortalOfflineSidebarNavigationTest
+          test "$(php artisan route:list --json | php -r '$x=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); echo count($x);')" -eq 1
+          php bin/export-portable-preview.php
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 12
+      - name: Check all eleven pages against the checksum manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("storage/app/portal-demo-static")
+          m=json.loads((root/"manifest.json").read_text())
+          assert m["schema"]=="imagine-portal-visual-only-preview-v1"
+          assert m["synthetic_only"] is True
+          assert m["authorizes_customer_access"] is False
+          assert m["authorizes_deployment"] is False
+          assert m["logo_git_blob_sha1"]=="678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77"
+          assert len(m["pages"])==11
+          filenames={f.name for f in root.iterdir()}
+          assert filenames=={"manifest.json",*(r["name"] for r in m["pages"])}
+          assert "preparation.html" in filenames
+          assert "services.html" in filenames
+          for rec in m["pages"]:
+              html=(root/rec["name"]).read_bytes()
+              assert len(html)==rec["bytes"]
+              assert hashlib.sha256(html).hexdigest()==rec["sha256"]
+              assert b"noindex,nofollow" in html
+          print("Eleven offline HTML pages and manifest verified.")
+          PY
+      - name: Responsive keyboard and menu browser smoke
+        if: matrix.php == '8.3'
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$BROWSER"
+          python3 -m venv "$RUNNER_TEMP/portal-preview-browser"
+          "$RUNNER_TEMP/portal-preview-browser/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'playwright==1.56.0'
+          python3 - <<'PY'
+          from zipfile import ZipFile,ZIP_DEFLATED
+          from pathlib import Path
+          root=Path('storage/app/portal-demo-static')
+          with ZipFile('storage/app/portal-preview-qa.zip','w',ZIP_DEFLATED) as z:
+              for f in sorted(root.iterdir()):
+                  if not f.is_file() or f.is_symlink():
+                      raise SystemExit('Unsafe offline artifact file')
+                  z.write(f,f.name)
+          PY
+          "$RUNNER_TEMP/portal-preview-browser/bin/python" tools/qa_portable_preview.py storage/app/portal-preview-qa.zip --chromium "$BROWSER" | tee "$RUNNER_TEMP/offline-browser-qa.json"
+          python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          report=json.loads((Path(os.environ['RUNNER_TEMP'])/'offline-browser-qa.json').read_text())
+          assert report['passed'] is True
+          assert report['screens']==77
+          assert report['pages']==11
+          assert report['mobile_menu_checks']==10
+          assert report['offline_navigation_checks']==11
+          assert report['authorizes_production'] is False
+          PY
+      - name: Preserve offline review package without publishing it
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-wave04-offline-html-php${{ matrix.php }}
+          path: apps/portal/storage/app/portal-demo-static/
+          if-no-files-found: error
+          retention-days: 7
