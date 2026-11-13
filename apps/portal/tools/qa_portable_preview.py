@@ -22,7 +22,7 @@ PAGES = (
 )
 
 
-def audit(archive: Path, browser_executable: str | None = None) -> dict:
+def audit(archive: Path, browser_executable: str | None = None, screenshots_dir: Path | None = None) -> dict:
     from playwright.sync_api import sync_playwright
 
     with zipfile.ZipFile(archive) as zf:
@@ -61,6 +61,7 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
     scroll_tests = 0
     nav_tests = 0
     offline_nav_checks = 0
+    visual_evidence: list[dict] = []
     with sync_playwright() as p:
         options = {"headless": True, "args": [
             "--no-sandbox", "--disable-gpu",
@@ -71,6 +72,8 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
         browser = p.chromium.launch(**options)
         try:
             page = browser.new_page(viewport={"width": 390, "height": 844})
+            page.route("http://**", lambda route: route.abort())
+            page.route("https://**", lambda route: route.abort())
             for width in WIDTHS:
                 page.set_viewport_size({"width": width, "height": 844})
                 for name in PAGES:
@@ -165,6 +168,38 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
                                     if nav.evaluate("(e) => e.scrollLeft") < 1:
                                         errors.append({"page": name, "width": width,
                                                        "reason": "sidebar_last_link_not_keyboard_reachable"})
+            if screenshots_dir is not None and not errors:
+                if screenshots_dir.exists() or screenshots_dir.is_symlink():
+                    raise ValueError("Visual review requires a new output directory.")
+                screenshots_dir.mkdir(parents=True, mode=0o700)
+                for name in ("overview.html", "services.html", "preparation.html"):
+                    for label, width, height in (("mobile", 390, 844), ("desktop", 1440, 900)):
+                        page.set_viewport_size({"width": width, "height": height})
+                        page.set_content(pages[name], wait_until="domcontentloaded", timeout=15000)
+                        if page.locator("main").count() != 1 or page.locator("h1").count() != 1:
+                            raise ValueError("Invalid landmarks in screenshot view.")
+                        filename = name.removesuffix(".html") + "-" + label + ".png"
+                        payload = page.screenshot(
+                            path=str(screenshots_dir / filename),
+                            full_page=True, animations="disabled", timeout=15000,
+                        )
+                        if not payload.startswith(b"\x89PNG\r\n\x1a\n"):
+                            raise ValueError("Screenshot must be PNG.")
+                        visual_evidence.append({
+                            "name": filename, "page": name, "viewport": width,
+                            "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+                        })
+                report = {
+                    "schema": "imagine.portal.synthetic-offline-visual-review.v1",
+                    "synthetic_only": True, "safe_for_production": False,
+                    "customer_data_present": False,
+                    "source_manifest_schema": manifest["schema"],
+                    "screenshots": visual_evidence,
+                }
+                (screenshots_dir / "screenshots-manifest.json").write_text(
+                    json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
         finally:
             browser.close()
     return {
@@ -178,6 +213,8 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
         "manifest_integrity_verified": True,
         "passed": not errors,
         "issues": errors,
+        "visual_evidence_count": len(visual_evidence),
+        "visual_evidence": visual_evidence,
         "authorizes_production": False,
     }
 
@@ -186,9 +223,11 @@ if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("zip", type=Path, help="GitHub Actions synthetic preview artifact ZIP")
     cli.add_argument("--chromium", default=None, help="optional local Chromium executable path")
+    cli.add_argument("--screenshots-dir", type=Path, default=None,
+                     help="new folder for six synthetic desktop/mobile review screenshots")
     args = cli.parse_args()
     try:
-        result = audit(args.zip, args.chromium)
+        result = audit(args.zip, args.chromium, args.screenshots_dir)
     except Exception as exc:
         print(json.dumps({"passed": False, "error": type(exc).__name__,
                           "message": str(exc)[:180], "authorizes_production": False}))
