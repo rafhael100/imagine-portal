@@ -154,3 +154,16 @@ Os doze lotes servem apenas como evidências de revisão incremental; `mergeAppr
 A [#607](https://github.com/rafhael100/imagine-portal/pull/607) está fixada no HEAD `891607f96cdb0780726360edc50940d82fa9974e`, com **sete dos sete workflows `success`** na mesma revisão: [Node 43354262662](https://github.com/rafhael100/imagine-portal/actions/runs/43354262662), [Laravel 43354262544](https://github.com/rafhael100/imagine-portal/actions/runs/43354262544), [GSC 43354262551](https://github.com/rafhael100/imagine-portal/actions/runs/43354262551), [F64 43354262714](https://github.com/rafhael100/imagine-portal/actions/runs/43354262714), [Docker auth 43354262730](https://github.com/rafhael100/imagine-portal/actions/runs/43354262730), [F94 43354262507](https://github.com/rafhael100/imagine-portal/actions/runs/43354262507) e [gateway 43354262574](https://github.com/rafhael100/imagine-portal/actions/runs/43354262574).
 
 A [primeira auditoria #43354559054](https://github.com/rafhael100/imagine-portal/actions/runs/43354559054) recusou corretamente a evidência quando cinco verificações ainda estavam `queued/in_progress`. O último gateway finalizou com sucesso. Este acréscimo apenas reexecuta o **mesmo gate**; não altera PR de candidato, requisitos, code checks ou qualquer autorização operacional. `REVIEW_CANDIDATE_ONLY` continua não equivalendo a merge/deploy. 
+
+
+## Décimo terceiro lote: laboratório Ed25519 da testemunha anti-rollback (#611)
+
+O manifesto inclui [#611](https://github.com/rafhael100/imagine-portal/pull/611), filha exata da #597, como 13º lote de revisão (quatro visuais + nove de segurança/identidade). HEAD fixado `63e4ee64d8f7ba5f29ae8b782e36a598bca4939e`, seis commits, limite de 20, base `review/portal-sec-r03-restore-fence-contract-2026-11-12` e **dois checks obrigatórios** (Node geral e Laravel PHP 8.3/8.4) na mesma SHA.
+
+O laboratório de recuperação implementa um **desafio assinado Ed25519 por cada leitura**, com chave pública fixada, validação de tenant, versão, pisos e nonce. **Não é testemunha operacional nem prova de monotonicidade externa**: um assinador restaurado pode assinar informações antigas com nova assinatura legítima. Todos os métodos de serving e reemissão continuam negados; a issue #64 permanece aberta. A revisão [#597](https://github.com/rafhael100/imagine-portal/pull/597) fica inalterada, e esta PR de integração é filha de #608, sem alteração de dev/main/VPS.
+
+Um resultado `REVIEW_CANDIDATE_ONLY` exige SHA, ancestry e CI exatas; não altera as decisões `mergeApproved=false`, `deployApproved=false`, `customerAccessApproved=false` e `antiRollbackApproved=false`.
+
+## CI da testemunha assinada na SHA final
+
+[#611](https://github.com/rafhael100/imagine-portal/pull/611): [Node #43357436372](https://github.com/rafhael100/imagine-portal/actions/runs/43357436372) e [Laravel PHP 8.3/8.4 #43357436542](https://github.com/rafhael100/imagine-portal/actions/runs/43357436542) **success**, com **180 testes e 2.651 verificações** em cada versão PHP, sem o antigo aviso de arquivo de testemunha ausente. Este resultado prova apenas a coerência dos contratos de laboratório, **não** disponibilidade da testemunha real, rollback independente ou autorização de produção.

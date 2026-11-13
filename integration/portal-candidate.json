@@ -192,6 +192,17 @@
         "Portal F94 - Laravel ingress source NO-GO imports",
         "Portal private auth gateway - disposable deployment rehearsal"
       ]
+    },
+    {
+      "pullRequest": 611,
+      "headBranch": "review/portal-sec-r03-detached-signed-witness-2026-11-13",
+      "baseBranch": "review/portal-sec-r03-restore-fence-contract-2026-11-12",
+      "headSha": "63e4ee64d8f7ba5f29ae8b782e36a598bca4939e",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
     }
   ]
 }
