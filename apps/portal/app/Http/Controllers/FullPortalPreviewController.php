@@ -49,6 +49,13 @@ final class FullPortalPreviewController
     {
         if (!app(PreviewProfiles::class)->current($request)) return redirect('/_preview/portal');
         $this->profile($request,'client');
+        // Same restricted PostgreSQL reader used by the test administrator.
+        // No simulated active service grants or billing are implied.
+        if ($section==='services') {
+            return $this->page('portal.preview.client-orders',[
+                'orders'=>app(\App\Homologation\PreviewOrderListing::class)->rows()
+            ]);
+        }
         $pages=['overview','services','available','contracts','modules','journey','requests','help','notices','delivery-review'];
         if (in_array($section,['finance','files','account'],true)) return $this->page('portal.preview.client-extra',['section'=>$section]);
         abort_unless(in_array($section,$pages,true),404);
