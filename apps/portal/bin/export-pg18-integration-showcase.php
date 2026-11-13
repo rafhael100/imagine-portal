@@ -26,6 +26,7 @@ $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use App\Domain\Organizations\OrganizationId;
 use Tests\Support\DisposablePg18ProjectInboxReader;
 use Tests\Support\DisposablePg18ProjectPreparationReader;
+use Tests\Support\DisposablePg18ShowcaseOverview;
 
 $database = new PDO(
     'pgsql:host=127.0.0.1;port=5432;dbname=portal_browser_lab',
@@ -145,9 +146,18 @@ if (count($items)!==3) {
     throw new RuntimeException('Synthetic readout must cover exactly three requests.');
 }
 
+$overview=DisposablePg18ShowcaseOverview::fromRows($preparation->rows,$items);
+if ($overview!==[
+    'projects'=>3,'requests'=>3,
+    'checkpoints_reviewed'=>6,'checkpoints_total'=>10,
+]) {
+    throw new RuntimeException('Synthetic PG18 summary does not reconcile.');
+}
+
 $html=view('portal.demo.integration-rehearsal',[
     'preparationRows'=>$preparation->rows,
     'requestRows'=>$items,
+    'overview'=>$overview,
 ])->render();
 
 $logo=public_path('assets/logo-imagine.png');
@@ -172,6 +182,8 @@ foreach ([
     '3/3 itens revisados','1/3 itens revisados','2/4 itens revisados',
     'DEMO-REQ-ONEPAGE','DEMO-REQ-LANDING','DEMO-REQ-PERFORMANCE',
     'LABORATÓRIO DESCARTÁVEL','noindex,nofollow',
+    'Visão geral dos serviços','6/10',
+    'href="#pi-pg18-projects"','href="#pi-pg18-requests"',
 ] as $expected) {
     if (!str_contains($html,$expected)) {
         throw new RuntimeException('Missing synthetic showcase contract: '.$expected);
