@@ -1,0 +1,85 @@
+name: Portal F24 - isolated Imagine visual wave against dev
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/stage_portal_visual_wave.py'
+      - '.github/workflows/portal-f24-dev-visual-wave.yml'
+permissions:
+  contents: read
+jobs:
+  visual-wave:
+    name: Original-brand UI slice / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - name: Checkout exact reviewer head with complete history
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch protected dev ref without updating it
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/dev/fast-track-portal-2026-11-05:refs/remotes/origin/dev/fast-track-portal-2026-11-05'
+      - name: Prepare exact six-file UI review wave in detached dev worktree
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/tools/stage_portal_visual_wave.py
+          python3 apps/portal/tools/stage_portal_visual_wave.py \
+            --repo "$GITHUB_WORKSPACE" \
+            --worktree "$RUNNER_TEMP/imagine-ui-only-dev" \
+            --out "$GITHUB_WORKSPACE/visual-wave-review"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('visual-wave-review/manifest.json').read_text())
+          assert report['file_count']==6
+          assert report['logo_blob_sha1']=='678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77'
+          assert report['safe_to_merge'] is False
+          assert report['production_approved'] is False
+          assert report['review_only'] is True
+          assert all('/database/' not in p and '/routes/' not in p and '/Http/' not in p for p in report['changed_files'])
+          PY
+      - name: Configure PHP and frozen Composer dependencies
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+          extensions: pdo,pdo_sqlite,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip
+      - name: Validate the isolated dev worktree without DB services
+        working-directory: ${{ runner.temp }}/imagine-ui-only-dev/apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php -l tests/Feature/PortalUiComponentsTest.php
+          php artisan test --no-ansi
+      - name: Confirm only the six approved paths changed
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          report=json.loads(Path('visual-wave-review/manifest.json').read_text())
+          patch=Path('visual-wave-review/visual-wave.patch').read_bytes()
+          assert hashlib.sha256(patch).hexdigest()==report['patch_sha256']
+          assert report['file_count']==len(report['changed_files'])==6
+          assert 'apps/portal/public/assets/logo-imagine.png' in report['changed_files']
+          print('Dev worktree visual wave tested; no protected ref modified.')
+          PY
+      - name: Upload exact UI-only binary patch and review manifest
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-dev-visual-wave-php${{ matrix.php }}
+          path: visual-wave-review/
+          if-no-files-found: error
+          retention-days: 7
