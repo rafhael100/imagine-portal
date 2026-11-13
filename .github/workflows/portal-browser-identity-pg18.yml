@@ -18,6 +18,8 @@ on:
       - 'apps/portal/tests/Feature/**'
       - 'apps/portal/tests/Unit/**'
       - 'apps/portal/bin/export-portable-preview.php'
+      - 'apps/portal/bin/export-pg18-integration-showcase.php'
+      - 'apps/portal/bin/verify-pg18-showcase-package.php'
       - 'apps/portal/tools/qa_portable_preview.py'
       - 'apps/portal/database/security/portal_browser_auth.sql'
       - 'apps/portal/database/security/portal_browser_envelopes.sql'
@@ -189,7 +191,16 @@ jobs:
           test -s storage/app/portal-pg18-integrated-showcase/index.html
           test -s storage/app/portal-pg18-integrated-showcase/manifest.json
           test "$(find storage/app/portal-pg18-integrated-showcase -maxdepth 1 -type f | wc -l)" -eq 2
-          php -r '$d="storage/app/portal-pg18-integrated-showcase/";$m=json_decode(file_get_contents($d."manifest.json"),true,512,JSON_THROW_ON_ERROR);if($m["production_approved"]!==false||$m["customer_access_approved"]!==false||$m["synthetic_only"]!==true||hash_file("sha256",$d."index.html")!==$m["html_sha256"])exit(2);'
+          php -l bin/verify-pg18-showcase-package.php
+          php bin/verify-pg18-showcase-package.php storage/app/portal-pg18-integrated-showcase
+          # An altered HTML must not pass just because the manifest still exists.
+          cp -a storage/app/portal-pg18-integrated-showcase /tmp/imagine-showcase-tampered
+          printf '\\n<!-- tampered -->\\n' >> /tmp/imagine-showcase-tampered/index.html
+          if php bin/verify-pg18-showcase-package.php /tmp/imagine-showcase-tampered; then
+            echo "Tampered artifact incorrectly verified" >&2
+            exit 1
+          fi
+          rm -rf /tmp/imagine-showcase-tampered
       - name: Preserve synthetic PG18 offline showcase for visual review
         uses: actions/upload-artifact@v5
         with:
