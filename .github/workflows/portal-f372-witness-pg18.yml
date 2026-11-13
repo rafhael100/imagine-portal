@@ -1,0 +1,60 @@
+name: Portal F372 - Real PostgreSQL18 auth reads behind witness (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/FencedPortal*'
+      - 'apps/portal/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php'
+      - 'infra/development/portal-recovery/test-f372-pg18.php'
+      - '.github/workflows/portal-f372-witness-pg18.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-f372-witness-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  restricted-postgres-session-and-grant:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare only disposable PostgreSQL18 and restricted runtime roles
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f372-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f372-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f372-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Verify real SQL session and permission readers never become HTTP authority
+        run: |
+          set -euo pipefail
+          if grep -R -E '(FencedPortalSessionReadCandidate|FencedPortalGrantReadCandidate)' apps/portal/routes apps/portal/bootstrap; then
+            echo 'Read-only candidate must not be bound into public routes.'
+            exit 1
+          fi
+          tool() {
+            sudo docker compose -p imagine-portal-f372-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F372_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" provision "$@"
+          }
+          tool php -l /var/www/html/app/Infrastructure/Recovery/FencedPortalSessionReadCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php
+          tool php -l /opt/portal-recovery/test-f372-pg18.php
+          if tool php /opt/portal-recovery/test-f372-pg18.php < /dev/null \
+            -e PORTAL_F372_CI=NO; then exit 1; fi
+          tool php /opt/portal-recovery/test-f372-pg18.php < /dev/null
+      - name: Remove only disposable PostgreSQL18 test project
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f372-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
