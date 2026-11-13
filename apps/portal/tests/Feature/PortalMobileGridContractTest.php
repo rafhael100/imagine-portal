@@ -45,7 +45,7 @@ final class PortalMobileGridContractTest extends TestCase
     public function test_other_preview_pages_still_preserve_semantics_after_grid_fix(): void
     {
         foreach ([
-            'overview', 'services', 'available', 'contracts',
+            'overview', 'services', 'preparation', 'available', 'contracts',
             'modules', 'journey', 'requests', 'help', 'notices',
         ] as $name) {
             $html = view('portal.demo.'.$name)->render();
