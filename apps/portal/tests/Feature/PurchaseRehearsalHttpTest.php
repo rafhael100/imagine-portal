@@ -107,4 +107,38 @@ final class PurchaseRehearsalHttpTest extends TestCase
             $this->scope->tenant='test-org-a';
         }
     }
+
+    public function test_refuses_scope_database_mismatch_and_revoked_scope(): void
+    {
+        $base='/_rehearsal/purchase';
+        $this->scope->tenant='test-org-a';
+        $created=$this->post($base.'/orders',[
+            'product'=>'onepage','request_key'=>'TEST-scope-drift-'.bin2hex(random_bytes(12)),
+        ])->assertRedirect();
+        $url=$created->headers->get('Location');
+        // Keep the actual SQL login A while the principal fixture claims B.
+        // This must fail before invoking the store, not silently write for A.
+        $this->scope->tenant='test-org-b';
+        $this->get($url)->assertForbidden();
+        $this->post($base.'/orders',['product'=>'onepage','request_key'=>'TEST-scope-forged-1234'])->assertForbidden();
+        $this->post($url.'/payment',['revision'=>0,'outcome'=>'approved','sample_ack'=>1])->assertForbidden();
+        $this->post($url.'/briefing',['revision'=>0])->assertForbidden();
+        $this->scope->tenant=null;
+        $this->get($url)->assertForbidden();
+        $this->post($url.'/payment',['revision'=>0,'outcome'=>'approved','sample_ack'=>1])->assertForbidden();
+        $this->scope->tenant='test-org-a';
+        $this->get($url)->assertOk()->assertDontSee('Salvar briefing de teste');
+    }
+
+    public function test_runtime_failure_is_redacted_before_http_response(): void
+    {
+        $this->scope->tenant='test-org-a';
+        $this->app->forgetInstance(RoleBoundTestPurchase::class);
+        $this->app->bind(RoleBoundTestPurchase::class,static function() {
+            throw new \RuntimeException('SQL_DIAGNOSTIC_MUST_NOT_LEAK');
+        });
+        $this->get('/_rehearsal/purchase')->assertStatus(503)
+            ->assertDontSee('SQL_DIAGNOSTIC_MUST_NOT_LEAK',false);
+    }
+
 }
