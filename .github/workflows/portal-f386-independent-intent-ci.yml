@@ -1,0 +1,50 @@
+name: Portal F386 - Independent append-only revocation intent CAS (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f386-worker/**'
+      - 'infra/development/portal-recovery/f376-worker/src/witness.mjs'
+      - '.github/workflows/portal-f386-independent-intent-ci.yml'
+permissions:
+  contents: read
+jobs:
+  atomic-independent-witness-intents:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      PORTAL_F386_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: none
+      - name: Atomic D1-like intent and witness sequence, plus PHP F379 comparison
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F386_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f386-worker/intent.mjs
+          node --check infra/development/portal-recovery/f386-worker/test-intents.mjs
+          node --check infra/development/portal-recovery/f376-worker/src/witness.mjs
+          php -l infra/development/portal-recovery/f386-worker/test-php-interop.php
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          export F386_INTEROP_DIR="$scratch"
+          node infra/development/portal-recovery/f386-worker/test-intents.mjs
+          php infra/development/portal-recovery/f386-worker/test-php-interop.php "$scratch"
+          # Confirm original F376 witness contract remains unchanged.
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs
