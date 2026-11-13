@@ -77,10 +77,23 @@ SQL);
     {
         $table=$requestTable ? 'portal_service_requests' : 'portal_service_request_transitions';
         $guard=$requestTable ? 'portal_service_request_guard' : 'portal_service_request_event_guard';
+        // A privileged attacker might tamper with a request without its
+        // matching audit event. Disable both triggers *only in this
+        // disposable PG18 test*, then restore them unconditionally.
         $this->db->exec('ALTER TABLE public.'.$table.' DISABLE TRIGGER '.$guard);
+        if ($requestTable) {
+            $this->db->exec(
+                'ALTER TABLE public.portal_service_requests DISABLE TRIGGER portal_service_request_audit'
+            );
+        }
         try {
             $this->db->exec($sql);
         } finally {
+            if ($requestTable) {
+                $this->db->exec(
+                    'ALTER TABLE public.portal_service_requests ENABLE TRIGGER portal_service_request_audit'
+                );
+            }
             $this->db->exec('ALTER TABLE public.'.$table.' ENABLE TRIGGER '.$guard);
         }
     }
