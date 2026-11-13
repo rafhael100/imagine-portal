@@ -2,15 +2,15 @@ name: Portal F390 - Digest-only Worker intent and real PG18 reconciliation (NO S
 on:
   pull_request:
     paths:
-      - 'infra/development/portal-recovery/f390-*
+      - 'infra/development/portal-recovery/f390-*'
       - 'apps/portal/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php'
       - 'apps/portal/app/Infrastructure/Recovery/PortalHashedSessionRevocationCandidate.php'
-      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationDigestPgReconcileCandidate.php''
-      - '.github/workflows/portal-f390-worker-pg18-ci.yml'
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationDigestPgReconcileCandidate.php'
+      - '.github/workflows/portal-f390-digest-only-reconciliation-ci.yml'
 permissions:
   contents: read
 jobs:
-  actual-worker-to-pg18-with-signed-readback:
+  actual-worker-to-pg18-without-original-bearer:
     runs-on: ubuntu-24.04
     timeout-minutes: 19
     env:
@@ -28,7 +28,7 @@ jobs:
           sudo docker compose -p imagine-portal-f390-ci -f infra/development/portal-db/compose.yaml build provision
           sudo docker compose -p imagine-portal-f390-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
           sudo docker compose -p imagine-portal-f390-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
-      - name: Prove no raw session reference survives into Worker or PG18 retry
+      - name: Prove only SHA256 session digest survives into Worker and PG18 retry
         run: |
           set -Eeuo pipefail
           test "$GITHUB_ACTIONS" = true
@@ -51,18 +51,17 @@ jobs:
               -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" \
               -v "$scratch:/opt/f390:rw" provision "$@"
           }
+          tool php -l /var/www/html/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/PortalHashedSessionRevocationCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/SignedRevocationDigestPgReconcileCandidate.php
           tool php -l /opt/portal-recovery/f390-seed-hash-only-pg18.php
           tool php -l /opt/portal-recovery/test-f390-worker-to-pg18-digest-only.php
-          if tool php /opt/portal-recovery/f390-seed-real-pg.php bad-args; then
-            echo 'F390 seed must refuse command arguments'
+          if tool php /opt/portal-recovery/f390-seed-hash-only-pg18.php bad-args; then
+            echo 'F390 seed must refuse arbitrary arguments'
             exit 1
           fi
-          tool php /opt/portal-recovery/f390-seed-real-pg.php
+          tool php /opt/portal-recovery/f390-seed-hash-only-pg18.php
           sudo test -s "$scratch/seed.json"
-
-          # A separate, networkless Node process runs the ACTUAL F376/F386/F387
-          # Worker module in SQLite. The 256-bit PG session reference never
-          # enters the host process, command line, logs or public network.
           sudo docker run --rm --network none --user 82:82 \
             --memory 320m --cpus 1 \
             -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
@@ -74,13 +73,13 @@ jobs:
           sudo test -s "$scratch/receipt.json"
           sudo test -s "$scratch/expected.json"
           sudo test -s "$scratch/public.json"
-          tool php /opt/portal-recovery/test-f390-worker-to-pg18.php
-          if grep -R -E 'SignedRevocationIntentPgReconcileCandidate|SignedRevocationIntentReadbackCandidateVerifier' \
+          tool php /opt/portal-recovery/test-f390-worker-to-pg18-digest-only.php
+          if grep -R -E '(PortalHashedSessionRevocationCandidate|SignedRevocationDigestPgReconcileCandidate)' \
               apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
-            echo 'F390 candidates MUST NOT be exposed on Laravel HTTP'
+            echo 'F390 candidate must not be bound to live Laravel HTTP'
             exit 1
           fi
-      - name: Destroy only F390 disposable cluster and all volumes
+      - name: Destroy only F390 disposable PostgreSQL cluster and volumes
         if: always()
         run: |
           test "$GITHUB_ACTIONS" = true
