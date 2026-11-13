@@ -1,0 +1,51 @@
+name: Portal UI integration review scope (NO-GO production)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/**'
+      - '.github/workflows/portal-ui-integration-gate.yml'
+      - '.github/workflows/portal-wave04-offline-preview.yml'
+permissions:
+  contents: read
+jobs:
+  ui-scope:
+    name: Immutable dev / exact 27-file UI candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact PR HEAD with history, no write credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch dev and prove full Git diff is UI-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/dev/fast-track-portal-2026-11-05:refs/remotes/origin/dev/fast-track-portal-2026-11-05'
+          python3 -m py_compile apps/portal/tools/qa_ui_integration_gate.py
+          python3 apps/portal/tools/qa_ui_integration_gate.py --self-test
+          python3 apps/portal/tools/qa_ui_integration_gate.py --out portal-ui-integration-evidence
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("portal-ui-integration-evidence/scope.json").read_text())
+          assert report["file_scope_valid"] is True
+          assert report["approved_for_manual_review"] is True
+          assert report["reviewed_paths"] == 27
+          assert report["behind"] == 0
+          assert report["safe_to_merge_automatically"] is False
+          assert report["operational_homologation_passed"] is False
+          assert report["deployment_authorized"] is False
+          assert report["customer_access_authorized"] is False
+          assert report["appsec_dba_review_completed"] is False
+          print("Full Git comparison accepted exactly 27 files. NO-GO production.")
+          PY
+      - name: Archive scoped integration proof for human review
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-ui-integration-scope
+          path: portal-ui-integration-evidence/
+          if-no-files-found: error
+          retention-days: 7
