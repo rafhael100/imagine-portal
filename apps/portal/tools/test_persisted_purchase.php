@@ -128,8 +128,8 @@ $brief = [
 $completed = $actorA->briefing('test-org-a', $a['id'], $approved['revision'], $brief);
 $reconnected = (new PersistedTestPurchase(limitedConnection('purchase_rehearsal_a')))
     ->read('test-org-a', $a['id']);
-check($completed === $reconnected && $reconnected['briefing'] === $brief,
-    'Limited runtime role must persist briefing across new DB connection');
+check($completed === $reconnected && $reconnected['briefing'] == $brief,
+    'Limited runtime role must persist equivalent JSONB briefing across new DB connection');
 check($actorB->read('test-org-b', $b['id']) === $b,
     'Neighbor organization cannot be affected by other tenant changes');
 echo 'PASS restricted PostgreSQL login roles, FORCE RLS and cross-tenant deny at SQL boundary'.PHP_EOL;
