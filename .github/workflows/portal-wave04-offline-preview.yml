@@ -100,6 +100,8 @@ jobs:
           assert report['screens']==77
           assert report['pages']==11
           assert report['mobile_menu_checks']==10
+          assert report['mobile_header_checks']==10
+          assert report['max_mobile_header_height'] <= report['mobile_header_limit_px'] == 260
           assert report['offline_navigation_checks']==11
           assert report['authorizes_production'] is False
           assert report['visual_evidence_count'] == 6
