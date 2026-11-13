@@ -49,6 +49,21 @@ try{
     'unsafe command execution introduced');
   mutate('public/.htaccess',"\n# CredentialBoundBudgetPreview\n",
     'offline DTO referenced in public rewrite config');
+  // Only the exact official logo is allowed in the public asset folder.
+  const originalLogo=readFileSync(target('public/assets/logo-imagine.png'));
+  writeFileSync(target('public/assets/logo-imagine.png'),
+    Buffer.concat([originalLogo,Buffer.from('altered')]));
+  deny('tampering with original Imagine logo is rejected');
+  writeFileSync(target('public/assets/logo-imagine.png'),originalLogo);
+  const extraAsset=target('public/assets/other-logo.png');
+  writeFileSync(extraAsset,originalLogo);
+  deny('a second public image is rejected');
+  rmSync(extraAsset);
+  const scriptAsset=target('public/assets/injected.js');
+  writeFileSync(scriptAsset,'window.location="https://invalid.example";');
+  deny('arbitrary public JavaScript asset is rejected');
+  rmSync(scriptAsset);
+  check(run().status===0,'official pinned Imagine logo remains accepted');
   const badPublic=target('public/admin.php');
   writeFileSync(badPublic,'<?php echo "admin";');
   deny('unexpected public PHP file');
