@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 3 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 4 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -62,6 +62,11 @@ export function validateManifest(m) {
       // Private first-invitation rehearsal sits ONLY atop the pinned
       // login candidate. It cannot be merged into dev independently.
       m.isolatedLots[2]?.baseBranch !== m.isolatedLots[0]?.headBranch ||
+      m.isolatedLots[3]?.pullRequest !== 600 ||
+      m.isolatedLots[3]?.headBranch !== 'review/portal-first-enrollment-pg18-lab-2026-11-12' ||
+      // The enrollment rehearsal can only be reviewed atop the exact
+      // first-invitation branch; it is not a standalone service or deploy.
+      m.isolatedLots[3]?.baseBranch !== m.isolatedLots[2]?.headBranch ||
       m.isolatedLots.some(l => !plainRecord(l) ||
         !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
         !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 20 ||
