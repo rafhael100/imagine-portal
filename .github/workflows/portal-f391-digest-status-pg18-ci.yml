@@ -53,6 +53,7 @@ jobs:
               -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
               -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
               -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" \
+              -v "$GITHUB_WORKSPACE/apps/portal/database/security/portal_browser_revoke_status_f391_candidate.sql:/opt/f391-status-candidate.sql:ro" \
               -v "$scratch:/opt/f390:rw" provision "$@"
           }
           tool php -l /var/www/html/app/Infrastructure/Recovery/PortalHashedSessionStatusCandidate.php
