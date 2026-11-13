@@ -27,10 +27,10 @@ final class PreviewProfiles
         return $data['accounts'];
     }
     public function ready(): bool { try {$this->accounts();return true;}catch(\Throwable){return false;} }
-    public function login(Request $request,string $id,string $password): bool
+    public function login(Request $request,string $id,#[\SensitiveParameter] string $password): bool
     {
         $accounts=$this->accounts(); $a=$accounts[$id]??null;
-        if (!is_array($a)||!password_verify($password,$a['hash'])) return false;
+        if (!is_array($a)||strlen($password)>72||!password_verify($password,$a['hash'])) return false;
         $request->session()->invalidate(); $request->session()->regenerateToken();
         $request->session()->put('preview.profile',['id'=>$id,'fingerprint'=>hash('sha256',$a['hash']),'expires'=>time()+3600]);
         return true;

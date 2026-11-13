@@ -35,7 +35,7 @@ final class FullPortalPreviewController
         $auth=app(PreviewProfiles::class);
         abort_unless($auth->ready(),503,'Perfis de teste ainda não configurados.');
         if (!$auth->login($request,$data['username'],$data['password'])) {
-            return back()->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
+            return redirect('/_preview/portal')->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
         }
         $p=$auth->current($request);
         return redirect('/_preview/portal/'.$p['role'].'/overview');
