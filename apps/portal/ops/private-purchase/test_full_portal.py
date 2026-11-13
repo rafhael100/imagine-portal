@@ -20,6 +20,8 @@ with sync_playwright() as p:
         page.screenshot(path=str(target),full_page=True)
         captured.append({'name':name,'sha256':hashlib.sha256(target.read_bytes()).hexdigest()})
     page.on('pageerror',lambda e:errors.append(str(e)))
+    PURCHASE=BASE.split('/_preview/portal')[0]+'/_rehearsal/purchase'
+    assert page.request.get(PURCHASE).status==403, 'Guest purchase access must fail closed'
     page.goto(BASE+'/client/overview')
     assert page.url.rstrip('/')==BASE
     assert page.locator('input[name=username]').count()==1,'CI test profiles are not ready'
@@ -31,6 +33,8 @@ with sync_playwright() as p:
     page.locator('input[name=password]').fill('ci-client-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/client/overview')
+    assert page.request.get(PURCHASE).status==200, 'Signed-in client may buy only synthetic offers'
+    assert page.request.get(PURCHASE+'?offer=onepage').status==200
     # The purchase browser runs before this login test and saves three orders
     # into the same PostgreSQL volume. This is not a hardcoded service card.
     response=page.goto(BASE+'/client/services')
@@ -59,14 +63,23 @@ with sync_playwright() as p:
     old_cookies=page.context.cookies()
     page.get_by_role('button',name='Sair',exact=True).click()
     assert page.url.rstrip('/')==BASE
+    assert page.request.get(PURCHASE).status==403, 'Logout must revoke order access'
     old=browser.new_context(); old.add_cookies(old_cookies)
     old_page=old.new_page(); old_page.goto(BASE+'/client/overview')
     assert old_page.url.rstrip('/')==BASE
     old.close()
+    # The anonymous APIRequest above may renew its session cookie. Reload the
+    # login form to acquire the current CSRF token before switching profiles.
+    page.goto(BASE)
+    assert page.locator('input[name=username]').count()==1
     page.locator('input[name=username]').fill('administrador.teste')
     page.locator('input[name=password]').fill('ci-admin-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
-    assert page.url.endswith('/admin/overview')
+    assert page.url.endswith('/admin/overview'), (
+        'Admin login after client logout',
+        page.url,
+        page.locator('body').inner_text()[:160],
+    )
     for section in ['overview','clients','orders','services','finance','contracts','requests','settings']:
         response=page.goto(BASE+'/admin/'+section)
         assert response.status==200,(section,response.status)
@@ -74,6 +87,13 @@ with sync_playwright() as p:
             assert page.locator('table tbody tr').count()==3, 'Admin must see the same restricted SQL order rows'
             capture('04-admin-orders-desktop.png')
     assert page.request.get(BASE+'/client/overview').status==403
+    assert page.request.get(PURCHASE).status==403, 'Admin must not read client orders through checkout'
+    csrf=page.locator('form[action="/_preview/portal/logout"] input[name="_token"]').get_attribute('value')
+    assert csrf
+    denied=page.request.post(PURCHASE+'/orders',form={
+        '_token':csrf, 'product':'onepage', 'request_key':'TEST-admin-denied-123456',
+    })
+    assert denied.status==403, ('Admin must not create client orders', denied.status)
     for width in [320,390,768,1280]:
         page.set_viewport_size({'width':width,'height':900})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),('overflow',width)
@@ -88,5 +108,5 @@ with sync_playwright() as p:
             'source':'isolated private Portal CI, synthetic users and data only',
             'files':captured,'no_real_customer_data':True,'no_public_deploy':True
         },sort_keys=True,indent=2)+'\n',encoding='utf-8')
-    print('PASS client login, 13 client pages, admin login, 8 admin pages, cross-role denial, logout revocation and responsive layout')
+    print('PASS client-only purchase, 13 client pages, 8 admin pages, SQL order listing, logout and snapshots')
     browser.close()
