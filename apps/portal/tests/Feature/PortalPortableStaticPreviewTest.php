@@ -35,12 +35,12 @@ final class PortalPortableStaticPreviewTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_offline_bundle_contains_real_logo_and_ten_navigable_pages(): void
+    public function test_offline_bundle_contains_real_logo_and_eleven_navigable_pages(): void
     {
         $exporter = new PortablePortalStaticPreview();
         $pages = $exporter->export($this->target);
         self::assertSame([
-            'overview.html', 'services.html', 'available.html', 'contracts.html',
+            'overview.html', 'services.html', 'preparation.html', 'available.html', 'contracts.html',
             'modules.html', 'journey.html', 'requests.html',
             'help.html', 'notices.html', 'index.html',
         ], $pages);
@@ -50,7 +50,7 @@ final class PortalPortableStaticPreviewTest extends TestCase
         self::assertFalse($manifest['authorizes_customer_access']);
         self::assertFalse($manifest['authorizes_payment']);
         self::assertFalse($manifest['authorizes_deployment']);
-        self::assertCount(10, $manifest['pages']);
+        self::assertCount(11, $manifest['pages']);
         self::assertSame('678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77',
             $manifest['logo_git_blob_sha1']);
 
