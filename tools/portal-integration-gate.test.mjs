@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2]) {
+  for (const i of [0, 1, 2, 3]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2]) {
+  for (const i of [0, 1, 2, 3]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -407,6 +407,10 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[2].headBranch = m.isolatedLots[0].headBranch; },
     m => { m.isolatedLots[2].pullRequest = m.isolatedLots[1].pullRequest; },
     m => { m.isolatedLots[2].requiredWorkflows = []; },
+    m => { m.isolatedLots[3].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[3].pullRequest = m.isolatedLots[2].pullRequest; },
+    m => { m.isolatedLots[3].headSha = m.isolatedLots[0].headSha; },
+    m => { m.isolatedLots[3].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -436,4 +440,22 @@ test('third isolated lab cannot be detached from private login or mistaken for o
   assert.equal(result.antiRollbackApproved, false);
   f.runs[4].status = 'in_progress';
   assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
+});
+
+test('fourth isolated lab enforces invitation ancestry and all five workflows', () => {
+  const f = isolatedReview(3);
+  assert.equal(f.lot.pullRequest, 600);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[2].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 5);
+  let result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, true);
+  assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(result.customerAccessApproved, false);
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
+  f.runs[4].status = 'in_progress';
+  result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, false);
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
 });
