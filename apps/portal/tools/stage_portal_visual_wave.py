@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rehearse a six-file, branding-only Imagine Portal wave against dev.
+"""Rehearse a nine-file, branding-only Imagine Portal wave against dev.
 
 No remote writes, branch updates, database services, credentials or deployments.
 Returns a full binary patch and an auditable manifest on success.
