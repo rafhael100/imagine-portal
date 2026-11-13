@@ -51,8 +51,9 @@ final class FullPortalPreviewController
         $this->profile($request,'client');
         // Same restricted PostgreSQL reader used by the test administrator.
         // No simulated active service grants or billing are implied.
-        if ($section==='services') {
+        if (in_array($section,['services','finance'],true)) {
             return $this->page('portal.preview.client-orders',[
+                'section'=>$section,
                 'orders'=>app(\App\Homologation\PreviewOrderListing::class)->rows()
             ]);
         }
