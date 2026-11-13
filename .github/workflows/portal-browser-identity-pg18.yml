@@ -34,6 +34,9 @@ on:
       - 'apps/portal/tests/Integration/PortalServiceRequestCandidatesPg18Test.php'
       - 'apps/portal/tests/Integration/PortalPg18ToUiRequestProjectionTest.php'
       - 'apps/portal/tests/Integration/PortalPg18RequestHistoryReconciliationTest.php'
+      - 'apps/portal/tests/Integration/PortalPg18ProjectPreparationProjectionTest.php'
+      - 'apps/portal/tests/Support/DisposablePg18ProjectPreparationReader.php'
+      - 'apps/portal/tests/Support/DisposablePg18ProjectPreparationResult.php'
       - 'apps/portal/tests/Support/DisposablePg18ProjectInboxReader.php'
       - 'apps/portal/tests/Integration/DisposablePersistedEmailProofPg18Test.php'
       - 'apps/portal/tests/Support/DisposablePersistedEmailProofLab.php'
@@ -169,6 +172,9 @@ jobs:
           php -l tests/Support/DisposablePg18ProjectInboxReader.php
           vendor/bin/phpunit tests/Integration/PortalPg18ToUiRequestProjectionTest.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Integration/PortalPg18RequestHistoryReconciliationTest.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
+          php -l tests/Support/DisposablePg18ProjectPreparationReader.php
+          php -l tests/Support/DisposablePg18ProjectPreparationResult.php
+          vendor/bin/phpunit tests/Integration/PortalPg18ProjectPreparationProjectionTest.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Integration/DisposablePersistedEmailProofPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Unit/PortalEmailProofTest.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           timeout 35s vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --debug --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped || { psql -X -c "SELECT pid,usename,state,wait_event_type,wait_event,pg_blocking_pids(pid)::text AS blockers FROM pg_stat_activity WHERE datname='portal_browser_lab'"; exit 1; }
