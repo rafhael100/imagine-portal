@@ -74,6 +74,13 @@ jobs:
           PY
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
+      - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
+        env:
+          PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+        run: |
+          set -euo pipefail
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
+          echo 'PASS preview reload after database/app restart, synthetic clients only'
       - name: Diagnose failed synthetic browser flow
         if: failure()
         working-directory: apps/portal/ops/private-purchase
