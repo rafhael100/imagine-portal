@@ -26,8 +26,8 @@ final class PortalSitesEditorialPreviewTest extends TestCase
     public function test_onepage_and_landing_page_are_rendered_in_read_only_request_preview(): void
     {
         $html=view('portal.demo.requests')->render();
-        self::assertStringContainsString('Onepage e Landing Page — briefing e revisão de conteúdo fictícios',$html);
-        self::assertStringContainsString('Conteúdos fictícios de Sites Imagine — sem aprovação real',$html);
+        self::assertStringContainsString('Onepage e Landing Page — revisão editorial fictícia',$html);
+        self::assertStringContainsString('Conteúdos ilustrativos de Sites Imagine — sem aprovação real',$html);
         self::assertSame(1,substr_count($html,'<td>DEMO-SITE-REQ-ONEPAGE</td>'));
         self::assertSame(1,substr_count($html,'<td>DEMO-SITE-REQ-LANDING</td>'));
         self::assertStringContainsString('Uma presença digital para sua empresa',$html);
@@ -36,8 +36,8 @@ final class PortalSitesEditorialPreviewTest extends TestCase
         self::assertStringContainsString('Aguardando revisão fictícia',$html);
         self::assertStringContainsString('Briefing 1 · Conteúdo 2',$html);
         self::assertStringContainsString('Briefing 0 · Conteúdo 1',$html);
-        self::assertStringContainsString('Nenhuma publicação ou cobrança está disponível',$html);
-        self::assertStringContainsString('sem abertura, edição, envio, anexos ou aprovação',$html);
+        self::assertStringContainsString('Esta tela não coleta dados, cobra nem publica',$html);
+        self::assertStringContainsString('A abertura, edição, envio e anexação de solicitações',$html);
     }
 
     public function test_editorial_rows_are_made_only_of_fictional_local_immutable_candidates(): void
