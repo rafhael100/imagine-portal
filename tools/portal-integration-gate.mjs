@@ -48,6 +48,25 @@ export function validateManifest(m) {
         !Array.isArray(l.requiredWorkflows) || l.requiredWorkflows.length !== 2 ||
         new Set(l.requiredWorkflows).size !== 2 ||
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
+      // Independent branches: never fold their SHAs into the four-stage
+      // UI ancestry. They are separate, read-only review candidates.
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 2 ||
+      m.isolatedLots[0]?.pullRequest !== 596 ||
+      m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
+      m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
+      m.isolatedLots[1]?.pullRequest !== 597 ||
+      m.isolatedLots[1]?.headBranch !== 'review/portal-sec-r03-restore-fence-contract-2026-11-12' ||
+      m.isolatedLots[1]?.baseBranch !== m.targetBranch ||
+      m.isolatedLots.some(l => !plainRecord(l) ||
+        !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
+        !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 20 ||
+        !Array.isArray(l.requiredWorkflows) || l.requiredWorkflows.length < 2 ||
+        l.requiredWorkflows.length > 12 ||
+        new Set(l.requiredWorkflows).size !== l.requiredWorkflows.length ||
+        !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
+      [...m.reviewLots, ...m.isolatedLots].some((l, i, all) =>
+        all.findIndex(x => x.pullRequest === l.pullRequest ||
+          x.headBranch === l.headBranch || x.headSha === l.headSha) !== i) ||
       !plainRecord(m.policy) ||
       Object.keys(m.policy).sort().join() !== [
         'antiRollbackResolved', 'deployApproved', 'independentAppSecDbaApproved',
@@ -214,16 +233,28 @@ export async function main(args = process.argv.slice(2)) {
         ),
       });
     }
+    const isolatedLots = [];
+    for (const lot of manifest.isolatedLots) {
+      const proof = await fetchEvidence(manifest, process.env.GITHUB_TOKEN, lot);
+      isolatedLots.push({
+        pullRequest: lot.pullRequest,
+        ...printableDecision(
+          assessCandidate(manifest, proof.pull, proof.runs, proof.comparison, lot)
+        ),
+      });
+    }
     const output = {
       decision: 'NO_GO_RELEASE_INTEGRATION_REVIEW_ONLY',
       stackedCandidate: printableDecision(result),
       smallLots: lots,
+      isolatedLots,
       mergeApproved: false,
       deployApproved: false,
     };
     process.stdout.write(JSON.stringify(output, null, 2) + '\n');
     return result.evidenceVerified &&
-      lots.every(item => item.evidenceVerified && !item.splitRequired) ? 0 : 65;
+      lots.every(item => item.evidenceVerified && !item.splitRequired) &&
+      isolatedLots.every(item => item.evidenceVerified && !item.splitRequired) ? 0 : 65;
   } catch (error) {
     process.stderr.write(JSON.stringify({
       decision: 'BLOCKED_UNVERIFIED',
