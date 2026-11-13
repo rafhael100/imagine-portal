@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 8 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 9 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -91,6 +91,16 @@ export function validateManifest(m) {
       // above offline proof issuance. No real mail, session, or account.
       m.isolatedLots[7]?.baseBranch !== m.isolatedLots[6]?.headBranch ||
       m.isolatedLots[7]?.requiredWorkflows?.length !== 7 ||
+      m.isolatedLots[8]?.pullRequest !== 611 ||
+      m.isolatedLots[8]?.headBranch !== 'review/portal-sec-r03-detached-signed-witness-2026-11-13' ||
+      // Detached-signature recovery research must be a child of the
+      // existing synthetic rollback lab, not operational main/dev.
+      m.isolatedLots[8]?.baseBranch !== m.isolatedLots[1]?.headBranch ||
+      m.isolatedLots[8]?.requiredWorkflows?.length !== 2 ||
+      [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+      ].some(name => !m.isolatedLots[8]?.requiredWorkflows?.includes(name)) ||
       [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',
