@@ -138,3 +138,19 @@ Para manter a integração auditável, esta revisão é uma PR filha da #602. A 
 O gate acompanha [#605](https://github.com/rafhael100/imagine-portal/pull/605), filha **exata** da #603. A SHA `7f277fdc235a5909b6a9f7b8822c5068a002beda` tem **quatro commits** incrementais e passou em **cinco workflows** (incluindo PG18 em PHP 8.3 e 8.4). O laboratório de ponta a ponta da PR #605 comprovou **8 testes e 73 assertions** para comprovação e consumo do token, falhas/lockout, troca de chave e tenant, mudança de revisão e lock concorrente, sem dados ou e-mails reais.
 
 Assim, são **onze lotes de revisão**: quatro visuais e sete isolados/dependentes de identidade, anti-rollback e integração. O gate exige uma candidata somente na sua SHA, head/base e workflows aprovados. Os bits `mergeApproved`, `deployApproved`, `customerAccessApproved` e `antiRollbackApproved` permanecem falsos. O código `Tests/Support/DisposablePersistedEmailProofLab` não é um emissor operacional, não possui endpoint nem serviço registrado e não corrige restore conjunto de banco e chave. #64 e #341 e as aprovações AppSec/DBA continuam bloqueantes.
+
+
+## Décimo segundo lote: transporte de comprovante sem log (PR #607)
+
+A auditoria acompanha a [PR #607](https://github.com/rafhael100/imagine-portal/pull/607), filha da #605. A SHA `891607f96cdb0780726360edc50940d82fa9974e` é fixada em conjunto com a base e **sete workflows** exigidos: Node, Laravel, GSC, F64 Compose, Docker de autenticação, F94 NO-GO de ingress e gateway privado. Qualquer execução pendente ou falha implica `BLOCKED_EVIDENCE`.
+
+O escopo de #607 é **prevenir vazamento de tokens por mail log**: `MAIL_MAILER=array` em vez de `log` como padrão, `failover` sem fallback em log, seis gates de provisionamento/mailer fixos `false` e política pura de transporte SMTP que requer remetente, TLS, aprovação de operador, AppSec e testemunha externa. Não há SMTP operacional, envio real, conta de usuário ou sessão.
+
+Os doze lotes servem apenas como evidências de revisão incremental; `mergeApproved=false`, `deployApproved=false`, `antiRollbackApproved=false`, `customerAccessApproved=false`. Permanecem pendentes a issue #64, issue #341, verificação real de caixa postal e revisão independente.
+
+
+## Evidência final do transporte sem log — SHA congelada
+
+A [#607](https://github.com/rafhael100/imagine-portal/pull/607) está fixada no HEAD `891607f96cdb0780726360edc50940d82fa9974e`, com **sete dos sete workflows `success`** na mesma revisão: [Node 43354262662](https://github.com/rafhael100/imagine-portal/actions/runs/43354262662), [Laravel 43354262544](https://github.com/rafhael100/imagine-portal/actions/runs/43354262544), [GSC 43354262551](https://github.com/rafhael100/imagine-portal/actions/runs/43354262551), [F64 43354262714](https://github.com/rafhael100/imagine-portal/actions/runs/43354262714), [Docker auth 43354262730](https://github.com/rafhael100/imagine-portal/actions/runs/43354262730), [F94 43354262507](https://github.com/rafhael100/imagine-portal/actions/runs/43354262507) e [gateway 43354262574](https://github.com/rafhael100/imagine-portal/actions/runs/43354262574).
+
+A [primeira auditoria #43354559054](https://github.com/rafhael100/imagine-portal/actions/runs/43354559054) recusou corretamente a evidência quando cinco verificações ainda estavam `queued/in_progress`. O último gateway finalizou com sucesso. Este acréscimo apenas reexecuta o **mesmo gate**; não altera PR de candidato, requisitos, code checks ou qualquer autorização operacional. `REVIEW_CANDIDATE_ONLY` continua não equivalendo a merge/deploy. 

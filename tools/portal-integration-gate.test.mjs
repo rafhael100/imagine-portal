@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605, 607]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3, 4, 5, 6]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3, 4, 5, 6]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -427,6 +427,11 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[6].headBranch = m.isolatedLots[5].headBranch; },
     m => { m.isolatedLots[6].headSha = m.isolatedLots[5].headSha; },
     m => { m.isolatedLots[6].requiredWorkflows = []; },
+    m => { m.isolatedLots[7].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[7].pullRequest = m.isolatedLots[6].pullRequest; },
+    m => { m.isolatedLots[7].headSha = m.isolatedLots[6].headSha; },
+    m => { m.isolatedLots[7].headBranch = m.isolatedLots[6].headBranch; },
+    m => { m.isolatedLots[7].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -534,4 +539,23 @@ test('seventh offline proof lifecycle is reviewed as a child of the immutable le
   assert.equal(incomplete.evidenceVerified, false);
   assert.equal(incomplete.mergeApproved, false);
   assert.equal(incomplete.deployApproved, false);
+});
+
+test('eighth isolated mail-safety candidate never certifies real invitation delivery', () => {
+  const f = isolatedReview(7);
+  assert.equal(f.lot.pullRequest, 607);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[6].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 7);
+  const allowed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(allowed.evidenceVerified, true);
+  assert.equal(allowed.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(allowed.mergeApproved, false);
+  assert.equal(allowed.deployApproved, false);
+  assert.equal(allowed.customerAccessApproved, false);
+  assert.equal(allowed.antiRollbackApproved, false);
+  f.runs[6].conclusion = 'failure';
+  const blocked = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(blocked.evidenceVerified, false);
+  assert.equal(blocked.mergeApproved, false);
+  assert.equal(blocked.deployApproved, false);
 });
