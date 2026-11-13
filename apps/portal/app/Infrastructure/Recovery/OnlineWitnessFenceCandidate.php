@@ -26,6 +26,12 @@ final class OnlineWitnessFenceCandidate
         private readonly ?Closure $clock = null,
     ) {}
 
+    /** Compare against the server-pinned tenant. Never trust a caller tenant selector. */
+    public function matchesPinnedOrganization(string $candidate): bool
+    {
+        return hash_equals($this->organization, $candidate);
+    }
+
     /**
      * Inspect a non-authoritative, read-only candidate observation. The
      * callback MUST be read-only; this result MUST NEVER be an HTTP decision.
