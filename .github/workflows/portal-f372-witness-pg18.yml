@@ -50,8 +50,10 @@ jobs:
           tool php -l /var/www/html/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php
           tool php -l /var/www/html/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php
           tool php -l /opt/portal-recovery/test-f372-pg18.php
-          if tool php /opt/portal-recovery/test-f372-pg18.php < /dev/null \
-            -e PORTAL_F372_CI=NO; then exit 1; fi
+          if tool php /opt/portal-recovery/test-f372-pg18.php unexpected < /dev/null; then
+            echo 'F372 must refuse nonzero CLI arguments.'
+            exit 1
+          fi
           tool php /opt/portal-recovery/test-f372-pg18.php < /dev/null
       - name: Remove only disposable PostgreSQL18 test project
         if: always()
