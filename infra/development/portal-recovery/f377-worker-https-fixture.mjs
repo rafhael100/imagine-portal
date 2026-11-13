@@ -7,7 +7,7 @@ import https from 'node:https';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
-import worker from '../f376-worker/src/witness.mjs';
+import worker from './f376-worker/src/witness.mjs';
 
 if (process.env.GITHUB_ACTIONS !== 'true'
     || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -15,7 +15,7 @@ if (process.env.GITHUB_ACTIONS !== 'true'
     || process.argv.length !== 5) process.exit(64);
 
 const [root, cert, key] = process.argv.slice(2);
-const schema = readFileSync(new URL('../f376-worker/schema.sql', import.meta.url), 'utf8');
+const schema = readFileSync(new URL('./f376-worker/schema.sql', import.meta.url), 'utf8');
 const db = new DatabaseSync(':memory:');
 db.exec(schema);
 db.prepare('INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)')
