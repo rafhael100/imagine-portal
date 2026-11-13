@@ -1,0 +1,64 @@
+name: Portal F388 - Signed intent PG18 revoke retry after SQL failure (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationIntentPgReconcileCandidate.php'
+      - 'infra/development/portal-recovery/test-f388-pg18-reconcile.php'
+      - '.github/workflows/portal-f388-signed-pg18-reconcile-ci.yml'
+permissions:
+  contents: read
+jobs:
+  actual-pg18-fault-and-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PORTAL_F388_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Provision only disposable private PostgreSQL18 database
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f388-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f388-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f388-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Valid signed intent is necessary for real PG18 revocation retry, NEVER HTTP
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F388_CI" = DISPOSABLE_ONLY
+          tool(){
+            sudo docker compose -p imagine-portal-f388-ci -f infra/development/portal-db/compose.yaml \
+              run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F388_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" provision "$@"
+          }
+          tool php -l /var/www/html/app/Infrastructure/Recovery/SignedRevocationIntentPgReconcileCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/SignedRevocationIntentReadbackCandidateVerifier.php
+          tool php -l /opt/portal-recovery/test-f388-pg18-reconcile.php
+          if tool php /opt/portal-recovery/test-f388-pg18-reconcile.php invalid; then
+            echo 'F388 must refuse arbitrary CLI args'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/test-f388-pg18-reconcile.php
+          if grep -R -E 'SignedRevocationIntentPgReconcileCandidate|SignedRevocationIntentReadbackCandidateVerifier' \
+               apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'A PG18 retry candidate cannot be bound to public routes or container'
+            exit 1
+          fi
+      - name: Destroy only F388 disposable SQL cluster, even on failure
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f388-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
