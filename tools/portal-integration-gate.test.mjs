@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3, 4]) {
+  for (const i of [0, 1, 2, 3, 4, 5]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3, 4]) {
+  for (const i of [0, 1, 2, 3, 4, 5]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -417,6 +417,11 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[4].headSha = m.isolatedLots[3].headSha; },
     m => { m.isolatedLots[4].requiredWorkflows.pop(); },
     m => { m.isolatedLots[4].requiredWorkflows = []; },
+    m => { m.isolatedLots[5].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[5].pullRequest = m.isolatedLots[4].pullRequest; },
+    m => { m.isolatedLots[5].headSha = m.isolatedLots[4].headSha; },
+    m => { m.isolatedLots[5].requiredWorkflows.pop(); },
+    m => { m.isolatedLots[5].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -486,4 +491,23 @@ test('fifth isolated proof core is pinned to first enrollment and six green chec
   assert.equal(pending.evidenceVerified, false);
   assert.equal(pending.mergeApproved, false);
   assert.equal(pending.deployApproved, false);
+});
+
+test('sixth isolated database ledger stays after scoped proof and requires seven checks', () => {
+  const f = isolatedReview(5);
+  assert.equal(f.lot.pullRequest, 603);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[4].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 7);
+  let result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, true);
+  assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
+  assert.equal(result.antiRollbackApproved, false);
+  assert.equal(result.customerAccessApproved, false);
+  f.runs[6].conclusion = 'failure';
+  result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(result.evidenceVerified, false);
+  assert.equal(result.mergeApproved, false);
+  assert.equal(result.deployApproved, false);
 });
