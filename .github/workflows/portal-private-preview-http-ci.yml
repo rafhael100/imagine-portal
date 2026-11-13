@@ -164,3 +164,13 @@ jobs:
                   worker.join(timeout=5)
           print('PASS: real original Imagine UI artifact served only via isolated loopback; NO-GO production.')
           PY
+      - name: Preserve verified ZIP and viewer as short-lived CI review artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-p0-private-html-review-only
+          path: |
+            ${{ runner.temp }}/imagine-original-ui-synthetic.zip
+            apps/portal/tools/serve_private_preview.py
+            docs/PORTAL-P0-PRIVATE-LOOPBACK-REVIEW.md
+          if-no-files-found: error
+          retention-days: 7
