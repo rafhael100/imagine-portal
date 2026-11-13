@@ -33,7 +33,7 @@ final readonly class PinnedHttpsWitnessPublisherCandidate
             || !is_string($url['host'] ?? null)
             || !self::hostname($url['host'])
             || ($url['path'] ?? null) !== self::PATH
-            || isset($url['user'], $url['pass'])
+            || isset($url['user']) || isset($url['pass'])
             || isset($url['query']) || isset($url['fragment'])
             || !preg_match(
                 '~\Ahttps://[a-z0-9.-]+(?::[0-9]{2,5})?'.preg_quote(self::PATH,'~').'\z~D',
