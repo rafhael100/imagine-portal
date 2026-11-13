@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use App\Domain\Identity\Security\PortalEmailProof;
 use App\Domain\Identity\Security\PortalPasswordCredential;
 use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use PDO;
@@ -17,6 +18,7 @@ final class DisposableFirstEnrollmentPg18Test extends TestCase
     private const SECRET = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
     private PDO $admin;
     private DisposableFirstEnrollment $enrollment;
+    private string $emailKey;
 
     protected function setUp(): void
     {
@@ -44,13 +46,16 @@ final class DisposableFirstEnrollmentPg18Test extends TestCase
         $this->admin->exec(<<<'SQL'
 CREATE TABLE portal_browser_private.lab_initial_email_proofs (
     identity_id uuid PRIMARY KEY REFERENCES public.portal_identities(id) ON DELETE RESTRICT,
-    proof_sha256 char(64) NOT NULL CHECK(proof_sha256 ~ '^[a-f0-9]{64}$'),
+    organization_id uuid NOT NULL REFERENCES public.portal_organizations(id) ON DELETE RESTRICT,
+    identity_revision bigint NOT NULL CHECK(identity_revision > 0),
+    proof_digest char(64) NOT NULL CHECK(proof_digest ~ '^[a-f0-9]{64}$'),
     expires_at timestamptz NOT NULL,
     consumed_at timestamptz,
     attempts integer NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 5)
 )
 SQL);
-        $this->enrollment = new DisposableFirstEnrollment($this->admin);
+        $this->emailKey = random_bytes(32);
+        $this->enrollment = new DisposableFirstEnrollment($this->admin, $this->emailKey);
     }
 
     protected function tearDown(): void
@@ -138,9 +143,13 @@ SQL);
             self::addToAssertionCount(1);
         }
         $persisted = $this->admin->query(
-            'SELECT proof_sha256 FROM portal_browser_private.lab_initial_email_proofs'
+            'SELECT proof_digest FROM portal_browser_private.lab_initial_email_proofs'
         )->fetchColumn();
-        self::assertSame(hash('sha256',$token), trim($persisted));
+        self::assertNotSame(hash('sha256',$token), trim($persisted));
+        self::assertTrue(PortalEmailProof::matches(
+            $token, trim((string) $persisted), $ids['identity'],
+            $ids['organization'], 'operator@example.invalid', 1, $this->emailKey,
+        ));
         self::assertNotSame($token,trim($persisted));
         $this->admin->exec(
             "UPDATE portal_browser_private.lab_initial_email_proofs
@@ -262,12 +271,93 @@ SQL);
         )->fetchColumn());
     }
 
+    public function test_copied_proof_tenant_scope_cannot_verify_even_with_original_token(): void
+    {
+        $ids = $this->invite();
+        $token = $this->enrollment->issueEmailProof($ids['identity']);
+        $this->admin->exec(
+            "INSERT INTO public.portal_organizations
+             (id,reference,display_name,status)
+             VALUES('44444444-4444-4444-8444-444444444444',
+                    'copied-synthetic','Copied Synthetic','active')"
+        );
+        $this->admin->exec(
+            "UPDATE portal_browser_private.lab_initial_email_proofs
+             SET organization_id='44444444-4444-4444-8444-444444444444'"
+        );
+        self::assertFalse($this->enrollment->confirmEmail($ids['identity'], $token));
+        self::assertNull($this->admin->query(
+            'SELECT email_verified_at FROM public.portal_identities'
+        )->fetchColumn());
+        self::assertSame(1, (int) $this->admin->query(
+            'SELECT attempts FROM portal_browser_private.lab_initial_email_proofs'
+        )->fetchColumn());
+        $this->admin->prepare(
+            'UPDATE portal_browser_private.lab_initial_email_proofs SET organization_id=CAST(? AS uuid)'
+        )->execute([$ids['organization']]);
+        self::assertTrue($this->enrollment->confirmEmail($ids['identity'], $token));
+    }
+
+    public function test_issued_proof_rejects_changed_identity_revision(): void
+    {
+        $ids = $this->invite();
+        $token = $this->enrollment->issueEmailProof($ids['identity']);
+        $this->admin->exec(
+            'UPDATE public.portal_identities SET security_revision=security_revision+1'
+        );
+        self::assertFalse($this->enrollment->confirmEmail($ids['identity'], $token));
+        self::assertNull($this->admin->query(
+            'SELECT email_verified_at FROM public.portal_identities'
+        )->fetchColumn());
+        self::assertSame(1, (int) $this->admin->query(
+            'SELECT attempts FROM portal_browser_private.lab_initial_email_proofs'
+        )->fetchColumn());
+    }
+
+    public function test_rotated_server_key_refuses_replayed_email_proof(): void
+    {
+        $ids = $this->invite();
+        $token = $this->enrollment->issueEmailProof($ids['identity']);
+        $otherKey = new DisposableFirstEnrollment($this->admin, random_bytes(32));
+        self::assertFalse($otherKey->confirmEmail($ids['identity'], $token));
+        self::assertTrue($this->enrollment->confirmEmail($ids['identity'], $token));
+        self::assertSame(1, (int) $this->admin->query(
+            'SELECT attempts FROM portal_browser_private.lab_initial_email_proofs'
+        )->fetchColumn());
+    }
+
+    public function test_multiple_memberships_block_first_operator_email_issuance(): void
+    {
+        $ids = $this->invite();
+        $this->admin->exec(
+            "INSERT INTO public.portal_organizations
+             (id,reference,display_name,status)
+             VALUES('44444444-4444-4444-8444-444444444444',
+                    'second-synthetic','Second Synthetic','active')"
+        );
+        $this->admin->prepare(
+            "INSERT INTO public.portal_memberships
+             (id,identity_id,organization_id,role,status)
+             VALUES(gen_random_uuid(),CAST(? AS uuid),
+                    '44444444-4444-4444-8444-444444444444','member','invited')"
+        )->execute([$ids['identity']]);
+        try {
+            $this->enrollment->issueEmailProof($ids['identity']);
+            self::fail('Ambiguous tenant relationship was accepted.');
+        } catch (RuntimeException $e) {
+            self::assertSame('Disposable enrollment unavailable.', $e->getMessage());
+        }
+        self::assertSame(0, (int) $this->admin->query(
+            'SELECT count(*) FROM portal_browser_private.lab_initial_email_proofs'
+        )->fetchColumn());
+    }
+
     public function test_runtime_role_cannot_issue_email_or_enroll_operators(): void
     {
         $ids=$this->invite();
         $runtime=self::connect('portal_browser_runtime',
             (string) getenv('PORTAL_BROWSER_RUNTIME_PASSWORD'));
-        $lab=new DisposableFirstEnrollment($runtime);
+        $lab=new DisposableFirstEnrollment($runtime,$this->emailKey);
         try {
             $lab->issueEmailProof($ids['identity']);
             self::fail('Runtime role gained offline enrollment authority.');
