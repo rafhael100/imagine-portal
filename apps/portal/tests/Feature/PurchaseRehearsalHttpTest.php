@@ -141,4 +141,35 @@ final class PurchaseRehearsalHttpTest extends TestCase
             ->assertDontSee('SQL_DIAGNOSTIC_MUST_NOT_LEAK',false);
     }
 
+
+    public function test_comercial_offer_hint_is_allowlisted_and_never_authorizes_purchase(): void
+    {
+        $base='/_rehearsal/purchase';
+        $this->scope->tenant='test-org-a';
+        $this->freshStore();
+        foreach (['onepage','landing-pages','performance'] as $product) {
+            $response=$this->get($base.'?offer='.$product)->assertOk();
+            $response->assertSee('Oferta recebida do Imagine Comercial:');
+            $response->assertSee('data-handoff-offer="'.$product.'" data-handoff-selected="true"',false);
+            self::assertSame(1,substr_count((string)$response->getContent(),'data-handoff-selected="true"'));
+            self::assertStringNotContainsString('Pagamento real',(string)$response->getContent());
+        }
+        foreach (['unknown','../admin','ONEPAGE','onepage%3Cscript%3E',''] as $bad) {
+            $this->get($base.'?offer='.$bad)->assertUnprocessable();
+        }
+        $this->get($base.'?offer%5B%5D=onepage')->assertUnprocessable();
+        $this->get($base.'?organization=test-org-b&offer=onepage')
+            ->assertOk()->assertSee('Oferta recebida do Imagine Comercial:');
+        $this->scope->tenant=null;
+        $this->get($base.'?offer=onepage')->assertForbidden();
+        $this->post($base.'/orders',[
+            'product'=>'onepage','request_key'=>'TEST-comercial-hint-123456',
+            'offer'=>'onepage',
+        ])->assertForbidden();
+        $this->scope->tenant='test-org-a';
+        $this->post($base.'/orders',[
+            'product'=>'onepage','request_key'=>'TEST-comercial-hint-123456',
+            'offer'=>'onepage',
+        ])->assertUnprocessable();
+    }
 }

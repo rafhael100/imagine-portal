@@ -29,7 +29,14 @@ final class PurchaseRehearsalController
     public function index(Request $request)
     {
         $this->store($request);
-        return $this->page(null);
+        // The offer from the Comercial is a display hint, never identity,
+        // permission, pricing or a purchase command. Reject unknown input.
+        $offer=$request->query('offer');
+        // Laravel may normalize ?offer= to null; presence of the key must
+        // still be rejected unless it contains an allowlisted scalar value.
+        abort_unless(!$request->query->has('offer') || (is_string($offer)
+            && in_array($offer,['onepage','landing-pages','performance'],true)),422);
+        return $this->page(null,$offer);
     }
 
     public function create(Request $request)
@@ -77,7 +84,7 @@ final class PurchaseRehearsalController
         abort_unless(array_diff(array_keys($request->all()),[...$allowed,'_token'])===[],422);
     }
 
-    private function page(?array $order)
+    private function page(?array $order,?string $selectedOffer=null)
     {
         // A separate idempotency key for each offer shown on the same page:
         // selecting another product must not reuse the first one's identity.
@@ -85,7 +92,7 @@ final class PurchaseRehearsalController
         foreach (['onepage','landing-pages','performance'] as $product) {
             $requestKeys[$product]='TEST-'.bin2hex(random_bytes(16));
         }
-        return response()->view('portal.rehearsal.purchase',['order'=>$order,'requestKeys'=>$requestKeys])
+        return response()->view('portal.rehearsal.purchase',['order'=>$order,'requestKeys'=>$requestKeys,'selectedOffer'=>$selectedOffer])
             ->withHeaders(['Cache-Control'=>'no-store, private','X-Robots-Tag'=>'noindex, nofollow',
                 'Content-Security-Policy'=>"default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
                 'Referrer-Policy'=>'no-referrer','X-Content-Type-Options'=>'nosniff']);
