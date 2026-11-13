@@ -51,6 +51,11 @@ class VerificationError(RuntimeError):
     pass
 
 
+class VerificationUnavailable(VerificationError):
+    """The private ledger could not complete an operation; not a bad-code claim."""
+    pass
+
+
 @dataclass(frozen=True)
 class VerificationReceipt:
     reference: str
@@ -115,12 +120,15 @@ class VerificationCoordinator:
                 or re.fullmatch(r"[a-f0-9]{64}", token) is None):
             raise VerificationError("verification-not-confirmed")
         verified = False
+        unavailable = False
         try:
             verified = self._ledger.consume(reference, token) is True
         except Exception:
-            pass
+            unavailable = True
         finally:
             token = ""
+        if unavailable:
+            raise VerificationUnavailable("verification-unavailable") from None
         if not verified:
             raise VerificationError("verification-not-confirmed") from None
         return VerificationReceipt(reference, email_verified=True)

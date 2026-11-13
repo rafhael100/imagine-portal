@@ -1,11 +1,22 @@
 """Operator-only private console. No execution at import time."""
 import getpass
 import os
+import re
 import sys
 
 from docker_ledger import DockerLedger
 from relay import WorkspaceRelay
-from verification import VerificationCoordinator
+from verification import VerificationCoordinator, VerificationUnavailable
+
+
+def normalize_code(value):
+    # Clipboard formatting is not part of the hexadecimal bearer. No prefix,
+    # punctuation or arbitrary text is removed; those inputs still fail.
+    value = value.replace("\x1b[200~", "").replace("\x1b[201~", "")
+    result = "".join(value.split()).lower()
+    if re.fullmatch(r"[a-f0-9]{64}", result) is None:
+        raise ValueError("invalid-code-format")
+    return result
 
 
 def main():
@@ -30,11 +41,21 @@ def main():
         for attempt in range(5):
             token = getpass.getpass("Codigo recebido por e-mail (digitacao oculta): ")
             try:
+                try:
+                    token = normalize_code(token)
+                except ValueError:
+                    print("Entrada recebida com " + str(len(token))
+                          + " caracteres; esperado: codigo hexadecimal de 64 caracteres.")
+                    print("A entrada nao foi comparada com o banco. Confira a colagem no console.")
+                    continue
                 result = flow.confirm(reference, token)
                 if result.email_verified:
                     completed = True
                     print("PASS e-mail confirmado; conta continua invited; login bloqueado.")
                     return 0
+            except VerificationUnavailable:
+                print("Falha no acesso ao registro de confirmacao. Nao indica codigo incorreto.")
+                return 1
             except Exception:
                 print("Confirmacao recusada. Confira o codigo e o prazo.")
             finally:
