@@ -30,7 +30,8 @@ final class IndependentWitnessCandidateVerifier
             || array_keys($receipt) !== self::RECEIPT_KEYS
             || ($receipt['schema'] ?? null) !== self::SCHEMA
             || $now < 1 || preg_match('/\A[a-f0-9]{64}\z/D', $pinnedPublicKeyHex) !== 1
-            || preg_match('/\A[a-f0-9]{128}\z/D', $receipt['signature'] ?? '') !== 1
+            || !is_string($receipt['signature'] ?? null)
+            || preg_match('/\A[a-f0-9]{128}\z/D', $receipt['signature']) !== 1
         ) {
             return self::denied('WITNESS_CONTRACT_DENIED');
         }
