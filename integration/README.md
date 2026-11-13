@@ -77,3 +77,17 @@ O quarto lote [#595](https://github.com/rafhael100/imagine-portal/pull/595) evol
 Entregas adicionais: Chromium executado obrigatoriamente no mesmo workflow Laravel antes de disponibilizar o artefato, em 70 combinações de larguras/páginas, com conferência de 10 hashes de arquivo, 9 menus do Portal, 6 tabelas via teclado e **10 barras de navegação offline em faixa horizontal**. O HTML de revisão agora usa laranja escuro `#994B00`, texto legível e indicação da página ativa; não acrescenta rotas. [Node 43324550673](https://github.com/rafhael100/imagine-portal/actions/runs/43324550673) e [Laravel PHP 8.3/8.4 43324550535](https://github.com/rafhael100/imagine-portal/actions/runs/43324550535): **success**. O ZIP privado é [artefato #13990779566](https://github.com/rafhael100/imagine-portal/actions/runs/43324550535/artifacts/13990779566). A execução visual é **CI automatizada, não uma certificação WCAG nem uma aprovação de deploy**.
 
 A PR de segurança independente [#597](https://github.com/rafhael100/imagine-portal/pull/597) corrigiu também uma suposição de relógios lógicos: `witness.sequence` e `snapshot.backupSequence` **não podem ser comparados diretamente**. O laboratório agora exige declaração de cobertura da sequência primária, ainda **não autenticada** e incapaz de liberar sessões reais. [Node 43323975059](https://github.com/rafhael100/imagine-portal/actions/runs/43323975059) e [Laravel 8.3/8.4 43323975084](https://github.com/rafhael100/imagine-portal/actions/runs/43323975084) aprovados. SEC-R03 e [#64](https://github.com/rafhael100/imagine-portal/issues/64) permanecem NO-GO.
+
+
+## Revisões independentes adicionadas ao gate — 12/11/2026
+
+A auditoria `read-only` passou a verificar também **duas candidatas que NÃO pertencem à cadeia de quatro lotes de interface**. O manifesto fixa SHAs, PRs, branches-base próprias e o conjunto de workflows de cada uma:
+
+| Trilha separada | Base efetiva | Delta máximo | Testes exigidos |
+| --- | --- | ---: | --- |
+| [#596](https://github.com/rafhael100/imagine-portal/pull/596), login privado/MFA | `ops/portal-private-auth-deployment-2026-11-12` | 20 commits | Dez workflows, incluindo PHP, PostgreSQL 18, Docker e UI |
+| [#597](https://github.com/rafhael100/imagine-portal/pull/597), recuperação anti-rollback em laboratório | `dev/fast-track-portal-2026-11-05` | 20 commits | Node e Laravel PHP 8.3/8.4 |
+
+O programa agora expõe `isolatedLots` separadamente de `smallLots`. Um resultado `REVIEW_CANDIDATE_ONLY` significa **somente** integridade dos metadados, ancestralidade e verificações declaradas: não prova que as candidatas foram integradas entre si, nem que o login possui operador real, nem que houve solução operacional da [issue #64](https://github.com/rafhael100/imagine-portal/issues/64).
+
+Um novo commit, alteração da base, divergência, execução CI falha/pendente ou excesso de commits cancela a prova daquele lote. Não inserir #596 ou #597 como quinta etapa da UI: suas bases diferem e fundi-las sem reconciliação seria inadequado. **Merge, deploy, acesso real e recuperação em produção continuam false** independentemente de todos os testes.
