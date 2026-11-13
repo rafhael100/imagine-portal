@@ -41,3 +41,33 @@ O uso efetivo na VPS não foi executado nem comprovado por esta PR. Um relatóri
 O workflow \`portal-private-preview-http-ci.yml\` usa somente Python stdlib e valida: ZIP íntegro e sintético, recusa de conteúdo adulterado, flags de produção falsas, duplicatas e extensão indevida; retorno GET/HEAD no loopback; recusa POST/PUT/DELETE/PATCH, dotfiles, paths não permitidos, manipulação da origem Host e ausência de cache. Não instala aplicações, não usa GitHub Secrets, não faz deploy e não cria banco.
 
 Antes de habilitar uma jornada real com usuários e dados, devem existir revisão humana independente de UX, revisão AppSec/DBA, identidade MFA e revogação, isolamento tenant/RLS, evidências operacionais da VPS, políticas LGPD, autorização de publicação e testes ponta a ponta. **Status da entrega: NO-GO PARA SERVIÇO REAL.**
+
+## Avaliação no Windows 11 (pacote auto-contido de revisão)
+
+O artefato `imagine-p0-private-html-review-only` contém na mesma pasta os quatro arquivos:
+`imagine-original-ui-synthetic.zip`, `serve_private_preview.py`,
+`iniciar_previa_imagine_windows.cmd` e este documento.
+
+É necessário ter **Python 3** instalado. No Windows, após extrair o ZIP do artefato
+para uma pasta local de sua escolha, dê duplo clique em
+`iniciar_previa_imagine_windows.cmd`. O iniciador **não publica nenhuma porta
+imediatamente**: primeiro executa o verificador dos 11 arquivos e do manifesto
+com o comando `--check`. Se a integridade falhar, recusa a abertura. Se passar,
+solicita confirmação explícita **S/N** antes de iniciar o servidor ligado somente
+a `127.0.0.1:18417`.
+
+Somente após confirmar **S**, abra no **mesmo computador**:
+`http://127.0.0.1:18417/index.html`. Para encerrar, pressione **Ctrl+C**
+na janela do terminal. Escolhendo **N**, nenhum servidor é iniciado.
+Se o Python não estiver disponível ou a porta estiver ocupada, o script falha
+sem tentar liberar firewall, instalar programas ou trocar a porta para acesso externo.
+
+O lançamento de um arquivo `.cmd` é uma ação explícita do operador; examine o
+conteúdo antes de executar. Não introduza dados pessoais, credenciais, URLs reais
+ou arquivos de clientes. O teste por navegador/HTTP é **somente local** e não
+constitui homologação da VPS, do Laravel ou do acesso de cliente.
+
+No GitHub Actions, o job Windows 2022 (Python 3.12) verifica o pacote real
+produzido pelo job PHP/Linux e executa os mesmos testes adversariais de
+integridade, Host, links e operações HTTP no loopback. Esse CI não testa
+implantação pública nem torna a aplicação operacional.
