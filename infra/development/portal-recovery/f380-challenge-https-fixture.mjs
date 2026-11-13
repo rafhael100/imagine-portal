@@ -34,7 +34,7 @@ function database(sessionFloor,sequence){
   const db=new DatabaseSync(':memory:');
   db.exec(schema);
   db.prepare('INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)')
-    .run(seeded.organization,seeded.instance,5,sessionFloor,7,sequence,Math.floor(Date.now()/1000));
+    .run(seeded.organization,seeded.instance,f381?1:5,sessionFloor,7,sequence,Math.floor(Date.now()/1000));
   return db;
 }
 function adapter(db) {
