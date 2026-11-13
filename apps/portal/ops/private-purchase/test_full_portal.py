@@ -24,10 +24,14 @@ with sync_playwright() as p:
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Client must see all three persisted test purchases'
     assert page.locator('text=Pedidos da empresa fictícia').count()==1
     assert page.get_by_text('sem cobrança').count()>=1 or page.get_by_text('Pagamentos e contratações são simulados').count()>=1
+    client_references=page.locator('tr[data-order-reference]').evaluate_all('(rows)=>rows.map(r=>r.dataset.orderReference)')
+    assert len(set(client_references))==3
+    assert page.get_by_role('columnheader',name='Próximo passo',exact=True).count()==1
     page.reload()
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Reload must re-read PostgreSQL, not browser storage'
     page.goto(BASE+'/client/finance')
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Client finance must read the same persisted fake payments'
+    assert page.locator('tr[data-order-reference]').evaluate_all('(rows)=>rows.map(r=>r.dataset.orderReference)')==client_references
     assert page.get_by_text('Não existem faturas, cobranças nem recibos reais aqui.').count()==1
     for section in ['overview','services','available','contracts','finance','requests','journey','delivery-review','files','notices','modules','account','help']:
         response=page.goto(BASE+'/client/'+section)
@@ -52,6 +56,7 @@ with sync_playwright() as p:
         assert response.status==200,(section,response.status)
         if section=='orders':
             assert page.locator('table tbody tr').count()==3, 'Admin must see the same restricted SQL order rows'
+            assert page.locator('table tbody tr td:first-child').all_text_contents()==client_references, 'Exact order references must agree between client and admin'
     assert page.request.get(BASE+'/client/overview').status==403
     for width in [320,390,768,1280]:
         page.set_viewport_size({'width':width,'height':900})
