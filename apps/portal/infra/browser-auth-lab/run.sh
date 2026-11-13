@@ -28,7 +28,9 @@ $db->exec(file_get_contents("database/security/portal_browser_auth.sql"));
 // The principal reader is installed ONLY into this disposable PostgreSQL lab.
 // Keep execution restricted to the existing runtime role; no HTTP serving.
 $db->exec(file_get_contents("database/security/portal_browser_principal_candidate.sql"));
-if (!$db->query("SELECT to_regprocedure(\'public.portal_browser_principal_candidate(text)\') IS NOT NULL")->fetchColumn()) {
+$exists = $db->prepare("SELECT to_regprocedure(?) IS NOT NULL");
+$exists->execute(["public.portal_browser_principal_candidate(text)"]);
+if (!$exists->fetchColumn()) {
     throw new RuntimeException("Synthetic principal SQL function was not installed");
 }
 $db->exec(file_get_contents("database/security/portal_browser_envelopes.sql"));
