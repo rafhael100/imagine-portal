@@ -35,6 +35,35 @@ final class PurchaseRehearsalHttpTest extends TestCase
         $this->app->instance(RoleBoundTestPurchase::class,new RoleBoundTestPurchase($db));
     }
 
+    public function test_three_offers_on_same_page_have_independent_order_keys(): void
+    {
+        $this->scope->tenant='test-org-a';
+        $this->freshStore();
+        $base='/_rehearsal/purchase';
+        $html=$this->get($base)->assertOk()->getContent();
+        self::assertIsString($html);
+        self::assertSame(3, preg_match_all(
+            '/name="request_key" value="(TEST-[a-f0-9]{32})"/',
+            $html, $matches
+        ));
+        self::assertCount(3,array_unique($matches[1]));
+        $orderUrls=[];
+        foreach (['onepage','landing-pages','performance'] as $index=>$product) {
+            $data=['product'=>$product,'request_key'=>$matches[1][$index]];
+            $first=$this->post($base.'/orders',$data)->assertRedirect();
+            $url=$first->headers->get('Location');
+            self::assertIsString($url);
+            self::assertStringContainsString('/orders/TEST-', $url);
+            $this->post($base.'/orders',$data)->assertRedirect($url);
+            $orderUrls[]=$url;
+        }
+        self::assertCount(3,array_unique($orderUrls));
+        // A replay under the same key with a different product MUST fail.
+        $this->post($base.'/orders',[
+            'product'=>'performance','request_key'=>$matches[1][0]
+        ])->assertStatus(409);
+    }
+
     public function test_real_laravel_forms_persist_three_synthetic_purchase_flows(): void
     {
         $base='/_rehearsal/purchase';
