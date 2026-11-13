@@ -1,6 +1,8 @@
-<x-portal.layout title="Meus serviços" current="services">
+@php($finance=($section??'services')==='finance')
+<x-portal.layout :title="$finance?'Financeiro de teste':'Meus serviços'" :current="$finance?'finance':'services'">
     <x-portal.panel title="Pedidos da empresa fictícia">
         <p>Estes pedidos foram salvos no PostgreSQL do ambiente privado de avaliação. Pagamentos e contratações são simulados; nenhum serviço foi ativado.</p>
+        @if($finance)<p>Não existem faturas, cobranças nem recibos reais aqui. Os resultados abaixo são apenas estados de pagamento de teste.</p>@endif
         <div class="preview-table">
             <table>
                 <thead><tr><th scope="col">Referência</th><th scope="col">Serviço solicitado</th><th scope="col">Pagamento fictício</th><th scope="col">Briefing</th></tr></thead>
