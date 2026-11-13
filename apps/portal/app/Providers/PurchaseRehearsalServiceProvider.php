@@ -28,5 +28,7 @@ final class PurchaseRehearsalServiceProvider extends ServiceProvider
             Route::post('orders/{id}/payment',[PurchaseRehearsalController::class,'payment'])->name('rehearsal.orders.payment');
             Route::post('orders/{id}/briefing',[PurchaseRehearsalController::class,'briefing'])->name('rehearsal.orders.briefing');
         });
+        // This provider is explicitly registered after app bootstrap in isolated tests.
+        $this->app['router']->getRoutes()->refreshNameLookups();
     }
 }
