@@ -133,6 +133,36 @@ SQL);
         }
     }
 
+    /**
+     * A committed event lookup makes signed proof retries idempotent.
+     * This is a TEST-only database lookup, not durable remote evidence.
+     */
+    public function event(string $eventId, OrganizationId $organization): ?LabExternalWitnessFloor
+    {
+        try {
+            if (preg_match(
+                '/\A[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\z/D',
+                $eventId,
+            ) !== 1) {
+                return null;
+            }
+            $q = $this->db->prepare(
+                'SELECT * FROM witness_events WHERE event_id=? AND tenant=? LIMIT 1'
+            );
+            $q->execute([$eventId, $organization->value]);
+            $row = $q->fetch(PDO::FETCH_ASSOC);
+            return is_array($row)
+                ? new LabExternalWitnessFloor(
+                    new OrganizationId($row['tenant']),
+                    $row['cluster'], (int) $row['sequence'],
+                    (int) $row['covered_backup'], (int) $row['session_floor'],
+                    (int) $row['membership_floor'],
+                ) : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
     public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
     {
         try {
