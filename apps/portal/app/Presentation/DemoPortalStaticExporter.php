@@ -59,12 +59,15 @@ final class DemoPortalStaticExporter
             $links . '</nav>';
 
         foreach (ClientSection::cases() as $section) {
-            $html = $this->toStrictOfflineHtml(view('portal.demo.' . $section->value)->render());
+            $html = view('portal.demo.' . $section->value)->render();
             if (!str_contains($html, '<body>') ||
                 preg_match('~<\s*(script|form|iframe|button|input)\b~i', $html) === 1 ||
                 preg_match('~(?:https?:)?//~i', $html) === 1) {
                 throw new LogicException('The demo view is not suitable for offline static export.');
             }
+            // Check unsafe raw HTML *before* embedding base64: random PNG
+            // bytes may contain "//", which is not a network URL.
+            $html = $this->toStrictOfflineHtml($html);
             // F138: mark the current exported page without adding JS routes
             // or falsely granting a clickable customer Portal menu.
             $pageNav = str_replace(
@@ -83,12 +86,13 @@ final class DemoPortalStaticExporter
 
         // F129: standalone operator preview. It deliberately is NOT a
         // ClientSection or route, avoiding an accidental customer entitlement.
-        $reviewHtml = $this->toStrictOfflineHtml(view('portal.demo.delivery-review')->render());
+        $reviewHtml = view('portal.demo.delivery-review')->render();
         if (!str_contains($reviewHtml, '<body>')
             || preg_match('~<\\s*(script|form|iframe|button|input)\\b~i', $reviewHtml) === 1
             || preg_match('~(?:https?:)?//~i', $reviewHtml) === 1) {
             throw new LogicException('The delivery-review preview is not safe for offline export.');
         }
+        $reviewHtml = $this->toStrictOfflineHtml($reviewHtml);
         $reviewNav = str_replace(
             'href="delivery-review.html"',
             'href="delivery-review.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
@@ -105,12 +109,13 @@ final class DemoPortalStaticExporter
         // F140: two already-implemented illustrations become traversable
         // offline only. No changes to ClientSection, permissions or routes.
         foreach (DemoPortalOfflineExtras::labels() as $slug => $label) {
-            $extraHtml = $this->toStrictOfflineHtml(view('portal.demo.'.$slug)->render());
+            $extraHtml = view('portal.demo.'.$slug)->render();
             if (!str_contains($extraHtml, '<body>')
                 || preg_match('~<\\s*(script|form|iframe|button|input)\\b~i', $extraHtml) === 1
                 || preg_match('~(?:https?:)?//~i', $extraHtml) === 1) {
                 throw new LogicException('Extra demo illustration is not safe for offline export.');
             }
+            $extraHtml = $this->toStrictOfflineHtml($extraHtml);
             $extraNav = str_replace(
                 'href="' . $slug . '.html"',
                 'href="' . $slug . '.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
