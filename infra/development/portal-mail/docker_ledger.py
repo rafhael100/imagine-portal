@@ -43,6 +43,9 @@ class DockerLedger:
     def install(self):
         return self._request("install") is True
 
+    def upgrade_ttl(self):
+        return self._request("upgrade-ttl15") is True
+
     def reserve(self, recipient, token, ttl_seconds):
         if recipient != WorkspaceRelay.RECIPIENT:
             raise LedgerError("private-ledger-refused")

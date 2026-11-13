@@ -15,7 +15,7 @@ class BridgeTests(unittest.TestCase):
                                                       recipient=WorkspaceRelay.RECIPIENT)))
         with patch("docker_ledger.subprocess.run", return_value=
                    subprocess.CompletedProcess([], 0, output, "")) as run:
-            result = DockerLedger().reserve(WorkspaceRelay.RECIPIENT, token, 300)
+            result = DockerLedger().reserve(WorkspaceRelay.RECIPIENT, token, 900)
         args = run.call_args
         self.assertNotIn(token, " ".join(args.args[0]))
         self.assertEqual(json.loads(args.kwargs["input"])["token"], token)

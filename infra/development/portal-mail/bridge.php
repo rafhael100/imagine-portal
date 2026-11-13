@@ -22,6 +22,7 @@ try {
     $action=$r['action']??null;
     $value=match($action){
         'install'=>(function()use($ledger){$ledger->install();return true;})(),
+        'upgrade-ttl15'=>(function()use($ledger){$ledger->upgradeTtl();return true;})(),
         'reserve'=>$ledger->reserve($r['recipient'],$r['token']??'',(int)($r['ttl']??0)),
         'accepted'=>$ledger->accepted($r['reference']??'',$r['recipient']),
         'revoke'=>(function()use($ledger,$r){$ledger->revoke($r['reference']??'');return true;})(),

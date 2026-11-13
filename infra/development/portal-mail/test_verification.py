@@ -29,7 +29,7 @@ class VerificationFlowTests(unittest.TestCase):
         receipt = self.flow.send(WorkspaceRelay.RECIPIENT)
         self.generate.assert_called_once_with(1_000_000)
         self.ledger.reserve.assert_called_once_with(
-            WorkspaceRelay.RECIPIENT, self.TOKEN, 300)
+            WorkspaceRelay.RECIPIENT, self.TOKEN, 900)
         self.assertEqual([c[0] for c in calls.mock_calls],
                          ["ledger.reserve", "transport.deliver", "ledger.mark_accepted"])
         self.assertNotIn(self.TOKEN, repr(receipt))

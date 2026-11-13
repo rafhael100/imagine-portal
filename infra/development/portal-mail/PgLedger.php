@@ -45,7 +45,7 @@ CREATE TABLE public.portal_development_email_challenges (
  expires_at timestamptz NOT NULL,
  consumed_at timestamptz,
  FOREIGN KEY(identity_id,organization_id) REFERENCES public.portal_memberships(identity_id,organization_id) ON DELETE RESTRICT,
- CHECK(expires_at>issued_at AND expires_at<=issued_at+interval '9 minutes'),
+ CONSTRAINT portal_dev_email_ttl_ck CHECK(expires_at>issued_at AND expires_at<=issued_at+interval '15 minutes'),
  CHECK((status='consumed' AND consumed_at IS NOT NULL AND consumed_at>=issued_at AND consumed_at<expires_at AND attempts<5)
     OR (status<>'consumed' AND consumed_at IS NULL)),
  CHECK((status='blocked' AND attempts=5) OR (status<>'blocked' AND attempts<5))
@@ -78,6 +78,17 @@ SQL);
     {
         try{$this->db->beginTransaction();$this->db->exec("SET LOCAL lock_timeout='2s'; SET LOCAL statement_timeout='5s'");$r=$fn();$this->db->commit();return $r;}
         catch(Throwable){if($this->db->inTransaction())$this->db->rollBack();throw new RuntimeException('Private email operation refused.');}
+    }
+    public function upgradeTtl():void
+    {
+        // Explicit operator-approved 15-minute policy. Existing deadlines and
+        // terminal states are not rewritten or reactivated by this migration.
+        $this->tx(function():void{
+            $this->db->exec('LOCK TABLE public.portal_development_email_challenges IN ACCESS EXCLUSIVE MODE');
+            $names=$this->db->query("SELECT conname FROM pg_constraint WHERE conrelid='public.portal_development_email_challenges'::regclass AND contype='c' AND cardinality(conkey)=2 AND conkey @> ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid='public.portal_development_email_challenges'::regclass AND attname='issued_at'),(SELECT attnum FROM pg_attribute WHERE attrelid='public.portal_development_email_challenges'::regclass AND attname='expires_at')]::smallint[]")->fetchAll(PDO::FETCH_COLUMN);
+            if(count($names)!==1||preg_match('/\A[a-z0-9_]+\z/D',$names[0])!==1)throw new RuntimeException();
+            $this->db->exec('ALTER TABLE public.portal_development_email_challenges DROP CONSTRAINT "'.$names[0].'", ADD CONSTRAINT portal_dev_email_ttl_ck CHECK(expires_at>issued_at AND expires_at<=issued_at+interval \'15 minutes\')');
+        });
     }
     private function scope(string $email):array
     {
@@ -121,7 +132,7 @@ SQL);
     private function live(array $r):bool{return in_array($r['fresh'],[true,1,'t','1'],true)&&in_array($r['status'],['reserved','delivered'],true)&&$r['marker']===$this->marker;}
     public function reserve(string $email,string $token,int $ttl):array
     {
-        if($ttl!==300||preg_match('/\A[0-9]{6}\z/D',$token)!==1)throw new RuntimeException();
+        if($ttl!==900||preg_match('/\A[0-9]{6}\z/D',$token)!==1)throw new RuntimeException();
         return $this->tx(function()use($email,$token):array{
             $s=$this->scope($email);
             // Issuance cannot reset the guessing budget by unlimited resends.
@@ -129,7 +140,7 @@ SQL);
             if((int)$rate['hour_count']>=3||(int)$rate['recent_count']>0)throw new RuntimeException();
             $ref=bin2hex(random_bytes(16));
             $q=$this->db->prepare("INSERT INTO public.portal_development_email_challenges(reference,identity_id,organization_id,membership_id,email_normalized,identity_revision,membership_revision,organization_revision,marker,digest,status,issued_at,expires_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',statement_timestamp(),statement_timestamp()+interval '5 minutes')");
+                VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',statement_timestamp(),statement_timestamp()+interval '15 minutes')");
             $q->execute([$ref,$s['identity_id'],$s['organization_id'],$s['membership_id'],$email,$s['identity_revision'],$s['membership_revision'],$s['organization_revision'],$this->marker,$this->digest($s,$ref,$token)]);
             return ['reference'=>$ref,'recipient'=>$email];
         });

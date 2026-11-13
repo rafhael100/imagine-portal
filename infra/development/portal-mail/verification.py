@@ -66,7 +66,7 @@ class VerificationReceipt:
 
 
 class VerificationCoordinator:
-    TTL_SECONDS = 300
+    TTL_SECONDS = 900
 
     def __init__(self, ledger: ProofLedger, transport: WorkspaceRelay):
         self._ledger = ledger
@@ -90,7 +90,7 @@ class VerificationCoordinator:
                 subject="Imagine - Confirme seu e-mail",
                 text=("Confirmacao privada do Portal Imagine.\n"
                       "Copie este codigo somente para o console privado de cadastro:\n"
-                      + token + "\nValidade: 5 minutos. Uso unico.\n"
+                      + token + "\nValidade: 15 minutos. Uso unico.\n"
                       "Esta confirmacao nao ativa o login nem libera servicos.\n"
                       "Nao compartilhe o codigo no chat.\n"),
             )

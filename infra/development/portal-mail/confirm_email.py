@@ -36,7 +36,7 @@ def main():
             return 1
         receipt = flow.send(WorkspaceRelay.RECIPIENT)
         reference = receipt.reference
-        print("Google aceitou a mensagem. Abra seu e-mail; validade de 5 minutos.")
+        print("Google aceitou a mensagem. Abra seu e-mail; validade de 15 minutos.")
         print("Cole o codigo apenas neste console. Nao envie no chat.")
         for attempt in range(5):
             token = getpass.getpass("Codigo de 6 numeros recebido por e-mail (digitacao oculta): ")
