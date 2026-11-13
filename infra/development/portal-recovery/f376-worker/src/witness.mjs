@@ -9,6 +9,9 @@
  * organization/instance per deployment), not by a caller's query or headers.
  */
 const GET_PATH = '/v1/portal/recovery-witness';
+const CHALLENGE_PATH = '/v2/portal/recovery-witness';
+const CHALLENGE_SCHEMA = 'imagine.portal.f379.challenged-witness.v1';
+const CHALLENGE_DOMAIN = 'imagine.portal.f379.ed25519-witness-domain.v1';
 const WRITE_PATH = '/v1/portal/witness-advance';
 const SCHEMA = 'imagine.portal.f369.signed-witness.v1';
 const SIGN_DOMAIN = 'imagine.portal.f369.ed25519-witness-domain.v1';
@@ -79,6 +82,60 @@ async function signReceipt(data, env, now) {
   const signed = await crypto.subtle.sign('Ed25519', key, text.encode(receiptCanonical(receipt)));
   receipt.signature = hex(signed);
   return receipt;
+}
+
+/**
+ * F379: a unique 256-bit challenge binds a response to one current read.
+ * A previously valid V1 receipt (or V2 with a different challenge) MUST
+ * NOT become authority for a restored PostgreSQL snapshot.
+ */
+async function challengedReceipt(data, env, now, nonce) {
+  if (!/^[a-f0-9]{64}$/.test(nonce)) throw new Error('Nonce invalid');
+  const bytes = binary(env.WITNESS_SIGNING_PKCS8_B64);
+  if (bytes.length < 48 || bytes.length > 256) throw new Error('Signing key missing');
+  const key = await crypto.subtle.importKey('pkcs8', bytes,
+    {name:'Ed25519'}, false, ['sign']);
+  const receipt = {
+    schema: CHALLENGE_SCHEMA,
+    organization: data.organization,
+    instance: data.instance,
+    generation_floor: data.generation_floor,
+    session_floor: data.session_floor,
+    membership_floor: data.membership_floor,
+    sequence: data.sequence,
+    issued_at: now,
+    expires_at: now + 30,
+    nonce,
+    signature: '',
+  };
+  const payload = [
+    CHALLENGE_DOMAIN, CHALLENGE_SCHEMA,
+    receipt.organization, receipt.instance,
+    String(receipt.generation_floor), String(receipt.session_floor),
+    String(receipt.membership_floor), String(receipt.sequence),
+    String(receipt.issued_at), String(receipt.expires_at), receipt.nonce,
+  ].join('\n');
+  receipt.signature = hex(await crypto.subtle.sign('Ed25519', key, text.encode(payload)));
+  return receipt;
+}
+
+async function getChallenged(request, env, org, instance, now) {
+  const nonce = request.headers.get('x-imagine-witness-nonce');
+  if (typeof nonce !== 'string' || !/^[a-f0-9]{64}$/.test(nonce)) {
+    return response(400);
+  }
+  const row = await readCurrent(env,org,instance);
+  if (!validRow(row,org,instance)) return response(503);
+  const receipt = await challengedReceipt(row,env,now,nonce);
+  return new Response(JSON.stringify(receipt),{
+    status: 200,
+    headers: {
+      'Content-Type':'application/json; charset=utf-8',
+      'Cache-Control':'no-store, max-age=0',
+      'Pragma':'no-cache',
+      'X-Content-Type-Options':'nosniff',
+    },
+  });
 }
 
 async function bodyLimited(request) {
@@ -198,6 +255,9 @@ export default {
       const url = new URL(request.url);
       if (url.search !== '' || url.hash !== '') return response(404);
       const now = Math.floor(Date.now()/1000);
+      if (request.method === 'GET' && url.pathname === CHALLENGE_PATH) {
+        return await getChallenged(request,env,env.WITNESS_ORGANIZATION,env.WITNESS_INSTANCE,now);
+      }
       if (request.method === 'GET' && url.pathname === GET_PATH) {
         return await getSigned(env, env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
       }
