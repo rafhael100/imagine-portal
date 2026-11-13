@@ -1,0 +1,99 @@
+name: Portal F377 - PHP HTTPS publisher to Worker CAS (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php'
+      - 'infra/development/portal-recovery/test-f377-publisher.php'
+      - 'infra/development/portal-recovery/f377-worker-https-fixture.mjs'
+      - '.github/workflows/portal-f377-publisher-interop-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php-https-hmac-into-worker-sqlite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F377_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl,sodium
+          tools: none
+          coverage: none
+      - name: Real pinned HTTPS PHP publisher to actual F376 Worker CAS via SQLite
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F377_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f377-worker-https-fixture.mjs
+          php -l apps/portal/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php
+          php -l infra/development/portal-recovery/test-f377-publisher.php
+          if php infra/development/portal-recovery/test-f377-publisher.php; then
+            echo 'F377 must reject missing test args.'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          server_pid=''
+          cleanup() {
+            if [[ -n "$server_pid" ]]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            rm -rf -- "$scratch"
+          }
+          trap cleanup EXIT
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=witness.f377.test.invalid' \
+            -addext 'subjectAltName=DNS:witness.f377.test.invalid' \
+            -keyout "$scratch/leaf.key" -out "$scratch/leaf.crt" >/dev/null 2>&1
+          openssl rand -base64 32 > "$scratch/publisher-key.b64"
+          printf 'ok\n' > "$scratch/scenario"
+          chmod 600 "$scratch/leaf.key" "$scratch/leaf.crt" "$scratch/publisher-key.b64" "$scratch/scenario"
+          tls_pin="sha256//$(openssl x509 -in "$scratch/leaf.crt" -noout -pubkey |
+            openssl pkey -pubin -outform DER |
+            openssl dgst -sha256 -binary | openssl base64 -A)"
+          test "${#tls_pin}" -eq 52
+          node infra/development/portal-recovery/f377-worker-https-fixture.mjs \
+            "$scratch" "$scratch/leaf.crt" "$scratch/leaf.key" > "$scratch/server.log" 2>&1 &
+          server_pid=$!
+          ready=0
+          for i in $(seq 1 35); do
+            if curl --silent --show-error --fail --max-time 2 \
+                --noproxy '*' --cacert "$scratch/leaf.crt" \
+                --resolve witness.f377.test.invalid:18444:127.0.0.1 \
+                --pinnedpubkey "$tls_pin" \
+                'https://witness.f377.test.invalid:18444/no-serving-health' \
+                -o /dev/null 2>/dev/null; then
+              ready=1
+              break
+            fi
+            # 404 is expected from an isolated fixture. Verify readiness
+            # by a successful TLS handshake regardless of path status.
+            if curl --silent --show-error --max-time 2 \
+                --noproxy '*' --cacert "$scratch/leaf.crt" \
+                --resolve witness.f377.test.invalid:18444:127.0.0.1 \
+                --pinnedpubkey "$tls_pin" \
+                'https://witness.f377.test.invalid:18444/no-serving-health' \
+                -o /dev/null 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$ready" = 1
+          php infra/development/portal-recovery/test-f377-publisher.php \
+            "$scratch" "$tls_pin" "$scratch/leaf.crt"
