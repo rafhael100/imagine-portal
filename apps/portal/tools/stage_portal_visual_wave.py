@@ -103,11 +103,14 @@ def build(root: Path, worktree: Path, out: Path) -> dict:
     if b"GIT binary patch" not in patch and b"Binary files" not in patch:
         raise RuntimeError("PNG did not survive as a binary Git change.")
     (out / "visual-wave.patch").write_bytes(patch)
+    git(worktree, "add", "--", TEST, *OTHER_TESTS)
+    tree_sha = git(worktree, "write-tree").decode().strip()
     manifest = {
         "schema": "imagine.portal.visual-wave-rehearsal.v1",
         "source_review_head": head,
         "dev_base_sha": base,
         "dev_base_tree_sha": git(worktree, "rev-parse", "HEAD^{tree}").decode().strip(),
+        "candidate_tree_sha": tree_sha,
         "changed_files": changed,
         "file_count": len(changed),
         "logo_blob_sha1": blob,
