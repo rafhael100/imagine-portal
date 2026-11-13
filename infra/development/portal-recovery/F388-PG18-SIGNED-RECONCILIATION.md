@@ -1,0 +1,15 @@
+# F388 — Signed independent intent as a prerequisite for local PostgreSQL18 retry
+
+F385 demonstrated a revoked browser envelope can coexist with a STILL ACTIVE database session when PostgreSQL refuses the actual revoke. F386 independently records append-only revocation intents + advances a signed witness. F387 confirms, with new Ed25519 nonce and authenticated HMAC readback, that an ambiguous remote publish was committed while the PostgreSQL session is still pending.
+
+F388 introduces a **dormant, non-operational** `SignedRevocationIntentPgReconcileCandidate` bridging those two protocols. It receives an opaque server-held 256-bit session reference, trusted intent ID and nonce, and independently signed F387 receipt. Its constructor pins organization, instance and independent Ed25519 public key. It asks the F387 verifier to check the **exact SHA256 of the session reference**, intent ID, nonce, TTL, scope, schema and signature, and refuses SQL write unless the readback result is precisely `INTENT_CONFIRMED_PENDING_RECONCILIATION_NO_SERVING` with every authority flag false.
+
+Only then does it call the existing real Portal `PortalBrowserAuthentication::revoke` method, whose contract requires a durable, idempotent PostgreSQL write before returning true, and re-reads `isActiveBusinessSession`. On SQL failure, it returns a sanitized `POSTGRES_REVOKE_UNAVAILABLE`; it never treats clearing the browser envelope as success. On observed durable revocation, the result is only `LAB_POSTGRES_REVOKE_OBSERVED_STILL_NO_SERVING` with ALL HTTP/business/issuance/restore/deploy and canClaimPostgresRevoked flags false.
+
+## CI with real PostgreSQL 18, synthetic signing proof
+
+A GitHub-hosted, disposable PG18 cluster provisions the real Portal identity schema and restricted runtime roles. The test creates an actual synthetic active business session and an **ephemeral PHP-generated F387-compatible Ed25519 receipt** (a fixture, NOT real independent D1). It proves wrong intent, nonce, scope, digest, expired/fake signatures do not revoke any SQL session. A temporary PostgreSQL trigger deliberately fails the real `portal_browser_revoke` function; the signed receipt is valid but the SQL session stays active, and the candidate reports failure. After removing the trigger and repeating with the same valid receipt, SQL revocation completes and `portal_auth_sessions.status` becomes `revoked`. No HTTP action is authorized throughout.
+
+The Worker-to-PHP signing interoperability was tested separately in F387. The F388 fixture is not an end-to-end deployed independent signer or trusted retry queue. A correct signed receipt is a **necessary precondition**, never sufficient to mark client logout successful. The real retry worker, durable queue custody, network/TLS configuration, binding to independently verified current recovery epoch, timeouts, D1 administration anti-rollback, HA, rate limits, tenant IAM and AppSec/DBA/DR review remain blocked.
+
+No Cloudflare/D1 or VPS deploy, real customer data, public Laravel route, merges to main, domain changes or new expenses. Issue #64 remains OPEN/NO-GO.
