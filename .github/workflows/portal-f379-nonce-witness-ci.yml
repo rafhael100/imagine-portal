@@ -1,0 +1,55 @@
+name: Portal F379 - Nonce-bound Ed25519 witness receipts (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f376-worker/src/witness.mjs'
+      - 'apps/portal/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php'
+      - 'infra/development/portal-recovery/test-f379-worker.mjs'
+      - 'infra/development/portal-recovery/test-f379-php-interop.php'
+      - '.github/workflows/portal-f379-nonce-witness-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonce-replay-interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F379_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Verify fresh nonces against actual Worker and strict PHP verifier
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F379_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f376-worker/src/witness.mjs
+          node --check infra/development/portal-recovery/test-f379-worker.mjs
+          php -l apps/portal/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php
+          php -l infra/development/portal-recovery/test-f379-php-interop.php
+          if php infra/development/portal-recovery/test-f379-php-interop.php; then
+            echo 'F379 must reject missing inputs.'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          export F379_INTEROP_DIR="$scratch"
+          node infra/development/portal-recovery/test-f379-worker.mjs
+          php infra/development/portal-recovery/test-f379-php-interop.php "$scratch"
