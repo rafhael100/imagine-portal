@@ -114,6 +114,48 @@ final class DemoPortalStaticExporterTest extends TestCase
         }
     }
 
+    public function test_legacy_offline_export_embeds_only_the_approved_imagine_logo_and_strict_csp(): void
+    {
+        $pages=(new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        self::assertCount(12,$pages);
+        foreach ($pages as $name) {
+            $html=(string)file_get_contents($this->temporaryDirectory.'/'.$name);
+            self::assertStringNotContainsString('src="/assets/logo-imagine.png"',$html);
+            if ($name==='index.html') {
+                self::assertSame(0,substr_count($html,'<img '));
+                continue;
+            }
+            self::assertSame(1,substr_count($html,'<img '));
+            self::assertSame(1,substr_count($html,'src="data:image/png;base64,'));
+            self::assertSame(1,substr_count($html,'src='));
+            self::assertMatchesRegularExpression(
+                '/src="data:image\/png;base64,([A-Za-z0-9+\/=]+)"/D',$html,
+            );
+            preg_match('/src="data:image\/png;base64,([A-Za-z0-9+\/=]+)"/D',$html,$match);
+            $bytes=base64_decode($match[1],true);
+            self::assertIsString($bytes);
+            self::assertSame(5594,strlen($bytes));
+            self::assertSame('678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77',
+                sha1('blob '.strlen($bytes)."\0".$bytes));
+            $doc=new \DOMDocument('1.0','UTF-8');
+            $prior=libxml_use_internal_errors(true);
+            try {
+                self::assertTrue($doc->loadHTML($html,LIBXML_NONET));
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($prior);
+            }
+            $policy=(new \DOMXPath($doc))->query(
+                '//meta[@http-equiv="Content-Security-Policy"]'
+            );
+            self::assertCount(1,$policy);
+            self::assertSame(DemoPortalNavigationAudit::OFFLINE_CSP,
+                $policy->item(0)->getAttribute('content'));
+        }
+        self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
+        self::assertTrue((new DemoPortalArtifactManifest())->verify($this->temporaryDirectory));
+    }
+
     public function test_index_guides_reviewer_through_each_offline_screen_without_client_actions(): void
     {
         (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
