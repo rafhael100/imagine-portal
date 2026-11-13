@@ -13,6 +13,34 @@
                 message="Os vínculos fictícios entre serviços e solicitações não são consistentes. Nenhum dado parcial será exibido." />
         @endif
     </x-portal.panel>
+    @php($preparationCards = \App\Presentation\DemoPreparationCards::cards())
+    @if (count($preparationCards) === 3)
+        <section aria-label="Fichas individuais de preparação fictícia">
+            <h2>Etapas e requisitos por serviço</h2>
+            <p class="pi-muted">Orientações ilustrativas. Nenhum requisito foi marcado como concluído e nenhuma etapa autoriza publicar ou ativar serviços.</p>
+            <div class="pi-grid">
+                @foreach ($preparationCards as $card)
+                    <article class="pi-panel" aria-label="Preparação fictícia de {{ $card['product'] }}">
+                        <p class="pi-eyebrow">SERVIÇO DE EXEMPLO</p>
+                        <h3 class="pi-stage-title">{{ $card['product'] }}</h3>
+                        <dl class="pi-record">
+                            <div><dt>Referência</dt><dd>{{ $card['service'] }}</dd></div>
+                            <div><dt>Situação ilustrativa</dt><dd>{{ $card['service_state'] }}</dd></div>
+                            <div><dt>Solicitação associada</dt><dd>{{ $card['request'] }}</dd></div>
+                            <div><dt>Estado da solicitação</dt><dd>{{ $card['request_state'] }}</dd></div>
+                        </dl>
+                        <h4>O que será conferido</h4>
+                        <ul class="pi-list">
+                            @foreach ($card['requirements'] as $requirement)
+                                <li>{{ $requirement }}</li>
+                            @endforeach
+                        </ul>
+                        <p><strong>Próximo passo ilustrativo:</strong> {{ $card['next'] }}</p>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
     <div class="pi-grid pi-grid-two">
         <x-portal.panel title="Sites Imagine">
             <p>Onepage e Landing Page são serviços independentes. Briefing, conteúdo, consentimento e domínio exigem revisão e autorização real antes de qualquer publicação.</p>
