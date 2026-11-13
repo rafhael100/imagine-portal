@@ -131,3 +131,10 @@ O verificador incorpora [#603](https://github.com/rafhael100/imagine-portal/pull
 A candidata acrescenta apenas uma migration com RLS obrigatório e **nenhuma policy allow**, grants, issuer, rota ou conta real. O ledger limita vigência, tentativas e transições da prova de e-mail, mas **não comprova entrega real** de mensagem nem soluciona o anti-rollback de sessão. A migração não é aplicada fora do PostgreSQL descartável da CI.
 
 Para manter a integração auditável, esta revisão é uma PR filha da #602. A PR #579 continua preservada e o lote monolítico #578 continua bloqueado. Nenhuma evidência verde altera `mergeApproved`, `deployApproved`, `customerAccessApproved` ou `antiRollbackApproved`, que continuam `false`. As issues #64 e #341 e a revisão independente DBA/AppSec seguem abertas.
+
+
+## Décimo primeiro lote: comprovante emitido e consumido em ledger descartável (#605)
+
+O gate acompanha [#605](https://github.com/rafhael100/imagine-portal/pull/605), filha **exata** da #603. A SHA `7f277fdc235a5909b6a9f7b8822c5068a002beda` tem **quatro commits** incrementais e passou em **cinco workflows** (incluindo PG18 em PHP 8.3 e 8.4). O laboratório de ponta a ponta da PR #605 comprovou **8 testes e 73 assertions** para comprovação e consumo do token, falhas/lockout, troca de chave e tenant, mudança de revisão e lock concorrente, sem dados ou e-mails reais.
+
+Assim, são **onze lotes de revisão**: quatro visuais e sete isolados/dependentes de identidade, anti-rollback e integração. O gate exige uma candidata somente na sua SHA, head/base e workflows aprovados. Os bits `mergeApproved`, `deployApproved`, `customerAccessApproved` e `antiRollbackApproved` permanecem falsos. O código `Tests/Support/DisposablePersistedEmailProofLab` não é um emissor operacional, não possui endpoint nem serviço registrado e não corrige restore conjunto de banco e chave. #64 e #341 e as aprovações AppSec/DBA continuam bloqueantes.
