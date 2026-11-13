@@ -78,7 +78,13 @@ final class PurchaseRehearsalController
 
     private function page(?array $order)
     {
-        return response()->view('portal.rehearsal.purchase',['order'=>$order,'requestKey'=>'TEST-'.bin2hex(random_bytes(16))])
+        // A separate idempotency key for each offer shown on the same page:
+        // selecting another product must not reuse the first one's identity.
+        $requestKeys=[];
+        foreach (['onepage','landing-pages','performance'] as $product) {
+            $requestKeys[$product]='TEST-'.bin2hex(random_bytes(16));
+        }
+        return response()->view('portal.rehearsal.purchase',['order'=>$order,'requestKeys'=>$requestKeys])
             ->withHeaders(['Cache-Control'=>'no-store, private','X-Robots-Tag'=>'noindex, nofollow',
                 'Content-Security-Policy'=>"default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
                 'Referrer-Policy'=>'no-referrer','X-Content-Type-Options'=>'nosniff']);
