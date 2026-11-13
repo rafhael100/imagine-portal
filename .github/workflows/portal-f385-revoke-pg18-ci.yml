@@ -1,0 +1,56 @@
+name: Portal F385 - Real PG18 logout durable or SQL failure NO GO
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/test-f385-real-pg18-logout.php'
+      - '.github/workflows/portal-f385-revoke-pg18-ci.yml'
+permissions:
+  contents: read
+jobs:
+  real-pg18-controller-revocation-fault:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    env:
+      PORTAL_F385_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Boot only disposable PG18 Portal identity foundation
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f385-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f385-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f385-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Real controller revoke and transaction failure on synthetic sessions
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F385_CI" = DISPOSABLE_ONLY
+          tool() {
+            sudo docker compose -p imagine-portal-f385-ci -f infra/development/portal-db/compose.yaml \
+              run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F385_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" provision "$@"
+          }
+          tool php -l /opt/portal-recovery/test-f385-real-pg18-logout.php
+          if tool php /opt/portal-recovery/test-f385-real-pg18-logout.php unexpected; then
+            echo 'F385 must refuse CLI extra args'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/test-f385-real-pg18-logout.php
+      - name: Always destroy only F385 private database and volumes
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f385-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
