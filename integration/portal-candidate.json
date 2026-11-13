@@ -219,7 +219,7 @@
       "pullRequest": 615,
       "headBranch": "review/portal-sec-r03-witness-reader-default-deny-2026-11-13",
       "baseBranch": "review/portal-sec-r03-attestation-verifier-domain-2026-11-13",
-      "headSha": "6981cb59d8072749a39667d4881138c5ed22346a",
+      "headSha": "c36e837e4efced3e0af7d4f16110a96343070c2b",
       "maxCommits": 20,
       "requiredWorkflows": [
         "Testes do portal",
