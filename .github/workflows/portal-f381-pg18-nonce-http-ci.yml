@@ -39,8 +39,10 @@ jobs:
           test "$PORTAL_F381_CI" = DISPOSABLE_ONLY
           root="$GITHUB_WORKSPACE"
           scratch="$(mktemp -d)"
-          sudo chown 82:82 "$scratch"
-          chmod 700 "$scratch"
+          # Runner owns the directory; group 82 permits the read-only provision
+          # container and isolated Node fixture to create only CI artifacts.
+          sudo chgrp 82 "$scratch"
+          chmod 770 "$scratch"
           container_id=''
           cleanup(){
             if [[ -n "$container_id" ]]; then sudo docker rm -f "$container_id" >/dev/null 2>&1 || true; fi
