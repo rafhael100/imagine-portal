@@ -34,6 +34,7 @@ final class DisposableFirstInvitationPg18Test extends TestCase
             public.portal_membership_grants, public.portal_memberships,
             public.portal_identities, public.portal_organizations,
             public.portal_auth_attempt_buckets CASCADE');
+        $this->admin->exec('DELETE FROM portal_browser_private.proof_key');
     }
 
     private static function connect(string $role, string $password): PDO
@@ -154,6 +155,49 @@ final class DisposableFirstInvitationPg18Test extends TestCase
             }
         }
         self::assertSame(0, (int) $this->admin->query(
+            'SELECT count(*) FROM public.portal_identities'
+        )->fetchColumn());
+    }
+
+    public function test_stale_database_signing_key_blocks_the_first_invitation(): void
+    {
+        $this->admin->exec(
+            "INSERT INTO portal_browser_private.proof_key(secret) VALUES('" . str_repeat('a', 64) . "')"
+        );
+        try {
+            $this->reserve();
+            self::fail('A preexisting authentication signing key was ignored.');
+        } catch (RuntimeException $e) {
+            self::assertSame('Disposable invitation unavailable.', $e->getMessage());
+        }
+        self::assertSame(0, (int) $this->admin->query(
+            'SELECT count(*) FROM public.portal_identities'
+        )->fetchColumn());
+    }
+
+    public function test_parallel_first_invitation_waits_for_exclusive_lock_and_fails_closed(): void
+    {
+        $this->admin->beginTransaction();
+        try {
+            $this->admin->exec('LOCK TABLE public.portal_identities IN ACCESS EXCLUSIVE MODE');
+            $competing = self::connect('postgres', (string) getenv('PGPASSWORD'));
+            $competing->exec("SET lock_timeout TO '150ms'");
+            try {
+                (new DisposableFirstInvitationBootstrap($competing))->reserve(
+                    'operator@example.invalid', 'another-synthetic', 'Competing fixture'
+                );
+                self::fail('A concurrent first account bypassed the lock.');
+            } catch (RuntimeException $e) {
+                self::assertSame('Disposable invitation unavailable.', $e->getMessage());
+            }
+        } finally {
+            $this->admin->rollBack();
+        }
+        self::assertSame(0, (int) $this->admin->query(
+            'SELECT count(*) FROM public.portal_identities'
+        )->fetchColumn());
+        $this->reserve();
+        self::assertSame(1, (int) $this->admin->query(
             'SELECT count(*) FROM public.portal_identities'
         )->fetchColumn());
     }
