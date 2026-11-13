@@ -32,7 +32,9 @@ final class PurchaseRehearsalController
         // The offer from the Comercial is a display hint, never identity,
         // permission, pricing or a purchase command. Reject unknown input.
         $offer=$request->query('offer');
-        abort_unless($offer===null || (is_string($offer)
+        // Laravel may normalize ?offer= to null; presence of the key must
+        // still be rejected unless it contains an allowlisted scalar value.
+        abort_unless(!$request->query->has('offer') || (is_string($offer)
             && in_array($offer,['onepage','landing-pages','performance'],true)),422);
         return $this->page(null,$offer);
     }
