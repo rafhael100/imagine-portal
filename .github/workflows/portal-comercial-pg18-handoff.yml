@@ -7,6 +7,7 @@ on:
       - 'apps/portal/tests/Feature/PurchaseRehearsalHttpTest.php'
       - 'apps/portal/tools/prepare_comercial_php_handoff_lab.py'
       - 'apps/portal/tools/test_comercial_php_handoff_browser.py'
+      - 'apps/portal/tools/test_portal_sites_after_purchase_pg18.php'
       - '.github/workflows/portal-comercial-pg18-handoff.yml'
   push:
     branches:
@@ -116,3 +117,106 @@ jobs:
           PY
           "$RUNNER_TEMP/portal-comercial-playwright/bin/python" tools/test_comercial_php_handoff_browser.py
           echo 'NO-GO: GitHub temporary loopback only; no VPS, deployment, customer IAM or real payments.'
+      - name: Checkout exact Sites PG18 atomic outbox candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 3d20d83d544577a70c091ca1725c084ab6824d2a
+          path: _sites_pg_candidate
+          persist-credentials: false
+      - name: Checkout exact synthetic Sites signed authority verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 21732e9558b730e38a6845adb593d29f309ff6a9
+          path: _sites_signed_candidate
+          persist-credentials: false
+      - name: Checkout exact synthetic Portal Sites signer, never an IAM release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: _portal_sites_signer_candidate
+          persist-credentials: false
+      - name: Check exact Portal/Sites signing and storage candidate pins
+        run: |
+          set -euo pipefail
+          test "$(git -C _sites_pg_candidate rev-parse HEAD)" = 3d20d83d544577a70c091ca1725c084ab6824d2a
+          test "$(git -C _sites_signed_candidate rev-parse HEAD)" = 21732e9558b730e38a6845adb593d29f309ff6a9
+          test "$(git -C _portal_sites_signer_candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          php -l apps/portal/tools/test_portal_sites_after_purchase_pg18.php
+      - name: Create SECOND disposable Sites PG18 database, after Portal UI checks
+        run: |
+          set -euo pipefail
+          php -r '
+          $db=new PDO("pgsql:host=127.0.0.1;port=5432;dbname=postgres","postgres","synthetic-ci-only",[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if($db->query("SELECT current_database()")->fetchColumn()!=="postgres")exit(2);
+          $db->exec("CREATE DATABASE sites_f360_lab");
+          $db->exec("ALTER ROLE postgres PASSWORD '\''f360-fictional-admin-disposable-only'\''");
+          '
+      - name: Run pinned Sites admission, worker, signed source and durable nonce fixtures
+        env:
+          APP_ENV: testing
+          GITHUB_ACTIONS: 'true'
+          SITES_F360_PG_LAB: '1'
+          SITES_F361_OUTBOX_LAB: '1'
+          SITES_F362_CROSS_STACK_LAB: '1'
+          SITES_F363_NONCE_LAB: '1'
+          SITES_F364_BRIDGE_LAB: '1'
+          SITES_P0_AFTER_PURCHASE_LAB: '1'
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_DATABASE: sites_f360_lab
+          DB_USERNAME: postgres
+          DB_PASSWORD: f360-fictional-admin-disposable-only
+          SITES_F362_PORTAL_PATH: ${{ github.workspace }}/_portal_sites_signer_candidate
+          SITES_F362_SITES_PATH: ${{ github.workspace }}/_sites_signed_candidate
+        run: |
+          set -euo pipefail
+          php _sites_pg_candidate/tests/f360-pg-durable-admission-outbox.php
+          php _sites_pg_candidate/tests/f361-pg-outbox-worker.php
+          php _sites_pg_candidate/tests/f362-pinned-portal-to-pg-outbox.php
+          php _sites_pg_candidate/tests/f363-pg-durable-nonce.php
+          php _sites_pg_candidate/tests/f364-transactional-signed-ingress-adapter.php
+          php apps/portal/tools/test_portal_sites_after_purchase_pg18.php
+          echo 'NO-GO: two disposable PG18 databases, fake grants/keys, no real authorization, Sites publishing or VPS.'
+      - name: Verify redacted CI evidence counts and NO-GO flags before archiving
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          f=Path(os.environ['RUNNER_TEMP'])/'p0-commercial-portal-sites-evidence.json'
+          m=json.loads(f.read_text(encoding='utf-8'))
+          claims=m['claims']
+          canonical=json.dumps(claims,separators=(',',':'),ensure_ascii=False)
+          assert m['sha256']==hashlib.sha256(canonical.encode()).hexdigest()
+          assert m['cryptographically_signed'] is False
+          assert claims['release_gate']=='NO_GO'
+          assert claims['commercial_to_portal_http_journeys']==4
+          assert claims['portal_pg18_durable_fake_purchases']==4
+          assert claims['sites_pg18_admitted_projects']==2
+          assert claims['sites_pg18_outbox_events']==2
+          assert claims['sites_pg18_replay_nonces']==4
+          assert claims['performance_products_excluded_from_sites']==2
+          assert claims['cross_tenant_forgeries_accepted']==0
+          assert claims['network_scope']=='loopback_only'
+          assert claims['synthetic_only'] is True
+          for flag in ('business_iam_authenticated','external_revocation_verified','real_payment_processed',
+                    'customer_data_used','site_publishing_authorized','crm_delivery_authorized',
+                    'vps_deployed','production_released'):
+              assert claims[flag] is False, flag
+          data=f.read_bytes()
+          assert len(data)<8000
+          for marker in (b'@',b'TEST-',b'Empresa',b'password',b'Bearer ',b'Cookie:'):
+              assert marker not in data, marker
+          print('PASS: redacted evidence hash, counts, NO-GO and no customer/sample payload.')
+          PY
+      - name: Retain redacted homologation evidence without deployment
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-p0-comercial-portal-sites-ci-evidence
+          path: ${{ runner.temp }}/p0-commercial-portal-sites-evidence.json
+          if-no-files-found: error
+          retention-days: 7
