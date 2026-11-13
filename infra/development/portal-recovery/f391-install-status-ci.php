@@ -21,7 +21,7 @@ try{
     if($db->query("SELECT current_database()")->fetchColumn()!=='portal_identity_dev'){
         throw new RuntimeException();
     }
-    $name='/var/www/html/database/security/portal_browser_revoke_status_f391_candidate.sql';
+    $name='/opt/f391-status-candidate.sql';
     $sql=file_get_contents($name);
     if(!is_string($sql)||strlen($sql)<500||strlen($sql)>12000)throw new RuntimeException();
     $db->exec($sql);
