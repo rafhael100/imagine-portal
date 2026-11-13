@@ -11,7 +11,7 @@ use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
  * PostgreSQL session/grant readers with two fresh signed HTTPS challenges.
  * A diagnostic true is never a login/permission/resource authorization.
  */
-final readonly class NonceBoundPortalIdentityReadCandidate
+final readonly class NonceBoundPortalIdentityReadCandidate implements PortalWitnessOnlyIdentityRead
 {
     public function __construct(
         private PortalBrowserAuthentication $sessions,
