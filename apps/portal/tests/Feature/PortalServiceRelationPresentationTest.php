@@ -49,9 +49,14 @@ final class PortalServiceRelationPresentationTest extends TestCase
         $html = view('portal.demo.services')->render();
 
         foreach (['<form', '<input', '<button', '<script', '<iframe',
-            'action=', 'src=', 'http://', 'https://', 'checkout'] as $forbidden) {
+            'action=', 'http://', 'https://', 'checkout'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $html);
         }
+        // One *pinned first-party* image is allowed; all additional img/src
+        // surfaces remain forbidden even in this static demonstration.
+        self::assertSame(1, substr_count($html, '<img '));
+        self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
+        self::assertSame(1, substr_count($html, 'src='));
         preg_match_all('/href="([^"]*)"/', $html, $links);
         self::assertSame(['#pi-content'], $links[1]);
 
