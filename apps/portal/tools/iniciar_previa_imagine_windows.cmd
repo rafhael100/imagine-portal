@@ -41,6 +41,6 @@ if errorlevel 2 (
 if errorlevel 1 (
   echo Iniciando servidor local. Para encerrar, pressione Ctrl+C.
   %PYTHON% "serve_private_preview.py" --zip "imagine-original-ui-synthetic.zip" --serve --port 18417
-  exit /b %ERRORLEVEL%
+  exit /b
 )
 exit /b 2
