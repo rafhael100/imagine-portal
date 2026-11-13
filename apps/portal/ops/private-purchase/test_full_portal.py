@@ -17,6 +17,15 @@ with sync_playwright() as p:
     page.locator('input[name=password]').fill('ci-client-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/client/overview')
+    # The purchase browser runs before this login test and saves three orders
+    # into the same PostgreSQL volume. This is not a hardcoded service card.
+    response=page.goto(BASE+'/client/services')
+    assert response.status==200
+    assert page.locator('tr[data-preview-order-row]').count()==3, 'Client must see all three persisted test purchases'
+    assert page.locator('text=Pedidos da empresa fictícia').count()==1
+    assert page.get_by_text('sem cobrança').count()>=1 or page.get_by_text('Pagamentos e contratações são simulados').count()>=1
+    page.reload()
+    assert page.locator('tr[data-preview-order-row]').count()==3, 'Reload must re-read PostgreSQL, not browser storage'
     for section in ['overview','services','available','contracts','finance','requests','journey','delivery-review','files','notices','modules','account','help']:
         response=page.goto(BASE+'/client/'+section)
         assert response.status==200,(section,response.status)
@@ -38,6 +47,8 @@ with sync_playwright() as p:
     for section in ['overview','clients','orders','services','finance','contracts','requests','settings']:
         response=page.goto(BASE+'/admin/'+section)
         assert response.status==200,(section,response.status)
+        if section=='orders':
+            assert page.locator('table tbody tr').count()==3, 'Admin must see the same restricted SQL order rows'
     assert page.request.get(BASE+'/client/overview').status==403
     for width in [320,390,768,1280]:
         page.set_viewport_size({'width':width,'height':900})
