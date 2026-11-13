@@ -46,7 +46,7 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: composer:v2
-          extensions: mbstring, dom, xml, pdo, pdo_pgsql, curl, fileinfo, intl, bcmath, zip, sodium
+          extensions: mbstring, dom, xml, pdo, pdo_pgsql, pdo_sqlite, sqlite3, curl, fileinfo, intl, bcmath, zip, sodium
 
       - name: Versoes de PHP e Composer
         run: |
