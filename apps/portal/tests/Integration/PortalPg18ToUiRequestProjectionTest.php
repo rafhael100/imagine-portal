@@ -262,4 +262,51 @@ SQL);
         }
         self::assertFalse($this->admin->inTransaction());
     }
+
+    public function test_exactly_fifty_requests_are_displayed_without_false_overflow(): void
+    {
+        // Two fixtures already exist. Add 48 to prove the inclusive boundary.
+        $this->admin->exec(<<<'SQL'
+INSERT INTO public.portal_service_requests
+  (id,organization_id,project_id,request_ref)
+SELECT gen_random_uuid(),
+       '11111111-1111-4111-8111-111111111111'::uuid,
+       '33333333-3333-4333-8333-333333333333'::uuid,
+       'DEMO-REQ-BOUNDARY-'||lpad(n::text,3,'0')
+  FROM generate_series(1,48) AS n
+SQL);
+        $result=$this->reader()->project(self::org(),self::PROJECT_A);
+        self::assertTrue($result->isPreparedPreview());
+        self::assertSame(50,$result->total);
+        self::assertCount(50,$result->items);
+        self::assertNull($result->nextOffset);
+        self::assertFalse($result->mayExposeCustomerData());
+        self::assertFalse($this->admin->inTransaction());
+        foreach ($result->items as $item) {
+            self::assertSame(self::ORG_A,$item->organizationId->value);
+            self::assertSame('DEMO-SVC-ONEPAGE',$item->serviceReference);
+        }
+    }
+
+    public function test_project_with_no_requests_returns_empty_prepared_preview(): void
+    {
+        $this->admin->exec(<<<'SQL'
+INSERT INTO public.portal_service_projects
+  (id,organization_id,project_ref,product_code)
+VALUES ('88888888-8888-4888-8888-888888888888',
+        '11111111-1111-4111-8111-111111111111',
+        'DEMO-SVC-EMPTY','sites_onepage')
+SQL);
+        $result=$this->reader()->project(
+            self::org(),'88888888-8888-4888-8888-888888888888'
+        );
+        self::assertTrue($result->isPreparedPreview());
+        self::assertSame('preview_ready',$result->reason);
+        self::assertSame(0,$result->total);
+        self::assertSame([],$result->items);
+        self::assertNull($result->nextOffset);
+        self::assertFalse($result->mayExposeCustomerData());
+        self::assertFalse($this->admin->inTransaction());
+    }
+
 }
