@@ -9,7 +9,7 @@ if (getenv('PORTAL_PURCHASE_PREVIEW_ENABLED')!=='1'||getenv('APP_ENV')!=='stagin
     ||getenv('PORTAL_DEVELOPMENT_AUTH_ENABLED')!=='false') { http_response_code(404); exit; }
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH);
 if ($path==='/up') { header('Content-Type: application/json'); echo '{"synthetic_preview":true}'; exit; }
-if (!is_string($path)||!str_starts_with($path,'/_rehearsal/purchase')) { http_response_code(404); exit; }
+if (!is_string($path)||(!str_starts_with($path,'/_rehearsal/purchase')&&!str_starts_with($path,'/_preview/portal'))) { http_response_code(404); exit; }
 $handle=fopen('/run/secrets/preview-runtime.json','rb');
 $stat=$handle===false?false:fstat($handle);
 if (!$stat||($stat['mode']&077)!==0||$stat['uid']!==82||$stat['size']>2048) { http_response_code(503); exit; }
@@ -27,8 +27,10 @@ $kernel=$app->make(Illuminate\Contracts\Http\Kernel::class); $kernel->bootstrap(
 foreach (['app.key'=>$config['app_key'],'app.debug'=>false,'session.driver'=>'file',
  'session.cookie'=>$ci?'imagine-preview-ci':'__Host-imagine-purchase-preview','session.secure'=>!$ci,
  'session.http_only'=>true,'session.domain'=>null,'session.path'=>'/',
- 'session.same_site'=>'strict','cache.default'=>'array'] as $key=>$value) $app['config']->set($key,$value);
+ 'session.same_site'=>'strict','cache.default'=>'file'] as $key=>$value) $app['config']->set($key,$value);
+$app['config']->set('cache.stores.file',['driver'=>'file','path'=>storage_path('framework/cache/data')]);
 $app->register(App\Providers\PurchaseRehearsalServiceProvider::class);
+$app->register(App\Providers\FullPortalPreviewServiceProvider::class);
 // Explicit shared synthetic workspace for the existing protected development operator.
 // This is not a real Portal principal, customer account or business permission.
 $app->instance(App\Homologation\PurchaseRehearsalScope::class,new class implements App\Homologation\PurchaseRehearsalScope {
@@ -38,6 +40,7 @@ try {
  $pdo=new PDO('pgsql:host=database;port=5432;dbname=portal_purchase_rehearsal;connect_timeout=3',
   'purchase_rehearsal_a',$config['database_password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
  $app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase($pdo));
+ $app->instance(App\Homologation\PreviewOrderListing::class,new App\Homologation\PreviewOrderListing($pdo));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);
 $request=Illuminate\Http\Request::capture(); $response=$kernel->handle($request);

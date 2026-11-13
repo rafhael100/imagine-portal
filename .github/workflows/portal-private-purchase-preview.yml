@@ -6,6 +6,9 @@ on:
       - 'apps/portal/app/Homologation/**'
       - 'apps/portal/app/Http/Controllers/PurchaseRehearsalController.php'
       - 'apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php'
+      - 'apps/portal/app/Providers/FullPortalPreviewServiceProvider.php'
+      - 'apps/portal/app/Http/Controllers/FullPortalPreviewController.php'
+      - 'apps/portal/resources/views/portal/preview/**'
       - 'apps/portal/resources/views/portal/rehearsal/**'
       - 'apps/portal/tools/test_purchase_browser.py'
       - '.github/workflows/portal-private-purchase-preview.yml'
@@ -54,6 +57,7 @@ jobs:
           python3 -m venv /tmp/private-purchase-browser
           /tmp/private-purchase-browser/bin/pip install playwright==1.56.0
           /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
           docker compose restart database application
