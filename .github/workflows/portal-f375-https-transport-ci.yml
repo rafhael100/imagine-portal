@@ -1,0 +1,80 @@
+name: Portal F375 - HTTPS pinned independent witness (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php'
+      - 'infra/development/portal-recovery/test-f375-https.php'
+      - 'infra/development/portal-recovery/f375-https-fixture.py'
+      - '.github/workflows/portal-f375-https-transport-ci.yml'
+permissions:
+  contents: read
+jobs:
+  pinned-tls-and-signed-receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F375_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium,curl
+          tools: none
+          coverage: none
+      - name: Prove private TLS transport with independent ephemeral receipt signing
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F375_CI" = DISPOSABLE_ONLY
+          php -l apps/portal/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php
+          php -l infra/development/portal-recovery/test-f375-https.php
+          python3 -m py_compile infra/development/portal-recovery/f375-https-fixture.py
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          server_pid=''
+          cleanup() {
+            if [[ -n "$server_pid" ]]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            rm -rf -- "$scratch"
+          }
+          trap cleanup EXIT
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=witness.f375.test.invalid' \
+            -addext 'subjectAltName=DNS:witness.f375.test.invalid' \
+            -keyout "$scratch/leaf.key" -out "$scratch/leaf.crt" >/dev/null 2>&1
+          chmod 600 "$scratch/leaf.key" "$scratch/leaf.crt"
+          tls_pin="sha256//$(openssl x509 -in "$scratch/leaf.crt" -noout -pubkey |
+            openssl pkey -pubin -outform DER |
+            openssl dgst -sha256 -binary | openssl base64 -A)"
+          test "${#tls_pin}" -eq 52
+          php infra/development/portal-recovery/test-f375-https.php prepare "$scratch"
+          python3 infra/development/portal-recovery/f375-https-fixture.py \
+            --directory "$scratch" --cert "$scratch/leaf.crt" \
+            --key "$scratch/leaf.key" --port 18443 > "$scratch/server.log" 2>&1 &
+          server_pid=$!
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --show-error --fail --max-time 2 \
+                --noproxy '*' --cacert "$scratch/leaf.crt" \
+                --resolve witness.f375.test.invalid:18443:127.0.0.1 \
+                --pinnedpubkey "$tls_pin" \
+                'https://witness.f375.test.invalid:18443/v1/portal/recovery-witness' \
+                -o /dev/null 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$ready" = 1
+          php infra/development/portal-recovery/test-f375-https.php verify \
+            "$scratch" "$tls_pin" "$scratch/leaf.crt"
