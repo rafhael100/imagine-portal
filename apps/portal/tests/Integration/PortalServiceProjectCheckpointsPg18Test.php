@@ -363,4 +363,58 @@ SQL);
         $this->checkpoint(self::CHECK_ONE,self::PROJECT_ONE,'briefing');
         self::assertSame('pending',$this->state()['state']);
     }
+    public function test_retired_source_claim_blocks_review_even_after_checklist_is_complete(): void
+    {
+        $this->project();
+        foreach ([
+            [self::CHECK_ONE,'briefing'],
+            [self::CHECK_TWO,'content'],
+            [self::CHECK_THREE,'domain'],
+        ] as [$id,$code]) {
+            $this->checkpoint($id,self::PROJECT_ONE,$code);
+            $this->reviewCheckpoint($id);
+        }
+        // Race-sensitive condition: claim was a candidate when bound but
+        // is retired before the project review transaction starts.
+        $this->admin->exec(
+            "UPDATE public.portal_service_resource_claims
+                SET state='retired'
+              WHERE id='33333333-3333-4333-8333-333333333333'"
+        );
+        self::denied($this->admin,
+            "UPDATE public.portal_service_projects
+                SET state='review'
+              WHERE id='66666666-6666-4666-8666-666666666666'");
+        self::assertSame('draft',$this->admin->query(
+            "SELECT state FROM public.portal_service_projects
+              WHERE id='66666666-6666-4666-8666-666666666666'"
+        )->fetchColumn());
+    }
+
+    public function test_suspended_tenant_blocks_review_of_otherwise_complete_checklist(): void
+    {
+        $this->project();
+        foreach ([
+            [self::CHECK_ONE,'briefing'],
+            [self::CHECK_TWO,'content'],
+            [self::CHECK_THREE,'domain'],
+        ] as [$id,$code]) {
+            $this->checkpoint($id,self::PROJECT_ONE,$code);
+            $this->reviewCheckpoint($id);
+        }
+        $this->admin->exec(
+            "UPDATE public.portal_organizations
+                SET status='suspended'
+              WHERE id='11111111-1111-4111-8111-111111111111'"
+        );
+        self::denied($this->admin,
+            "UPDATE public.portal_service_projects
+                SET state='review'
+              WHERE id='66666666-6666-4666-8666-666666666666'");
+        self::assertSame('draft',$this->admin->query(
+            "SELECT state FROM public.portal_service_projects
+              WHERE id='66666666-6666-4666-8666-666666666666'"
+        )->fetchColumn());
+    }
+
 }
