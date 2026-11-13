@@ -91,3 +91,9 @@ A auditoria `read-only` passou a verificar também **duas candidatas que NÃO pe
 O programa agora expõe `isolatedLots` separadamente de `smallLots`. Um resultado `REVIEW_CANDIDATE_ONLY` significa **somente** integridade dos metadados, ancestralidade e verificações declaradas: não prova que as candidatas foram integradas entre si, nem que o login possui operador real, nem que houve solução operacional da [issue #64](https://github.com/rafhael100/imagine-portal/issues/64).
 
 Um novo commit, alteração da base, divergência, execução CI falha/pendente ou excesso de commits cancela a prova daquele lote. Não inserir #596 ou #597 como quinta etapa da UI: suas bases diferem e fundi-las sem reconciliação seria inadequado. **Merge, deploy, acesso real e recuperação em produção continuam false** independentemente de todos os testes.
+
+## Trilha de convite inicial sintético (#598) — 13/11/2026 UTC
+
+A auditoria agora acompanha **sete recortes**, dos quais quatro formam a cadeia UI e **três são verificações independentes/dependentes de identidade**. O novo [#598](https://github.com/rafhael100/imagine-portal/pull/598) é filho da branch da [#596](https://github.com/rafhael100/imagine-portal/pull/596), não da dev. Seu delta é limitado a 20 commits e requer **cinco workflows** de CI na SHA exata: Node, Laravel, GSC sintético, smoke privado F64 e testes PostgreSQL 18. Alteração do HEAD do pai sem atualização da filha deve gerar divergência e bloquear evidência.
+
+O código de #598 só reserva um **convite fictício em ambiente PG18 descartável**, com identidade `invited` sem senha/MFA/verificação de e-mail e sem grants. Um resultado verde não significa conta real cadastrada, backend apto para clientes ou remediação do anti-rollback #64. Todos os bits de produção, integração e liberação permanecem `false`; não há merge/deploy automatizado.
