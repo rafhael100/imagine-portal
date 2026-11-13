@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 7 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 8 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -85,6 +85,21 @@ export function validateManifest(m) {
       // default-deny ledger; a green CI cannot turn it into an operator.
       m.isolatedLots[6]?.baseBranch !== m.isolatedLots[5]?.headBranch ||
       m.isolatedLots[6]?.requiredWorkflows?.length !== 5 ||
+      m.isolatedLots[7]?.pullRequest !== 607 ||
+      m.isolatedLots[7]?.headBranch !== 'review/portal-email-transport-default-deny-2026-11-12' ||
+      // Default non-logging mail transport candidate must remain isolated
+      // above offline proof issuance. No real mail, session, or account.
+      m.isolatedLots[7]?.baseBranch !== m.isolatedLots[6]?.headBranch ||
+      m.isolatedLots[7]?.requiredWorkflows?.length !== 7 ||
+      [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+        'Portal GSC F102/F105/F107 — synthetic OAuth security contracts',
+        'Portal F64 - Private Container Homologation Smoke',
+        'Portal browser auth - private Docker rehearsal',
+        'Portal F94 - Laravel ingress source NO-GO imports',
+        'Portal private auth gateway - disposable deployment rehearsal',
+      ].some(name => !m.isolatedLots[7]?.requiredWorkflows?.includes(name)) ||
       [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',
