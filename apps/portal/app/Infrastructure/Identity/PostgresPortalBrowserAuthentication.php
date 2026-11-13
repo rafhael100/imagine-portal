@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Identity;
 
 use App\Domain\Identity\Browser\PortalBrowserAuthentication;
+use App\Infrastructure\Recovery\PortalHashedSessionRevocationCandidate;
 use App\Domain\Identity\Security\PortalPasswordCredential;
 use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Domain\Identity\Security\PortalTotpVerifier;
@@ -18,7 +19,7 @@ use Throwable;
  * SQL owner is a separate NOLOGIN role; this connection only executes functions.
  * SQL installation, keys, session locking and operational review are prerequisites.
  */
-final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthentication
+final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthentication, PortalHashedSessionRevocationCandidate
 {
     private readonly string $dummyHash;
     private readonly PDO $db;
@@ -165,9 +166,25 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
             return false;
         }
         $this->ready();
-        $digest = hash('sha256',$reference);
+        return $this->revokeSessionDigest(hash('sha256',$reference));
+    }
+
+    /**
+     * F390: isolated worker-only revocation by HASH, not a login bearer.
+     * This reuses the existing function's verified proof HMAC and restricted
+     * autocommit runtime role; no SQL policy, function or public route changes.
+     *
+     * SQL returns TRUE for an idempotent no-op as well; the caller MUST NOT
+     * infer that a matching row existed or was actually revoked.
+     */
+    public function revokeSessionDigest(string $sessionSha256): bool
+    {
+        if (preg_match('/\A[a-f0-9]{64}\z/D', $sessionSha256) !== 1) {
+            return false;
+        }
+        $this->ready();
         return $this->boolean('SELECT public.portal_browser_revoke(?,?)',
-            [$digest,$this->proof('portal-browser-v1|revoke|' . $digest)]);
+            [$sessionSha256,$this->proof('portal-browser-v1|revoke|' . $sessionSha256)]);
     }
 
     private function ready(): void
