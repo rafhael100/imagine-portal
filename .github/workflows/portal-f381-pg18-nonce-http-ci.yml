@@ -57,6 +57,7 @@ jobs:
               -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
               -e PORTAL_F373_CI=DISPOSABLE_ONLY \
               -e PORTAL_F374_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F380_CI=DISPOSABLE_ONLY \
               -e PORTAL_F381_CI=DISPOSABLE_ONLY \
               -v "$root/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
               -v "$root/infra/development/portal-mail:/opt/portal-mail:ro" \
