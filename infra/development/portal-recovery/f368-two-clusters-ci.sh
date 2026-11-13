@@ -116,20 +116,85 @@ sudo docker exec -i -u postgres "$witness" psql -X -U postgres \
 [[ "$(wsql "SELECT has_table_privilege('f368_witness_reader','public.portal_f368_independent_witness','UPDATE,DELETE,TRUNCATE')")" == f ]]
 [[ "$(wsql "SELECT rolcanlogin FROM pg_roles WHERE rolname='f368_witness_reader'")" == f ]]
 
-# Dump OLDER state; later live revocation advances INDEPENDENT witness B.
+# F370 witness-first protocol, strictly a DISPOSABLE CI model:
+#   1. Snapshot old origin with valid synthetic session.
+#   2. Advance independent witness BEFORE local revocation commit.
+#   3. Force a local transaction failure and prove the mismatch blocks readback.
+#   4. Atomically revoke session + persist new local epoch in one origin tx.
+#   5. Old restored snapshot remains behind the independent witness.
 pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev > "$scratch/old.dump"
 [[ -s "$scratch/old.dump" ]]
-sql portal_identity_dev "UPDATE public.portal_auth_sessions SET status='revoked',
- revoked_at=GREATEST(clock_timestamp(),issued_at),updated_at=clock_timestamp()
- WHERE session_sha256='$token' AND status='active'" >/dev/null
-[[ "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" == f ]]
+# An external floor is recorded first; the local Portal can NOT yet claim
+# this newer revision, because a crash/timeout may happen before its commit.
 wsql "UPDATE public.portal_f368_independent_witness SET session_floor=4,
  sequence=13 WHERE organization='org_f368' AND instance='instance_f368'" >/dev/null
 [[ "$(wsql 'SELECT sequence FROM public.portal_f368_independent_witness')" == 13 ]]
 if wsql 'UPDATE public.portal_f368_independent_witness SET sequence=12' >/dev/null 2>&1; then
  echo 'External witness rollback must be refused' >&2; exit 1
 fi
-[[ "$(wsql 'SELECT sequence FROM public.portal_f368_independent_witness')" == 13 ]]
+
+# CI-only synthetic database failure in an explicit transaction AFTER an
+# attempted session revocation but BEFORE the new local epoch is recorded.
+# PostgreSQL rolls it all back; the external floor stays at 13.
+if sql portal_identity_dev "BEGIN;
+ UPDATE public.portal_auth_sessions
+   SET status='revoked',revoked_at=GREATEST(clock_timestamp(),issued_at),
+       updated_at=clock_timestamp()
+   WHERE session_sha256='$token' AND status='active';
+ SELECT 1/0;
+ COMMIT" >/dev/null 2>&1; then
+ echo 'Forced failed source transaction must NOT succeed' >&2; exit 1
+fi
+[[ "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" == t ]]
+[[ "$(sql portal_identity_dev 'SELECT witnessed_sequence FROM public.portal_restore_epoch_f368')" == 12 ]]
+
+# Capture the genuinely live mismatch from both clusters. This demonstrably
+# requires a mandatory online serving fence in a real product; the current
+# Portal does NOT have one, so NO GO regardless of this CI test result.
+sql portal_identity_dev "SELECT json_build_object('organization',organization,
+ 'instance',instance,'generation',generation,
+ 'session_revision',session_revision,'membership_revision',membership_revision,
+ 'witnessed_sequence',witnessed_sequence)
+ FROM public.portal_restore_epoch_f368" > "$scratch/restored.json"
+wsql "SELECT json_build_object('organization',organization,
+ 'instance',instance,'generation_floor',generation_floor,
+ 'session_floor',session_floor,'membership_floor',membership_floor,
+ 'sequence',sequence) FROM public.portal_f368_independent_witness" > "$scratch/witness.json"
+chmod 0600 "$scratch/restored.json" "$scratch/witness.json"
+blocked
+# The failed local write left an active session. This would be unsafe to serve
+# unless every auth/permission request checks the newer witness floor.
+[[ "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" == t ]]
+
+# Now a successful *single* source transaction revokes the session and records
+# the witness epoch. It may still not authorize serving after any restore.
+sql portal_identity_dev "BEGIN;
+ UPDATE public.portal_auth_sessions
+   SET status='revoked',revoked_at=GREATEST(clock_timestamp(),issued_at),
+       updated_at=clock_timestamp()
+   WHERE session_sha256='$token' AND status='active';
+ UPDATE public.portal_restore_epoch_f368
+   SET session_revision=4,witnessed_sequence=13
+   WHERE organization='org_f368' AND instance='instance_f368'
+     AND session_revision=3 AND witnessed_sequence=12;
+ COMMIT" >/dev/null
+[[ "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" == f ]]
+[[ "$(sql portal_identity_dev 'SELECT witnessed_sequence FROM public.portal_restore_epoch_f368')" == 13 ]]
+
+# A matching live vector means only consistency evidence (NOT serving
+# authorization), as proven by the preexisting strict F355 fail-closed tool.
+sql portal_identity_dev "SELECT json_build_object('organization',organization,
+ 'instance',instance,'generation',generation,
+ 'session_revision',session_revision,'membership_revision',membership_revision,
+ 'witnessed_sequence',witnessed_sequence)
+ FROM public.portal_restore_epoch_f368" > "$scratch/live.json"
+chmod 0600 "$scratch/live.json"
+env GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=github-hosted PORTAL_DB_DISPOSABLE_CI=1 \
+ python3 infra/development/portal-db/recovery_epoch_preflight.py \
+ --snapshot "$scratch/live.json" --witness "$scratch/witness.json" \
+ > "$scratch/live-verdict.json"
+grep -q '"status": "LAB_CONSISTENT_STILL_NO_SERVING"' "$scratch/live-verdict.json"
+grep -q '"can_authorize_http": false' "$scratch/live-verdict.json"
 
 # Isolated restore BENEATH app-connection quarantine; it never becomes live.
 [[ "$(sql postgres "SELECT count(*) FROM pg_database WHERE datname='$target'")" == 0 ]]
