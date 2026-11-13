@@ -167,9 +167,10 @@ SQL);
         self::assertSame('draft',$draft['state']);
         self::assertNull($draft['source_claim_id']);
         self::assertSame(1,(int)$draft['project_revision']);
+        // F12 adds an explicit readiness trigger: incomplete checklists are
+        // rejected as authorization failures before the table CHECK.
         self::denied($this->admin,
-            "UPDATE public.portal_service_projects SET state='review'",
-            [],'23514');
+            "UPDATE public.portal_service_projects SET state='review'");
         $this->bind();
         $bound=$this->state();
         self::assertSame(self::CLAIM_A,$bound['source_claim_id']);
