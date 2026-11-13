@@ -162,7 +162,14 @@ class TestPrivatePreview(unittest.TestCase):
             link = Path(root) / "symlink.zip"
             pages = fixture_pages()
             write_fixture(source, pages, fixture_manifest(pages))
-            link.symlink_to(source)
+            try:
+                link.symlink_to(source)
+            except OSError:
+                # GitHub-hosted Windows without Developer Mode may deny symlink
+                # creation; Linux CI continues to exercise the refusal.
+                if sys.platform == "win32":
+                    self.skipTest("Windows runner lacks symlink creation privilege")
+                raise
             with self.assertRaises(preview.BundleRefused):
                 preview.load_verified_bundle(link)
 
