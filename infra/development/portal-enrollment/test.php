@@ -32,6 +32,12 @@ $db->exec("CREATE TRIGGER enrollment_ci_failure BEFORE INSERT ON public.portal_m
 $deny(static fn()=>$prepare());
 foreach(['portal_identities','portal_organizations','portal_memberships']as$table)$check((int)$db->query('SELECT count(*) FROM public.'.$table)->fetchColumn()===0);
 $db->exec('DROP TRIGGER enrollment_ci_failure ON public.portal_memberships; DROP FUNCTION public.enrollment_ci_failure()');
+$db->exec("GRANT SELECT ON public.portal_identities TO portal_browser_runtime");
+$deny(static fn()=>$prepare());
+$db->exec("REVOKE SELECT ON public.portal_identities FROM portal_browser_runtime");
+$db->exec("ALTER TABLE public.portal_identities NO FORCE ROW LEVEL SECURITY");
+$deny(static fn()=>$prepare());
+$db->exec("ALTER TABLE public.portal_identities FORCE ROW LEVEL SECURITY");
 $result=$prepare();
 $check($result['status']==='invited'&&$result['email_verified']===false&&$result['business_authorized']===false);
 $row=$db->query('SELECT * FROM public.portal_identities')->fetch(PDO::FETCH_ASSOC);

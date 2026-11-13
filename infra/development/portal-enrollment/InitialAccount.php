@@ -45,6 +45,15 @@ final class InitialAccount
                 $db->exec('LOCK TABLE public.'.$table.' IN SHARE ROW EXCLUSIVE MODE');
                 if((int)$db->query('SELECT count(*) FROM public.'.$table)->fetchColumn()!==0)throw new RuntimeException();
             }
+            $rls=(int)$db->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+                WHERE n.nspname='public' AND c.relname IN ('portal_identities','portal_organizations','portal_memberships','portal_membership_grants','portal_auth_sessions','portal_service_resource_claims')
+                AND c.relrowsecurity AND c.relforcerowsecurity")->fetchColumn();
+            $roles=(int)$db->query("SELECT count(*) FROM pg_roles WHERE rolname IN ('portal_browser_runtime','portal_browser_envelope_runtime')
+                AND rolcanlogin AND NOT (rolsuper OR rolinherit OR rolbypassrls OR rolcreatedb OR rolcreaterole)")->fetchColumn();
+            $exposed=(int)$db->query("SELECT count(*) FROM unnest(ARRAY['portal_browser_runtime','portal_browser_envelope_runtime']) r(role_name)
+                CROSS JOIN unnest(ARRAY['public.portal_identities','public.portal_organizations','public.portal_memberships','public.portal_membership_grants','public.portal_auth_sessions','public.portal_service_resource_claims']) t(table_name)
+                WHERE has_table_privilege(r.role_name,t.table_name,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")->fetchColumn();
+            if($rls!==6||$roles!==2||$exposed!==0)throw new RuntimeException();
             $identity=self::uuid();$organization=self::uuid();$membership=self::uuid();
             $q=$db->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision,created_at,updated_at)
                 VALUES(?,'imagine-development',?,'active',1,clock_timestamp(),clock_timestamp())");$q->execute([$organization,$name]);
