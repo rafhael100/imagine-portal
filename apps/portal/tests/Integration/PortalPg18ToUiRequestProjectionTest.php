@@ -243,11 +243,20 @@ SQL);
 
     public function test_open_transaction_cannot_be_reused_as_projection_context(): void
     {
+        $reader = $this->reader();
         $this->admin->beginTransaction();
         try {
-            $result=$this->reader()->project(self::org(),self::PROJECT_A);
+            $result=$reader->project(self::org(),self::PROJECT_A);
             self::assertSame([],$result->items);
             self::assertSame(0,$result->total);
+            try {
+                new DisposablePg18ProjectInboxReader($this->admin);
+                self::fail('A reader must never be created inside another transaction.');
+            } catch (RuntimeException $exception) {
+                self::assertStringContainsString(
+                    'available only in disposable CI', $exception->getMessage()
+                );
+            }
         } finally {
             $this->admin->rollBack();
         }
