@@ -112,7 +112,15 @@ $case([$snapshot],[[]],$denied,false);
 $case([$snapshot],[$receipt],$denied,false,true,true);
 $case([$snapshot],[$receipt],$denied,false,true,false,$now+130);
 $case([$snapshot],[$receipt],$denied,false,true,false,$now-40);
-$case([$snapshot],[$receipt],$postDenied,true,true,false,$now+70);
+// The signed receipt may expire while a candidate DB read is executing.
+$expiringSource=new FakeOnlineWitnessSource([$snapshot],[$receipt]);
+$times=[$now,$now+70];
+$expiringFence=new Fence($expiringSource,new Verifier(),$public,'org_f371','instance_f371',
+    static function()use(&$times):int{return array_shift($times);});
+$inside=0;
+$expired=$expiringFence->inspectReadOnly(static function()use(&$inside):bool{$inside++;return true;});
+if($expired['status']!==$postDenied||$inside!==1)throw new RuntimeException('F371 post-read expiry was not blocked');
+$count++;
 // Current source changes after the read-only callback: must deny.
 $case([$snapshot,[...$snapshot,'witnessed_sequence'=>12]],[$receipt],$postDenied,true);
 $case([$snapshot],[$receipt,[...$receipt,'sequence'=>14]],$postDenied,true);
