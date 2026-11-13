@@ -114,6 +114,15 @@ def create_local_server(pages: dict[str, bytes], port: int) -> ThreadingHTTPServ
         def log_message(self, format: str, *args: object) -> None:
             return
 
+        def parse_request(self) -> bool:
+            # BaseHTTPRequestHandler canonically rewrites //path to /path.
+            # Preserve the ORIGINAL request-target to refuse ambiguous paths.
+            raw_parts = self.raw_requestline.split(b" ", 2)
+            self._ambiguous_raw_target = (
+                len(raw_parts) >= 2 and raw_parts[1].startswith(b"//")
+            )
+            return super().parse_request()
+
         def _headers(self, status: int, length: int = 0) -> None:
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -130,6 +139,9 @@ def create_local_server(pages: dict[str, bytes], port: int) -> ThreadingHTTPServ
             correct_host = "127.0.0.1:" + str(self.server.server_port)
             if self.headers.get("Host") != correct_host:
                 self._headers(403)
+                return
+            if getattr(self, "_ambiguous_raw_target", False):
+                self._headers(404)
                 return
             # Reject queries, encodings, duplicate slashes, traversal and names
             # not present in the integrity-verified, immutable in-memory bundle.
