@@ -9,6 +9,8 @@ if(PHP_SAPI!=='cli'||$argc!==1
     ||getenv('PORTAL_F381_CI')!=='DISPOSABLE_ONLY'
     ||getenv('PORTAL_F374_CI')!=='DISPOSABLE_ONLY')exit(64);
 
+require '/var/www/html/vendor/autoload.php';
+
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication;
 use App\Infrastructure\Identity\PostgresPortalPermissionPreflight;
 use App\Infrastructure\Recovery\ChallengeBoundWitnessCandidateVerifier;
