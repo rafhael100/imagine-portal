@@ -73,6 +73,11 @@ final class DisposableWitnessJournal implements LabExternalWitnessReader
 
     public function observe(OrganizationId $organization): ?LabExternalWitnessFloor
     {
+        // An absent witness is a normal fail-closed test case, not an I/O
+        // warning. Do not let phpunit mask a missing authority as a warning.
+        if (!is_file($this->path)) {
+            return null;
+        }
         $handle = @fopen($this->path, 'rb');
         if ($handle === false) {
             return null;
