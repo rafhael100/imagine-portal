@@ -23,6 +23,141 @@ PAGES = (
 )
 
 
+def audit_loopback_guided_navigation(pages: dict[str, str], browser) -> int:
+    """Exercise real HTML links via ephemeral 127.0.0.1 HTTP, never public hosting."""
+    from http.client import HTTPConnection
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    from urllib.parse import urlsplit
+
+    path_sequence = (
+        "overview.html", "available.html", "requests.html",
+        "preparation.html", "journey.html", "services.html",
+    )
+    if not all(name in pages for name in (*path_sequence, "index.html")):
+        raise ValueError("Guided route files missing from authenticated offline manifest.")
+
+    class MemoryOnlyPreview(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            # No directory listing, public paths, scripts, cookies or filesystem reads.
+            name = self.path.removeprefix("/")
+            payload = pages.get(name) if name == "index.html" or name in path_sequence else None
+            if payload is None:
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
+            content = payload.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Robots-Tag", "noindex, nofollow")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.end_headers()
+            self.wfile.write(content)
+
+        def log_message(self, format: str, *args: object) -> None:
+            # Avoid leaking URL, query or host information into CI logs.
+            return
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), MemoryOnlyPreview) as server:
+        port = int(server.server_address[1])
+        server_thread = Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        local_origin = f"http://127.0.0.1:{port}"
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        rejected: list[str] = []
+        count = 0
+
+        def guard(route) -> None:
+            url = urlsplit(route.request.url)
+            approved = (
+                url.scheme == "http" and url.hostname == "127.0.0.1"
+                and url.port == port and not url.query and not url.fragment
+                and url.path.removeprefix("/") in pages
+            )
+            if approved:
+                route.continue_()
+            else:
+                # Chromium's optional implicit favicon request is inert.
+                if url.path != "/favicon.ico":
+                    rejected.append("non-local-or-unapproved-resource")
+                route.abort()
+
+        page.route("**/*", guard)
+        try:
+            response = page.goto(local_origin + "/index.html", wait_until="domcontentloaded")
+            if response is None or response.status != 200:
+                raise ValueError("Local index page was not served successfully.")
+            if page.locator("a[data-guide-start]").count() != 1:
+                raise ValueError("Guided route start is not unique.")
+            page.locator("a[data-guide-start]").click()
+            page.wait_for_url(local_origin + "/" + path_sequence[0])
+            count += 1
+            for index, name in enumerate(path_sequence):
+                if page.url != local_origin + "/" + name:
+                    raise ValueError("Guided navigation reached wrong page.")
+                guide = page.locator('nav[data-guided-flow="portal"]')
+                if (guide.count() != 1
+                    or guide.get_attribute("data-step-number") != str(index + 1)
+                    or guide.locator('[aria-current="step"]').count() != 1):
+                    raise ValueError("Guided step number, label or active state incorrect.")
+                if page.locator("form, input, button, script").count() != 0:
+                    raise ValueError("Synthetic guided page contains an active element.")
+                if index > 0:
+                    prev_link = guide.locator("a[data-guide-prev]")
+                    if (prev_link.count() != 1
+                        or prev_link.get_attribute("href") != path_sequence[index - 1]):
+                        raise ValueError("Missing or incorrect previous step.")
+                    prev_link.click()
+                    page.wait_for_url(local_origin + "/" + path_sequence[index - 1])
+                    count += 1
+                    # Return forward again, preserving the exact intended step.
+                    back_forward = page.locator('nav[data-guided-flow="portal"] a[data-guide-next]')
+                    if back_forward.count() != 1 or back_forward.get_attribute("href") != name:
+                        raise ValueError("Previous step cannot continue the same journey.")
+                    back_forward.click()
+                    page.wait_for_url(local_origin + "/" + name)
+                    count += 1
+                if index < len(path_sequence) - 1:
+                    next_link = guide.locator("a[data-guide-next]")
+                    if (next_link.count() != 1
+                        or next_link.get_attribute("href") != path_sequence[index + 1]):
+                        raise ValueError("Missing or incorrect next step.")
+                    next_link.click()
+                    page.wait_for_url(local_origin + "/" + path_sequence[index + 1])
+                    count += 1
+                else:
+                    if guide.locator("a[data-guide-next]").count() != 0:
+                        raise ValueError("Final step must not navigate beyond the journey.")
+                    end_link = guide.locator("a[data-guide-end]")
+                    if end_link.count() != 1 or end_link.get_attribute("href") != "index.html":
+                        raise ValueError("Final step must return to index.")
+                    end_link.click()
+                    page.wait_for_url(local_origin + "/index.html")
+                    count += 1
+            if rejected:
+                raise ValueError("Unexpected resource request in local guided navigation.")
+            # The same loopback origin must not expose routes, files or dotfiles.
+            connection = HTTPConnection("127.0.0.1", port, timeout=5)
+            try:
+                connection.request("GET", "/admin")
+                answer = connection.getresponse()
+                if answer.status != 404:
+                    raise ValueError("Non-approved HTTP route unexpectedly reachable.")
+                answer.read()
+            finally:
+                connection.close()
+        finally:
+            page.close()
+            server.shutdown()
+            server_thread.join(timeout=5)
+        return count
+
+
 def audit(archive: Path, browser_executable: str | None = None, screenshots_dir: Path | None = None) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -64,6 +199,7 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
     offline_nav_checks = 0
     guided_clicks = 0
     guided_pages = 0
+    loopback_http_navigation_checks = 0
     mobile_header_checks = 0
     max_mobile_header_height = 0.0
     visual_evidence: list[dict] = []
@@ -235,6 +371,8 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
                                 if (page.url != (root / "index.html").resolve().as_uri()
                                     or page.locator("a[data-guide-start]").count() != 1):
                                     errors.append({"reason": "guided_return_failed"})
+            if not errors:
+                loopback_http_navigation_checks = audit_loopback_guided_navigation(pages, browser)
             if screenshots_dir is not None and not errors:
                 if screenshots_dir.exists() or screenshots_dir.is_symlink():
                     raise ValueError("Visual review requires a new output directory.")
@@ -282,6 +420,9 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
         "offline_navigation_checks": offline_nav_checks,
         "guided_flow_pages": guided_pages,
         "guided_flow_clicks": guided_clicks,
+        "loopback_http_navigation_checks": loopback_http_navigation_checks,
+        "loopback_scope": "127.0.0.1-only",
+        "public_endpoint_tested": False,
         "manifest_integrity_verified": True,
         "passed": not errors,
         "issues": errors,
