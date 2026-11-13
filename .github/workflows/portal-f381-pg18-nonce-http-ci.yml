@@ -1,0 +1,132 @@
+name: Portal F381 - PG18 sessions and permissions vs nonce Worker HTTPS (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/NonceBoundPortalIdentityReadCandidate.php'
+      - 'infra/development/portal-recovery/f381-*'
+      - 'infra/development/portal-recovery/f380-challenge-https-fixture.mjs'
+      - '.github/workflows/portal-f381-pg18-nonce-http-ci.yml'
+permissions:
+  contents: read
+jobs:
+  real-postgres-and-worker-in-one-isolated-network:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    env:
+      PORTAL_F381_CI: DISPOSABLE_ONLY
+      PORTAL_F373_CI: DISPOSABLE_ONLY
+      PORTAL_F374_CI: DISPOSABLE_ONLY
+      PORTAL_ENROLLMENT_CI: DISPOSABLE_ONLY
+      PORTAL_RESTORE_QUARANTINE_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Provision disposable PostgreSQL18 foundation, NO external serving
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Seed real PostgreSQL session and scope, run actual Worker v2 HTTPS and verify both together
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F381_CI" = DISPOSABLE_ONLY
+          root="$GITHUB_WORKSPACE"
+          scratch="$(mktemp -d)"
+          # Runner owns the directory; group 82 permits the read-only provision
+          # container and isolated Node fixture to create only CI artifacts.
+          sudo chgrp 82 "$scratch"
+          chmod 770 "$scratch"
+          container_id=''
+          cleanup(){
+            if [[ -n "$container_id" ]]; then sudo docker rm -f "$container_id" >/dev/null 2>&1 || true; fi
+            sudo rm -rf -- "$scratch"
+          }
+          trap cleanup EXIT
+          provision() {
+            sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml \
+              run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F373_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F374_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F380_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F381_CI=DISPOSABLE_ONLY \
+              -v "$root/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$root/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$root/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$root/infra/development/portal-recovery:/opt/portal-recovery:ro" \
+              -v "$scratch:/opt/f381:rw" provision "$@"
+          }
+          node -v
+          php -v
+          node --check infra/development/portal-recovery/f380-challenge-https-fixture.mjs
+          provision php -l /var/www/html/app/Infrastructure/Recovery/NonceBoundPortalIdentityReadCandidate.php
+          provision php -l /opt/portal-recovery/f381-seed-pg18.php
+          provision php -l /opt/portal-recovery/test-f381-pg18-https.php
+          if provision php /opt/portal-recovery/f381-seed-pg18.php extra; then
+            echo 'F381 seed must refuse nonzero CLI args'
+            exit 1
+          fi
+          provision php /opt/portal-recovery/f381-seed-pg18.php
+          test -s "$scratch/scope.json"
+          sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml ps
+          postgres_id="$(sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml ps -q postgres)"
+          test -n "$postgres_id"
+
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=witness.f380.test.invalid' \
+            -addext 'subjectAltName=DNS:witness.f380.test.invalid' \
+            -keyout "$scratch/leaf.key" -out "$scratch/leaf.crt" >/dev/null 2>&1
+          tls_pin="sha256//$(openssl x509 -in "$scratch/leaf.crt" -noout -pubkey |
+            openssl pkey -pubin -outform DER |
+            openssl dgst -sha256 -binary | openssl base64 -A)"
+          test "${#tls_pin}" -eq 52
+          printf %s "$tls_pin" > "$scratch/tls-pin.txt"
+          printf 'ok\n' > "$scratch/scenario"
+          sudo chown 82:82 "$scratch/leaf.key" "$scratch/leaf.crt" "$scratch/tls-pin.txt" "$scratch/scenario"
+          sudo chmod 600 "$scratch/leaf.key" "$scratch/leaf.crt" "$scratch/tls-pin.txt" "$scratch/scenario"
+
+          # The TLS/Worker container and provision share ONLY the disposable
+          # PostgreSQL container's network namespace. No published TCP port.
+          container_id="$(sudo docker run -d \
+            --network "container:$postgres_id" \
+            --user 82:82 \
+            --memory 320m --cpus 1 \
+            -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+            -e PORTAL_F380_CI=DISPOSABLE_ONLY -e PORTAL_F381_CI=DISPOSABLE_ONLY \
+            -v "$root/infra/development/portal-recovery:/repo/infra/development/portal-recovery:ro" \
+            -v "$scratch:/opt/f381:rw" \
+            node:24-alpine node \
+            /repo/infra/development/portal-recovery/f380-challenge-https-fixture.mjs \
+            /opt/f381 /opt/f381/leaf.crt /opt/f381/leaf.key)"
+          test -n "$container_id"
+          ready=0
+          for i in $(seq 1 40); do
+            if [[ -s "$scratch/ed-public.hex" ]]; then ready=1; break; fi
+            if [[ "$(sudo docker inspect -f '{{.State.Running}}' "$container_id")" != true ]]; then
+              echo 'F381 disposable Worker exited before readiness'
+              sudo docker logs "$container_id" | tail -40
+              exit 1
+            fi
+            sleep 0.25
+          done
+          test "$ready" = 1
+          provision php /opt/portal-recovery/test-f381-pg18-https.php
+          if grep -R -E '(NonceBoundPortalIdentityReadCandidate|NonceBoundHttpsWitnessReadCandidate)' \
+              apps/portal/routes apps/portal/bootstrap; then
+            echo 'Review-only read candidates MUST NOT be bound to Laravel HTTP'
+            exit 1
+          fi
+      - name: Destroy only disposable F381 cluster and volumes
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f381-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans

@@ -14,12 +14,27 @@ if(process.env.GITHUB_ACTIONS!=='true'
     ||process.env.PORTAL_F380_CI!=='DISPOSABLE_ONLY'
     ||process.argv.length!==5)process.exit(64);
 const [root,cert,key]=process.argv.slice(2);
+// F381 only: a trusted local PG18 seed exports its *synthetic* random tenant
+// after provisioning. No request can select or override this scope.
+const f381 = process.env.PORTAL_F381_CI === 'DISPOSABLE_ONLY'
+    && process.env.GITHUB_ACTIONS === 'true'
+    && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
+const seeded = f381
+    ? JSON.parse(readFileSync(root + '/scope.json','utf8'))
+    : {organization:'org_f380',instance:'instance_f380'};
+if (typeof seeded.organization !== 'string'
+    || !/^[a-z0-9_-]{1,64}$/.test(seeded.organization)
+    || typeof seeded.instance !== 'string'
+    || !/^[a-z0-9_-]{1,64}$/.test(seeded.instance)) {
+  throw new Error('F381 synthetic seed scope invalid');
+}
+
 const schema=readFileSync(new URL('./f376-worker/schema.sql',import.meta.url),'utf8');
 function database(sessionFloor,sequence){
   const db=new DatabaseSync(':memory:');
   db.exec(schema);
   db.prepare('INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)')
-    .run('org_f380','instance_f380',5,sessionFloor,7,sequence,Math.floor(Date.now()/1000));
+    .run(seeded.organization,seeded.instance,f381?1:5,sessionFloor,7,sequence,Math.floor(Date.now()/1000));
   return db;
 }
 function adapter(db) {
@@ -41,8 +56,8 @@ const {privateKey,publicKey}=generateKeyPairSync('ed25519');
 writeFileSync(root+'/ed-public.hex',
     publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),{mode:0o600});
 const shared={
-  WITNESS_ORGANIZATION:'org_f380',
-  WITNESS_INSTANCE:'instance_f380',
+  WITNESS_ORGANIZATION:seeded.organization,
+  WITNESS_INSTANCE:seeded.instance,
   WITNESS_SIGNING_PKCS8_B64:privateKey.export({format:'der',type:'pkcs8'}).toString('base64'),
   PUBLISHER_HMAC_B64:Buffer.alloc(32,9).toString('base64'),
 };
