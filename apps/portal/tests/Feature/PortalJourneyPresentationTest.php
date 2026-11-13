@@ -20,7 +20,7 @@ final class PortalJourneyPresentationTest extends TestCase
 
     public function test_catalog_order_labels_and_exactly_one_active_item_match_all_seven_views(): void
     {
-        self::assertSame(['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'], array_column(ClientSection::cases(), 'value'));
+        self::assertSame(['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'], array_column(ClientSection::cases(), 'value'));
         foreach (ClientSection::cases() as $section) {
             $html = view('portal.demo.'.$section->value)->render();
             self::assertSame(1, substr_count($html, 'aria-current="page"'));

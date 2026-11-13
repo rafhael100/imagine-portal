@@ -88,7 +88,8 @@ final class PortalNoticesPresentationTest extends TestCase
         foreach ([...array_column($sectionsBefore, 'value'), 'notices'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('<main id="pi-content"', $html);
-            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'src=', 'action=', 'http://', 'https://'] as $forbidden) {
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
+            foreach (['<form', '<input', '<button', '<script', '<iframe', '<details', 'action=', 'http://', 'https://'] as $forbidden) {
                 self::assertStringNotContainsString($forbidden, $html);
             }
             $xpath = $this->document($html);
