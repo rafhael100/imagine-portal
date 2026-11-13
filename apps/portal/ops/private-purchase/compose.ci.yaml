@@ -1,0 +1,6 @@
+services:
+  application:
+    environment:
+      GITHUB_ACTIONS: 'true'
+      PORTAL_PREVIEW_LOOPBACK_TEST: '1'
+      APP_URL: http://127.0.0.1:18083

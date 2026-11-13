@@ -1,0 +1,13 @@
+FROM imagine-portal-private-auth:local
+USER root
+COPY apps/portal/composer.lock /tmp/preview-composer.lock
+RUN cmp composer.lock /tmp/preview-composer.lock && rm /tmp/preview-composer.lock
+COPY apps/portal/app/Homologation ./app/Homologation
+COPY apps/portal/app/Http/Controllers/PurchaseRehearsalController.php ./app/Http/Controllers/
+COPY apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php ./app/Providers/
+COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehearsal
+COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --no-interaction --no-scripts --no-plugins --classmap-authoritative
+USER 82:82
+ENTRYPOINT ["/bin/sh", "-ec"]
+CMD ["mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache; exec php -S 0.0.0.0:8080 private-purchase-router.php"]

@@ -1,0 +1,74 @@
+name: imagine-purchase-preview
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: portal_purchase_rehearsal
+      POSTGRES_PASSWORD_FILE: /run/secrets/admin-password
+    volumes:
+      - data:/var/lib/postgresql
+      - ./.private/admin-password:/run/secrets/admin-password:ro
+      - ./.private/init.sql:/docker-entrypoint-initdb.d/01-preview.sql:ro
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d portal_purchase_rehearsal']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt: [no-new-privileges:true]
+  application:
+    build:
+      context: ../../../..
+      dockerfile: apps/portal/ops/private-purchase/Dockerfile
+    image: imagine-purchase-preview:local
+    environment:
+      PORTAL_PURCHASE_PREVIEW_ENABLED: '1'
+      PORTAL_DEVELOPMENT_AUTH_ENABLED: 'false'
+      APP_ENV: staging
+      APP_DEBUG: 'false'
+      APP_URL: https://portal-dev.imaginecomunica.com.br
+      LOG_CHANNEL: stderr
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    volumes:
+      - ./.private/runtime.json:/run/secrets/preview-runtime.json:ro
+    networks: [private]
+    depends_on:
+      database:
+        condition: service_healthy
+    read_only: true
+    user: '82:82'
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=16m
+      - /var/www/html/storage:rw,nosuid,nodev,size=32m,uid=82,gid=82,mode=0700
+      - /var/www/html/bootstrap/cache:rw,nosuid,nodev,size=8m,uid=82,gid=82,mode=0700
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+  gateway:
+    image: nginxinc/nginx-unprivileged:stable-alpine
+    user: '101:101'
+    ports: ['127.0.0.1:18083:8080']
+    networks: [private, host_access]
+    volumes:
+      - ./gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [application]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=16m']
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.25
+networks:
+  private:
+    internal: true
+  host_access: {}
+volumes:
+  data: {}

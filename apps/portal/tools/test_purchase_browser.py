@@ -1,8 +1,8 @@
 """Real forms in Chromium, synthetic actor only, disposable loopback Laravel/PG."""
-import shutil
+import shutil, os
 from playwright.sync_api import sync_playwright
 
-BASE = 'http://127.0.0.1:18776/_rehearsal/purchase'
+BASE = os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18776/_rehearsal/purchase')
 with sync_playwright() as p:
     chrome = shutil.which('google-chrome') or shutil.which('chromium')
     assert chrome, 'CI Chromium executable is required'
