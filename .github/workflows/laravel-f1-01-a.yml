@@ -95,7 +95,7 @@ jobs:
           php bin/export-portable-preview.php
           test -s storage/app/portal-demo-static/index.html
           test -s storage/app/portal-demo-static/manifest.json
-          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 11
+          test "$(find storage/app/portal-demo-static -maxdepth 1 -type f | wc -l)" -eq 12
 
       - name: Executar QA real offline no Chromium (10 páginas × 7 larguras)
         if: matrix.php == '8.3'
