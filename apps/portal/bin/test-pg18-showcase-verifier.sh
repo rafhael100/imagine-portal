@@ -38,7 +38,7 @@ refresh_digest() {
     $dir=$argv[1];
     $manifest=json_decode(file_get_contents($dir."/manifest.json"),true,512,JSON_THROW_ON_ERROR);
     $manifest["html_sha256"]=hash_file("sha256",$dir."/index.html");
-    file_put_contents($dir."/manifest.json",json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\\n");
+    file_put_contents($dir."/manifest.json",json_encode($manifest,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR));
   ' "$case_dir"
 }
 
