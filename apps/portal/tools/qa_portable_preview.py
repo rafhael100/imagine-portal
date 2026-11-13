@@ -12,6 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import tempfile
 import zipfile
 
 WIDTHS = (320, 375, 390, 640, 768, 1024, 1440)
@@ -61,6 +62,8 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
     scroll_tests = 0
     nav_tests = 0
     offline_nav_checks = 0
+    guided_clicks = 0
+    guided_pages = 0
     mobile_header_checks = 0
     max_mobile_header_height = 0.0
     visual_evidence: list[dict] = []
@@ -182,6 +185,56 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
                                     if nav.evaluate("(e) => e.scrollLeft") < 1:
                                         errors.append({"page": name, "width": width,
                                                        "reason": "sidebar_last_link_not_keyboard_reachable"})
+            # Unlike DOM-only checks, this follows real file:// clicks in
+            # Chromium through every approved step, without an HTTP server.
+            sequence = (
+                "overview.html", "available.html", "requests.html",
+                "preparation.html", "journey.html", "services.html",
+            )
+            if not errors:
+                with tempfile.TemporaryDirectory(prefix="imagine-guided-offline-") as tmp:
+                    root = Path(tmp)
+                    for filename, content in pages.items():
+                        (root / filename).write_text(content, encoding="utf-8")
+                    page.set_viewport_size({"width": 390, "height": 844})
+                    page.goto((root / "index.html").resolve().as_uri(),
+                              wait_until="domcontentloaded", timeout=15000)
+                    if page.locator("a[data-guide-start]").count() != 1:
+                        errors.append({"reason": "missing_guided_start"})
+                    else:
+                        page.locator("a[data-guide-start]").click(timeout=15000)
+                        guided_clicks += 1
+                        for position, filename in enumerate(sequence):
+                            expected = (root / filename).resolve().as_uri()
+                            if page.url != expected:
+                                errors.append({"reason": "guided_click_wrong_target",
+                                               "expected": filename, "url": page.url})
+                                break
+                            active = page.locator('nav[data-guided-flow="portal"]')
+                            if (active.count() != 1 or
+                                active.get_attribute("data-step-number") != str(position + 1) or
+                                active.locator('[aria-current="step"]').count() != 1 or
+                                page.locator("main").count() != 1):
+                                errors.append({"reason": "guided_step_markers_wrong",
+                                               "step": filename})
+                                break
+                            guided_pages += 1
+                            if position < len(sequence) - 1:
+                                if active.locator("a[data-guide-next]").count() != 1:
+                                    errors.append({"reason": "guided_next_missing",
+                                                   "step": filename})
+                                    break
+                                active.locator("a[data-guide-next]").click(timeout=15000)
+                                guided_clicks += 1
+                            else:
+                                if active.locator("a[data-guide-end]").count() != 1:
+                                    errors.append({"reason": "guided_return_missing"})
+                                    break
+                                active.locator("a[data-guide-end]").click(timeout=15000)
+                                guided_clicks += 1
+                                if (page.url != (root / "index.html").resolve().as_uri()
+                                    or page.locator("a[data-guide-start]").count() != 1):
+                                    errors.append({"reason": "guided_return_failed"})
             if screenshots_dir is not None and not errors:
                 if screenshots_dir.exists() or screenshots_dir.is_symlink():
                     raise ValueError("Visual review requires a new output directory.")
@@ -227,6 +280,8 @@ def audit(archive: Path, browser_executable: str | None = None, screenshots_dir:
         "max_mobile_header_height": round(max_mobile_header_height, 2),
         "mobile_header_limit_px": 260,
         "offline_navigation_checks": offline_nav_checks,
+        "guided_flow_pages": guided_pages,
+        "guided_flow_clicks": guided_clicks,
         "manifest_integrity_verified": True,
         "passed": not errors,
         "issues": errors,
