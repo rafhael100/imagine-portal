@@ -167,13 +167,31 @@ SQL);
         self::assertSame('draft',$draft['state']);
         self::assertNull($draft['source_claim_id']);
         self::assertSame(1,(int)$draft['project_revision']);
+        // F12 adds an explicit readiness trigger: incomplete checklists are
+        // rejected as authorization failures before the table CHECK.
         self::denied($this->admin,
-            "UPDATE public.portal_service_projects SET state='review'",
-            [],'23514');
+            "UPDATE public.portal_service_projects SET state='review'");
         $this->bind();
         $bound=$this->state();
         self::assertSame(self::CLAIM_A,$bound['source_claim_id']);
         self::assertSame(2,(int)$bound['project_revision']);
+        // The F12 checkpoint migration is present in this same disposable
+        // database: a bound project must still pass ALL product requirements.
+        $this->admin->exec(<<<'SQL'
+INSERT INTO public.portal_service_project_checkpoints
+    (id,project_id,organization_id,checkpoint_code)
+SELECT gen_random_uuid(), p.id, p.organization_id, code
+  FROM public.portal_service_projects p
+ CROSS JOIN (VALUES('briefing'),('content'),('domain')) AS required(code)
+ WHERE p.id='66666666-6666-4666-8666-666666666666'
+SQL);
+        self::denied($this->admin,
+            "UPDATE public.portal_service_projects SET state='review'");
+        $this->admin->exec(<<<'SQL'
+UPDATE public.portal_service_project_checkpoints
+   SET state='reviewed'
+ WHERE project_id='66666666-6666-4666-8666-666666666666'
+SQL);
         $this->admin->exec("UPDATE public.portal_service_projects SET state='review'");
         self::assertSame('review',$this->state()['state']);
         self::assertSame(3,(int)$this->state()['project_revision']);
