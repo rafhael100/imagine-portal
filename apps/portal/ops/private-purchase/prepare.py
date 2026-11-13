@@ -30,3 +30,19 @@ for name,content,uid in [('runtime.json',json.dumps({'database_password':passwor
     file.chmod(0o400)
     os.chown(file,uid,uid)
 print('Prepared new synthetic workspace; no existing database or account changed.')
+
+# Profile hashes are independent of runtime/database keys.
+users={'accounts':{}}
+if os.environ.get('GITHUB_ACTIONS')=='true':
+    import subprocess
+    for username,role,password_value in [('cliente.teste','client','ci-client-only-2026'),('administrador.teste','admin','ci-admin-only-2026')]:
+        result=subprocess.run(['docker','run','--rm','-i','--entrypoint','php','imagine-purchase-preview:local','-r','echo password_hash(stream_get_contents(STDIN), PASSWORD_DEFAULT);'],input=password_value.encode(),stdout=subprocess.PIPE,check=True)
+        users['accounts'][username]={'role':role,'hash':result.stdout.decode()}
+profiles=root/'profiles'
+profiles.mkdir(mode=0o700)
+os.chown(profiles,82,82)
+file=profiles/'users.json'
+file.write_text(json.dumps(users))
+file.chmod(0o400)
+os.chown(file,82,82)
+

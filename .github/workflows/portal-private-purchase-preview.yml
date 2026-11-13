@@ -6,6 +6,9 @@ on:
       - 'apps/portal/app/Homologation/**'
       - 'apps/portal/app/Http/Controllers/PurchaseRehearsalController.php'
       - 'apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php'
+      - 'apps/portal/app/Providers/FullPortalPreviewServiceProvider.php'
+      - 'apps/portal/app/Http/Controllers/FullPortalPreviewController.php'
+      - 'apps/portal/resources/views/portal/preview/**'
       - 'apps/portal/resources/views/portal/rehearsal/**'
       - 'apps/portal/tools/test_purchase_browser.py'
       - '.github/workflows/portal-private-purchase-preview.yml'
@@ -29,7 +32,7 @@ jobs:
       - name: Start new disposable isolated database and loopback gateway
         working-directory: apps/portal/ops/private-purchase
         run: |
-          sudo python3 prepare.py
+          sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
           docker compose -f compose.yaml -f compose.ci.yaml up -d
           python3 - <<'PY'
@@ -50,10 +53,12 @@ jobs:
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_PREVIEW_SCREENSHOTS_DIR: ${{ runner.temp }}/portal-review-shots
         run: |
           python3 -m venv /tmp/private-purchase-browser
           /tmp/private-purchase-browser/bin/pip install playwright==1.56.0
           /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
           docker compose restart database application
@@ -70,6 +75,47 @@ jobs:
           PY
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
+      - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
+        env:
+          PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+        run: |
+          set -euo pipefail
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
+          echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Validate five synthetic review screenshots and immutable hashes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          folder=Path(os.environ['RUNNER_TEMP'])/'portal-review-shots'
+          manifest=json.loads((folder/'manifest.json').read_text())
+          expected=[
+            '01-login-desktop.png','02-client-services-desktop.png',
+            '03-client-finance-desktop.png','04-admin-orders-desktop.png',
+            '05-admin-mobile.png',
+          ]
+          assert manifest['no_real_customer_data'] is True
+          assert manifest['no_public_deploy'] is True
+          assert [item['name'] for item in manifest['files']]==expected
+          assert {p.name for p in folder.iterdir()}==set(expected+['manifest.json'])
+          for item in manifest['files']:
+              raw=(folder/item['name']).read_bytes()
+              assert raw.startswith(bytes.fromhex('89504e470d0a1a0a'))
+              assert len(raw)>2048
+              assert hashlib.sha256(raw).hexdigest()==item['sha256']
+          print('PASS five real Chromium screenshots with SHA256 manifest; synthetic preview only')
+          PY
+      - name: Preserve private synthetic Portal UI screenshots for 7 days
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-login-client-admin-review
+          path: ${{ runner.temp }}/portal-review-shots/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Diagnose failed synthetic browser flow
+        if: failure()
+        working-directory: apps/portal/ops/private-purchase
+        run: docker compose logs --tail 100 application gateway
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase

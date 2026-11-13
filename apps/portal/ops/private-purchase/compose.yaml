@@ -36,6 +36,7 @@ services:
       MAIL_MAILER: array
     volumes:
       - ./.private/runtime.json:/run/secrets/preview-runtime.json:ro
+      - ./.private/profiles:/run/preview-profiles:ro
     networks: [private]
     depends_on:
       database:
