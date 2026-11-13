@@ -46,14 +46,14 @@ final class InitialAccount
                 if((int)$db->query('SELECT count(*) FROM public.'.$table)->fetchColumn()!==0)throw new RuntimeException();
             }
             $identity=self::uuid();$organization=self::uuid();$membership=self::uuid();
-            $q=$db->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision)
-                VALUES(?,'imagine-development',?,'active',1)");$q->execute([$organization,$name]);
+            $q=$db->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision,created_at,updated_at)
+                VALUES(?,'imagine-development',?,'active',1,clock_timestamp(),clock_timestamp())");$q->execute([$organization,$name]);
             $q=$db->prepare("INSERT INTO public.portal_identities
-                (id,email_normalized,password_hash,status,email_verified_at,mfa_secret_ciphertext,mfa_confirmed_at,mfa_last_used_counter,security_revision)
-                VALUES(?,?,?,'invited',NULL,?,clock_timestamp(),?,1)");
+                (id,email_normalized,password_hash,status,email_verified_at,mfa_secret_ciphertext,mfa_confirmed_at,mfa_last_used_counter,security_revision,created_at,updated_at)
+                VALUES(?,?,?,'invited',NULL,?,clock_timestamp(),?,1,clock_timestamp(),clock_timestamp())");
             $q->execute([$identity,$email,$hash,$cipher,$counter]);
             $q=$db->prepare("INSERT INTO public.portal_memberships
-                (id,identity_id,organization_id,role,status,membership_revision) VALUES(?,?,?,'owner','invited',1)");
+                (id,identity_id,organization_id,role,status,membership_revision,created_at,updated_at) VALUES(?,?,?,'owner','invited',1,clock_timestamp(),clock_timestamp())");
             $q->execute([$membership,$identity,$organization]);
             $db->commit();
             return ['identity'=>$identity,'organization'=>$organization,'status'=>'invited','email_verified'=>false,'business_authorized'=>false];
