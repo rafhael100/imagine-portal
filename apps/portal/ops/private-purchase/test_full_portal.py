@@ -9,6 +9,7 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.goto(BASE+'/client/overview')
     assert page.url.rstrip('/')==BASE
+    assert page.locator('input[name=username]').count()==1,'CI test profiles are not ready'
     page.locator('input[name=username]').fill('cliente.teste')
     page.locator('input[name=password]').fill('wrong-ci-password')
     page.get_by_role('button',name='Entrar',exact=True).click()

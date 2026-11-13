@@ -32,7 +32,7 @@ jobs:
       - name: Start new disposable isolated database and loopback gateway
         working-directory: apps/portal/ops/private-purchase
         run: |
-          sudo python3 prepare.py
+          sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
           docker compose -f compose.yaml -f compose.ci.yaml up -d
           python3 - <<'PY'
