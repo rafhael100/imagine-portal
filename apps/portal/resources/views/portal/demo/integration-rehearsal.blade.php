@@ -4,6 +4,7 @@
     <nav class="pi-panel" aria-label="Navegação interna da prévia integrada">
         <p class="pi-eyebrow">Explorar esta prévia offline</p>
         <a class="pi-badge pi-tone-info" href="#pi-pg18-summary">Resumo</a>
+        <a class="pi-badge pi-tone-info" href="#pi-pg18-details">Projetos</a>
         <a class="pi-badge pi-tone-info" href="#pi-pg18-projects">Preparação</a>
         <a class="pi-badge pi-tone-info" href="#pi-pg18-requests">Solicitações</a>
     </nav>
@@ -23,6 +24,26 @@
                     <p class="pi-metric-label">Solicitações fictícias</p>
                     <p class="pi-number">{{ $overview['requests'] }}</p>
                 </div>
+            </div>
+        </x-portal.panel>
+    </section>
+    <section id="pi-pg18-details" aria-label="Detalhes fictícios de cada serviço">
+        <x-portal.panel title="Acompanhe cada projeto — demonstração integrada">
+            <p>As fichas relacionam os projetos, os itens de preparação e suas solicitações usando somente registros sintéticos previamente conciliados. As próximas etapas são orientações ilustrativas, não tarefas reais.</p>
+            <div class="pi-grid">
+                @foreach ($projectCards as $card)
+                    <article class="pi-panel" aria-label="Projeto fictício {{ $card['reference'] }}">
+                        <p class="pi-eyebrow">{{ $card['product'] }}</p>
+                        <h3>{{ $card['reference'] }}</h3>
+                        <p><strong>Preparação:</strong> {{ $card['preparation'] }}</p>
+                        <p><strong>Progresso:</strong> {{ $card['progress'] }}</p>
+                        <p><strong>Pendências:</strong> {{ $card['pending'] }}</p>
+                        <p><strong>Solicitação:</strong> {{ $card['request'] }}</p>
+                        <p><strong>Estado da solicitação:</strong> {{ $card['request_status'] }}</p>
+                        <p class="pi-muted">{{ $card['request_revision'] }}</p>
+                        <p><strong>Próxima etapa ilustrativa:</strong> {{ $card['next_step'] }}</p>
+                    </article>
+                @endforeach
             </div>
         </x-portal.panel>
     </section>

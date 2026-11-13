@@ -27,6 +27,7 @@ use App\Domain\Organizations\OrganizationId;
 use Tests\Support\DisposablePg18ProjectInboxReader;
 use Tests\Support\DisposablePg18ProjectPreparationReader;
 use Tests\Support\DisposablePg18ShowcaseOverview;
+use Tests\Support\DisposablePg18ServiceCards;
 
 $database = new PDO(
     'pgsql:host=127.0.0.1;port=5432;dbname=portal_browser_lab',
@@ -154,10 +155,16 @@ if ($overview!==[
     throw new RuntimeException('Synthetic PG18 summary does not reconcile.');
 }
 
+$projectCards=DisposablePg18ServiceCards::fromRows($preparation->rows,$items);
+if (count($projectCards)!==3) {
+    throw new RuntimeException('Synthetic project cards are incomplete.');
+}
+
 $html=view('portal.demo.integration-rehearsal',[
     'preparationRows'=>$preparation->rows,
     'requestRows'=>$items,
     'overview'=>$overview,
+    'projectCards'=>$projectCards,
 ])->render();
 
 $logo=public_path('assets/logo-imagine.png');
@@ -185,6 +192,9 @@ foreach ([
     'Visão geral dos serviços','6/10',
     'Conteúdo','Consentimento','Criativos','Orçamento',
     'href="#pi-pg18-projects"','href="#pi-pg18-requests"',
+    'href="#pi-pg18-details"','Acompanhe cada projeto',
+    'Próxima etapa ilustrativa','Aguardar revisão interna do exemplo',
+    'Conferir pendências da preparação fictícia',
 ] as $expected) {
     if (!str_contains($html,$expected)) {
         throw new RuntimeException('Missing synthetic showcase contract: '.$expected);
