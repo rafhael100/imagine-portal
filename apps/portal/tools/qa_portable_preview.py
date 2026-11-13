@@ -106,6 +106,21 @@ def audit_loopback_guided_navigation(pages: dict[str, str], browser) -> int:
                     raise ValueError("Guided step number, label or active state incorrect.")
                 if page.locator("form, input, button, script").count() != 0:
                     raise ValueError("Synthetic guided page contains an active element.")
+                if index > 0:
+                    prev_link = guide.locator("a[data-guide-prev]")
+                    if (prev_link.count() != 1
+                        or prev_link.get_attribute("href") != path_sequence[index - 1]):
+                        raise ValueError("Missing or incorrect previous step.")
+                    prev_link.click()
+                    page.wait_for_url(local_origin + "/" + path_sequence[index - 1])
+                    count += 1
+                    # Return forward again, preserving the exact intended step.
+                    back_forward = page.locator('nav[data-guided-flow="portal"] a[data-guide-next]')
+                    if back_forward.count() != 1 or back_forward.get_attribute("href") != name:
+                        raise ValueError("Previous step cannot continue the same journey.")
+                    back_forward.click()
+                    page.wait_for_url(local_origin + "/" + name)
+                    count += 1
                 if index < len(path_sequence) - 1:
                     next_link = guide.locator("a[data-guide-next]")
                     if (next_link.count() != 1
