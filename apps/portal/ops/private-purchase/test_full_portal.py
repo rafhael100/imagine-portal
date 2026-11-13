@@ -13,7 +13,7 @@ with sync_playwright() as p:
     page.locator('input[name=username]').fill('cliente.teste')
     page.locator('input[name=password]').fill('wrong-ci-password')
     page.get_by_role('button',name='Entrar',exact=True).click()
-    assert page.get_by_role('alert').count()==1
+    assert page.get_by_role('alert').count()==1, ('login response',page.url,page.locator('body').inner_text()[:800])
     page.locator('input[name=password]').fill('ci-client-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/client/overview')

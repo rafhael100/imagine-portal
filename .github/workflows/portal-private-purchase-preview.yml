@@ -74,6 +74,10 @@ jobs:
           PY
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
+      - name: Diagnose failed synthetic browser flow
+        if: failure()
+        working-directory: apps/portal/ops/private-purchase
+        run: docker compose logs --tail 100 application gateway
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase
