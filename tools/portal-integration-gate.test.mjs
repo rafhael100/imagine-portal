@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605, 607, 611, 614, 615]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601, 603, 605, 607, 611, 614, 615, 617, 618, 619, 620]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -448,6 +448,16 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[10].headSha = m.isolatedLots[9].headSha; },
     m => { m.isolatedLots[10].headBranch = m.isolatedLots[9].headBranch; },
     m => { m.isolatedLots[10].requiredWorkflows = []; },
+    m => { m.isolatedLots[11].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[11].pullRequest = m.isolatedLots[10].pullRequest; },
+    m => { m.isolatedLots[11].headSha = m.isolatedLots[10].headSha; },
+    m => { m.isolatedLots[12].baseBranch = m.isolatedLots[10].headBranch; },
+    m => { m.isolatedLots[12].requiredWorkflows = []; },
+    m => { m.isolatedLots[13].headBranch = m.isolatedLots[12].headBranch; },
+    m => { m.isolatedLots[13].baseBranch = m.targetBranch; },
+    m => { m.isolatedLots[14].pullRequest = m.isolatedLots[13].pullRequest; },
+    m => { m.isolatedLots[14].headSha = m.isolatedLots[13].headSha; },
+    m => { m.isolatedLots[14].requiredWorkflows.pop(); },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -628,4 +638,24 @@ test('deny-by-default Laravel witness binding is not a recovery or login permiss
   reviewed = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
   assert.equal(reviewed.evidenceVerified, false);
   assert.equal(reviewed.deployApproved, false);
+});
+
+test('four revocation publication/recheck/persistence lots remain an independent NO-GO chain', () => {
+  for (const [index, id] of [[11,617],[12,618],[13,619],[14,620]]) {
+    const f = isolatedReview(index);
+    assert.equal(f.lot.pullRequest, id);
+    assert.equal(f.lot.baseBranch, f.m.isolatedLots[index-1].headBranch);
+    assert.equal(f.lot.requiredWorkflows.length, 2);
+    const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+    assert.equal(result.evidenceVerified, true);
+    assert.equal(result.decision, 'REVIEW_CANDIDATE_ONLY');
+    assert.equal(result.mergeApproved, false);
+    assert.equal(result.deployApproved, false);
+    assert.equal(result.customerAccessApproved, false);
+    assert.equal(result.antiRollbackApproved, false);
+    f.runs[1].conclusion = 'failure';
+    const blocked = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+    assert.equal(blocked.evidenceVerified, false);
+    assert.equal(blocked.mergeApproved, false);
+  }
 });
