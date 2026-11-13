@@ -69,6 +69,11 @@ final class PortalBrowserAuthTransportTest extends TestCase
         $cookies = $this->browserCookie === null ? [] : [config('session.cookie') => $this->browserCookie];
         $response = $this->call($method, ($origin ?? self::ORIGIN) . '/__auth-test/' . $path,
             [], $cookies, [], array_replace($server, $headers), json_encode($body, JSON_THROW_ON_ERROR));
+        // All response statuses (including success and transient errors) must
+        // retain private gateway protections, never only the 403 fallback.
+        self::assertSame('noindex, nofollow, noarchive, nosnippet', $response->headers->get('X-Robots-Tag'));
+        self::assertSame('DENY', $response->headers->get('X-Frame-Options'));
+        self::assertSame('same-origin', $response->headers->get('Cross-Origin-Resource-Policy'));
         foreach ($response->headers->getCookies() as $cookie) {
             if ($cookie->getName() === config('session.cookie')) {
                 $this->browserCookie = $cookie->getValue();
