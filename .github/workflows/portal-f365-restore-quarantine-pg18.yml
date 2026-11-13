@@ -1,4 +1,4 @@
-name: Portal F365/F366 - Restored PG18 quarantine and adversarial gates
+name: Portal F365/F367 - Restored PG18 quarantine, RLS and concurrency
 on:
   pull_request:
     paths:
@@ -83,6 +83,26 @@ jobs:
           pg pg_restore -h 127.0.0.1 -U postgres --exit-on-error --dbname="$target" < "$scratch/old.dump"
           # Inaccessible recovered copy demonstrably has pre-revocation state.
           test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          # F367 negative: even a second administrative psql client must stop
+          # quarantine; account and session state must remain untouched.
+          pg psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 \
+            -d "$target" -c 'SELECT pg_sleep(20)' > "$scratch/second-client.log" 2>&1 &
+          second_client=$!
+          seen=0
+          for i in $(seq 1 35); do
+            count="$(sql "$target" "SELECT count(*) FROM pg_catalog.pg_stat_activity
+              WHERE datname=current_database() AND pid<>pg_backend_pid()
+                AND query LIKE '%SELECT pg_sleep(20)%'")"
+            if [[ "$count" == 1 ]]; then seen=1; break; fi
+            sleep 0.2
+          done
+          test "$seen" = 1
+          if tool php /opt/portal-recovery/run-ci.php; then
+            echo 'Concurrent restored-DB client must block quarantine.'
+            exit 1
+          fi
+          test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          wait "$second_client"
           # F366 negative: a temporarily disabled FORCE RLS flag must cause
           # immediate NO-GO with zero writes, not a partial cleanup.
           sql "$target" 'ALTER TABLE public.portal_auth_sessions NO FORCE ROW LEVEL SECURITY' >/dev/null
@@ -136,7 +156,7 @@ jobs:
           # Re-running quarantine is harmless but NEVER permits serving.
           tool php /opt/portal-recovery/run-ci.php
           test "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" = f
-          echo 'PASS F365/F366: old dump session blocked; unsafe RLS and unresolved claims refused; email/envelope cleared. NO SERVING.'
+          echo 'PASS F365/F367: concurrent clients, unsafe RLS and unresolved claims refused; old session and pending evidence quarantined. NO SERVING.'
           pg dropdb -h 127.0.0.1 -U postgres --force "$target"
       - name: Remove only disposable CI project
         if: always()
