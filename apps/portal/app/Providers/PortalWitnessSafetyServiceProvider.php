@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\RestoreSafety\DenyingPortalWitnessChallengeTransport;
+use App\Domain\RestoreSafety\DenyingPortalRevocationPublicationTransport;
+use App\Domain\RestoreSafety\PortalRevocationPublicationTransport;
 use App\Domain\RestoreSafety\PortalWitnessChallengeTransport;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +23,10 @@ final class PortalWitnessSafetyServiceProvider extends ServiceProvider
         $this->app->bind(
             PortalWitnessChallengeTransport::class,
             DenyingPortalWitnessChallengeTransport::class,
+        );
+        $this->app->bind(
+            PortalRevocationPublicationTransport::class,
+            DenyingPortalRevocationPublicationTransport::class,
         );
     }
 }
