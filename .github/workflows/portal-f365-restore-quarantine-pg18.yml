@@ -1,4 +1,4 @@
-name: Portal F365 - Isolated restored PG18 quarantine (NO SERVING)
+name: Portal F365/F366 - Restored PG18 quarantine and adversarial gates
 on:
   pull_request:
     paths:
@@ -83,7 +83,51 @@ jobs:
           pg pg_restore -h 127.0.0.1 -U postgres --exit-on-error --dbname="$target" < "$scratch/old.dump"
           # Inaccessible recovered copy demonstrably has pre-revocation state.
           test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          # F366 negative: a temporarily disabled FORCE RLS flag must cause
+          # immediate NO-GO with zero writes, not a partial cleanup.
+          sql "$target" 'ALTER TABLE public.portal_auth_sessions NO FORCE ROW LEVEL SECURITY' >/dev/null
+          if tool php /opt/portal-recovery/run-ci.php; then
+            echo 'Unsafe RLS state must block all quarantine mutations.'
+            exit 1
+          fi
+          test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          sql "$target" 'ALTER TABLE public.portal_auth_sessions FORCE ROW LEVEL SECURITY' >/dev/null
+          # F366 negative: an unreconciled real-looking resource candidate
+          # refuses quarantine without revoking any old auth state.
+          sql "$target" "INSERT INTO public.portal_service_resource_claims(
+            id,organization_id,source_system,source_resource_ref,product_code,state)
+            SELECT gen_random_uuid(),id,'imagine_sites',
+                   'synthetic-f366-unreconciled','sites_onepage','candidate'
+              FROM public.portal_organizations" >/dev/null
+          if tool php /opt/portal-recovery/run-ci.php; then
+            echo 'Unreconciled resource claim must block quarantine.'
+            exit 1
+          fi
+          test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_service_resource_claims")" = 1
+          sql "$target" "DELETE FROM public.portal_service_resource_claims
+            WHERE source_resource_ref='synthetic-f366-unreconciled'" >/dev/null
+          # F366 positive: pending email verification and transient browser
+          # envelope must be retired/purged as part of a successful quarantine.
+          sql "$target" "INSERT INTO public.portal_development_email_challenges(
+            reference,identity_id,organization_id,membership_id,email_normalized,
+            identity_revision,membership_revision,organization_revision,marker,
+            digest,status,attempts,issued_at,expires_at)
+            SELECT repeat('c',32),identity_id,organization_id,membership_id,
+                   email_normalized,identity_revision,membership_revision,
+                   organization_revision,marker,repeat('f',64),
+                   'reserved',0,clock_timestamp(),clock_timestamp()+interval '10 minutes'
+              FROM public.portal_development_email_challenges
+             WHERE status='consumed'" >/dev/null
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_development_email_challenges WHERE status='reserved'")" = 1
+          sql "$target" "INSERT INTO public.portal_browser_envelopes(id_sha256,payload,expires_at)
+            VALUES(repeat('e',64),'synthetic-temp-only',
+                   clock_timestamp()+interval '1 hour')" >/dev/null
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_browser_envelopes")" = 1
           tool php /opt/portal-recovery/run-ci.php
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_browser_envelopes")" = 0
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_development_email_challenges WHERE status='reserved'")" = 0
+          test "$(sql "$target" "SELECT status FROM public.portal_development_email_challenges WHERE reference=repeat('c',32)")" = revoked
           test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = f
           test "$(sql "$target" "SELECT count(*) FROM public.portal_auth_sessions WHERE status<>'revoked'")" = 0
           test "$(sql "$target" "SELECT count(*) FROM public.portal_identities WHERE status='active'")" = 0
@@ -92,7 +136,7 @@ jobs:
           # Re-running quarantine is harmless but NEVER permits serving.
           tool php /opt/portal-recovery/run-ci.php
           test "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" = f
-          echo 'PASS F365: old dump resurrected synthetic session only inside offline copy; quarantine blocked it. NO SERVING.'
+          echo 'PASS F365/F366: old dump session blocked; unsafe RLS and unresolved claims refused; email/envelope cleared. NO SERVING.'
           pg dropdb -h 127.0.0.1 -U postgres --force "$target"
       - name: Remove only disposable CI project
         if: always()
