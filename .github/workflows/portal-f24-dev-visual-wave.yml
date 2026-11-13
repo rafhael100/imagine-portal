@@ -38,7 +38,7 @@ jobs:
           import json
           from pathlib import Path
           report=json.loads(Path('visual-wave-review/manifest.json').read_text())
-          assert report['file_count']==6
+          assert report['file_count']==9
           assert report['logo_blob_sha1']=='678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77'
           assert report['safe_to_merge'] is False
           assert report['production_approved'] is False
@@ -63,7 +63,7 @@ jobs:
           php artisan key:generate --force --no-interaction
           php -l tests/Feature/PortalUiComponentsTest.php
           php artisan test --no-ansi
-      - name: Confirm only the six approved paths changed
+      - name: Confirm only the nine approved paths changed
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -72,7 +72,7 @@ jobs:
           report=json.loads(Path('visual-wave-review/manifest.json').read_text())
           patch=Path('visual-wave-review/visual-wave.patch').read_bytes()
           assert hashlib.sha256(patch).hexdigest()==report['patch_sha256']
-          assert report['file_count']==len(report['changed_files'])==6
+          assert report['file_count']==len(report['changed_files'])==9
           assert 'apps/portal/public/assets/logo-imagine.png' in report['changed_files']
           print('Dev worktree visual wave tested; no protected ref modified.')
           PY
