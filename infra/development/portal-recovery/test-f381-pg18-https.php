@@ -16,6 +16,7 @@ use App\Infrastructure\Recovery\NonceBoundHttpsWitnessReadCandidate;
 use App\Infrastructure\Recovery\NonceBoundPortalIdentityReadCandidate;
 use App\Infrastructure\Recovery\PostgresPortalRecoveryEpochCandidateReader;
 
+$phase='load-runtime';
 try {
     $runtime=json_decode((string)file_get_contents('/run/secrets/runtime.json'),
         true,8,JSON_THROW_ON_ERROR);
@@ -29,8 +30,10 @@ try {
     $dsn='pgsql:host=127.0.0.1;port=5432;dbname=portal_identity_dev';
     $pdoOptions=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_EMULATE_PREPARES=>false];
+    $phase='runtime-pdo';
     $runtimeDb=new PDO($dsn,'portal_browser_runtime',
         $runtime['identity_password'],$pdoOptions);
+    $phase='runtime-auth-adapter';
     $auth=new PostgresPortalBrowserAuthentication($runtimeDb,'portal_identity_dev',
         $runtime['proof_key'],
         (string)base64_decode($runtime['totp_key'],true),
@@ -38,6 +41,7 @@ try {
     );
     $permissions=new PostgresPortalPermissionPreflight($runtimeDb,'portal_identity_dev');
 
+    $phase='admin-epoch';
     $adminPassword=trim((string)file_get_contents('/run/secrets/database-admin'));
     $admin=new PDO($dsn,'postgres',$adminPassword,$pdoOptions);
     unset($adminPassword,$runtime);
@@ -46,6 +50,7 @@ try {
     if(!is_string($oid)||!preg_match('/\A[0-9a-f-]{36}\z/D',$oid)) {
         throw new RuntimeException();
     }
+    $phase='epoch-reader';
     $admin->exec('SET ROLE portal_recovery_epoch_reader');
     $local=new PostgresPortalRecoveryEpochCandidateReader(
         $admin,'portal_identity_dev',$oid,'f373_ci'
@@ -60,6 +65,7 @@ try {
     $dir='/opt/f381';
     $public=trim((string)file_get_contents($dir.'/ed-public.hex'));
     $pin=trim((string)file_get_contents($dir.'/tls-pin.txt'));
+    $phase='https-reader';
     $reader=new NonceBoundHttpsWitnessReadCandidate(
         $local,new ChallengeBoundWitnessCandidateVerifier(),
         'https://witness.f380.test.invalid:18446/v2/portal/recovery-witness',
@@ -89,6 +95,7 @@ try {
         if(file_put_contents($dir.'/scenario',$value."\n")===false)
             throw new RuntimeException();
     };
+    $phase='positive-session';
     $scenario('ok');
     $verify($identity->inspectBusinessSession($reference),
         'LAB_CHALLENGED_READ_STILL_NO_SERVING');
@@ -110,6 +117,7 @@ try {
         'CANDIDATE_SCOPE_OR_PERMISSION_DENIED');
     $check(file_get_contents($dir.'/requests.jsonl')===$before);
 
+    $phase='negative-witness';
     $scenario('replay');
     $verify($identity->inspectBusinessSession($reference),
         'WITNESS_PRECHECK_DENIED');
@@ -126,6 +134,7 @@ try {
     // Local epoch moves forward in isolated CI (admin only). The old
     // independent witness remains behind and MUST be refused.
     $scenario('ok');
+    $phase='epoch-advance';
     $admin->exec('RESET ROLE');
     $admin->exec("UPDATE public.portal_recovery_epoch_candidates
                     SET session_revision=5,witnessed_sequence=14
@@ -138,6 +147,7 @@ try {
         'LAB_CHALLENGED_READ_STILL_NO_SERVING');
 
     // A live, now-revoked session cannot be authorized by a valid receipt.
+    $phase='revoke-session';
     $check($auth->revoke($reference));
     $check(!$auth->isActiveBusinessSession($reference));
     $verify($identity->inspectBusinessSession($reference),
@@ -148,6 +158,7 @@ try {
     $admin->exec('RESET ROLE');
     $verify($identity->inspectBusinessSession($reference),
         'WITNESS_PRECHECK_DENIED');
+    $phase='nonce-uniqueness';
     $requests=file($dir.'/requests.jsonl',FILE_IGNORE_NEW_LINES);
     $check(is_array($requests)&&count($requests)>=18);
     $nonces=[];
@@ -160,6 +171,6 @@ try {
     $check(count($nonces)===count(array_unique($nonces)));
     echo "PASS F381: {$checks} real PostgreSQL18 restricted sessions/grants + signed nonce HTTPS Worker; stale/replay/revoked/role drift denied, NO SERVING.\n";
 } catch(Throwable) {
-    fwrite(STDERR,"FAIL F381: real PG18 + Worker v2 challenged identity rehearsal\n");
+    fwrite(STDERR,"FAIL F381: isolated synthetic phase ".$phase." denied\n");
     exit(1);
 }
