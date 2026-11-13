@@ -1,0 +1,13 @@
+# F380 — Actual nonce-generating HTTPS client and two signed witness reads
+
+F379 proved a signed response must bind to a unique caller challenge. F380 implements the **dormant PHP client** in `NonceBoundHttpsWitnessReadCandidate` and connects it to the existing F374 `PostgresPortalRecoveryEpochCandidateReader` via the new trusted server-side `PortalLiveRecoveryEpochSourceCandidate` interface. The PostgreSQL reader is NOT installed on the VPS and there is still no trustworthy independent witness endpoint.
+
+For every **read-only diagnostic probe**, F380 obtains the server-pinned local epoch, generates a fresh `bin2hex(random_bytes(32))` nonce, fetches a *new* Worker v2 receipt over HTTPS with CA+hostname+TLS SPKI pinning, disables proxies/redirects/caching, enforces tight time, header and body limits, then checks F379 Ed25519 signature/nonce/scope/time/epoch. It performs the diagnostic callback and **repeats the entire live local+remote check with a DIFFERENT nonce**. The two verified epoch vectors must be identical. All error/malformed/timeout conditions deny the probe.
+
+A positive diagnostic produces only `LAB_CHALLENGED_READ_STILL_NO_SERVING`. It NEVER returns HTTP authorization, permission, session issuance, recovery or deploy. A valid witness is a necessary condition, not a substitute for a database transaction fence or replay-proof authorization path.
+
+## Verified only in disposable GitHub CI
+
+The test runs a localhost HTTPS server that invokes the actual F376 Worker v2 with an in-memory SQLite D1 adapter, synthetic Ed25519 signing key and synthetic TLS certificate. PHP 8.3 and 8.4 make REAL curl/TLS connections. The fixture verifies every nonce is unique and exercises a captured prior receipt being replayed at pre- and post-check, tampering, v1 response, network/timeout, wrong content type, oversized response/headers, redirect, an independently advanced witness, local source drift/outage, wrong TLS/SPKI and wrong public key. A real Cloudflare account or external D1 is NOT used.
+
+This does not close Portal security issue #64. The present PostgreSQL reader is in quarantine with a NOLOGIN candidate role and does not provide approved tenant isolation for runtime access. There is no operational independent witness endpoint, secure publisher signing/custody, verified anti-rollback across two administrative domains, safe error/recovery coordination, middleware enforcement on every auth/permission path, resource ACL handling, offline caches, key rotation, Cloudflare TLS edge pin strategy, HA or DR testing. All these must be reviewed before any release. No Laravel route binding, main merge, VPS changes, Cloudflare deploy, DNS change, real credentials or spending.

@@ -12,7 +12,7 @@ use Throwable;
  * No application/browser grants, no HTTP route, no serving authorization.
  * Production credential/role conversion remains unapproved.
  */
-final readonly class PostgresPortalRecoveryEpochCandidateReader
+final readonly class PostgresPortalRecoveryEpochCandidateReader implements PortalLiveRecoveryEpochSourceCandidate
 {
     public function __construct(
         private PDO $db,
