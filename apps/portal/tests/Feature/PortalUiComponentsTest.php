@@ -18,9 +18,9 @@ final class PortalUiComponentsTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_all_seven_unmounted_screens_render_semantic_demo_content(): void
+    public function test_all_eight_unmounted_screens_render_semantic_demo_content(): void
     {
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
+        foreach (['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('lang="pt-BR"', $html);
             self::assertStringContainsString('name="viewport"', $html);
@@ -33,7 +33,7 @@ final class PortalUiComponentsTest extends TestCase
             self::assertStringNotContainsString('<form', $html);
             self::assertStringNotContainsString('<script', $html);
             self::assertStringNotContainsString('<iframe', $html);
-            self::assertStringNotContainsString('src=', $html);
+            self::assertSame(1, substr_count($html, 'src="/assets/logo-imagine.png"'));
             preg_match_all('/href="([^"]*)"/', $html, $links);
             self::assertSame(['#pi-content'], $links[1]);
         }
@@ -59,7 +59,8 @@ final class PortalUiComponentsTest extends TestCase
         foreach ($templates as $template) {
             $html = Blade::render($template, compact('attack'));
             self::assertStringContainsString(e($attack), $html);
-            self::assertStringNotContainsString('<img', $html);
+            $expectedLogoCount = str_contains($template, '<x-portal.layout') ? 1 : 0;
+            self::assertSame($expectedLogoCount, substr_count($html, 'src="/assets/logo-imagine.png"'));
             self::assertStringNotContainsString($attack, $html);
         }
     }
