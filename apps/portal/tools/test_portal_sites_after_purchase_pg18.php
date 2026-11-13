@@ -243,5 +243,49 @@ p0check((int)$summary['projects'] === 2
     && (int)$summary['nonces'] === 4,
     'exactly two signed projects and outbox events with four committed nonces.');
 p0check(!$sites->inTransaction(), 'no open transactions after denials.');
+
+// Evidence is intentionally metadata-only. No order IDs, notes, company data,
+// secrets, sample credentials, raw session, full HTTP URLs or tokens leave CI.
+$reportsDir=(string)getenv('RUNNER_TEMP');
+if($reportsDir!=='' && is_dir($reportsDir) && !is_link($reportsDir)) {
+    $claims=[
+        'schema'=>'imagine.p0.comercial-portal-sites.homologation-evidence.v1',
+        'commercial_astrobuilt_sha'=>'b0aefbd01f55cbcdb1653a798f05a83b866e3d33',
+        'portal_signer_candidate_sha'=>'bf1b2794de4d6000f120ffa2b1e6dd557f34c35e',
+        'sites_signed_verifier_sha'=>'21732e9558b730e38a6845adb593d29f309ff6a9',
+        'sites_postgres_candidate_sha'=>'3d20d83d544577a70c091ca1725c084ab6824d2a',
+        'commercial_to_portal_http_journeys'=>4,
+        'portal_pg18_durable_fake_purchases'=>4,
+        'sites_pg18_admitted_projects'=>2,
+        'sites_pg18_outbox_events'=>2,
+        'sites_pg18_replay_nonces'=>4,
+        'performance_products_excluded_from_sites'=>2,
+        'cross_tenant_forgeries_accepted'=>0,
+        'network_scope'=>'loopback_only',
+        'synthetic_only'=>true,
+        'business_iam_authenticated'=>false,
+        'external_revocation_verified'=>false,
+        'real_payment_processed'=>false,
+        'customer_data_used'=>false,
+        'site_publishing_authorized'=>false,
+        'crm_delivery_authorized'=>false,
+        'vps_deployed'=>false,
+        'production_released'=>false,
+        'release_gate'=>'NO_GO',
+    ];
+    $encoded=json_encode($claims,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+    $evidence=json_encode(
+        ['claims'=>$claims,'sha256'=>hash('sha256',$encoded),'cryptographically_signed'=>false],
+        JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR
+    );
+    $path=$reportsDir.'/p0-commercial-portal-sites-evidence.json';
+    if(file_exists($path)||is_link($path)) {
+        throw new RuntimeException('Refusing overwrite of previous CI evidence.');
+    }
+    if(file_put_contents($path,$evidence."\n",LOCK_EX)===false) {
+        throw new RuntimeException('CI evidence writing failed.');
+    }
+}
+
 echo "PASS P0: 4 HTTP checkout rows -> 2 signed Sites admissions/outbox, 2 Performance denied.\n";
 echo "NO-GO: fictitious product mapping and proof keys, not real Portal IAM or Site serving.\n";
