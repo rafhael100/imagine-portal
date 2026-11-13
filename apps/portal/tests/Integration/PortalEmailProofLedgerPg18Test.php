@@ -79,8 +79,8 @@ final class PortalEmailProofLedgerPg18Test extends TestCase
     {
         $timestamps = $clock === 'expired'
             ? "clock_timestamp()-interval '20 minutes',
-               clock_timestamp()-interval '10 minutes'"
-            : "clock_timestamp(),clock_timestamp()+interval '10 minutes'";
+               clock_timestamp()-interval '11 minutes'"
+            : "clock_timestamp(),clock_timestamp()+interval '9 minutes'";
         $q = $this->admin->prepare(
             "INSERT INTO public.portal_email_proof_challenges
                (identity_id,organization_id,email_normalized,
@@ -126,7 +126,7 @@ final class PortalEmailProofLedgerPg18Test extends TestCase
              (identity_id,organization_id,email_normalized,
               identity_revision,proof_digest,issued_at,expires_at)
              VALUES(CAST(? AS uuid),CAST(? AS uuid),?,1,?,
-                    clock_timestamp(),clock_timestamp()+interval '10 minutes')",
+                    clock_timestamp(),clock_timestamp()+interval '9 minutes')",
             [self::ID,self::ORG,self::EMAIL,$this->proofDigest]
         );
         self::rejected($runtime,
@@ -192,7 +192,7 @@ final class PortalEmailProofLedgerPg18Test extends TestCase
              SET status='consumed',consumed_at=clock_timestamp()");
         self::rejected($this->admin,
             "UPDATE public.portal_email_proof_challenges
-             SET expires_at=clock_timestamp()+interval '10 minutes'");
+             SET expires_at=clock_timestamp()+interval '9 minutes'");
         self::assertSame('pending',$this->admin->query(
             'SELECT status FROM public.portal_email_proof_challenges'
         )->fetchColumn());
@@ -206,7 +206,7 @@ final class PortalEmailProofLedgerPg18Test extends TestCase
              (identity_id,organization_id,email_normalized,identity_revision,
               proof_digest,issued_at,expires_at)
              VALUES(CAST(? AS uuid),CAST(? AS uuid),?,1,?,
-                    clock_timestamp(),clock_timestamp()+interval '10 minutes')",
+                    clock_timestamp(),clock_timestamp()+interval '9 minutes')",
             [self::ID,self::ORG,self::EMAIL,$this->proofDigest], '23505'
         );
         self::rejected($this->admin,
