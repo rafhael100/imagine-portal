@@ -23,6 +23,11 @@ SELECTED = (
     "apps/portal/resources/views/components/portal/styles.blade.php",
 )
 TEST = "apps/portal/tests/Feature/PortalUiComponentsTest.php"
+OTHER_TESTS = (
+    "apps/portal/tests/Feature/PortalHelpPresentationTest.php",
+    "apps/portal/tests/Feature/PortalNoticesPresentationTest.php",
+    "apps/portal/tests/Feature/PortalRequestsPresentationTest.php",
+)
 
 
 def git(root: Path, *args: str) -> bytes:
@@ -62,6 +67,25 @@ def build(root: Path, worktree: Path, out: Path) -> dict:
         "            self::assertSame($expectedLogoCount, substr_count($html, 'src=\"/assets/logo-imagine.png\"'));",
     )
     target.write_text(source, encoding="utf-8")
+    for test_path in OTHER_TESTS:
+        legacy = worktree / test_path
+        test_source = legacy.read_text(encoding="utf-8")
+        # Replace a blanket ban on *all* image sources with an exact pinned
+        # first-party Imagine logo allowance; retain bans on active content,
+        # non-local URLs, forms and arbitrary script sources.
+        test_source = replace_exact(test_source, "'src=', ", "")
+        logo_assert = (
+            "self::assertSame(1, substr_count($html, "
+            "'src=\"/assets/logo-imagine.png\"'));"
+        )
+        if test_path.endswith("PortalRequestsPresentationTest.php"):
+            before = "        foreach (['<form', '<button'"
+            after = "        " + logo_assert + "\n" + before
+        else:
+            before = '            self::assertStringContainsString(\'<main id="pi-content"\', $html);'
+            after = before + "\n            " + logo_assert
+        test_source = replace_exact(test_source, before, after)
+        legacy.write_text(test_source, encoding="utf-8")
     logo = worktree / SELECTED[0]
     logo_bytes = logo.read_bytes()
     blob = hashlib.sha1(b"blob " + str(len(logo_bytes)).encode() + b"\0" + logo_bytes).hexdigest()
@@ -71,7 +95,7 @@ def build(root: Path, worktree: Path, out: Path) -> dict:
         raise RuntimeError("Active script in candidate layout.")
     changed_raw = git(worktree, "diff", "--name-only", "HEAD", "--")
     changed = [p for p in changed_raw.decode().splitlines() if p]
-    expected = sorted((*SELECTED, TEST))
+    expected = sorted((*SELECTED, TEST, *OTHER_TESTS))
     if changed != expected:
         raise RuntimeError(f"Unexpected visual wave footprint: {changed!r}")
     out.mkdir(mode=0o700, parents=True)
