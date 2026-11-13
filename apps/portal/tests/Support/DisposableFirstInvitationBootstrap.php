@@ -63,15 +63,19 @@ final readonly class DisposableFirstInvitationBootstrap
                 $this->db->exec('LOCK TABLE
                     public.portal_identities, public.portal_organizations,
                     public.portal_memberships, public.portal_membership_grants,
-                    public.portal_auth_sessions, public.portal_auth_attempt_buckets
-                    IN ACCESS EXCLUSIVE MODE');
+                    public.portal_auth_sessions, public.portal_auth_attempt_buckets,
+                    portal_browser_private.proof_key IN ACCESS EXCLUSIVE MODE');
                 foreach ([
                     'portal_identities', 'portal_organizations', 'portal_memberships',
                     'portal_membership_grants', 'portal_auth_sessions',
                     'portal_auth_attempt_buckets',
+                    // A prior signing key means this is no longer a fresh
+                    // standalone first-account laboratory, even with no user.
+                    'portal_browser_private.proof_key',
                 ] as $table) {
                     if ((int) $this->db->query(
-                        'SELECT count(*) FROM public.' . $table
+                        'SELECT count(*) FROM ' .
+                            (str_contains($table, '.') ? $table : 'public.' . $table)
                     )->fetchColumn() !== 0) {
                         throw new RuntimeException('Disposable identity database is not empty.');
                     }
