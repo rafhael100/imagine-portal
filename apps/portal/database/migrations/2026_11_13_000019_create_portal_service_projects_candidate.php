@@ -46,6 +46,7 @@ CREATE TABLE public.portal_service_projects (
         CHECK (project_revision BETWEEN 1 AND 1000000000),
     CONSTRAINT portal_service_project_tenant_ref_uq
         UNIQUE (organization_id, project_ref),
+    CONSTRAINT portal_service_project_claim_unique UNIQUE (source_claim_id),
     CONSTRAINT portal_service_project_claim_scope_fk FOREIGN KEY
         (source_claim_id, organization_id, product_code)
         REFERENCES public.portal_service_resource_claims
