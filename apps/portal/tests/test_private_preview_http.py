@@ -130,6 +130,32 @@ class TestPrivatePreview(unittest.TestCase):
                 with self.assertRaises(preview.BundleRefused):
                     preview.load_verified_bundle(source)
 
+    def test_rehashed_manifest_cannot_authorize_active_html_or_fake_logo(self):
+        # Deliberately regenerate SHA256 after modifying the HTML to prove
+        # checksums alone do not confer semantic safety or visual provenance.
+        modifications = {
+            "javascript_anchor": '<a href="javascript:alert(1)">Ir</a>',
+            "entity_encoded_anchor": '<a href="&#106;avascript:alert(1)">Ir</a>',
+            "inline_event": '<a href="overview.html" onclick="alert(1)">Ir</a>',
+            "meta_refresh": '<meta http-equiv="refresh" content="0;url=/admin">',
+            "remote_css": '<style>@import url(https://example.invalid/mal.css);</style>',
+            "embedded_fake_png": '<img src="data:image/png;base64,QUJDRA==">',
+            "iframe": '<iframe src="about:blank"></iframe>',
+        }
+        for label, injected in modifications.items():
+            with self.subTest(label=label), TemporaryDirectory() as root:
+                source = Path(root) / "synthetic.zip"
+                pages = fixture_pages()
+                original = pages["overview.html"].decode("utf-8")
+                changed = original.replace("</body>", injected + "</body>")
+                if label == "remote_css":
+                    # A direct https:// match is also forbidden, as expected.
+                    changed = changed.replace("https://example.invalid/", "data:")
+                pages["overview.html"] = changed.encode("utf-8")
+                write_fixture(source, pages, fixture_manifest(pages))
+                with self.assertRaises(preview.BundleRefused):
+                    preview.load_verified_bundle(source)
+
     def test_symlink_does_not_open(self):
         with TemporaryDirectory() as root:
             source = Path(root) / "fixture.zip"
