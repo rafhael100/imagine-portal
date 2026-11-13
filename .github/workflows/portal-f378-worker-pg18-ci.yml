@@ -1,0 +1,45 @@
+name: Portal F378 - Real Worker witness first vs PostgreSQL18 restore (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f376-worker/test/f378-*'
+      - '.github/workflows/portal-f378-worker-pg18-ci.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-f378-witness-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  witness-first-worker-and-offline-pg18-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      PORTAL_F378_CI: DISPOSABLE_ONLY
+      PORTAL_F377_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sodium,curl
+          tools: none
+          coverage: none
+      - name: Validate offline-only gates and execute two-store witness-first replay
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          bash -n infra/development/portal-recovery/f376-worker/test/f378-witness-first-ci.sh
+          php -l infra/development/portal-recovery/f376-worker/test/f378-publish-first.php
+          php -l infra/development/portal-recovery/f376-worker/test/f378-verify-witness.php
+          node --check infra/development/portal-recovery/f376-worker/test/f377-https-worker-fixture.mjs
+          if env -u PORTAL_F378_CI bash             infra/development/portal-recovery/f376-worker/test/f378-witness-first-ci.sh; then
+            echo 'F378 must refuse execution without its explicit disposable marker'
+            exit 1
+          fi
+          bash infra/development/portal-recovery/f376-worker/test/f378-witness-first-ci.sh
