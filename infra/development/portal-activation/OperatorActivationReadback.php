@@ -22,7 +22,8 @@ final class OperatorActivationReadback
     public function inspect(string $email):array
     {
         $blocked=self::result('NO_GO');
-        if($email!=='rafhael@imaginecomunicacao.com.br'
+        if(filter_var($email,FILTER_VALIDATE_EMAIL)===false
+            ||$email!==strtolower(trim($email))
             ||preg_match('/\A[a-f0-9]{64}\z/D',$this->proof)!==1
             ||$this->db->inTransaction()) {
             return $blocked;
