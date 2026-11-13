@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'infra/development/portal-recovery/f368-*'
+      - 'infra/development/portal-recovery/test-f369.php'
+      - 'apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php'
       - '.github/workflows/portal-f368-external-witness-pg18.yml'
       - 'infra/development/portal-db/recovery_epoch_preflight.py'
   workflow_dispatch:
@@ -20,6 +22,12 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: sodium
+          tools: none
+          coverage: none
       - name: Preflight no writes outside disposable GitHub context
         run: |
           set -euo pipefail
@@ -27,6 +35,8 @@ jobs:
           test "$RUNNER_ENVIRONMENT" = github-hosted
           bash -n infra/development/portal-recovery/f368-two-clusters-ci.sh
           python3 -m py_compile infra/development/portal-db/recovery_epoch_preflight.py
+          php -l apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php
+          php -l infra/development/portal-recovery/test-f369.php
           if env -u GITHUB_ACTIONS bash infra/development/portal-recovery/f368-two-clusters-ci.sh; then
             echo 'F368 must fail when outside GitHub Actions.'
             exit 1
