@@ -104,3 +104,12 @@ O código de #598 só reserva um **convite fictício em ambiente PG18 descartáv
 O gate também acompanha a [PR #600](https://github.com/rafhael100/imagine-portal/pull/600), **filha exata da #598**, que simula confirmação de e-mail, senha Argon2id e MFA TOTP em PostgreSQL 18 descartável. O manifesto fixa a SHA, a base da PR #598 e cinco workflows por commit, incluindo PHP 8.3/8.4. A comparação incremental não pode ultrapassar 20 commits.
 
 A prova de e-mail é uma rotina exclusiva de testes e não verifica uma caixa postal real; a promoção a `active` ocorre somente para identidade fictícia do banco descartável, sem grants ou sessão. Mesmo com os oito lotes verificados, a auditoria **não cria conta de operador, não funde PRs e não resolve o anti-rollback**; `mergeApproved`, `deployApproved`, `customerAccessApproved` e `antiRollbackApproved` permanecem sempre `false`. A revisão independente, a issue #64 e os requisitos operacionais de #341 permanecem bloqueantes.
+
+
+## Fechamento da etapa #600 — controles de abuso e CI final
+
+A [PR #600](https://github.com/rafhael100/imagine-portal/pull/600) foi atualizada para a SHA `c414afe42f39e3c4c84e3b1e917d5a848dd4c963` (**7 commits incrementais** sobre #598). O contrato de laboratório agora persiste um contador por comprovante de e-mail e recusa a confirmação, inclusive com o token correto, após **cinco palpites inválidos**. Não há reenviar automático, caixa postal real, cadastro de cliente ou escalada de privilégios.
+
+Nesta SHA, os **cinco workflows obrigatórios** passaram: [Node geral #43347023588](https://github.com/rafhael100/imagine-portal/actions/runs/43347023588), [Laravel #43347023778](https://github.com/rafhael100/imagine-portal/actions/runs/43347023778), [GSC sintético #43347023618](https://github.com/rafhael100/imagine-portal/actions/runs/43347023618), [PG18 PHP 8.3/8.4 #43347023584](https://github.com/rafhael100/imagine-portal/actions/runs/43347023584) e [F64 contêiner #43347023620](https://github.com/rafhael100/imagine-portal/actions/runs/43347023620).
+
+A auditoria anterior na [execução #43347261854](https://github.com/rafhael100/imagine-portal/actions/runs/43347261854) recusou corretamente a candidata porque, **no instante da leitura**, a F64 estava em andamento, com `MISSING_OR_FAILED_CI`. O F64 terminou `success` depois. Esta atualização de documentação reexecuta o gate contra a evidência completa **sem alterar a política de fail-closed** ou qualquer SHA de candidato. Resultado aprovado significa somente `REVIEW_CANDIDATE_ONLY`; produção segue NO-GO.
