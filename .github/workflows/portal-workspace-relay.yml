@@ -12,6 +12,6 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v5
-      - name: Test transport without network or credentials
+      - name: Test transport and coordinator without network or credentials
         working-directory: infra/development/portal-mail
-        run: python3 -m unittest -v test_relay.py
+        run: python3 -m unittest discover -v
