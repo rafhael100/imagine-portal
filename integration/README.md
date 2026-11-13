@@ -122,3 +122,12 @@ O gate adota [#601](https://github.com/rafhael100/imagine-portal/pull/601), filh
 A #601 acrescenta uma primitiva de domínio `PortalEmailProof` de emissão aleatória e verificação HMAC-SHA256 com escopo de identidade, organização, e-mail e revisão. O laboratório PG18 registra digest, tenant e revisão; rejeita reaproveitamento de prova por outra empresa/identidade/estado, sem permitir HTTP ou grants. A prova *não é um e-mail entregue*; o armazenamento de chave independente do banco e seu processo de rotação não foram implantados. O anti-rollback operacional #64 e a revisão AppSec/DBA são obrigatórios.
 
 A nova [PR de auditoria incremental](https://github.com/rafhael100/imagine-portal/pulls?q=is%3Apr+portal-integration-gate-email-proof) é **filha de #579**, porque a revisão anterior já continha 49 commits. Não cresce a integração antiga nem autoriza merge para `dev` ou `main`. A auditoria compara todas as nove candidatas pelo respectivo HEAD, base, limites e checks, mas só permite `REVIEW_CANDIDATE_ONLY`. Bits `mergeApproved`, `deployApproved`, `antiRollbackApproved` e `customerAccessApproved` continuam falsos.
+
+
+## Décima revisão: ledger de prova de e-mail sem acesso operacional (#603)
+
+O verificador incorpora [#603](https://github.com/rafhael100/imagine-portal/pull/603), estritamente filho da #601, como **décima candidata**. Sua SHA `c49197409d4d9f118a90b70320d9928cafcb3de1` é fixada com limite de 20 commits e **sete workflows exigidos na mesma versão**: Node geral, Laravel, GSC sintético, PostgreSQL 18 PHP 8.3/8.4, dois testes privados de contêiner e infraestrutura de banco persistente.
+
+A candidata acrescenta apenas uma migration com RLS obrigatório e **nenhuma policy allow**, grants, issuer, rota ou conta real. O ledger limita vigência, tentativas e transições da prova de e-mail, mas **não comprova entrega real** de mensagem nem soluciona o anti-rollback de sessão. A migração não é aplicada fora do PostgreSQL descartável da CI.
+
+Para manter a integração auditável, esta revisão é uma PR filha da #602. A PR #579 continua preservada e o lote monolítico #578 continua bloqueado. Nenhuma evidência verde altera `mergeApproved`, `deployApproved`, `customerAccessApproved` ou `antiRollbackApproved`, que continuam `false`. As issues #64 e #341 e a revisão independente DBA/AppSec seguem abertas.
