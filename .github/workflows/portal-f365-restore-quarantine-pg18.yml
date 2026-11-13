@@ -1,0 +1,102 @@
+name: Portal F365 - Isolated restored PG18 quarantine (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/**'
+      - 'infra/development/portal-activation/**'
+      - '.github/workflows/portal-f365-restore-quarantine-pg18.yml'
+permissions:
+  contents: read
+concurrency:
+  group: portal-f365-restore-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  old-snapshot-replay-and-quarantine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      COMPOSE_PROJECT_NAME: imagine-portal-restore-f365-ci
+      PORTAL_RESTORE_QUARANTINE_CI: DISPOSABLE_ONLY
+      PORTAL_ENROLLMENT_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Disposable PG18 source with authentic identity schema
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Prove old snapshot revalidates then quarantine denies it
+        run: |
+          set -euo pipefail
+          umask 077
+          scratch="$(mktemp -d)"
+          trap 'rm -rf -- "$scratch"' EXIT
+          target=portal_identity_restore_f365_ci
+          tool() {
+            sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" \
+              provision "$@"
+          }
+          pg() {
+            sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml exec -T --user 82:82 postgres \
+              sh -ec 'export PGPASSWORD="$(cat /run/secrets/database-admin)"; exec "$@"' sh "$@"
+          }
+          sql() {
+            pg psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -tA -d "$1" -c "$2"
+          }
+          token="$(printf %s 'synthetic-revoked-later-f365-ci-token' | sha256sum | cut -d' ' -f1)"
+          tool php -l /opt/portal-recovery/IsolatedRestoreQuarantine.php
+          tool php -l /opt/portal-recovery/seed-ci.php
+          tool php -l /opt/portal-recovery/run-ci.php
+          if tool php /opt/portal-recovery/run-ci.php; then
+            echo 'Quarantine must reject a missing isolated restore target.'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/seed-ci.php
+          test "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" = t
+          pg pg_dump -h 127.0.0.1 -U postgres --format=custom portal_identity_dev > "$scratch/old.dump"
+          test -s "$scratch/old.dump"
+          # Source session is revoked only AFTER the old backup. Old snapshot
+          # will resurrect it in a separate database with no runtime CONNECT.
+          sql portal_identity_dev "UPDATE public.portal_auth_sessions
+            SET status='revoked',revoked_at=GREATEST(clock_timestamp(),issued_at),
+                updated_at=clock_timestamp()
+            WHERE session_sha256='$token' AND status='active'" >/dev/null
+          test "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" = f
+          test "$(sql postgres "SELECT count(*) FROM pg_database WHERE datname='$target'")" = 0
+          pg createdb -h 127.0.0.1 -U postgres --template=template0 "$target"
+          sql postgres "REVOKE CONNECT ON DATABASE $target FROM PUBLIC" >/dev/null
+          for role in portal_browser_runtime portal_browser_envelope_runtime; do
+            test "$(sql postgres "SELECT has_database_privilege('$role','$target','CONNECT')")" = f
+          done
+          pg pg_restore -h 127.0.0.1 -U postgres --exit-on-error --dbname="$target" < "$scratch/old.dump"
+          # Inaccessible recovered copy demonstrably has pre-revocation state.
+          test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = t
+          tool php /opt/portal-recovery/run-ci.php
+          test "$(sql "$target" "SELECT public.portal_browser_active('$token')")" = f
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_auth_sessions WHERE status<>'revoked'")" = 0
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_identities WHERE status='active'")" = 0
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_memberships WHERE status='active'")" = 0
+          test "$(sql "$target" "SELECT count(*) FROM public.portal_organizations WHERE status='active'")" = 0
+          # Re-running quarantine is harmless but NEVER permits serving.
+          tool php /opt/portal-recovery/run-ci.php
+          test "$(sql portal_identity_dev "SELECT public.portal_browser_active('$token')")" = f
+          echo 'PASS F365: old dump resurrected synthetic session only inside offline copy; quarantine blocked it. NO SERVING.'
+          pg dropdb -h 127.0.0.1 -U postgres --force "$target"
+      - name: Remove only disposable CI project
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo docker compose -p imagine-portal-restore-f365-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
