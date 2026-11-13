@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 11 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 15 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -107,6 +107,22 @@ export function validateManifest(m) {
       // signatures pass: no live external endpoint or serving authority.
       m.isolatedLots[10]?.baseBranch !== m.isolatedLots[9]?.headBranch ||
       m.isolatedLots[10]?.requiredWorkflows?.length !== 2 ||
+      // Review chain: signed publication -> dual readback ->
+      // separate SQLite monotonic journal -> signed post-commit readback.
+      [
+        [11,617,'review/portal-sec-r03-revocation-publication-proof-2026-11-13',10],
+        [12,618,'review/portal-sec-r03-revocation-readback-gate-2026-11-13',11],
+        [13,619,'review/portal-sec-r03-independent-sqlite-witness-lab-2026-11-13',12],
+        [14,620,'review/portal-sec-r03-signed-sqlite-witness-lab-2026-11-13',13],
+      ].some(([i, pr, head, parent]) =>
+        m.isolatedLots[i]?.pullRequest !== pr ||
+        m.isolatedLots[i]?.headBranch !== head ||
+        m.isolatedLots[i]?.baseBranch !== m.isolatedLots[parent]?.headBranch ||
+        m.isolatedLots[i]?.requiredWorkflows?.length !== 2 ||
+        ['Testes do portal','Validacao isolada Laravel F1-01-A'].some(
+          name => !m.isolatedLots[i]?.requiredWorkflows?.includes(name)
+        )
+      ) ||
       [9, 10].some(i => [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',

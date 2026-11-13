@@ -225,6 +225,50 @@
         "Testes do portal",
         "Validacao isolada Laravel F1-01-A"
       ]
+    },
+    {
+      "pullRequest": 617,
+      "headBranch": "review/portal-sec-r03-revocation-publication-proof-2026-11-13",
+      "baseBranch": "review/portal-sec-r03-witness-reader-default-deny-2026-11-13",
+      "headSha": "b338ba575432fc21b9e61dbed83346b8bfc171ab",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 618,
+      "headBranch": "review/portal-sec-r03-revocation-readback-gate-2026-11-13",
+      "baseBranch": "review/portal-sec-r03-revocation-publication-proof-2026-11-13",
+      "headSha": "2f3ccfce9d543ab0e27fae8ce676bb6234a23ce0",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 619,
+      "headBranch": "review/portal-sec-r03-independent-sqlite-witness-lab-2026-11-13",
+      "baseBranch": "review/portal-sec-r03-revocation-readback-gate-2026-11-13",
+      "headSha": "27ea1c2f76b5c499b21d9d5e8cf98d09241151eb",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
+    },
+    {
+      "pullRequest": 620,
+      "headBranch": "review/portal-sec-r03-signed-sqlite-witness-lab-2026-11-13",
+      "baseBranch": "review/portal-sec-r03-independent-sqlite-witness-lab-2026-11-13",
+      "headSha": "f97ea9c4742261acf6bbe27cd50756c50a855660",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A"
+      ]
     }
   ]
 }
