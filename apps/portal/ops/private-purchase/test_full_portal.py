@@ -33,6 +33,10 @@ with sync_playwright() as p:
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Client finance must read the same persisted fake payments'
     assert page.locator('tr[data-order-reference]').evaluate_all('(rows)=>rows.map(r=>r.dataset.orderReference)')==client_references
     assert page.get_by_text('Não existem faturas, cobranças nem recibos reais aqui.').count()==1
+    page.get_by_role('link',name='Contratar serviço de teste').click()
+    assert '/_rehearsal/purchase' in page.url
+    page.get_by_role('link',name='Voltar ao Portal de teste').click()
+    assert page.url.endswith('/client/overview'), 'Navigation from purchase must preserve authenticated test profile'
     for section in ['overview','services','available','contracts','finance','requests','journey','delivery-review','files','notices','modules','account','help']:
         response=page.goto(BASE+'/client/'+section)
         assert response.status==200,(section,response.status)
