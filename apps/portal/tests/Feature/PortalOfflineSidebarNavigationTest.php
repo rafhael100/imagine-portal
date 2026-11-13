@@ -115,4 +115,70 @@ final class PortalOfflineSidebarNavigationTest extends TestCase
         self::assertFalse(PortablePortalStaticPreview::enablesWebRoutes());
         self::assertFalse(PortablePortalStaticPreview::authorizesCustomerAccess());
     }
+
+    public function test_six_step_guided_preview_never_enables_real_customer_actions(): void
+    {
+        $pages=(new PortablePortalStaticPreview())->export($this->destination);
+        self::assertCount(11,$pages);
+
+        $sequence=[
+            'overview.html','available.html','requests.html',
+            'preparation.html','journey.html','services.html',
+        ];
+        $index=(string)file_get_contents($this->destination.'/index.html');
+        self::assertStringContainsString(
+            '<a data-guide-start href="overview.html">Iniciar o roteiro de exemplo</a>',
+            $index
+        );
+        self::assertStringContainsString('Teste guiado em seis etapas',$index);
+        self::assertStringNotContainsString('data-guided-flow="portal"',$index);
+
+        foreach ($sequence as $position=>$name) {
+            $html=(string)file_get_contents($this->destination.'/'.$name);
+            $dom=new DOMDocument('1.0','UTF-8');
+            $prior=libxml_use_internal_errors(true);
+            try {
+                self::assertTrue($dom->loadHTML('<?xml encoding="UTF-8">'.$html,LIBXML_NONET));
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($prior);
+            }
+            $xp=new DOMXPath($dom);
+            $nav=$xp->query('//nav[@data-guided-flow="portal"]');
+            self::assertNotFalse($nav);
+            self::assertCount(1,$nav);
+            self::assertSame((string)($position+1),$nav->item(0)->getAttribute('data-step-number'));
+            self::assertSame('Roteiro guiado de homologação fictícia',
+                $nav->item(0)->getAttribute('aria-label'));
+            $active=$xp->query('//nav[@data-guided-flow="portal"]//span[@aria-current="step"]');
+            self::assertNotFalse($active);
+            self::assertCount(1,$active);
+
+            $prev=$xp->query('//nav[@data-guided-flow="portal"]//a[@data-guide-prev]');
+            $next=$xp->query('//nav[@data-guided-flow="portal"]//a[@data-guide-next]');
+            $end=$xp->query('//nav[@data-guided-flow="portal"]//a[@data-guide-end]');
+            self::assertNotFalse($prev);
+            self::assertNotFalse($next);
+            self::assertNotFalse($end);
+            self::assertCount($position===0 ? 0 : 1,$prev);
+            self::assertCount($position===5 ? 0 : 1,$next);
+            self::assertCount($position===5 ? 1 : 0,$end);
+            if ($position > 0) self::assertSame($sequence[$position-1],
+                $prev->item(0)->getAttribute('href'));
+            if ($position < 5) self::assertSame($sequence[$position+1],
+                $next->item(0)->getAttribute('href'));
+            if ($position===5) self::assertSame('index.html',
+                $end->item(0)->getAttribute('href'));
+            self::assertStringContainsString('Navegação ilustrativa e offline.',$html);
+            self::assertStringNotContainsString('<form',$html);
+            self::assertStringNotContainsString('<script',$html);
+            self::assertStringNotContainsString('https://',$html);
+        }
+        foreach (['contracts.html','modules.html','help.html','notices.html'] as $name) {
+            $html=(string)file_get_contents($this->destination.'/'.$name);
+            self::assertStringNotContainsString('data-guided-flow="portal"',$html);
+        }
+        self::assertFalse(PortablePortalStaticPreview::enablesWebRoutes());
+        self::assertFalse(PortablePortalStaticPreview::authorizesCustomerAccess());
+    }
 }
