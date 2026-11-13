@@ -11,6 +11,7 @@ on:
       - 'apps/portal/app/Domain/Identity/Browser/**'
       - 'apps/portal/app/Http/**'
       - 'apps/portal/database/security/portal_browser_auth.sql'
+      - 'apps/portal/database/security/portal_browser_principal_candidate.sql'
       - 'apps/portal/database/security/portal_browser_envelopes.sql'
       - 'apps/portal/tests/Integration/PortalBrowserEnvelopePg18Test.php'
       - 'apps/portal/tests/Support/BrowserEnvelopeRaceWorker.php'
@@ -113,6 +114,7 @@ jobs:
           php artisan migrate --path=database/migrations/2026_11_12_000016_fence_portal_identity_revision.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php --force --no-interaction
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_auth.sql
+          psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_principal_candidate.sql
           psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_runtime LOGIN PASSWORD 'ci-browser-runtime-only'"
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_envelopes.sql
           psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_envelope_runtime LOGIN PASSWORD 'ci-browser-envelope-only'"
