@@ -39,6 +39,7 @@ jobs:
           from pathlib import Path
           report=json.loads(Path('visual-wave-review/manifest.json').read_text())
           assert report['file_count']==9
+          assert report['candidate_tree_sha']=='fe9066edab736912e3db9d18eacaa0bcbce9723e'
           assert report['logo_blob_sha1']=='678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77'
           assert report['safe_to_merge'] is False
           assert report['production_approved'] is False
