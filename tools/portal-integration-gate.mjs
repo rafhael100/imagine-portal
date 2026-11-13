@@ -50,13 +50,18 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 2 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 3 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
       m.isolatedLots[1]?.pullRequest !== 597 ||
       m.isolatedLots[1]?.headBranch !== 'review/portal-sec-r03-restore-fence-contract-2026-11-12' ||
       m.isolatedLots[1]?.baseBranch !== m.targetBranch ||
+      m.isolatedLots[2]?.pullRequest !== 598 ||
+      m.isolatedLots[2]?.headBranch !== 'review/portal-first-invitation-pg18-lab-2026-11-12' ||
+      // Private first-invitation rehearsal sits ONLY atop the pinned
+      // login candidate. It cannot be merged into dev independently.
+      m.isolatedLots[2]?.baseBranch !== m.isolatedLots[0]?.headBranch ||
       m.isolatedLots.some(l => !plainRecord(l) ||
         !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
         !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 20 ||
