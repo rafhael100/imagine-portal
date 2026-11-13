@@ -20,7 +20,8 @@ final class PurchaseRehearsalController
         $tenant = app(PurchaseRehearsalScope::class)->organization($request);
         abort_unless(in_array($tenant, ['test-org-a','test-org-b'], true), 403);
         abort_unless(app()->bound(RoleBoundTestPurchase::class), 503);
-        $store = app(RoleBoundTestPurchase::class);
+        try { $store = app(RoleBoundTestPurchase::class); }
+        catch (\Throwable) { abort(503,'Pedido de teste indisponível.'); }
         abort_unless(hash_equals($store->organization(), $tenant), 403);
         return $store;
     }
