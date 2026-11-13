@@ -11,7 +11,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Generates a visual-only OFFLINE file:// preview of nine synthetic Blade
+ * Generates a visual-only OFFLINE file:// preview of ten synthetic Blade
  * screens. No HTTP routes, CRM/Sites connectors, customer identity or writes.
  *
  * This class is deliberately unavailable outside local/testing environments.
@@ -81,6 +81,7 @@ final class PortablePortalStaticPreview
                     throw new LogicException('A single local official logo is mandatory.');
                 }
 
+                $html = $this->linkOfflineSidebar($html, $known);
                 $html = str_replace('<body>', '<body>'.$this->navigation($known, $name), $html);
                 $this->assertOfflineOnly($html, $known, $logoDataUrl);
                 $this->writePage($staging, $name, $html);
@@ -127,6 +128,46 @@ final class PortablePortalStaticPreview
             @rmdir($staging);
             throw $e;
         }
+    }
+
+    /**
+     * Only the exported file:// bundle can navigate between static pages.
+     * The original Blade app remains inert, without an auth/customer route.
+     * @param list<string> $known
+     */
+    private function linkOfflineSidebar(string $html, array $known): string
+    {
+        $seen = [];
+        $linked = preg_replace_callback(
+            '~<span data-preview-section="([a-z-]+)"([^>]*)>([^<]*)</span>~u',
+            static function (array $match) use ($known, &$seen): string {
+                $section = ClientSection::tryFrom($match[1]);
+                $target = $match[1].'.html';
+                if ($section === null || !in_array($target, $known, true)
+                    || isset($seen[$match[1]])) {
+                    throw new LogicException('Unknown or duplicated sidebar destination.');
+                }
+                $seen[$match[1]] = true;
+                return '<a href="'.$target.'" data-preview-section="'.$match[1].'"'
+                    .$match[2].'>'.$match[3].'</a>';
+            },
+            $html,
+            -1,
+            $count,
+        );
+        if (!is_string($linked) || $count !== count(ClientSection::cases())
+            || count($seen) !== count(ClientSection::cases())) {
+            throw new LogicException('Incomplete offline sidebar navigation.');
+        }
+        $note = 'Navegação ilustrativa. As opções não abrem outras telas.';
+        if (substr_count($linked, $note) !== 1) {
+            throw new LogicException('Unexpected sidebar explanation.');
+        }
+        return str_replace(
+            $note,
+            'Prévia offline: abra somente as páginas locais. Nenhum acesso real está disponível.',
+            $linked,
+        );
     }
 
     /** @param list<string> $known */
