@@ -9,6 +9,7 @@ enum ClientSection: string
 {
     case Overview = 'overview';
     case Services = 'services';
+    case Preparation = 'preparation';
     case Available = 'available';
     case Contracts = 'contracts';
     case Modules = 'modules';
@@ -20,6 +21,7 @@ enum ClientSection: string
         return match ($this) {
             self::Overview => 'Visão geral',
             self::Services => 'Meus serviços Imagine',
+            self::Preparation => 'Preparação dos serviços',
             self::Available => 'Serviços disponíveis',
             self::Contracts => 'Contratos e assinaturas',
             self::Modules => 'Módulos Imagine',

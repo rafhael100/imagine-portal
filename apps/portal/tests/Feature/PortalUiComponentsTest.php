@@ -18,9 +18,9 @@ final class PortalUiComponentsTest extends TestCase
         $this->app->instance('db', $database);
     }
 
-    public function test_all_seven_unmounted_screens_render_semantic_demo_content(): void
+    public function test_all_eight_unmounted_screens_render_semantic_demo_content(): void
     {
-        foreach (['overview', 'services', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
+        foreach (['overview', 'services', 'preparation', 'available', 'contracts', 'modules', 'journey', 'requests'] as $screen) {
             $html = view('portal.demo.'.$screen)->render();
             self::assertStringContainsString('lang="pt-BR"', $html);
             self::assertStringContainsString('name="viewport"', $html);
