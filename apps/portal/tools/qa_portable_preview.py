@@ -16,7 +16,7 @@ import zipfile
 
 WIDTHS = (320, 375, 390, 640, 768, 1024, 1440)
 PAGES = (
-    "overview.html", "services.html", "available.html", "contracts.html",
+    "overview.html", "services.html", "preparation.html", "available.html", "contracts.html",
     "modules.html", "journey.html", "requests.html", "help.html",
     "notices.html", "index.html",
 )
@@ -28,7 +28,7 @@ def audit(archive: Path, browser_executable: str | None = None) -> dict:
     with zipfile.ZipFile(archive) as zf:
         inventory = zf.namelist()
         if len(inventory) != len(PAGES) + 1 or sorted(inventory) != sorted((*PAGES, "manifest.json")):
-            raise ValueError("Expected exactly ten synthetic HTML files and one manifest.")
+            raise ValueError("Expected exactly eleven synthetic HTML files and one manifest.")
         manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
         if (manifest.get("schema") != "imagine-portal-visual-only-preview-v1"
             or manifest.get("synthetic_only") is not True
