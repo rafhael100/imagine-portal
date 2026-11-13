@@ -1223,6 +1223,46 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertNull($reader->read($active));
     }
 
+    public function test_principal_observation_denies_suspended_identity_after_mfa(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertSame(self::ACTOR,$reader->read($active)['identity_id'] ?? null);
+        // Existing committed MFA session must never imply a valid identity
+        // after the account is suspended or its security revision changes.
+        $this->admin->exec("UPDATE public.portal_identities SET status='suspended',security_revision=security_revision+1");
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_principal_observation_denies_revoked_membership_after_mfa(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertSame(self::MEMBER,$reader->read($active)['membership_id'] ?? null);
+        $this->admin->exec("UPDATE public.portal_memberships SET status='suspended'");
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
+    public function test_principal_observation_denies_unverified_changed_email(): void
+    {
+        $active=$this->active();
+        $reader=new \App\Infrastructure\Identity\PostgresPortalSessionPrincipalCandidateReader(
+            $this->runtime,'portal_browser_lab'
+        );
+        self::assertNotNull($reader->read($active));
+        $this->admin->exec(
+            "UPDATE public.portal_identities SET email_normalized='changed@example.invalid',email_verified_at=NULL"
+        );
+        self::assertNull($reader->read($active));
+        self::assertFalse($this->adapter->isActiveBusinessSession($active));
+    }
+
     public function test_principal_reader_refuses_admin_and_ambient_transaction(): void
     {
         try {
