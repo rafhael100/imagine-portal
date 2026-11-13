@@ -361,9 +361,9 @@ function isolatedReview(index) {
 }
 
 test('login and restore review lots remain independent of the UI ancestry and deny release', () => {
-  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600]);
+  assert.deepEqual(manifest.isolatedLots.map(l => l.pullRequest), [596, 597, 598, 600, 601]);
   assert.equal(manifest.reviewLots.length, 4);
-  for (const i of [0, 1, 2, 3]) {
+  for (const i of [0, 1, 2, 3, 4]) {
     const f = isolatedReview(i);
     const result = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
     assert.equal(result.comparisonBase, f.lot.baseBranch);
@@ -377,7 +377,7 @@ test('login and restore review lots remain independent of the UI ancestry and de
 });
 
 test('independent login/recovery lots reject stale SHA, missing CI or retargeting', () => {
-  for (const i of [0, 1, 2, 3]) {
+  for (const i of [0, 1, 2, 3, 4]) {
     const f = isolatedReview(i);
     f.pr.head.sha = 'a'.repeat(40);
     assert.equal(assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot).evidenceVerified, false);
@@ -411,6 +411,12 @@ test('independent lot manifest blocks any duplicate, retarget, missing workflow 
     m => { m.isolatedLots[3].pullRequest = m.isolatedLots[2].pullRequest; },
     m => { m.isolatedLots[3].headSha = m.isolatedLots[0].headSha; },
     m => { m.isolatedLots[3].requiredWorkflows = []; },
+    m => { m.isolatedLots[4].baseBranch = m.isolatedLots[2].headBranch; },
+    m => { m.isolatedLots[4].pullRequest = m.isolatedLots[3].pullRequest; },
+    m => { m.isolatedLots[4].headBranch = m.isolatedLots[3].headBranch; },
+    m => { m.isolatedLots[4].headSha = m.isolatedLots[3].headSha; },
+    m => { m.isolatedLots[4].requiredWorkflows.pop(); },
+    m => { m.isolatedLots[4].requiredWorkflows = []; },
   ]) {
     const m = structuredClone(manifest);
     change(m);
@@ -458,4 +464,26 @@ test('fourth isolated lab enforces invitation ancestry and all five workflows', 
   assert.equal(result.evidenceVerified, false);
   assert.equal(result.mergeApproved, false);
   assert.equal(result.deployApproved, false);
+});
+
+test('fifth isolated proof core is pinned to first enrollment and six green checks', () => {
+  const f = isolatedReview(4);
+  assert.equal(f.lot.pullRequest, 601);
+  assert.equal(f.lot.baseBranch, f.m.isolatedLots[3].headBranch);
+  assert.equal(f.lot.requiredWorkflows.length, 6);
+  const verified = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(verified.evidenceVerified, true);
+  assert.equal(verified.decision, 'REVIEW_CANDIDATE_ONLY');
+  assert.equal(verified.mergeApproved, false);
+  assert.equal(verified.deployApproved, false);
+  assert.equal(verified.customerAccessApproved, false);
+  assert.equal(verified.antiRollbackApproved, false);
+
+  // A green prior Docker check cannot certify the pinned SHA if the
+  // current PR-specific run is not yet complete.
+  f.runs[5].status = 'in_progress';
+  const pending = assessCandidate(f.m, f.pr, f.runs, f.comparison, f.lot);
+  assert.equal(pending.evidenceVerified, false);
+  assert.equal(pending.mergeApproved, false);
+  assert.equal(pending.deployApproved, false);
 });

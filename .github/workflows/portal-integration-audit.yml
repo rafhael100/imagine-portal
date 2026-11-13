@@ -3,6 +3,8 @@ on:
   pull_request:
     branches:
       - dev/fast-track-portal-2026-11-05
+      # This lightweight review PR is based on #579, not directly on dev.
+      - review/portal-integration-gate-dev-pilot-2026-11-12
     paths:
       - integration/portal-candidate.json
       - tools/portal-integration-gate.mjs

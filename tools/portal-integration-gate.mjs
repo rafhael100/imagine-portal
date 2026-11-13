@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 4 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 5 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -67,6 +67,20 @@ export function validateManifest(m) {
       // The enrollment rehearsal can only be reviewed atop the exact
       // first-invitation branch; it is not a standalone service or deploy.
       m.isolatedLots[3]?.baseBranch !== m.isolatedLots[2]?.headBranch ||
+      m.isolatedLots[4]?.pullRequest !== 601 ||
+      m.isolatedLots[4]?.headBranch !== 'review/portal-scoped-email-proof-core-2026-11-12' ||
+      // First-party proof core must stay strictly atop the verified
+      // enrollment lab, never retargeted to dev/main or the large candidate.
+      m.isolatedLots[4]?.baseBranch !== m.isolatedLots[3]?.headBranch ||
+      m.isolatedLots[4]?.requiredWorkflows?.length !== 6 ||
+      [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+        'Portal GSC F102/F105/F107 — synthetic OAuth security contracts',
+        'Portal F64 - Private Container Homologation Smoke',
+        'Portal browser identity - PostgreSQL 18 candidate',
+        'Portal browser auth - private Docker rehearsal',
+      ].some(name => !m.isolatedLots[4]?.requiredWorkflows?.includes(name)) ||
       m.isolatedLots.some(l => !plainRecord(l) ||
         !/^[a-f0-9]{40}$/.test(l.headSha ?? '') ||
         !Number.isSafeInteger(l.maxCommits) || l.maxCommits < 1 || l.maxCommits > 20 ||

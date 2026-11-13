@@ -131,6 +131,21 @@
         "Portal F64 - Private Container Homologation Smoke",
         "Portal browser identity - PostgreSQL 18 candidate"
       ]
+    },
+    {
+      "pullRequest": 601,
+      "headBranch": "review/portal-scoped-email-proof-core-2026-11-12",
+      "baseBranch": "review/portal-first-enrollment-pg18-lab-2026-11-12",
+      "headSha": "cc32b0f49a175d17cf82e176d747a6060042cc0b",
+      "maxCommits": 20,
+      "requiredWorkflows": [
+        "Testes do portal",
+        "Validacao isolada Laravel F1-01-A",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Portal browser identity - PostgreSQL 18 candidate",
+        "Portal browser auth - private Docker rehearsal"
+      ]
     }
   ]
 }
