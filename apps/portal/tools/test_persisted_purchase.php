@@ -133,3 +133,28 @@ check($completed === $reconnected && $reconnected['briefing'] == $brief,
 check($actorB->read('test-org-b', $b['id']) === $b,
     'Neighbor organization cannot be affected by other tenant changes');
 echo 'PASS restricted PostgreSQL login roles, FORCE RLS and cross-tenant deny at SQL boundary'.PHP_EOL;
+
+
+// Next P0 slice: the caller cannot even supply an organization to this API.
+// Its scope comes only from the authenticated restricted PostgreSQL login.
+require __DIR__.'/../app/Homologation/RoleBoundTestPurchase.php';
+denied(fn() => new \App\Homologation\RoleBoundTestPurchase($db)); // superuser blocked
+$boundA = new \App\Homologation\RoleBoundTestPurchase(limitedConnection('purchase_rehearsal_a'));
+$boundB = new \App\Homologation\RoleBoundTestPurchase(limitedConnection('purchase_rehearsal_b'));
+$boundOrder = $boundA->create('TEST-role-bound-landing-00001', 'landing-pages');
+check($boundA->create('TEST-role-bound-landing-00001', 'landing-pages') === $boundOrder,
+    'Role-bound idempotent creation is scoped to DB login');
+denied(fn() => $boundB->read($boundOrder['id']));
+denied(fn() => $boundB->payment($boundOrder['id'], 0, 'approved'));
+denied(fn() => $boundB->briefing($boundOrder['id'], 0, $brief));
+$paid = $boundA->payment($boundOrder['id'], 0, 'approved');
+$written = $boundA->briefing($boundOrder['id'], $paid['revision'], $brief);
+$readerAfterNewLogin = new \App\Homologation\RoleBoundTestPurchase(
+    limitedConnection('purchase_rehearsal_a')
+);
+check($readerAfterNewLogin->read($boundOrder['id']) === $written,
+    'Role-bound briefing must persist across an entirely new limited connection');
+check($written['synthetic'] === true && $written['authorizes_http'] === false
+    && \App\Homologation\RoleBoundTestPurchase::authorizesCustomerHttp() === false,
+    'Role-bound store must never authorize customer HTTP');
+echo 'PASS role-bound purchase prevents caller-controlled tenant selection and keeps NO-SERVING'.PHP_EOL;
