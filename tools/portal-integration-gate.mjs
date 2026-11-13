@@ -50,7 +50,7 @@ export function validateManifest(m) {
         !l.requiredWorkflows.every(n => typeof n === 'string' && n.length > 2 && n.length < 160)) ||
       // Independent branches: never fold their SHAs into the four-stage
       // UI ancestry. They are separate, read-only review candidates.
-      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 6 ||
+      !Array.isArray(m.isolatedLots) || m.isolatedLots.length !== 7 ||
       m.isolatedLots[0]?.pullRequest !== 596 ||
       m.isolatedLots[0]?.headBranch !== 'feat/portal-private-login-ui-2026-11-12' ||
       m.isolatedLots[0]?.baseBranch !== 'ops/portal-private-auth-deployment-2026-11-12' ||
@@ -79,6 +79,19 @@ export function validateManifest(m) {
       // email proof, never a main/dev credential issuer.
       m.isolatedLots[5]?.baseBranch !== m.isolatedLots[4]?.headBranch ||
       m.isolatedLots[5]?.requiredWorkflows?.length !== 7 ||
+      m.isolatedLots[6]?.pullRequest !== 605 ||
+      m.isolatedLots[6]?.headBranch !== 'review/portal-persisted-email-proof-pg18-lab-2026-11-12' ||
+      // The proof issuer/consumer is only a disposable child of the
+      // default-deny ledger; a green CI cannot turn it into an operator.
+      m.isolatedLots[6]?.baseBranch !== m.isolatedLots[5]?.headBranch ||
+      m.isolatedLots[6]?.requiredWorkflows?.length !== 5 ||
+      [
+        'Testes do portal',
+        'Validacao isolada Laravel F1-01-A',
+        'Portal GSC F102/F105/F107 — synthetic OAuth security contracts',
+        'Portal F64 - Private Container Homologation Smoke',
+        'Portal browser identity - PostgreSQL 18 candidate',
+      ].some(name => !m.isolatedLots[6]?.requiredWorkflows?.includes(name)) ||
       [
         'Testes do portal',
         'Validacao isolada Laravel F1-01-A',
