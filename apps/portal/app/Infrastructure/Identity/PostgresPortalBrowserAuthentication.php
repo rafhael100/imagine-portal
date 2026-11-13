@@ -6,6 +6,7 @@ namespace App\Infrastructure\Identity;
 
 use App\Domain\Identity\Browser\PortalBrowserAuthentication;
 use App\Infrastructure\Recovery\PortalHashedSessionRevocationCandidate;
+use App\Infrastructure\Recovery\PortalHashedSessionStatusCandidate;
 use App\Domain\Identity\Security\PortalPasswordCredential;
 use App\Domain\Identity\Security\PortalTotpSecretCipher;
 use App\Domain\Identity\Security\PortalTotpVerifier;
@@ -19,7 +20,7 @@ use Throwable;
  * SQL owner is a separate NOLOGIN role; this connection only executes functions.
  * SQL installation, keys, session locking and operational review are prerequisites.
  */
-final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthentication, PortalHashedSessionRevocationCandidate
+final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthentication, PortalHashedSessionRevocationCandidate, PortalHashedSessionStatusCandidate
 {
     private readonly string $dummyHash;
     private readonly PDO $db;
@@ -185,6 +186,30 @@ final class PostgresPortalBrowserAuthentication implements PortalBrowserAuthenti
         $this->ready();
         return $this->boolean('SELECT public.portal_browser_revoke(?,?)',
             [$sessionSha256,$this->proof('portal-browser-v1|revoke|' . $sessionSha256)]);
+    }
+
+    /**
+     * F391: HMAC-bound read-only confirmation of an exact session digest and
+     * its server-pinned organization. This is a CI-only candidate SQL
+     * extension, NOT a production permission or login checker.
+     */
+    public function inspectSessionDigestStatus(string $sessionSha256, string $organization): string
+    {
+        if (preg_match('/\A[a-f0-9]{64}\z/D', $sessionSha256) !== 1
+            || preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/D', $organization) !== 1) {
+            return 'denied';
+        }
+        $this->ready();
+        $payload = 'portal-browser-v1|revoke-status|' . $organization . '|' . $sessionSha256;
+        $value = $this->execute(
+            'SELECT public.portal_browser_revoke_status_candidate(?,CAST(? AS uuid),?)',
+            [$sessionSha256,$organization,$this->proof($payload)]
+        )->fetchColumn();
+        if (!is_string($value)
+            || !in_array($value, ['revoked','not_revoked','missing','inconsistent','denied'], true)) {
+            throw new RuntimeException('Portal revocation status unavailable.');
+        }
+        return $value;
     }
 
     private function ready(): void
