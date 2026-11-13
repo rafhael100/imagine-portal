@@ -29,7 +29,9 @@ final class PurchaseRehearsalHttpTest extends TestCase
 
     private function freshStore(): void
     {
-        $db=new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_purchase_rehearsal','postgres','synthetic-ci-only');
+        $role=$this->scope->tenant==='test-org-b'?'purchase_rehearsal_b':'purchase_rehearsal_a';
+        $password=$this->scope->tenant==='test-org-b'?'ci-synthetic-b-only':'ci-synthetic-a-only';
+        $db=new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_purchase_rehearsal',$role,$password);
         $this->app->instance(PersistedTestPurchase::class,new PersistedTestPurchase($db));
     }
 
@@ -47,8 +49,10 @@ final class PurchaseRehearsalHttpTest extends TestCase
             $this->post($base.'/orders',$data)->assertRedirect($url);
             $this->get($url)->assertOk()->assertSee('Seu pedido de teste')->assertDontSee('Salvar briefing de teste');
             $this->scope->tenant='test-org-b';
+            $this->freshStore();
             $this->get($url)->assertNotFound();
             $this->scope->tenant='test-org-a';
+            $this->freshStore();
             $brief=['revision'=>0,'business'=>'Empresa fictícia','goal'=>'<script>alert(1)</script>','audience'=>'Exemplo','materials'=>'Amostras'];
             $this->post($url.'/briefing',$brief)->assertStatus(409);
             $this->post($url.'/payment',['revision'=>0,'outcome'=>'approved'])->assertSessionHasErrors('sample_ack');

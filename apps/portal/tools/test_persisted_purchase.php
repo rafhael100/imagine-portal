@@ -51,3 +51,85 @@ denied(fn()=>$store->create('real-company','TEST-real-request','onepage'));
 denied(fn()=>$store->create('test-org-a','TEST-unknown-request','unknown'));
 check((int)$db->query('SELECT count(*) FROM purchase_rehearsal.orders')->fetchColumn()===6,'No duplicated orders');
 echo 'PASS replay, conflict, payment gating, tenant mismatch, stale revision, durable briefing'.PHP_EOL;
+
+
+/*
+ * P0 isolation step: same real PostgreSQL table, restricted login roles,
+ * database-enforced tenant boundary, not a browser-controlled tenant string.
+ * Everything below runs on a disposable CI Postgres cluster only.
+ */
+$db->exec("CREATE ROLE purchase_rehearsal_a WITH LOGIN PASSWORD 'ci-synthetic-a-only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION");
+$db->exec("CREATE ROLE purchase_rehearsal_b WITH LOGIN PASSWORD 'ci-synthetic-b-only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION");
+$db->exec('GRANT CONNECT ON DATABASE portal_purchase_rehearsal TO purchase_rehearsal_a, purchase_rehearsal_b');
+$db->exec('GRANT USAGE ON SCHEMA purchase_rehearsal TO purchase_rehearsal_a, purchase_rehearsal_b');
+$db->exec('GRANT SELECT, INSERT, UPDATE ON purchase_rehearsal.orders TO purchase_rehearsal_a, purchase_rehearsal_b');
+$db->exec('ALTER TABLE purchase_rehearsal.orders ENABLE ROW LEVEL SECURITY');
+$db->exec('ALTER TABLE purchase_rehearsal.orders FORCE ROW LEVEL SECURITY');
+$trustedRoleTenant = "CASE current_user WHEN 'purchase_rehearsal_a' THEN 'test-org-a' WHEN 'purchase_rehearsal_b' THEN 'test-org-b' ELSE NULL END";
+$db->exec('CREATE POLICY purchase_rehearsal_tenant ON purchase_rehearsal.orders FOR ALL USING (tenant = ('.$trustedRoleTenant.')) WITH CHECK (tenant = ('.$trustedRoleTenant.'))');
+
+function limitedConnection(string $role): PDO {
+    $users = [
+        'purchase_rehearsal_a' => 'ci-synthetic-a-only',
+        'purchase_rehearsal_b' => 'ci-synthetic-b-only',
+    ];
+    if (!isset($users[$role])) throw new InvalidArgumentException('Unknown CI role.');
+    return new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_purchase_rehearsal',
+        $role, $users[$role], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+}
+$restrictedA = limitedConnection('purchase_rehearsal_a');
+$restrictedB = limitedConnection('purchase_rehearsal_b');
+foreach ([
+    ['purchase_rehearsal_a', $restrictedA],
+    ['purchase_rehearsal_b', $restrictedB],
+] as [$role, $pdo]) {
+    check($pdo->query('SELECT current_user')->fetchColumn() === $role, 'DB-authenticated role must match server identity');
+    $stmt = $db->prepare('SELECT rolsuper, rolbypassrls, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = ?');
+    $stmt->execute([$role]);
+    $flags = $stmt->fetch(PDO::FETCH_NUM);
+    check($flags !== false && in_array($flags[0], [false,'f',0,'0'], true)
+        && in_array($flags[1], [false,'f',0,'0'], true)
+        && in_array($flags[2], [false,'f',0,'0'], true)
+        && in_array($flags[3], [false,'f',0,'0'], true),
+        'Test runtime roles must have no escalation or RLS bypass');
+}
+check((bool)$db->query("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.orders'::regclass")->fetchColumn(),
+    'Expected FORCE RLS enabled for the actual table');
+$actorA = new PersistedTestPurchase($restrictedA);
+$actorB = new PersistedTestPurchase($restrictedB);
+$request = 'TEST-restricted-same-key-0001';
+$a = $actorA->create('test-org-a', $request, 'onepage');
+$b = $actorB->create('test-org-b', $request, 'onepage');
+check($a['id'] !== $b['id'], 'Idempotency scope must remain per real DB role and organization');
+check($actorA->create('test-org-a', $request, 'onepage') === $a, 'Restricted actor idempotency');
+denied(fn() => $actorB->read('test-org-a', $a['id']));
+denied(fn() => $actorA->read('test-org-b', $b['id']));
+denied(fn() => $actorB->payment('test-org-a', $a['id'], 0, 'approved'));
+denied(fn() => $actorB->create('test-org-a', 'TEST-restricted-foreign-0001', 'onepage'));
+
+// Crucially, bypassing the PHP store is denied by the DATABASE policy.
+$query = $restrictedB->prepare('SELECT count(*) FROM purchase_rehearsal.orders WHERE id=?');
+$query->execute([$a['id']]);
+check((int)$query->fetchColumn() === 0, 'Raw SQL may not reveal another organization');
+$query = $restrictedB->prepare("UPDATE purchase_rehearsal.orders SET payment='approved' WHERE id=?");
+$query->execute([$a['id']]);
+check($query->rowCount() === 0, 'Raw SQL cannot mutate another organization');
+denied(fn() => $restrictedB->exec("INSERT INTO purchase_rehearsal.orders (id, tenant, request_key, product) VALUES ('TEST-".str_repeat('a',32)."','test-org-a','TEST-ci-forged-0001','onepage')"));
+denied(fn() => $restrictedB->exec('DELETE FROM purchase_rehearsal.orders'));
+denied(fn() => $restrictedB->exec('SET ROLE purchase_rehearsal_a'));
+
+$approved = $actorA->payment('test-org-a', $a['id'], 0, 'approved');
+$brief = [
+    'business' => 'Loja de exemplo',
+    'goal' => 'Divulgar serviço fictício',
+    'audience' => 'Clientes fictícios',
+    'materials' => 'Imagens de amostra',
+];
+$completed = $actorA->briefing('test-org-a', $a['id'], $approved['revision'], $brief);
+$reconnected = (new PersistedTestPurchase(limitedConnection('purchase_rehearsal_a')))
+    ->read('test-org-a', $a['id']);
+check($completed === $reconnected && $reconnected['briefing'] == $brief,
+    'Limited runtime role must persist equivalent JSONB briefing across new DB connection');
+check($actorB->read('test-org-b', $b['id']) === $b,
+    'Neighbor organization cannot be affected by other tenant changes');
+echo 'PASS restricted PostgreSQL login roles, FORCE RLS and cross-tenant deny at SQL boundary'.PHP_EOL;
