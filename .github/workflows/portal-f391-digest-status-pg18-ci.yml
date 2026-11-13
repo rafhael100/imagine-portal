@@ -1,0 +1,90 @@
+name: Portal F391 - Restricted PG18 digest revocation status readback (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/database/security/portal_browser_revoke_status_f391_candidate.sql'
+      - 'apps/portal/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php'
+      - 'apps/portal/app/Infrastructure/Recovery/PortalHashedSessionStatusCandidate.php'
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationDigestStatusPgReconcileCandidate.php'
+      - 'infra/development/portal-recovery/f391-*'
+      - '.github/workflows/portal-f391-digest-status-pg18-ci.yml'
+permissions:
+  contents: read
+jobs:
+  restricted-status-real-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    env:
+      PORTAL_F390_CI: DISPOSABLE_ONLY
+      PORTAL_F391_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Start only disposable PostgreSQL18 and Portal identity
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          sudo python3 infra/development/portal-db/prepare-secrets.py "$GITHUB_WORKSPACE/infra/development/portal-db/.private"
+          sudo docker compose -p imagine-portal-f391-ci -f infra/development/portal-db/compose.yaml build provision
+          sudo docker compose -p imagine-portal-f391-ci -f infra/development/portal-db/compose.yaml up -d --wait postgres
+          sudo docker compose -p imagine-portal-f391-ci -f infra/development/portal-db/compose.yaml run --rm -T --interactive=false provision php provision.php install
+      - name: Restricted SQL status after signed Worker intent and real revoke fault
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F390_CI" = DISPOSABLE_ONLY
+          test "$PORTAL_F391_CI" = DISPOSABLE_ONLY
+          scratch="$(mktemp -d)"
+          sudo chown 82:82 "$scratch"
+          sudo chmod 700 "$scratch"
+          trap 'sudo rm -rf -- "$scratch"' EXIT
+          tool(){
+            sudo docker compose -p imagine-portal-f391-ci -f infra/development/portal-db/compose.yaml \
+              run --rm -T --interactive=false \
+              -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+              -e PORTAL_ENROLLMENT_CI=DISPOSABLE_ONLY \
+              -e PORTAL_RESTORE_QUARANTINE_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F390_CI=DISPOSABLE_ONLY \
+              -e PORTAL_F391_CI=DISPOSABLE_ONLY \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-enrollment:/opt/portal-enrollment:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-mail:/opt/portal-mail:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-activation:/opt/portal-activation:ro" \
+              -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/opt/portal-recovery:ro" \
+              -v "$GITHUB_WORKSPACE/apps/portal/database/security/portal_browser_revoke_status_f391_candidate.sql:/opt/f391-status-candidate.sql:ro" \
+              -v "$scratch:/opt/f390:rw" provision "$@"
+          }
+          tool php -l /var/www/html/app/Infrastructure/Recovery/PortalHashedSessionStatusCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Recovery/SignedRevocationDigestStatusPgReconcileCandidate.php
+          tool php -l /var/www/html/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php
+          tool php -l /opt/portal-recovery/f391-install-status-ci.php
+          tool php -l /opt/portal-recovery/test-f391-worker-pg18-status.php
+          if tool php /opt/portal-recovery/f391-install-status-ci.php bogus; then
+            echo 'F391 installation must reject arbitrary args'
+            exit 1
+          fi
+          tool php /opt/portal-recovery/f391-install-status-ci.php
+          tool php /opt/portal-recovery/f390-seed-hash-only-pg18.php
+
+          sudo docker run --rm --network none --user 82:82 \
+            --memory 320m --cpus 1 \
+            -e GITHUB_ACTIONS=true -e RUNNER_ENVIRONMENT=github-hosted \
+            -e PORTAL_F390_CI=DISPOSABLE_ONLY \
+            -v "$GITHUB_WORKSPACE/infra/development/portal-recovery:/repo/infra/development/portal-recovery:ro" \
+            -v "$scratch:/opt/f390:rw" \
+            node:24-alpine node \
+            /repo/infra/development/portal-recovery/f390-worker-digest-intent.mjs /opt/f390
+          sudo test -s "$scratch/receipt.json"
+          tool php /opt/portal-recovery/test-f391-worker-pg18-status.php
+          if grep -R -E '(PortalHashedSessionStatusCandidate|SignedRevocationDigestStatusPgReconcileCandidate)' \
+              apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'F391 restricted SQL status candidates MUST NOT bind to Laravel serving'
+            exit 1
+          fi
+      - name: Destroy only F391 disposable cluster and SQL functions
+        if: always()
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          sudo docker compose -p imagine-portal-f391-ci -f infra/development/portal-db/compose.yaml down --volumes --remove-orphans
