@@ -49,8 +49,8 @@ $assert((int)$db->query("SELECT count(*) FROM pg_roles
 $assert((int)$db->query("SELECT count(*) FROM pg_auth_members a JOIN pg_roles r ON r.oid=a.member
  WHERE r.rolname='portal_recovery_epoch_reader'")->fetchColumn()===0);
 $assert(in_array($db->query(
-    "SELECT has_table_privilege('portal_recovery_epoch_reader',
-       'public.portal_recovery_epoch_candidates','SELECT')"
+    "SELECT has_column_privilege('portal_recovery_epoch_reader',
+       'public.portal_recovery_epoch_candidates','witnessed_sequence','SELECT')"
 )->fetchColumn(),[true,1,'1','t'],true));
 foreach(['portal_browser_runtime','portal_browser_envelope_runtime']as$role){
     $q=$db->prepare("SELECT has_table_privilege(?,
