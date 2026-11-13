@@ -3,7 +3,7 @@
 declare(strict_types=1);
 namespace Tests\Feature;
 
-use App\Homologation\PersistedTestPurchase;
+use App\Homologation\RoleBoundTestPurchase;
 use App\Homologation\PurchaseRehearsalScope;
 use App\Providers\PurchaseRehearsalServiceProvider;
 use Illuminate\Http\Request;
@@ -32,7 +32,7 @@ final class PurchaseRehearsalHttpTest extends TestCase
         $role=$this->scope->tenant==='test-org-b'?'purchase_rehearsal_b':'purchase_rehearsal_a';
         $password=$this->scope->tenant==='test-org-b'?'ci-synthetic-b-only':'ci-synthetic-a-only';
         $db=new PDO('pgsql:host=127.0.0.1;port=5432;dbname=portal_purchase_rehearsal',$role,$password);
-        $this->app->instance(PersistedTestPurchase::class,new PersistedTestPurchase($db));
+        $this->app->instance(RoleBoundTestPurchase::class,new RoleBoundTestPurchase($db));
     }
 
     public function test_real_laravel_forms_persist_three_synthetic_purchase_flows(): void
@@ -48,7 +48,15 @@ final class PurchaseRehearsalHttpTest extends TestCase
             $url=$created->headers->get('Location');
             $this->post($base.'/orders',$data)->assertRedirect($url);
             $this->get($url)->assertOk()->assertSee('Seu pedido de teste')->assertDontSee('Salvar briefing de teste');
+            // A forged server-side organization fixture cannot override the
+            // still-authenticated PostgreSQL role A. Fail closed BEFORE read.
             $this->scope->tenant='test-org-b';
+            $this->get($url)->assertForbidden();
+            $this->post($url.'/payment',[
+                'revision'=>0,'outcome'=>'approved','sample_ack'=>1
+            ])->assertForbidden();
+            // Only a fresh authenticated database role B is accepted, and
+            // its FORCE RLS policy makes organization A's order invisible.
             $this->freshStore();
             $this->get($url)->assertNotFound();
             $this->scope->tenant='test-org-a';
