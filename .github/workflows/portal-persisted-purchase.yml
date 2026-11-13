@@ -20,16 +20,16 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd 'pg_isready -U postgres -d portal_purchase_rehearsal'
+          --health-cmd "pg_isready -U postgres -d portal_purchase_rehearsal"
           --health-interval 5s --health-timeout 5s --health-retries 12
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: PHP and PostgreSQL driver
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
           extensions: pdo_pgsql
