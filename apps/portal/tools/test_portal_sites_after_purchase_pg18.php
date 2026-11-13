@@ -124,6 +124,37 @@ function p0denied(callable $operation): bool
     return false;
 }
 
+// F362/F363/F364 run BEFORE this script and leave their own synthetic
+// admission events. Drain those preexisting fixture events with the
+// restricted worker *before* creating Portal-originated outbox entries.
+// This is a disposable CI database, not an external publication service.
+$baselineWorker = new PDO(
+    $dsn.'sites_f360_lab', 'sites_f361_worker',
+    'f361-fictional-outbox-worker-only', $options
+);
+p0check($baselineWorker->query('SELECT session_user')->fetchColumn()==='sites_f361_worker',
+    'only the restricted test worker may clear earlier fixture events.'
+);
+$baselineCount=0;
+while(true) {
+    $claim=$baselineWorker->prepare('SELECT * FROM sites_f360.claim_next_outbox(?)');
+    $claim->execute([30]);
+    $event=$claim->fetch(PDO::FETCH_ASSOC);
+    if($event===false)break;
+    p0check(!str_starts_with($event['operation_ref'],'idem-p0-'),
+        'test cannot silently consume a Portal-originated event during setup.'
+    );
+    $ack=$baselineWorker->prepare('SELECT sites_f360.ack_outbox(?,?,?::uuid)');
+    $ack->execute([$event['tenant_ref'],$event['operation_ref'],$event['lease_ref']]);
+    p0check(in_array($ack->fetchColumn(),[true,'t','1',1],true),
+        'earlier Sites fixture must be acknowledged with its own lease.'
+    );
+    if(++$baselineCount>100)throw new RuntimeException(
+        'Unexpected volume of earlier Sites fixture events.'
+    );
+}
+echo "PASS P0: drained {$baselineCount} earlier Sites fixtures before new Portal orders.\n";
+
 $stmt = $purchase->prepare(
     "SELECT id,product FROM purchase_rehearsal.orders
      WHERE tenant='test-org-a' AND payment='approved'
