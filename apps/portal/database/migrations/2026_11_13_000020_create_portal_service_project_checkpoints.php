@@ -123,8 +123,24 @@ CREATE FUNCTION public.portal_guard_project_review_readiness()
 RETURNS trigger LANGUAGE plpgsql
 SET search_path=pg_catalog,pg_temp AS $portal_readiness$
 DECLARE required_count integer; reviewed_count integer;
+        v_claim_state text; v_org_status text;
 BEGIN
     IF NEW.state='review' AND OLD.state='draft' THEN
+        -- The bound claim may have been retired since it was linked in
+        -- F11. Lock its current state and the company in the SAME
+        -- transaction before accepting a candidate for internal review.
+        SELECT c.state,o.status INTO v_claim_state,v_org_status
+          FROM public.portal_service_resource_claims c
+          JOIN public.portal_organizations o ON o.id=c.organization_id
+         WHERE c.id=NEW.source_claim_id
+           AND c.organization_id=NEW.organization_id
+           AND c.product_code=NEW.product_code
+         FOR SHARE OF c,o;
+        IF v_claim_state IS DISTINCT FROM 'candidate'
+           OR v_org_status IS DISTINCT FROM 'active' THEN
+            RAISE EXCEPTION 'Project review requires current claim and active tenant'
+                USING ERRCODE='42501';
+        END IF;
         required_count:=CASE NEW.product_code
             WHEN 'sites_onepage' THEN 3
             WHEN 'sites_landing_page' THEN 3
