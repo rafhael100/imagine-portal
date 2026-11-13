@@ -1,0 +1,11 @@
+# F371 — Online witness pre-/post-read candidate (not an HTTP fence)
+
+The private Portal's existing PostgreSQL authentication function may accept a session during the failure window demonstrated by F370. To make this dependency explicit in real Portal code, F371 adds a **dormant**, fail-closed infrastructure component `OnlineWitnessFenceCandidate` and `PortalOnlineWitnessSource`.
+
+A source implementation must obtain two independent *fresh* observations on **every** invocation: the current Portal epoch vector from the authoritative live instance and the most recent signed, fresh, tenant/instance-bound statement from an independent witness. The F369 Ed25519 verifier accepts the pair only when the exact epoch vectors match. The candidate then performs a specifically **read-only** diagnostic probe and requires a second fully verified fresh observation, identical to the first. Any unreachable witness, stale sequence, invalid key, cross-tenant scope, malformed data, expiry during a probe, changed witness or changed snapshot, or failed read returns a sanitized negative result.
+
+Even a successful diagnostic read produces `LAB_READ_OBSERVED_STILL_NO_SERVING` with **all HTTP, business, session issuance, recovery and deploy permissions false**. This cannot be installed directly as a Laravel authentication middleware. No trusted transport/source implementation exists yet. There is no public route or container binding, no client authority over tenant or witness source, and no production permission path.
+
+The tests use *synthetic* provider data and disposable signing keys and explicitly prove two separate provider reads around the callback on PHP 8.3/8.4. This work does not solve atomicity across two databases, anti-rollback of signing keys, crash/recovery of witness service, race-free serving fencing, external caching, compromised operators, or production disaster recovery.
+
+**Remaining next integration:** implement a separately vetted live source that fails closed on network errors and a per-request authorization fence with enforcement at all authenticating/permission boundaries, aligned with external witness custody. Portal #64 stays OPEN/NO-GO; no SSH, VPS, domain, real credentials, public serving, migration, merge or deploy is authorized.
