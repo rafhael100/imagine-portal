@@ -1,0 +1,97 @@
+name: Portal P0 Commercial to persisted purchase (synthetic)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/**'
+      - 'apps/portal/app/Http/Controllers/PurchaseRehearsalController.php'
+      - 'apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php'
+      - 'apps/portal/resources/views/portal/rehearsal/**'
+      - 'apps/portal/tools/purchase_http_ci_router.php'
+      - 'apps/portal/tools/test_commercial_to_portal_browser.py'
+      - 'apps/portal/tests/Feature/PurchaseRehearsalHttpTest.php'
+      - '.github/workflows/portal-commercial-persisted-browser.yml'
+permissions:
+  contents: read
+jobs:
+  commercial-to-portal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: portal_purchase_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_purchase_rehearsal"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - name: Checkout Portal PR exact head, no persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout explicitly pinned Commercial simulation candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-comercial
+          ref: b0aefbd01f55cbcdb1653a798f05a83b866e3d33
+          path: external/comercial
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Build the exact commercial candidate (read-only)
+        working-directory: external/comercial
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          node scripts/verify-dist.mjs
+      - name: Install PHP 8.4 with PostgreSQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Prepare disposable PostgreSQL roles and Laravel application
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Http/Controllers/PurchaseRehearsalController.php
+          php -l apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php
+          php apps/portal/tools/test_persisted_purchase.php
+          cd apps/portal
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Browser handoff from built Comercial to persisted Portal using only localhost
+        working-directory: apps/portal
+        env:
+          PORTAL_PURCHASE_HTTP_CI: '1'
+          APP_ENV: staging
+          APP_DEBUG: 'false'
+          IMAGINE_COMERCIAL_DIST: ${{ github.workspace }}/external/comercial/dist
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/portal-comercial-browser"
+          "$RUNNER_TEMP/portal-comercial-browser/bin/pip" install --disable-pip-version-check 'playwright==1.56.0'
+          php -S 127.0.0.1:18776 tools/purchase_http_ci_router.php > "$RUNNER_TEMP/portal-comercial-php.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          python3 - <<'PY'
+          import time,urllib.request
+          for attempt in range(60):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:18776/_rehearsal/purchase') as response:
+                      assert response.status == 200
+                  break
+              except Exception:
+                  time.sleep(.5)
+          else:
+              raise SystemExit('Portal CI loopback readiness failed')
+          PY
+          "$RUNNER_TEMP/portal-comercial-browser/bin/python" tools/test_commercial_to_portal_browser.py
