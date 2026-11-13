@@ -56,13 +56,15 @@ with sync_playwright() as p:
         page.reload()
         assert page.get_by_text('<script>alert(1)</script>',exact=True).count() == 1
         assert page.locator('script').count() == 0
-        # Durable order survives a fresh browser; access still requires
-        # a NEW client login in private preview. Admin/guest cannot read it.
+        # A separate browser context starts as a guest and cannot read even
+        # synthetic orders. Reuse only the CLIENT's authenticated session
+        # cookie to test durable readback without exhausting the 6/minute
+        # login limiter across the private preview and restart suite.
         other = browser.new_page()
         if PREVIEW_LOGIN_REQUIRED:
             denied = other.goto(order_url)
             assert denied.status == 403
-            login_preview_client(other)
+            other.context.add_cookies(page.context.cookies())
         other.goto(order_url)
         other.get_by_role('heading',name='Briefing salvo no Portal de teste').wait_for()
         other.close()
