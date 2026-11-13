@@ -97,3 +97,10 @@ Um novo commit, alteração da base, divergência, execução CI falha/pendente 
 A auditoria agora acompanha **sete recortes**, dos quais quatro formam a cadeia UI e **três são verificações independentes/dependentes de identidade**. O novo [#598](https://github.com/rafhael100/imagine-portal/pull/598) é filho da branch da [#596](https://github.com/rafhael100/imagine-portal/pull/596), não da dev. Seu delta é limitado a 20 commits e requer **cinco workflows** de CI na SHA exata: Node, Laravel, GSC sintético, smoke privado F64 e testes PostgreSQL 18. Alteração do HEAD do pai sem atualização da filha deve gerar divergência e bloquear evidência.
 
 O código de #598 só reserva um **convite fictício em ambiente PG18 descartável**, com identidade `invited` sem senha/MFA/verificação de e-mail e sem grants. Um resultado verde não significa conta real cadastrada, backend apto para clientes ou remediação do anti-rollback #64. Todos os bits de produção, integração e liberação permanecem `false`; não há merge/deploy automatizado.
+
+
+## Oitava revisão: ativação sintética da primeira identidade (#600)
+
+O gate também acompanha a [PR #600](https://github.com/rafhael100/imagine-portal/pull/600), **filha exata da #598**, que simula confirmação de e-mail, senha Argon2id e MFA TOTP em PostgreSQL 18 descartável. O manifesto fixa a SHA, a base da PR #598 e cinco workflows por commit, incluindo PHP 8.3/8.4. A comparação incremental não pode ultrapassar 20 commits.
+
+A prova de e-mail é uma rotina exclusiva de testes e não verifica uma caixa postal real; a promoção a `active` ocorre somente para identidade fictícia do banco descartável, sem grants ou sessão. Mesmo com os oito lotes verificados, a auditoria **não cria conta de operador, não funde PRs e não resolve o anti-rollback**; `mergeApproved`, `deployApproved`, `customerAccessApproved` e `antiRollbackApproved` permanecem sempre `false`. A revisão independente, a issue #64 e os requisitos operacionais de #341 permanecem bloqueantes.
