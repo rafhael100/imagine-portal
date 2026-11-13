@@ -20,6 +20,7 @@ on:
       - 'apps/portal/tests/Integration/DisposableFirstInvitationPg18Test.php'
       - 'apps/portal/tests/Support/DisposableFirstInvitationBootstrap.php'
       - 'apps/portal/tests/Integration/DisposableFirstEnrollmentPg18Test.php'
+      - 'apps/portal/tests/Integration/PortalEmailProofLedgerPg18Test.php'
       - 'apps/portal/tests/Support/DisposableFirstEnrollment.php'
       - 'apps/portal/tests/Unit/PortalEmailProofTest.php'
       - 'apps/portal/tests/Support/BrowserMfaRaceWorker.php'
@@ -106,6 +107,7 @@ jobs:
           php -l tests/Integration/DisposableFirstInvitationPg18Test.php
           php -l tests/Support/DisposableFirstInvitationBootstrap.php
           php -l tests/Integration/DisposableFirstEnrollmentPg18Test.php
+          php -l tests/Integration/PortalEmailProofLedgerPg18Test.php
           php -l tests/Support/DisposableFirstEnrollment.php
           php -l app/Domain/Identity/Security/PortalEmailProof.php
           php -l tests/Unit/PortalEmailProofTest.php
@@ -124,6 +126,8 @@ jobs:
           php -l database/migrations/2026_11_12_000016_fence_portal_identity_revision.php
           php artisan migrate --path=database/migrations/2026_11_12_000016_fence_portal_identity_revision.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php --force --no-interaction
+          php -l database/migrations/2026_11_13_000018_create_portal_email_proof_challenges.php
+          php artisan migrate --path=database/migrations/2026_11_13_000018_create_portal_email_proof_challenges.php --force --no-interaction
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_auth.sql
           psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE portal_browser_runtime LOGIN PASSWORD 'ci-browser-runtime-only'"
           psql -X -v ON_ERROR_STOP=1 -f database/security/portal_browser_envelopes.sql
@@ -134,6 +138,7 @@ jobs:
           vendor/bin/phpunit tests/Integration/PortalBrowserAuthenticationPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Integration/DisposableFirstInvitationPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Integration/DisposableFirstEnrollmentPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
+          vendor/bin/phpunit tests/Integration/PortalEmailProofLedgerPg18Test.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           vendor/bin/phpunit tests/Unit/PortalEmailProofTest.php --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped
           timeout 35s vendor/bin/phpunit tests/Integration/PortalBrowserEnvelopePg18Test.php --debug --no-progress --fail-on-risky --fail-on-warning --fail-on-skipped || { psql -X -c "SELECT pid,usename,state,wait_event_type,wait_event,pg_blocking_pids(pid)::text AS blockers FROM pg_stat_activity WHERE datname='portal_browser_lab'"; exit 1; }
           php artisan test --no-ansi --filter=PortalBrowserAuthTransportTest
