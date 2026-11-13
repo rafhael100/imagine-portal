@@ -1,0 +1,15 @@
+# F377 — Verified PHP witness-first publisher to the actual Worker F376 protocol
+
+F377 introduces `PinnedHttpsWitnessPublisherCandidate` in the Laravel Portal **infrastructure tree**, but it is **not registered**, never exposed through HTTP or deployed. It is a diagnostic-only writer candidate for a future independent witness-first revocation. The caller must supply a private 32-byte base64 publisher HMAC key, a server-fixed organization and recovery instance, and an independently pinned HTTPS TLS SPKI fingerprint. The instance and organization cannot be taken from browser input.
+
+The PHP publisher signs the **exact JSON body** of `organization,instance,from_sequence,generation_floor,session_floor,membership_floor`, in this order, with HMAC-SHA256 over `imagine.portal.witness.publish.v1\nPOST\n/v1/portal/witness-advance\n<timestamp>\n<rawbody>`. It requires CA chain plus hostname validation and SPKI pinning; refuses IP literals, HTTP, user-info, arbitrary port, alternate path, query string and fragment. Proxies, redirects, connection reuse and caching are disabled; deadlines and bounded response headers/bodies are enforced. Any unrecognized server response fails closed with a sanitized diagnostic.
+
+A 204 means **only** `LAB_WITNESS_ADVANCED_STILL_NO_SERVING`; a 409 means `LAB_WITNESS_CONFLICT_STILL_NO_SERVING`. Neither result authorizes a local revocation, login, HTTP request, business grant, restoration or deploy. A production state-changing protocol needs a separately verified receipt and a reviewed read-after-write/witness-fencing flow before any practical authorization can be contemplated.
+
+## Actual offline interop test
+
+The GitHub CI starts a **localhost-only HTTPS fixture**, with a disposable TLS certificate and publisher HMAC key. The fixture runs the **actual F376 Worker JavaScript** rather than duplicating its logic, backed by an in-memory SQLite database conforming to the F376 D1 schema. PHP 8.3 and 8.4 call it over pinned HTTPS with curl. The test asserts first CAS update 12→13, replay rejected, floor rollback rejected, second update 13→14, wrong publisher key rejected, wrong TLS pin rejected, redirect/timeout/HTTP failure/oversized-header and body failures rejected, server-pinned organization and instance, and NO-SERVING flags always false.
+
+This is **not a remote Cloudflare/D1 deployment test** and does not provide off-host durable monotonicity, key/secret custody, mTLS, high availability, tenant-scoped identities, authenticated replay handling across multiple publishers, authoritative witness seeding, or safe cross-system transaction coordination. Never put the publisher HMAC secret in frontend JavaScript or an HTTP client. Never assume static Cloudflare edge SPKI pinning will work through managed certificate rotation without review. Issue #64 remains **OPEN/NO-GO**, PR stacked in DRAFT only.
+
+No Cloudflare account use, VPS, service launch, DNS, real customers, payment, production migrations or GitHub `main` changes are part of F377.
