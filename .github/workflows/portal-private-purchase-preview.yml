@@ -53,6 +53,22 @@ jobs:
       - name: Install isolated customer commerce schema
         working-directory: apps/portal/ops/private-purchase
         run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+      - name: Compile and PHP-lint every Portal Blade page before browser tests
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          docker compose exec -T application sh -ec '
+            set -eu
+            php artisan view:cache
+            files=$(find storage/framework/views -type f -name "*.php")
+            test -n "$files"
+            for file in $files; do
+              php -l "$file" >/dev/null || {
+                echo "Invalid compiled Blade PHP in $file" >&2
+                exit 1
+              }
+            done
+            echo "PASS all compiled Blade templates PHP syntax"
+          '
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
