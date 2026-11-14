@@ -1,0 +1,43 @@
+name: Portal F424 month-close postpaid review only NO-INVOICE
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseCandidate.php'
+      - 'apps/portal/tools/test_performance_monthly_close_f424.php'
+      - '.github/workflows/portal-performance-monthly-f424-close-review.yml'
+permissions:
+  contents: read
+jobs:
+  close-review-no-money:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up isolated PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Validate syntax and 30+ negative/positive monthly review cases
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseCandidate.php
+          php -l apps/portal/tools/test_performance_monthly_close_f424.php
+          php apps/portal/tools/test_performance_monthly_close_f424.php
+          grep -Fq "'real_invoice_authorized'=>false" apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseCandidate.php
+          grep -Fq "'sandbox_psp_write_authorized'=>false" apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseCandidate.php
+      - name: Explicitly keep billing and production disabled
+        run: |
+          echo 'F424: full-month, acknowledged, synthetic finance candidate only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO invoice/PSP write, unverified media, first partial month, production.' >> "$GITHUB_STEP_SUMMARY"
