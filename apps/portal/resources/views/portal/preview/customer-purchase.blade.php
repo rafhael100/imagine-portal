@@ -79,10 +79,13 @@
 @if($order['sandbox']['invoice_url'])<p><a href="{{ $order['sandbox']['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança de teste no Asaas</a></p>@endif
 @endif
 @if($order['payment'] !== 'approved')
-@if($order['product'] === 'onepage')
+@if($order['product'] === 'onepage' || ($order['product'] === 'performance' && ($order['offer_snapshot']['pricing_policy'] ?? null) === 'performance-postpaid-170-per-channel-2026-11-14'))
+@if($order['product'] === 'performance')
+<p><strong>Sandbox: somente ativação de canais.</strong> Valor R$ 490 por canal no pedido registrado; a gestão mensal permanece sujeita à apuração pós-paga, sem emissão de fatura por esta ação.</p>
+@endif
 <form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito teste no Asaas sandbox com dados fictícios.</label><button type="submit">{{ $order['payment_source'] === 'manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
 @else
-<p>O checkout Asaas sandbox ainda não está habilitado nesta demonstração para {{ $order['product'] === 'performance' ? 'Performance' : 'Landing Page' }}. Use o cenário manual fictício, sem dinheiro real.</p>
+<p>A ativação Asaas sandbox não está habilitada neste pedido (Landing Page ou contrato Performance antigo). Use o cenário manual fictício, sem dinheiro real.</p>
 @endif
 @endif
 </section>
