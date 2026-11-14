@@ -1,0 +1,43 @@
+name: Portal F405 webhook private-config offline security
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/ops/private-purchase/asaas_sandbox_webhook.py'
+      - 'apps/portal/ops/private-purchase/test_sandbox_webhook.py'
+      - '.github/workflows/portal-webhook-config-offline-f405.yml'
+permissions:
+  contents: read
+jobs:
+  webhook-private-config:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      APP_ENV: testing
+      ASAAS_SANDBOX_WEBHOOK_ENABLED: '0'
+    steps:
+      - name: Checkout exact reviewed SHA without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify Python syntax without exposing secrets
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('asaas_sandbox_webhook.py','test_sandbox_webhook.py'):
+              compile(Path(name).read_bytes(), name, 'exec', dont_inherit=True)
+          print('PASS: webhook Python sources compile')
+          PY
+      - name: Reject unsafe config and authenticate synthetic requests
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v test_sandbox_webhook.py
+      - name: Record non-operational result
+        if: success()
+        run: |
+          echo 'F405 offline-only webhook security checks passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This does not approve a database migration, Asaas production, staging deploy or customer billing.' >> "$GITHUB_STEP_SUMMARY"
