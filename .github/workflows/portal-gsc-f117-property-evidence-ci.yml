@@ -1,0 +1,85 @@
+name: Portal GSC F117 - offline exact sites.list permission evidence (NO GO)
+
+on:
+  pull_request:
+    branches:
+      - review/portal-gsc-f116-local-token-transport-2026-11-14
+    paths:
+      - '.github/workflows/portal-gsc-f117-property-evidence-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php'
+      - 'apps/portal/labs/gsc-f117-property/**'
+
+permissions:
+  contents: read
+
+jobs:
+  strict-offline-site-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      PORTAL_GSC_F117_PROPERTY_LAB: '1'
+    steps:
+      - name: Checkout immutable Portal exact HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout pinned Search Console property identifier contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: de3315df4e8b8c07228d76f6613c799f9c174f31
+          path: .qa/gsc-f109
+          persist-credentials: false
+      - name: Setup pinned PHP version
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '${{ matrix.php }}'
+          coverage: none
+          tools: composer
+      - name: Setup pinned Node for allowlist check
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Verify exact review HEAD and only 4 permitted files
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/f117-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const paths=readFileSync(process.env.RUNNER_TEMP+"/f117-paths","utf8").split("\0").filter(Boolean);
+            const exact=new Set([
+              ".github/workflows/portal-gsc-f117-property-evidence-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php",
+              "apps/portal/labs/gsc-f117-property/test-property-evidence.php",
+              "apps/portal/labs/gsc-f117-property/README.md"
+            ]);
+            if(paths.length!==exact.size||paths.some(p=>!exact.has(p)))
+              throw Error("F117: unexpected route, migration or source alteration");
+            console.log("F117: four exact review files");
+          '
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+      - name: Execute genuine PHP strict JSON evidence parser tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php
+          php -l apps/portal/labs/gsc-f117-property/test-property-evidence.php
+          php -l .qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
+          php apps/portal/labs/gsc-f117-property/test-property-evidence.php \
+            .qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
+          test -z "$(git status --porcelain --untracked-files=no)"
