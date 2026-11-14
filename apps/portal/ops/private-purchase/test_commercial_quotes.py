@@ -40,6 +40,15 @@ with sync_playwright() as p:
     assert page.locator('[data-billing-kind="setup"]').count()==3
     assert page.locator('[data-billing-kind="monthly"]').count()==3
     assert 'R$ 430,00' in page.locator('[data-billing-calendar]').inner_text()
+    assert page.locator('[data-direct-checkout-gate="closed"]').count()==1
+    assert page.locator('[name=sandbox_ack]').count()==0
+    landing_url=page.url
+    invalid_landing=page.request.post(landing_url+'/sandbox',form={
+        '_token':page.locator('[name=_token]').first.input_value(),
+        'revision':page.locator('[name=revision]').first.input_value(),
+        'sandbox_ack':'1'
+    })
+    assert invalid_landing.status==409, 'Landing must not queue Sandbox PSP intent'
     page.goto(BASE+'/shop?product=performance')
     assert '20%' in page.locator('body').inner_text()
     data={'_token':page.locator('[name=_token]').input_value(),'product':'performance','request_key':page.locator('[name=request_key]').input_value(),'offer_ack':'1','offer_version':page.locator('[name=offer_version]').input_value()}
@@ -57,6 +66,14 @@ with sync_playwright() as p:
     assert page.locator('[data-billing-kind="setup"]').count()==0
     assert page.locator('[data-billing-kind="monthly"]').count()==0
     assert 'data a definir após verificação' in page.locator('[data-billing-calendar]').inner_text()
+    assert page.locator('[data-direct-checkout-gate="closed"]').count()==1
+    assert page.locator('[name=sandbox_ack]').count()==0
+    invalid_performance=page.request.post(page.url+'/sandbox',form={
+        '_token':page.locator('[name=_token]').first.input_value(),
+        'revision':page.locator('[name=revision]').first.input_value(),
+        'sandbox_ack':'1'
+    })
+    assert invalid_performance.status==409, 'Performance media estimate cannot create a PSP intent'
     assert 'R$ 1.680,00' not in body
     page.reload()
     assert 'R$ 280,00' in page.locator('body').inner_text()
