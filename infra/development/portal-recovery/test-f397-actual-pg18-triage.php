@@ -131,8 +131,8 @@ SQL);
         try {
             $auth->revokeSessionDigest($digest);
             $assert(false);
-        }catch(PDOException){
-            $assert(true);
+        }catch(RuntimeException $exception){
+            $assert($exception->getMessage()==='Portal authentication database unavailable.');
         }
         $assert($auth->inspectSessionDigestStatus($digest,$org)==='not_revoked');
         $status($inspect($active),'ACK_CLAIM_CONTRADICTS_ACTIVE_POSTGRES');
