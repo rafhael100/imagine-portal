@@ -2,6 +2,9 @@ name: Portal F1-391 durable authenticated Asaas webhook inbox PG18 (synthetic)
 on:
   pull_request:
     paths:
+      - 'apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php'
+      - 'apps/portal/app/Http/Controllers/CustomerPreviewController.php'
+      - 'apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php'
       - 'apps/portal/app/Domain/SitesIntegration/AsaasWebhookPgInbox.php'
       - 'apps/portal/ops/psp/asaas-webhook-inbox-ci.sql'
       - 'tests/f391-asaas-webhook-inbox-pg18.php'
