@@ -2,6 +2,12 @@ name: Portal F412/F413 - GSC identity PG18 plus Performance PSP CRM review
 
 on:
   pull_request:
+    # This job checks an intentionally bounded F412/F413 file set.
+    # Later feature PRs have their own scoped tests and must not broaden
+    # this original security allowlist merely to avoid a false failure.
+    branches:
+      - review/portal-f411-payment-policy-noop-net-integrity-2026-11-14
+      - review/portal-f412-gsc-view-real-identity-finance-integration-2026-11-14
     paths:
       - '.github/workflows/portal-gsc-f112-real-identity-atomic-ci.yml'
       - 'apps/portal/labs/gsc-f112-integrated-pg18/**'
