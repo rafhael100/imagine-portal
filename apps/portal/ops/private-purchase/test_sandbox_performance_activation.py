@@ -3,19 +3,17 @@
 Chromium + PostgreSQL FORCE RLS + injected provider API only.
 No production account, fiscal invoice, recurring management fee or real money.
 """
-import json
 import os
-import pathlib
 import shutil
+import uuid
 from playwright.sync_api import sync_playwright
-from asaas_sandbox_worker import Database, Worker, Unconfirmed
+from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
 
 BASE = os.environ.get(
     'PURCHASE_PREVIEW_BASE',
     'http://127.0.0.1:18083/_rehearsal/purchase'
 ).split('/_rehearsal/')[0] + '/_preview/portal'
-saved = json.loads(pathlib.Path('/tmp/portal-customer-ci.json').read_text())
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(
@@ -23,10 +21,21 @@ with sync_playwright() as playwright:
         headless=True, args=['--no-sandbox']
     )
     page = browser.new_page()
-    page.goto(BASE)
-    page.locator('[name=username]').fill(saved['user'])
-    page.locator('[name=password]').fill('ci-owned-customer-only-2026')
-    page.get_by_role('button', name='Entrar', exact=True).click()
+
+    # Do not reuse a customer who already logged in repeatedly earlier
+    # in the full CI suite. Keep the real account throttle enabled and
+    # create a one-time fictitious user rather than bypassing security.
+    user = 'demo-f423-' + uuid.uuid4().hex[:12]
+    assert page.goto(BASE+'/register').status == 200
+    for name, value in [
+        ('name','Cliente ficticio F423'),
+        ('company','Empresa sintética F423'),
+        ('username',user),
+        ('password','ci-owned-customer-only-2026'),
+        ('password_confirmation','ci-owned-customer-only-2026'),
+    ]:
+        page.locator('[name='+name+']').fill(value)
+    page.get_by_role('button', name='Criar conta e continuar', exact=True).click()
     assert '/client/' in page.url, page.locator('body').inner_text()[:200]
 
     assert page.goto(BASE+'/shop?product=performance').status == 200
