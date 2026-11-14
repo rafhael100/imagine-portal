@@ -52,7 +52,9 @@ jobs:
           test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
       - name: Install isolated customer commerce schema
         working-directory: apps/portal/ops/private-purchase
-        run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+        run: |
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
@@ -79,6 +81,7 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
           docker compose restart database application
@@ -102,6 +105,7 @@ jobs:
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
+          CUSTOMER_WORK_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
       - name: Audit five individual-customer screenshots and SHA256
         run: |

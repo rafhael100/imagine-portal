@@ -74,7 +74,7 @@ final class FullPortalPreviewController
         $this->profile($request,'admin');
         $pages=['overview','clients','orders','services','finance','contracts','requests','settings'];
         abort_unless(in_array($section,$pages,true),404);
-        return $this->page('portal.preview.admin',['section'=>$section,'orders'=>[...app(\App\Homologation\PreviewOrderListing::class)->rows(),...app(\App\Homologation\CustomerPreviewStore::class)->orders(null)]]);
+        return $this->page('portal.preview.admin',['section'=>$section,'customers'=>app(\App\Homologation\CustomerPreviewStore::class)->customers(),'orders'=>[...app(\App\Homologation\PreviewOrderListing::class)->rows(),...app(\App\Homologation\CustomerPreviewStore::class)->orders(null)]]);
     }
     public function logo()
     {
