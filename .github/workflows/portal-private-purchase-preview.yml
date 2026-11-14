@@ -111,6 +111,10 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
+          # The same synthetic customer is reused by independent browser suites.
+          # Reset ONLY disposable CI rate-limit file-cache counters; leave
+          # database, session files, signatures and real application quota unchanged.
+          (cd apps/portal/ops/private-purchase && docker compose exec -T application sh -ec 'find storage/framework/cache/data -type f -delete')
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
