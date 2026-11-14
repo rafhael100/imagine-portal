@@ -159,6 +159,36 @@ final class DemoPortalStaticExporter
         }
         $walkthrough .= '</ol></section>';
 
+        // F399: a separate, strictly static purchase-to-client REVIEW path.
+        // It cannot construct an external checkout URL, login, order, session
+        // or entitlement. Each link must target an existing generated page.
+        $commercialJourney='<section aria-labelledby="pi-commercial-portal-review">' .
+            '<h2 id="pi-commercial-portal-review">Jornada comercial → Portal (somente demonstração)</h2>' .
+            '<p>Explore a sequência visual de apresentação dos serviços até o painel do cliente fictício. ' .
+            'Não há compras, pagamentos, login ou transferência de dados nesta prévia offline.</p><ol>';
+        $commercialSeen=[];
+        foreach(DemoCommercialPortalJourney::steps() as $step){
+            $href=$step['href'];
+            if(!isset($allowed[$href])||$href==='index.html'
+                ||isset($commercialSeen[$href])){
+                throw new LogicException('Unapproved commercial demo step.');
+            }
+            $commercialSeen[$href]=true;
+            $commercialJourney.='<li><a href="'.$href.'">'.
+                htmlspecialchars($step['title'],ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').
+                '</a><p>'.
+                htmlspecialchars($step['description'],ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8').
+                '</p></li>';
+        }
+        if(count($commercialSeen)!==4
+            ||DemoCommercialPortalJourney::authorizesCommercialCheckout()
+            ||DemoCommercialPortalJourney::authorizesPortalLogin()
+            ||DemoCommercialPortalJourney::authorizesAccountPurchase()
+            ||DemoCommercialPortalJourney::transfersCustomerData()){
+            throw new LogicException('Commercial journey cannot grant permissions.');
+        }
+        $commercialJourney.='</ol></section>';
+
         $index = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' .
             '<meta name="viewport" content="width=device-width,initial-scale=1">' .
             '<meta name="robots" content="noindex,nofollow">' .
@@ -172,7 +202,7 @@ final class DemoPortalStaticExporter
             '<main id="pi-content"><h1>Imagine Portal — prévia interna offline</h1>' .
             '<p class="warning">Somente dados fictícios. Sem login, contrato, pagamento, cliente ou publicação.</p>' .
             '<nav aria-label="Telas ilustrativas"><ul>' . $list . '</ul></nav>' .
-            $walkthrough . '</main></body></html>';
+            $commercialJourney . $walkthrough . '</main></body></html>';
 
         if (file_put_contents($staging . DIRECTORY_SEPARATOR . 'index.html', $index, LOCK_EX) === false) {
             throw new RuntimeException('Cannot write the demo index.');
