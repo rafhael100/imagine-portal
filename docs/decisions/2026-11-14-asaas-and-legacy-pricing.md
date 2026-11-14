@@ -21,14 +21,31 @@ Repositório original: `rafhael100/imagine-portal`, commit [50b683a499e674641df5
 | Primeiro vencimento mensal | D+90 da contratação, independentemente da publicação; fuso de Brasília |
 | Produção | Sete dias úteis após validação dos materiais |
 | Ajustes previstos | Duas rodadas conforme contrato |
-| Assinatura inclui | Licença de uso, hospedagem, SSL, backup e suporte técnico; alterações à parte |
+| Assinatura inclui | Licença de uso, hospedagem, SSL, backup e suporte técnico; complemento IN-115 inclui conteúdo em blocos existentes, extras estruturais sob orçamento |
 | Domínio | Fornecido pelo cliente |
 
 A oferta original apresenta R$ 2.490 como valor de referência promocional. A cobrança recuperada é R$ 990; a migração não cria validade promocional, urgência ou desconto adicional. Descontos Pix/Pix Automático não foram confirmados nestes arquivos do modelo atual e não devem ser aplicados automaticamente com base em memória de planejamento.
 
 Valores de R$ 39,90 e início em 60 dias pertencem ao modelo legado; contratos anteriores conservam os respectivos valores e regras. Não substituir contratos existentes pelo modelo novo.
 
-Landing Page e Performance não possuem preço aprovado identificável nas fontes revisadas. Manter contratação direta desses serviços bloqueada até localizar a oferta correspondente; ausência de preço não significa gratuidade. Sistemas, aplicativos e agentes IA têm preço nulo no catálogo inicial e dependem de proposta.
+### Recuperação posterior do histórico — IN-115
+
+A pesquisa inicial somente na main foi insuficiente. A branch Node `docs/producao-inteligente-v01`, fixada em [76ce533da42bf5d195ebffcdc8a110d1bc70f9b8](https://github.com/rafhael100/imagine-portal/blob/76ce533da42bf5d195ebffcdc8a110d1bc70f9b8/docs/OFERTA-LANDING-PAGE.md), contém aprovação comercial explícita da Landing Page:
+
+| Item | Condição aprovada no planejamento |
+| --- | --- |
+| Implantação Landing Page | R$ 1.290,00 |
+| Cobranças | 3 × R$ 430,00 em D0, D+30 e D+60 |
+| Mensalidade obrigatória | R$ 79,90 a partir de D+90 da contratação, independentemente da publicação |
+| Prazo-base | 7 dias úteis após validação de briefing e materiais |
+| Revisões | Duas rodadas |
+| CRM Básico | Benefício elegível sem segunda mensalidade CRM; não equivale a provisionamento já disponível |
+
+O mesmo documento contém complemento **posterior** às condições Node iniciais: nas novas ofertas Onepage/Landing Page, atualização de conteúdo em blocos existentes integra a mensalidade, sem teto mensal fixo, sob uso justo; alterações simples têm até 3 dias úteis para disponibilizar revisão após materiais completos. Layout, novos blocos e funcionalidades exigem orçamento/aceite. Esta diretriz documental não foi implementada automaticamente no checkout antigo; preservar os contratos legados e resolver a versão contratual antes de lançar a nova oferta.
+
+Extras de sites: orçamento até R$ 270,00 inclusive é à vista; acima disso admite à vista ou até três parcelas opcionais. Não presumir juros, isenção de juros, entrada ou datas não definidas.
+
+Performance possui valores históricos recuperados, porém as fontes revisadas os classificam como propostas/simulações e apresentam modelos divergentes; ver [pesquisa e regras recuperadas](2026-11-14-landing-performance-pricing-research.md). Sua contratação direta permanece desabilitada nesta referência até reconciliar qual tabela foi aprovada. Sistemas, aplicativos e agentes IA têm preço nulo no catálogo inicial e dependem de proposta.
 
 ## Responsabilidades e migração
 
