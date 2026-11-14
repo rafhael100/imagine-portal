@@ -1,6 +1,6 @@
 """Two independent synthetic accounts, owned checkout and administrator visibility."""
 import os, json, pathlib, shutil, uuid, hashlib
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright,expect
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
 fixture=pathlib.Path('/tmp/portal-customer-ci.json')
 with sync_playwright() as p:
@@ -48,7 +48,7 @@ with sync_playwright() as p:
         assert page.url.rstrip('/')==BASE
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
-        assert page.get_by_role('button',name='Criar pedido de teste').count()==1
+        expect(page.get_by_role('button',name='Criar pedido de teste')).to_have_count(1)
         capture('02-selected-onepage-offer.png')
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         version=page.locator('[name=offer_version]').input_value()
