@@ -31,7 +31,7 @@ final class C6SandboxCredentialPreflightTest extends TestCase
     }
     protected function tearDown(): void
     {
-        foreach (['client_id','client_secret','client.crt','client.key'] as $file) {
+        foreach (['client_id','client_secret','client.crt','client.key','client.p12','client_p12_passphrase'] as $file) {
             $p=$this->dir.'/'.$file;
             if (is_file($p)||is_link($p)) unlink($p);
         }
@@ -75,4 +75,45 @@ final class C6SandboxCredentialPreflightTest extends TestCase
         $this->expectException(RuntimeException::class);
         C6SandboxCredentialPreflight::inspect($this->dir);
     }
+    private function convertFixtureToP12(): void
+    {
+        $cert = openssl_x509_read(file_get_contents($this->dir.'/client.crt'));
+        $key = openssl_pkey_get_private(file_get_contents($this->dir.'/client.key'));
+        self::assertNotFalse($cert);
+        self::assertNotFalse($key);
+        self::assertTrue(openssl_pkcs12_export($cert, $binary, $key, 'synthetic-test-p12-password'));
+        unlink($this->dir.'/client.crt');
+        unlink($this->dir.'/client.key');
+        file_put_contents($this->dir.'/client.p12', $binary);
+        file_put_contents($this->dir.'/client_p12_passphrase', 'synthetic-test-p12-password');
+        chmod($this->dir.'/client.p12', 0600);
+        chmod($this->dir.'/client_p12_passphrase', 0600);
+    }
+
+    public function test_restricted_p12_is_validated_without_exporting_key(): void
+    {
+        $this->convertFixtureToP12();
+        $result=C6SandboxCredentialPreflight::inspect($this->dir);
+        self::assertSame('p12', $result['certificate_format']);
+        self::assertFalse($result['network_checked']);
+        self::assertFalse($result['can_charge']);
+    }
+
+    public function test_wrong_p12_passphrase_fails_closed(): void
+    {
+        $this->convertFixtureToP12();
+        file_put_contents($this->dir.'/client_p12_passphrase', 'incorrect-passphrase');
+        $this->expectException(RuntimeException::class);
+        C6SandboxCredentialPreflight::inspect($this->dir);
+    }
+
+    public function test_mixed_pem_and_p12_fails_closed(): void
+    {
+        $this->convertFixtureToP12();
+        file_put_contents($this->dir.'/client.crt', 'invalid-pem');
+        chmod($this->dir.'/client.crt', 0600);
+        $this->expectException(RuntimeException::class);
+        C6SandboxCredentialPreflight::inspect($this->dir);
+    }
+
 }
