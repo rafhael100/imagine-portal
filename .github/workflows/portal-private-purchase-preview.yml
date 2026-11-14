@@ -50,14 +50,35 @@ jobs:
           test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
           test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
           test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
+      - name: Install isolated customer commerce schema
+        working-directory: apps/portal/ops/private-purchase
+        run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+      - name: Compile and PHP-lint every Portal Blade page before browser tests
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          docker compose exec -T application sh -ec '
+            set -eu
+            php artisan view:cache
+            files=$(find storage/framework/views -type f -name "*.php")
+            test -n "$files"
+            for file in $files; do
+              php -l "$file" >/dev/null || {
+                echo "Invalid compiled Blade PHP in $file" >&2
+                exit 1
+              }
+            done
+            echo "PASS all compiled Blade templates PHP syntax"
+          '
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_OWNED_PREVIEW_SHOTS_DIR: ${{ runner.temp }}/portal-customer-review-shots
         run: |
           python3 -m venv /tmp/private-purchase-browser
           /tmp/private-purchase-browser/bin/pip install playwright==1.56.0
           /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
           docker compose restart database application
@@ -80,7 +101,39 @@ jobs:
         run: |
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
+          CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Audit five individual-customer screenshots and SHA256
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          folder=Path(os.environ['RUNNER_TEMP'])/'portal-customer-review-shots'
+          manifest=json.loads((folder/'manifest.json').read_text())
+          expected=[
+            '01-registration-blank.png','02-selected-onepage-offer.png',
+            '03-owned-purchase-complete.png','04-customer-service-list.png',
+            '05-admin-owned-order.png',
+          ]
+          assert manifest['no_real_customer_data'] is True
+          assert manifest['no_public_deploy'] is True
+          assert manifest['credentials_captured'] is False
+          assert [item['name'] for item in manifest['files']]==expected
+          assert {p.name for p in folder.iterdir()}==set(expected+['manifest.json'])
+          for item in manifest['files']:
+              data=(folder/item['name']).read_bytes()
+              assert data[:8]==bytes.fromhex('89504e470d0a1a0a')
+              assert len(data)>2048
+              assert hashlib.sha256(data).hexdigest()==item['sha256']
+          print('PASS 5 synthetic customer/admin screenshots with SHA256 checks')
+          PY
+      - name: Preserve synthetic individual-customer flow screenshots (7 days)
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-individual-customer-flow
+          path: ${{ runner.temp }}/portal-customer-review-shots/
+          if-no-files-found: error
+          retention-days: 7
       - name: Diagnose failed synthetic browser flow
         if: failure()
         working-directory: apps/portal/ops/private-purchase

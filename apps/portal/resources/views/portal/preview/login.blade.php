@@ -2,4 +2,4 @@
 @if(!$ready)<p role="status">Os perfis de cliente e administrador estão aguardando a definição das senhas de teste.</p>@else
 @if($errors->any())<p role="alert" class="error">Usuário ou senha inválidos. Confira os dados e tente novamente.</p>@endif
 <form method="post" action="/_preview/portal/login">@csrf<label for="username">Usuário</label><input id="username" name="username" autocomplete="username" value="{{ old('username') }}" required maxlength="64"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256"><button type="submit">Entrar</button></form>
-@endif<p class="note">Área do cliente e administração em acessos separados. Nesta avaliação, os dados são fictícios.</p></main></body></html>
+@endif<p><a href="/_preview/portal/register">Criar minha conta de teste</a></p><p class="note">Área do cliente e administração em acessos separados. Nesta avaliação, os dados são fictícios.</p></main></body></html>
