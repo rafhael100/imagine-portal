@@ -87,8 +87,18 @@ class Worker:
 
 class Database:
     def sql(self,s):
-        cmd=['docker','compose','exec','-T','database','psql','-X','-q','-tA','-v','ON_ERROR_STOP=1','-U','postgres','-d','portal_purchase_rehearsal']
-        p=subprocess.run(cmd,input='SET ROLE purchase_rehearsal_psp;\n'+s,text=True,cwd=ROOT,capture_output=True,timeout=20)
+        # A real LOGIN role in an isolated one-shot psql container replaces the
+        # earlier superuser + SET ROLE shortcut. Broker cannot read customer PII,
+        # the app's HMAC verifier secret or anyone's credential.
+        cmd=['docker','compose','run','--rm','-T','--no-deps','broker',
+             '-X','-q','-tA','-v','ON_ERROR_STOP=1',
+             '-h','database','-p','5432','-U','purchase_rehearsal_psp',
+             '-d','portal_purchase_rehearsal','-c',s]
+        try:
+            p=subprocess.run(cmd,text=True,cwd=ROOT,capture_output=True,timeout=30,
+                             check=False)
+        except (OSError,subprocess.TimeoutExpired):
+            raise Unconfirmed('Ledger operation unavailable') from None
         if p.returncode: raise Unconfirmed('Ledger operation unavailable')
         return p.stdout.strip()
     def rows(self):
