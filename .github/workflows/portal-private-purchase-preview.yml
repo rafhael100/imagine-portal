@@ -130,6 +130,7 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
           cd apps/portal/ops/private-purchase
           # Prove the shared application SQL login cannot enumerate another
