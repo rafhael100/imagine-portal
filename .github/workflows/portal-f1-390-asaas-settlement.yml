@@ -2,6 +2,9 @@ name: Portal F1-390 Asaas verified installation settlement (offline synthetic)
 on:
   pull_request:
     paths:
+      - 'apps/portal/ops/private-purchase/customer-schema.sql'
+      - 'apps/portal/app/Homologation/CustomerPreviewStore.php'
+      - 'docs/PORTAL-P0-SIGNED-SQL-CHECKOUT-CONSOLIDATION.md'
       - 'apps/portal/app/Domain/SitesIntegration/Asaas*'
       - 'tests/f390-asaas-official-settlement.php'
       - 'tests/p0-checkout-asaas-proof-parity.php'
