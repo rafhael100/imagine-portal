@@ -59,4 +59,47 @@ final class PortalGatewayReviewExporterTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         PortalGatewayReviewExporter::export($quote, 'org-synthetic-001', 'order-synthetic-001', 1, self::KEY);
     }
+
+    public function test_fee_cannot_consume_or_exceed_the_gross_amount(): void
+    {
+        $quote = $this->quote();
+        $quote['estimated_fee_cents'] = $quote['gross_cents'];
+        $quote['estimated_net_cents'] = 0;
+        $this->expectException(InvalidArgumentException::class);
+        PortalGatewayReviewExporter::export(
+            $quote, 'org-synthetic-001', 'order-synthetic-001', 1, self::KEY,
+        );
+    }
+
+    public function test_manipulated_net_amount_is_rejected_before_hmac(): void
+    {
+        $quote = $this->quote();
+        $quote['estimated_net_cents'] += 1;
+        $this->expectException(InvalidArgumentException::class);
+        PortalGatewayReviewExporter::export(
+            $quote, 'org-synthetic-001', 'order-synthetic-001', 1, self::KEY,
+        );
+    }
+
+    public function test_bad_routing_metadata_is_rejected(): void
+    {
+        $base = $this->quote();
+        foreach ([
+            ['mode' => 'automatic_without_approval'],
+            ['settlement_days' => -1],
+            ['settlement_days' => '1'],
+            ['estimated_net_cents' => null],
+        ] as $patch) {
+            try {
+                PortalGatewayReviewExporter::export(
+                    array_replace($base, $patch), 'org-synthetic-001',
+                    'order-synthetic-001', 1, self::KEY,
+                );
+                self::fail('Malformed provider terms unexpectedly accepted');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
 }
