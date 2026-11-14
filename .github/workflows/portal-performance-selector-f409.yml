@@ -1,0 +1,30 @@
+name: Portal F409 offline interactive channel selector
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/performance-checkout-selector/**'
+      - '.github/workflows/portal-performance-selector-f409.yml'
+permissions:
+  contents: read
+jobs:
+  standalone-selector:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact SHA without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Validate isolated offline calculator
+        working-directory: apps/portal/labs/performance-checkout-selector
+        run: |
+          set -euo pipefail
+          node --version
+          node --check calculator.mjs
+          node --check ui.mjs
+          node --test test.mjs
+          ! grep -iE 'fetch\(|XMLHttpRequest|localStorage|sessionStorage|https?://api' calculator.mjs ui.mjs index.html
+      - name: Document NO-GO
+        if: success()
+        run: echo 'Offline UI only. No lead collection, checkout, PSP charge or Ads write authorized.' >> "$GITHUB_STEP_SUMMARY"
