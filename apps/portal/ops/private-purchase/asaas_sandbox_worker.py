@@ -1,7 +1,7 @@
 """Host-side sandbox broker. No production endpoint, real identity or notifications.
 Run --once for operator-requested reconciliation. No background polling by default.
 """
-import argparse,datetime,decimal,fcntl,json,os,pathlib,re,stat,subprocess,urllib.request,urllib.parse
+import argparse,datetime,decimal,fcntl,json,os,pathlib,re,stat,subprocess,urllib.request,urllib.parse,urllib.error
 ROOT=pathlib.Path(__file__).resolve().parent
 BASE='https://api-sandbox.asaas.com/v3'
 FIXTURE_DOCUMENT='24971563792' # Official API example: docs.asaas.com/reference/criar-novo-cliente
@@ -21,6 +21,13 @@ class Asaas:
                 raw=r.read(1048577)
                 if len(raw)>1048576 or r.status not in (200,201): raise Unconfirmed('Response unavailable')
                 return json.loads(raw)
+        except urllib.error.HTTPError as e:
+            codes=[]
+            try:
+                errors=json.loads(e.read(8192)).get('errors',[])
+                codes=[x['code'] for x in errors if isinstance(x,dict) and isinstance(x.get('code'),str) and re.fullmatch('[A-Za-z0-9_]{1,64}',x['code'])][:3]
+            except Exception:pass
+            raise Unconfirmed('Provider HTTP '+str(e.code)+' '+','.join(codes)) from None
         except Exception: raise Unconfirmed('Provider operation not confirmed') from None
     def find(self,kind,reference):
         data=self.call('GET','/'+kind+'?'+urllib.parse.urlencode({'externalReference':reference,'limit':100}))
@@ -107,4 +114,4 @@ if __name__=='__main__':
         db=Database();worker=Worker(db,Asaas(cfg['api_key']))
         for row in db.rows():
             try:worker.process(row);print('Sandbox intent reconciled')
-            except Unconfirmed:print('Sandbox intent requires reconciliation; no blind retry')
+            except Unconfirmed as e:print('Sandbox intent requires reconciliation; no blind retry: '+str(e))
