@@ -1,20 +1,35 @@
 @php($latest=$order['performance_reports'][0]??null)
+@php($isNewPerformance=($order['offer_snapshot']['pricing_policy']??null)==='performance-postpaid-170-per-channel-2026-11-14')
 <style>.performance-report label{display:block;margin:14px 0}.performance-report input:not([type=hidden]):not([type=checkbox]),.performance-report textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;padding:10px;border:1px solid #bdc6cf;border-radius:8px;font:inherit}.performance-report textarea{min-height:90px}.performance-report button{font:inherit;border:0;cursor:pointer;margin:5px 0}.performance-report dd{margin:0 0 12px}.performance-report details{margin:16px 0}</style>
-<div class="performance-report"><x-portal.panel title="Acerto de Performance (teste)">
-<p>Compare os honorários antecipados com 20% da mídia efetivamente investida. A mídia é paga diretamente aos canais.</p>
+<div class="performance-report"><x-portal.panel :title="$isNewPerformance ? 'Apuração pós-paga de Performance (teste)' : 'Acerto de Performance legado (teste)'">
+@if($isNewPerformance)
+<p>Ativação de R$ 490 por canal, separada da gestão. Após cada mês completo, a gestão é o maior entre 20% da mídia efetiva e R$ 170 por canal ativo. A mídia é paga diretamente às plataformas.</p>
+<p>Os valores aqui são fictícios, sem extratos de provedores. O primeiro mês parcial exige revisão contratual. Este painel não emite cobrança, nota fiscal ou crédito automático.</p>
+@else
+<p>Contrato histórico: compare os honorários antecipados com 20% da mídia efetivamente investida. A mídia é paga diretamente aos canais.</p>
 <p>Esta apuração usa somente relatório fictício da primeira antecipação deste pedido. A competência identifica o relatório e não define vencimento ou novo ciclo contratual. Não há cobrança adicional, crédito ou estorno automático.</p>
+@endif
 @forelse($order['performance_reports'] as $entry)
 <details @if($loop->first) open @endif><summary>Relatório {{ $entry['report']['period'] }} · versão {{ $entry['version'] }} · {{ ['pending'=>'Aguardando conferência do cliente','acknowledged'=>'Conferido pelo cliente; aguarda financeiro','disputed'=>'Correção solicitada'][$entry['decision']] }}</summary>
-<dl><dt>Referência fictícia</dt><dd>{{ $entry['report']['evidence_ref'] }}</dd><dt>Honorários antecipados</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($entry['report']['advance_fee_cents']) }}</dd>
+<dl><dt>Referência fictícia</dt><dd>{{ $entry['report']['evidence_ref'] }}</dd>
+@if(isset($entry['report']['policy_version']))
+<dt>Ativação simulada dos canais</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($entry['report']['activation_paid_cents']) }}</dd>
+@else
+<dt>Honorários antecipados</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($entry['report']['advance_fee_cents']) }}</dd>
+@endif
 @foreach($entry['report']['channels'] as $channel=>$amounts)
 <dt>{{ ['google_ads'=>'Google Ads','meta_ads'=>'Meta Ads'][$channel] }}</dt><dd>Mídia planejada: {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($amounts['planned_cents']) }} · Investida: {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($amounts['actual_cents']) }}@if($amounts['below_planned_minimum'])<p>Gasto abaixo do mínimo do planejamento. Revisão necessária; não há complemento automático sobre mídia não investida.</p>@endif</dd>
 @endforeach
-<dt>Honorários apurados (20%)</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($entry['report']['actual_management_fee_cents']) }}</dd>
+<dt>{{ isset($entry['report']['policy_version']) ? 'Gestão apurada — 20% ou mínimo R$ 170 por canal' : 'Honorários apurados (20%)' }}</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($entry['report']['actual_management_fee_cents']) }}</dd>
+@if(isset($entry['report']['policy_version']))
+<dt>Situação da apuração</dt><dd>Pós-paga, sujeita a revisão e contestação. Nenhuma fatura emitida.</dd>
+@else
 <dt>{{ $entry['report']['adjustment_cents']>0?'Diferença a cobrar em análise':($entry['report']['adjustment_cents']<0?'Crédito em análise':'Sem diferença') }}</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl(abs($entry['report']['adjustment_cents'])) }}</dd>
+@endif
 @if($entry['client_note'])<dt>Observação do cliente</dt><dd>{{ $entry['client_note'] }}</dd>@endif
 <dt>Registro</dt><dd>{{ $entry['created_at'] }}@if($entry['decided_at']) · Conferência: {{ $entry['decided_at'] }}@endif</dd></dl></details>
 @empty<p>A equipe ainda não enviou a apuração de teste.</p>@endforelse
-@if($isAdmin&&($latest===null||$latest['decision']==='disputed'))
+@if($isAdmin&&($latest===null||$latest['decision']==='disputed'||($isNewPerformance&&$latest['decision']==='acknowledged')))
 <form method="post" action="/_preview/portal/work/{{ $order['id'] }}/performance-report">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}">
 <label>Competência do relatório<input type="month" name="period" required value="{{ old('period',$latest['report']['period']??'') }}"></label>
 @foreach($order['offer_snapshot']['media_by_channel_cents'] as $channel=>$planned)
