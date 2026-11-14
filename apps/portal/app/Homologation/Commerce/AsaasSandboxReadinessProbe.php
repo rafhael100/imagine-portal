@@ -41,10 +41,12 @@ final readonly class AsaasSandboxReadinessProbe
                 strlen($result['body'])>65536) {
                 return false;
             }
-            $body=json_decode($result['body'],true,12,JSON_THROW_ON_ERROR);
-            return is_array($body) && !array_is_list($body) &&
-                is_array($body['data']??null) && array_is_list($body['data']) &&
-                count($body['data'])<=1 && is_bool($body['hasMore']??null);
+            // Preserve JSON object vs array identity: an empty {} must
+            // never be accepted as the provider's documented data: [] list.
+            $body=json_decode($result['body'],false,12,JSON_THROW_ON_ERROR);
+            return $body instanceof \stdClass &&
+                is_array($body->data??null) &&
+                count($body->data)<=1 && is_bool($body->hasMore??null);
         } catch (\Throwable) {
             // No response detail, payment field, token or account ID in logs.
             return false;
