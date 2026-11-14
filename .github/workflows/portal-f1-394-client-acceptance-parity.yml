@@ -1,0 +1,67 @@
+name: Portal F1-394 signed client acceptance parity with Sites F1-391
+on:
+  push:
+    branches:
+      - feature/portal-f1-394-client-acceptance-issuer-2026-11-14
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PortalClientAcceptanceSnapshot.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentClientAcceptanceSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalCurrentClientAcceptanceSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalEd25519ClientAcceptanceIssuer.php'
+      - 'tests/f394-portal-client-acceptance-parity.php'
+      - '.github/workflows/portal-f1-394-client-acceptance-parity.yml'
+      - 'docs/PORTAL-F1-394-SITES-CLIENT-ACCEPTANCE.md'
+permissions:
+  contents: read
+jobs:
+  client-acceptance-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F394_APPROVAL_CI: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+      F394_SITES_CHECKOUT: ./sites-candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 1bb80823a112cd935f4498e36ad9e0da853f851f
+          path: sites-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Lint original Portal issuer and Sites verifier
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-candidate rev-parse HEAD)" = 1bb80823a112cd935f4498e36ad9e0da853f851f
+          for name in PortalClientAcceptanceSnapshot PortalCurrentClientAcceptanceSource DenyingPortalCurrentClientAcceptanceSource PortalEd25519ClientAcceptanceIssuer; do
+            php -l "apps/portal/app/Domain/SitesIntegration/${name}.php"
+          done
+          php -l sites-candidate/src/Publication/SignedPortalClientApprovalGate.php
+          php -l tests/f394-portal-client-acceptance-parity.php
+      - name: Check CI guard and original cross-repo Ed25519 parity
+        run: |
+          set -euo pipefail
+          if PORTAL_F394_APPROVAL_CI=0 php tests/f394-portal-client-acceptance-parity.php; then
+            echo "Unsafe approval fixture executed without CI guard" >&2
+            exit 1
+          fi
+          php tests/f394-portal-client-acceptance-parity.php
+      - name: Preserve deny-by-default operational boundaries
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalEd25519ClientAcceptanceIssuer' apps/portal/app/Providers apps/portal/routes
+          ! grep -R -n 'PortalCurrentClientAcceptanceSource' apps/portal/app/Providers apps/portal/routes
+          echo 'No client actor, live consent record, vault key, real HTTP endpoint or release authorization bound.'
