@@ -7,12 +7,20 @@
 @if($errors->any())<section role="alert"><h2>Confira os campos</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></section>@endif
 @if($order === null)
 <h1>Escolha o serviço para testar a contratação</h1><p>Selecione uma oferta e acompanhe seu pedido até o briefing.</p><div class="cards">
-@foreach(['onepage'=>['Site Onepage','Apresente sua empresa em uma página.'],'landing-pages'=>['Landing Page','Uma página voltada para sua campanha.'],'performance'=>['Performance','Planeje uma campanha para seu negócio.']] as $slug=>$offer)
+@foreach($commercialOffers as $slug=>$offer)
     @if($selectedProduct === null || $selectedProduct === $slug)
         <section class="card">
-            <h2>{{ $offer[0] }}</h2>
-            <p>{{ $offer[1] }}</p>
-            <p>Valores e escopo comercial ainda não definidos nesta homologação.</p>
+            <h2>{{ $offer['name'] }}</h2>
+            <p>{{ $offer['description'] }}</p>
+            @if($slug==='performance')
+            <p><strong>Honorários de gestão:</strong> {{ $offer['management_percent'] }}% da mídia investida. <strong>Mídia mínima:</strong> R$ {{ number_format($offer['min_media_per_channel_cents']/100,2,',','.') }} por canal.</p>
+            <p>Exemplo: R$ {{ number_format($offer['min_media_per_channel_cents']/100,2,',','.') }} de mídia em um canal corresponde a R$ {{ number_format($offer['example_fee_cents']/100,2,',','.') }} de gestão. A mídia é paga diretamente à plataforma.</p>
+            <p>Período de apuração, aceite e cobrança operacional permanecem a definir.</p>
+            @else
+            <p><strong>Implantação:</strong> R$ {{ number_format($offer['setup_total_cents']/100,2,',','.') }} em 3 parcelas de R$ {{ number_format($offer['installment_cents']/100,2,',','.') }} (dias 0, 30 e 60 do calendário contratual).</p>
+            <p><strong>Mensalidade:</strong> R$ {{ number_format($offer['monthly_cents']/100,2,',','.') }}; primeira cobrança prevista no dia 90 após o aceite do contrato, independentemente da publicação.</p>
+            @endif
+            <p><small>Condições de referência do catálogo aprovado; esta tela é apenas demonstração e não constitui aceite, cobrança ou contratação.</small></p>
             <form method="post" action="{{ url('/_preview/portal/shop/orders') }}">
                 @csrf
                 <input type="hidden" name="product" value="{{ $slug }}">
@@ -24,7 +32,7 @@
 @endforeach
 </div>
 @else
-<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl></section>
+<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Condições comerciais de referência</dt><dd>@if($order['product']==='performance') Gestão de {{ $commercialOffers['performance']['management_percent'] }}% da mídia; mínimo de R$ {{ number_format($commercialOffers['performance']['min_media_per_channel_cents']/100,2,',','.') }} por canal de anúncio. @else Implantação de R$ {{ number_format($commercialOffers[$order['product']]['setup_total_cents']/100,2,',','.') }} e mensalidade de R$ {{ number_format($commercialOffers[$order['product']]['monthly_cents']/100,2,',','.') }} a partir do dia 90 do aceite contratual. @endif Somente demonstração, sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl></section>
 @if($order['briefing'] === null)
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
 @if($order['payment'] === 'approved')
