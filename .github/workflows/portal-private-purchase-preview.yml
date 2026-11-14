@@ -27,6 +27,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Verify signed SQL schema and offline VPS preflight on disposable CI
+        run: |
+          set -euo pipefail
+          bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
+          python3 apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -128,6 +133,14 @@ jobs:
           CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           CUSTOMER_WORK_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Restore NEW synthetic PG18 database and verify signed client policies and offers
+        working-directory: apps/portal/ops/private-purchase
+        env:
+          P0_PG_RESTORE_CI: '1'
+        run: |
+          set -euo pipefail
+          bash ./verify_pg_restore_ci.sh
+          echo 'PASS real disposable PG18 streamed backup/restore and signed RLS; Leaseweb remains NO-GO' >> "$GITHUB_STEP_SUMMARY"
       - name: Audit five individual-customer screenshots and SHA256
         run: |
           python3 - <<'PY'
