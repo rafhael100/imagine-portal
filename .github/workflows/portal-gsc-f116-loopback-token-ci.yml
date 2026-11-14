@@ -1,0 +1,113 @@
+name: Portal GSC F116 - strict localhost token exchange (NO GOOGLE)
+
+on:
+  pull_request:
+    branches:
+      - review/portal-gsc-f115-state-session-bound-callback-2026-11-14
+    paths:
+      - '.github/workflows/portal-gsc-f116-loopback-token-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php'
+      - 'apps/portal/labs/gsc-f116-local-token/**'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-oauth-http:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      PORTAL_GSC_F116_LOOPBACK_LAB: '1'
+    steps:
+      - name: Checkout exact Portal review HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable GSC OAuth token plan and response contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: de3315df4e8b8c07228d76f6613c799f9c174f31
+          path: .qa/gsc-f109
+          persist-credentials: false
+      - name: Setup pinned PHP with cURL and sodium
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '${{ matrix.php }}'
+          extensions: curl,sodium
+          coverage: none
+          tools: composer
+      - name: Setup pinned Node for strict diff scope
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Verify immutable sources and exact offline review file set
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/f116-review-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const paths=readFileSync(process.env.RUNNER_TEMP+"/f116-review-paths","utf8").split("\0").filter(Boolean);
+            const exact=new Set([
+              ".github/workflows/portal-gsc-f116-loopback-token-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php",
+              "apps/portal/labs/gsc-f116-local-token/mock-token-endpoint.php",
+              "apps/portal/labs/gsc-f116-local-token/test-transport.php",
+              "apps/portal/labs/gsc-f116-local-token/README.md"
+            ]);
+            if(paths.length!==exact.size||paths.some(p=>!exact.has(p)))
+              throw Error("F116: production route, migration or unexpected file present");
+            console.log("F116: five exact changes only; OAuth source pinned");
+          '
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+      - name: PHP syntax and no external Google token transport capability
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -m | grep -Eiq '^curl$'
+          php -m | grep -Eiq '^sodium$'
+          php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php
+          php -l apps/portal/labs/gsc-f116-local-token/mock-token-endpoint.php
+          php -l apps/portal/labs/gsc-f116-local-token/test-transport.php
+          php -l .qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php
+          php -l .qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenResponsePolicy.php
+      - name: Run fixed-loopback mock server and adversarial HTTP suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          php -S 127.0.0.1:18765 \
+            apps/portal/labs/gsc-f116-local-token/mock-token-endpoint.php \
+            > "$RUNNER_TEMP/f116-local-php-server.log" 2>&1 &
+          MOCK_PID="$!"
+          trap 'kill "$MOCK_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..30}; do
+            if ! kill -0 "$MOCK_PID" 2>/dev/null; then
+              echo 'F116: private loopback listener stopped early' >&2
+              exit 1
+            fi
+            status="$(curl --silent --noproxy '*' -o /dev/null \
+              -w '%{http_code}' --max-time 1 http://127.0.0.1:18765/token || true)"
+            if test "$status" = 404; then ready=1; break; fi
+            sleep 0.2
+          done
+          test "$ready" = 1
+          php apps/portal/labs/gsc-f116-local-token/test-transport.php \
+            ".qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsoleOAuthTokenExchangePlan.php"
+          test -z "$(git status --porcelain --untracked-files=no)"
