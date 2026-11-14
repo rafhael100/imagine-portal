@@ -48,7 +48,7 @@ jobs:
           import time, urllib.request
           for attempt in range(60):
               try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/up').status==200
                   break
               except Exception:
                   time.sleep(1)
@@ -65,6 +65,22 @@ jobs:
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
+      - name: Verify checkout only AFTER tenant-signed customer and event schemas are installed
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import time,urllib.request
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase',timeout=3) as r:
+                      assert r.status==200
+                      print('PASS isolated checkout booted after signed policy provisioning')
+                      break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('NO-GO: signed-SQL preview unavailable after schema setup')
+          PY
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
