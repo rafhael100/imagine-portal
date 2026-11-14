@@ -16,14 +16,15 @@ trap cleanup EXIT
 count_sql="SELECT
   (SELECT count(*) FROM purchase_rehearsal.customers)::text || ':' ||
   (SELECT count(*) FROM purchase_rehearsal.customer_orders)::text || ':' ||
-  (SELECT count(*) FROM purchase_rehearsal.customer_orders WHERE briefing IS NOT NULL)::text"
+  (SELECT count(*) FROM purchase_rehearsal.customer_orders WHERE briefing IS NOT NULL)::text || ':' ||
+  (SELECT count(*) FROM purchase_rehearsal.customer_order_events)::text"
 source_counts="$(docker compose exec -T database psql -X -A -t -v ON_ERROR_STOP=1 \
   -U postgres -d portal_purchase_rehearsal -c "$count_sql")"
-[[ "$source_counts" =~ ^[0-9]+:[0-9]+:[0-9]+$ ]] || {
+[[ "$source_counts" =~ ^[0-9]+:[0-9]+:[0-9]+:[0-9]+$ ]] || {
   echo 'NO-GO: invalid source backup count proof' >&2; exit 1;
 }
-IFS=: read -r customers orders briefings <<< "$source_counts"
-(( customers >= 4 && orders >= 4 && briefings >= 2 )) || {
+IFS=: read -r customers orders briefings events <<< "$source_counts"
+(( customers >= 4 && orders >= 4 && briefings >= 2 && events >= 7 )) || {
   echo 'NO-GO: source lacks required synthetic purchase data' >&2; exit 1;
 }
 docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
@@ -49,6 +50,13 @@ rls_sql="SELECT (
 ) AND EXISTS (
   SELECT 1 FROM pg_policies WHERE schemaname='purchase_rehearsal'
    AND tablename='customer_orders' AND policyname='customer_order_scope'
+) AND (
+  SELECT relrowsecurity AND relforcerowsecurity
+  FROM pg_class WHERE oid='purchase_rehearsal.customer_order_events'::regclass
+) AND EXISTS (
+  SELECT 1 FROM pg_policies WHERE schemaname='purchase_rehearsal'
+   AND tablename='customer_order_events' AND policyname='customer_order_event_scope'
+   AND qual LIKE '%preview_order_allowed%'
 )"
 rls="$(docker compose exec -T database psql -X -A -t -v ON_ERROR_STOP=1 \
   -U postgres -d "$restored" -c "$rls_sql")"

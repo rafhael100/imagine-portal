@@ -50,6 +50,7 @@ try {
  $app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase($pdo));
  $app->instance(App\Homologation\PreviewOrderListing::class,new App\Homologation\PreviewOrderListing($pdo));
  $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo,$config['customer_scope_key']));
+ $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);
 $request=Illuminate\Http\Request::capture(); $response=$kernel->handle($request);
