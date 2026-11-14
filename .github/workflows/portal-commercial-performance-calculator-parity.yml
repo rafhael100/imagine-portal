@@ -1,0 +1,40 @@
+name: Portal–Commercial approved performance budget parity (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'server/performance-channel-pricing-v5-lab.mjs'
+      - 'docs/decisions/performance-channel-minima-proposal-v1.json'
+      - 'scripts/ci/test-portal-commercial-budget-parity.mjs'
+      - '.github/workflows/portal-commercial-performance-calculator-parity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-budget-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Checkout Portal PR with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout reviewed Commercial calculator at exact SHA
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-comercial
+          ref: ac183731ecc46c936361de4f70527652972f6efc
+          path: _commercial_calculator_ci
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove pinned immutable Commercial input
+        run: |
+          set -euo pipefail
+          test "$(git -C _commercial_calculator_ci rev-parse HEAD)" = 'ac183731ecc46c936361de4f70527652972f6efc'
+      - name: Compare all 7 Portal and Commercial channel combinations
+        run: node scripts/ci/test-portal-commercial-budget-parity.mjs
