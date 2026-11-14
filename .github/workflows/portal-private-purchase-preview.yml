@@ -70,6 +70,9 @@ jobs:
         run: |
           set -euo pipefail
           docker compose exec -T application php private-preview-route-gate.test.php
+          # Host worker must query its own table through its distinct NOLOGIN role.
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal \
+            -c 'SET ROLE purchase_rehearsal_psp; SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;' >/dev/null
           echo 'PASS CI-only shared checkout and private VPS customer/admin route allowlist' >> "$GITHUB_STEP_SUMMARY"
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
