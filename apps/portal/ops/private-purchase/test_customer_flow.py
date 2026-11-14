@@ -62,14 +62,14 @@ with sync_playwright() as p:
         assert 'R$ 330,00' in page.locator('body').inner_text()
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','price_cents':'1'}).status==422
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':'0'*64,'offer_ack':'1'}).status==409
-        page.get_by_role('checkbox').check()
+        page.locator('[name=sample_ack]').check()
         page.locator('[name=outcome]').select_option('declined')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.locator('[name=business]').count()==0
         rev=page.locator('[name=revision]').first.input_value()
         rejected=page.request.post(order_url+'/briefing',form={'_token':csrf(),'revision':rev,'business':'x','goal':'x','audience':'x','materials':'x'})
         assert rejected.status==409
-        page.get_by_role('checkbox').check()
+        page.locator('[name=sample_ack]').check()
         page.locator('[name=outcome]').select_option('approved')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.request.post(order_url+'/payment',form={'_token':csrf(),'revision':rev,'outcome':'pending','sample_ack':'1'}).status==409

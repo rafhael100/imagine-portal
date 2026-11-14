@@ -36,19 +36,55 @@
 @endforeach
 </div>
 @else
-<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
+<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento de homologação</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
+    @if(in_array($order['product'], ['onepage','landing-pages'], true))
+    <details><summary>Ver parcelas e mensalidades previstas</summary>
+    <p>Previsão baseada nas condições deste pedido. Consulte a seção de parcelas e assinatura para saber quais já foram emitidas no Asaas. A mensalidade começa em D90, independentemente da publicação.</p>
+    <table><thead><tr><th>Etapa</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
+    @foreach(\App\Homologation\Commerce\BillingSchedule::project($order['offer_snapshot'], $order['offer_accepted_at']) as $item)
+    <tr><td>{{ $item['kind'] === 'setup' ? 'Implantação' : 'Mensalidade' }}</td><td>{{ \DateTimeImmutable::createFromFormat('!Y-m-d', $item['due_date'])->format('d/m/Y') }}</td><td>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($item['amount_cents']) }}</td></tr>
+    @endforeach
+    </tbody></table><p>Exibição das primeiras 12 mensalidades; não representa prazo de encerramento do serviço.</p></details>
+    @endif
+
 @else
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
 </section>
+@if(in_array($order['product'], ['onepage','landing-pages'], true) && ($order['sandbox']['state'] ?? null) === 'approved')
+<section><h2>Parcelas e assinatura no Asaas sandbox</h2>
+<p>Depois da confirmação inicial, você pode testar as parcelas D30 e D60 e a assinatura mensal a partir de D90. A assinatura ativa gera cobranças; não significa pagamento aprovado nem débito automático em cartão.</p>
+<form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/future-billing') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Autorizo somente a simulação das parcelas e da assinatura, sem dinheiro real.</label><button type="submit">{{ empty($order['future_billing']) ? 'Gerar parcelas e assinatura de teste' : 'Atualizar parcelas e assinatura' }}</button></form>
+@if(!empty($order['future_billing']))
+<table><thead><tr><th>Etapa</th><th>Primeiro vencimento</th><th>Valor</th><th>Situação</th></tr></thead><tbody>
+@foreach($order['future_billing'] as $bill)
+<tr><td>{{ $bill['charge_key']==='monthly' ? 'Assinatura mensal' : ($bill['charge_key']==='setup-2' ? 'Implantação 2/3' : 'Implantação 3/3') }}</td><td>{{ $bill['due_date'] }}</td><td>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl((int)$bill['amount_cents']) }}</td><td>{{ $bill['provider_status'] ?? 'Aguardando processamento' }} @if($bill['invoice_url'])<a href="{{ $bill['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança</a>@endif</td></tr>
+@endforeach
+</tbody></table>
+@endif
+</section>
+@endif
+@if(($order['sandbox']['state'] ?? null) === 'reversed')<p role="alert">A cobrança foi estornada ou contestada. Aguarde a revisão financeira antes de nova execução.</p>@endif
 @if($order['briefing'] === null)
+@if($order['payment_source'] === 'manual_test')
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
+@endif
+<section><h2>Cobrança no Asaas sandbox</h2>
+<p>Somente teste, sem movimentar dinheiro real. O Portal enviará um pagador fictício, sem e-mail ou telefone e com notificações desativadas. Depois de escolher Asaas, o resultado manual fica bloqueado neste pedido.</p>
+@if(($order['sandbox'] ?? null) !== null)
+<p>Etapa: <strong>{{ $order['sandbox']['state'] }}</strong>. Situação Asaas: {{ $order['sandbox']['provider_status'] ?? 'aguardando processamento' }}.</p>
+@if($order['sandbox']['invoice_url'])<p><a href="{{ $order['sandbox']['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança de teste no Asaas</a></p>@endif
+@endif
+@if($order['payment'] !== 'approved')
+<form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito teste no Asaas sandbox com dados fictícios.</label><button type="submit">{{ $order['payment_source'] === 'manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
+@endif
+</section>
 @if($order['payment'] === 'approved')
 <section><h2>3. Preencher o briefing de exemplo</h2><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/briefing') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}">@foreach(['business'=>'Nome da empresa fictícia','goal'=>'Objetivo','audience'=>'Público','materials'=>'Materiais de exemplo'] as $field=>$label)<label>{{ $label }}<textarea name="{{ $field }}" required maxlength="200">{{ old($field) }}</textarea></label>@endforeach<button type="submit">Salvar briefing de teste</button></form></section>
-@else<p>O briefing será liberado após selecionar pagamento fictício aprovado.</p>@endif
+@else<p>O briefing será liberado após aprovação na modalidade de teste escolhida.</p>@endif
 @else
 <section><h2>Briefing salvo no Portal de teste</h2><p>Atualize esta página para conferir a recuperação do pedido e do briefing pelo servidor.</p><dl>@foreach($order['briefing'] as $field=>$value)<dt>{{ ['business'=>'Empresa fictícia','goal'=>'Objetivo','audience'=>'Público','materials'=>'Materiais'][$field] }}</dt><dd>{{ $value }}</dd>@endforeach</dl></section>
 @endif

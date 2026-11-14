@@ -17,6 +17,7 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('preview-register',static fn(Request $request)=>Limit::perMinute(6)->by($request->ip()));
+        RateLimiter::for('preview-sandbox',static fn(Request $request)=>Limit::perMinute(6)->by($request->ip()));
         RateLimiter::for('preview-login',static fn(Request $request)=>[Limit::perMinute(60)->by('ip:'.$request->ip()),Limit::perMinute(6)->by('account:'.$request->ip().':'.hash('sha256',(string)$request->input('username','')))]);
         Route::prefix('_preview/portal')->middleware('web')->group(function(): void {
             Route::get('/',[FullPortalPreviewController::class,'login']);
@@ -28,6 +29,8 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::post('shop/orders',[\App\Http\Controllers\CustomerPreviewController::class,'create']);
             Route::get('shop/orders/{id}',[\App\Http\Controllers\CustomerPreviewController::class,'show']);
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
+            Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
+            Route::post('shop/orders/{id}/sandbox',[\App\Http\Controllers\CustomerPreviewController::class,'sandbox'])->middleware('throttle:preview-sandbox');
             Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing']);
             Route::get('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'show']);
             Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action']);

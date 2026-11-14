@@ -2,6 +2,13 @@
 <x-portal.layout title="Acompanhamento do pedido" :current="$isAdmin?'orders':'journey'">
 <x-portal.panel title="Jornada do seu projeto"><p><strong>{{ $order['id'] }}</strong> · {{ $order['customer_name'] }} · {{ $order['company'] }}</p><p role="status">{{ $labels[$order['work_status']] }}</p><p>Esta jornada registra ações no ambiente de testes. Não ativa serviço ou publicação real.</p>
 @if($order['offer_snapshot']!==null)<h3>Condições registradas no pedido</h3>@include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])@endif
+@if(!empty($order['billing']))
+<h3>Financeiro no Asaas sandbox</h3><p>Somente homologação. Assinatura ativa não significa mensalidade paga.</p>
+<dl>@foreach($order['billing'] as $bill)
+<dt>{{ ['initial'=>($order['product']==='performance'?'Honorários antecipados':'Implantação 1/3'),'setup-2'=>'Implantação 2/3','setup-3'=>'Implantação 3/3','monthly'=>'Assinatura mensal'][$bill['charge_key']] }}</dt>
+<dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl((int)$bill['amount_cents']) }} · {{ $bill['due_date'] }} · {{ $bill['provider_status'] ?? 'Aguardando processamento' }} @if($bill['invoice_url'])<a href="{{ $bill['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança no sandbox</a>@endif</dd>
+@endforeach</dl>
+@endif
 @if($order['briefing']===null)
 <p>Envie o briefing após o pagamento simulado aprovado para que a equipe possa iniciar.</p>
 @else

@@ -1,0 +1,11 @@
+[Unit]
+Description=Process requested Imagine Asaas sandbox intents
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=15s
+AccuracySec=2s
+Unit=imagine-asaas-sandbox.service
+
+[Install]
+WantedBy=timers.target

@@ -18,6 +18,9 @@ final class CustomerWorkPreview
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $q=$this->db->prepare('SELECT actor_kind,action,note,created_at FROM purchase_rehearsal.customer_order_events WHERE order_id=? ORDER BY revision LIMIT 200');
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);
+        // Only after the order ownership/admin scope has been established above.
+        $q=$this->db->prepare("SELECT 'initial' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? UNION ALL SELECT charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_future_billing WHERE order_id=? ORDER BY due_date,charge_key");
+        $q->execute([$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
         unset($row['customer_id'],$row['request_key']); return $row;
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool
@@ -27,10 +30,14 @@ final class CustomerWorkPreview
             $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE id=?'.($owner===null?'':' AND customer_id=?').' FOR UPDATE');
             $q->execute($owner===null?[$id]:[$id,$owner]); $row=$q->fetch(PDO::FETCH_ASSOC);
             if (!$row||(int)$row['revision']!==$revision) throw new RuntimeException('Unavailable or stale order');
+            $financialAllowed=$row['payment_source']==='manual_test';
+            if (!$financialAllowed) {
+                $f=$this->db->prepare("SELECT state FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=?");$f->execute([$id]);$financialAllowed=$f->fetchColumn()==='approved';
+            }
             $state=$row['work_status']; $target=$state; $delivery=$row['delivery_note'];
             if ($action==='message') {
                 if (trim($note)==='') throw new RuntimeException('Message required');
-            } elseif ($owner===null&&$action==='start'&&in_array($state,['queued','changes_requested'],true)&&$row['briefing']!==null&&$row['payment']==='approved') {
+            } elseif ($owner===null&&$action==='start'&&in_array($state,['queued','changes_requested'],true)&&$row['briefing']!==null&&$row['payment']==='approved'&&$financialAllowed) {
                 $target='in_production';
             } elseif ($owner===null&&$action==='deliver'&&$state==='in_production'&&trim($note)!=='') {
                 $target='awaiting_approval'; $delivery=$note;

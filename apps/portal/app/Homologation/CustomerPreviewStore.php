@@ -41,14 +41,18 @@ final class CustomerPreviewStore
     }
     public function payment(string $owner,string $id,int $revision,string $outcome): bool
     {
-        $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL');
+        $q=$this->db->prepare("UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL AND payment_source='manual_test'");
         $q->execute([$outcome,$owner,$id,$revision]); return $q->rowCount()===1;
     }
     public function briefing(string $owner,string $id,int $revision,array $briefing): bool
     {
-        $q=$this->db->prepare("UPDATE purchase_rehearsal.customer_orders SET briefing=?::jsonb,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND payment='approved' AND briefing IS NULL");
+        $q=$this->db->prepare("UPDATE purchase_rehearsal.customer_orders SET briefing=?::jsonb,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND payment='approved' AND briefing IS NULL AND (payment_source='manual_test' OR EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=customer_orders.id AND i.state='approved'))");
         $q->execute([json_encode($briefing,JSON_THROW_ON_ERROR),$owner,$id,$revision]); return $q->rowCount()===1;
     }
+    public function futureRequest(string $owner,string $id,int $revision): void { (new \App\Homologation\Commerce\SandboxFutureBilling($this->db))->request($owner,$id,$revision); }
+    public function futureStatus(string $owner,string $id): array { return (new \App\Homologation\Commerce\SandboxFutureBilling($this->db))->read($owner,$id); }
+    public function sandboxRequest(string $owner,string $id,int $revision): void { (new \App\Homologation\Commerce\SandboxCheckoutIntent($this->db))->request($owner,$id,$revision); }
+    public function sandboxStatus(string $owner,string $id): ?array { return (new \App\Homologation\Commerce\SandboxCheckoutIntent($this->db))->read($owner,$id); }
     public function orders(?string $owner): array
     {
         $sql='SELECT o.id,o.product,o.payment,o.revision,o.work_status,(o.briefing IS NOT NULL) AS briefing_saved,c.name AS customer_name,c.username FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id';
