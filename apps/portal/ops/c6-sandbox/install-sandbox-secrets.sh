@@ -37,7 +37,28 @@ if [[ -L /etc/imagine || -L /etc/imagine/secrets ]]; then
   echo 'Diretório de credenciais indireto ou inseguro.' >&2
   exit 1
 fi
-install -d -m 0700 -o root -g root /etc/imagine /etc/imagine/secrets
+# Never chmod/chown a pre-existing shared configuration directory:
+# that could break other Imagine services on the same VPS.
+for PARENT in /etc/imagine /etc/imagine/secrets; do
+  if [[ -e "$PARENT" ]]; then
+    if [[ ! -d "$PARENT" || "$(stat -c '%u' -- "$PARENT")" != '0' ]]; then
+      echo 'Diretório pai inválido ou não pertencente ao root.' >&2
+      exit 1
+    fi
+    mode=$(stat -c '%a' -- "$PARENT")
+    if [[ "$PARENT" == '/etc/imagine/secrets' ]]; then
+      if (( (8#$mode & 0077) != 0 )); then
+        echo 'Diretório de segredos deve ser privado antes da instalação.' >&2
+        exit 1
+      fi
+    elif (( (8#$mode & 0022) != 0 )); then
+      echo 'Diretório de configuração compartilhado é gravável por terceiros.' >&2
+      exit 1
+    fi
+  else
+    install -d -m 0700 -o root -g root -- "$PARENT"
+  fi
+done
 STAGE=$(mktemp -d /etc/imagine/secrets/.c6-sandbox-install.XXXXXXXX)
 chmod 0700 "$STAGE"
 cleanup() {
