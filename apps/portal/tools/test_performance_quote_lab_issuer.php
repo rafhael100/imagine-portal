@@ -32,6 +32,19 @@ sameLab(64, strlen($one['signature']), 'HMAC SHA256 hex');
 sameLab($one['signature'], $issue(['google_ads' => 70000])['signature'], 'deterministic same message');
 $two = $issue(['meta_ads' => 70003, 'google_ads' => 70000]);
 sameLab(28001, $two['quote']['estimated_management_fee_cents'], 'two channels rounded once');
+$v2 = Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $key, $nonce, $issued, $expire, $secret, '2026-11');
+sameLab('2026-11', $v2['billing_period'], 'v2 signed month');
+sameLab(14000, $v2['quote']['estimated_management_fee_cents'], 'v2 preserves approved 20 percent');
+$v2Different = Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $key, $nonce, $issued, $expire, $secret, '2026-12');
+if (hash_equals($v2['signature'], $v2Different['signature'])) {
+    throw new RuntimeException('Billing month not bound into HMAC signature.');
+}
+if (hash_equals($one['signature'], $v2['signature'])) {
+    throw new RuntimeException('Version separation must change HMAC.');
+}
+rejectedLab(fn() => Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $key, $nonce, $issued, $expire, $secret, '2026-13'), 'invalid billing month');
+rejectedLab(fn() => Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $key, $nonce, $issued, $expire, $secret, ''), 'missing billing month');
+
 rejectedLab(fn() => $issue(['google_ads' => 69999]), 'below minimum');
 rejectedLab(fn() => $issue(['google_ads' => 100000001]), 'above Portal quote cap');
 rejectedLab(fn() => Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $key, $nonce, $issued, $issued + 301, $secret), 'excess lifetime');
