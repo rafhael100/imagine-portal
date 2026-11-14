@@ -14,6 +14,20 @@ Esta candidata faz o seguinte no **ambiente exclusivamente sintético**:
 - Preflight de Compose e arquivos privados bloqueia exposição de portas, execução como root, drop de capabilities ausente, mudanças de entrypoint e variáveis adicionais contendo credenciais.
 - Testes GitHub em PostgreSQL18 real descartável provam login direto, política RLS, recusa de leitura de identidade/chave HMAC, worker de cobrança simulado, estorno, reinicialização e restore. Nenhuma chamada externa PSP é feita.
 
+## Verificador da homologação privada
+
+Foi criado `apps/portal/ops/private-purchase/check_staging_runtime_readonly.py` para executar uma avaliação **somente leitura** do servidor, após a instalação privada e com a aplicação já funcionando. O comando não instala nem sobe serviços, não acessa a API Asaas e não imprime segredos:
+
+```bash
+# No próprio servidor Leaseweb, em ambiente privado previamente revisado:
+sudo env APP_ENV=staging PORTAL_STAGING_READONLY_CHECK=1 \
+  python3 apps/portal/ops/private-purchase/check_staging_runtime_readonly.py --check
+```
+
+Valida metadados dos quatro serviços Docker, arquivos privados, rede interna, gateway acessível **somente por 127.0.0.1**, login SQL do broker com `rolsuper=false` e `rolbypassrls=false`, além de recusar consultas SQL de identidade e chave HMAC. Também verifica que o broker não ficou executando como serviço persistente. Em caso de qualquer erro: `NO-GO`, retorno não zero, **sem ação financeira**. Os testes offline `--self-test` cobrem erros de status HTTP, roles e topologias; o modo `--check` recusa GitHub Actions.
+
+Esta inspeção não valida TLS do proxy de borda, IAM/MFA, contratos, consentimento, política de retenção, Asaas real, webhooks, revogação Sites ou restauração fora do laboratório. Mesmo com PASS, o gate de publicação continua **NO-GO**.
+
 ## O que ainda NÃO foi validado
 
 A invocação do Docker no host continua sendo privilégio operacional do host, mesmo que o **usuário SQL** do processo seja restrito. Isso não é um desenho final de execução de worker em produção com service account e isolamento de runtime independente. A instalação na Leaseweb depende de aprovação AppSec/DBA, identidade e armazenamento de segredos no vault, rede privada/TLS, observabilidade, migrações auditáveis, retenção de credenciais, restauração/rollback real e contratos/jornada jurídica.
