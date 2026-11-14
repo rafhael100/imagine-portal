@@ -44,7 +44,7 @@ jobs:
           fi
           php tests/f390-asaas-official-settlement.php
           echo 'PASS payment GET-only, refunds, cross-order denial and Ed25519. No provider contacted.' >> "$GITHUB_STEP_SUMMARY"
-      - name: Verify only seven inert PHP integration files and zero customer payment actions
+      - name: Verify reviewed Asaas modules and zero customer payment actions
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -59,6 +59,8 @@ jobs:
               'AsaasReadOnlyPaymentClient.php',
               'AsaasVerifiedSettlementSource.php',
               'AsaasWebhookPgInbox.php',
+              'AsaasTrustedEventPaymentSource.php',
+              'AsaasWebhookReconciliationWorker.php',
           }
           assert {f.name for f in files}==expected, 'An unreviewed Asaas class is present'
           for f in files:
