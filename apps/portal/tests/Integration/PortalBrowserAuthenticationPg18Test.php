@@ -336,6 +336,83 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         self::assertFalse($preflight->hasCandidateGrant($active,self::ORG,'services.view'));
     }
 
+    /** F111: a connection grant NEVER implies GSC metrics-view permission. */
+    public function test_gsc_connect_candidate_is_not_gsc_metrics_view_candidate(): void
+    {
+        $this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())")
+            ->execute([
+                'e4dcbf11-9a21-4833-b1fa-2f948adb1811',
+                self::MEMBER,
+                'seo.gsc.connect',
+            ]);
+        $active=$this->active();
+        $candidate=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.connect'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.*'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'*'));
+        self::assertFalse($candidate->hasCandidateGrant($active,
+            '44444444-4444-4444-8444-444444444444','seo.gsc.connect'));
+        $this->admin->exec("DELETE FROM public.portal_membership_grants
+            WHERE permission_code='seo.gsc.connect'");
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.connect'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+    }
+
+    /** F111: grant issued only to a current membership, never by connect/role. */
+    public function test_gsc_metrics_view_candidate_is_independent_and_revocable(): void
+    {
+        $this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())")
+            ->execute([
+                'a85c2868-146b-4374-b8c4-2cbfb35a5e19',
+                self::MEMBER,
+                'seo.gsc.view',
+            ]);
+        $active=$this->active();
+        $candidate=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.connect'));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.manage'));
+        self::assertFalse($candidate->hasCandidateGrant($active,
+            '44444444-4444-4444-8444-444444444444','seo.gsc.view'));
+        self::assertFalse($candidate->hasCandidateGrant(str_repeat('a',64),
+            self::ORG,'seo.gsc.view'));
+        $this->admin->exec("DELETE FROM public.portal_membership_grants
+            WHERE permission_code='seo.gsc.view'");
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+    }
+
+    /** F111: session purpose, current revisions and revocation still govern. */
+    public function test_gsc_view_candidate_is_denied_after_session_or_company_revocation(): void
+    {
+        $this->admin->prepare("INSERT INTO public.portal_membership_grants
+            (id,membership_id,permission_code,created_at,updated_at)
+            VALUES(?,?,?,clock_timestamp(),clock_timestamp())")
+            ->execute([
+                'd8ea1f0a-620d-4a8e-bf1a-7cb58f51899a',
+                self::MEMBER,
+                'seo.gsc.view',
+            ]);
+        $active=$this->active();
+        $candidate=new PostgresPortalPermissionPreflight($this->runtime,'portal_browser_lab');
+        self::assertTrue($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        $this->admin->exec("UPDATE public.portal_organizations
+            SET status='suspended'");
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        $this->admin->exec("UPDATE public.portal_organizations
+            SET status='active'");
+        // Security-revision triggers prevent restoring old session authority.
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        self::assertTrue($this->adapter->revoke($active));
+        self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
+        self::assertSame(['backend'=>'Portal PostgreSQL permission preflight'],
+            $candidate->__debugInfo());
+    }
+
     // F302: executable only against the disposable PostgreSQL 18 laboratory.
     // This is a session + explicit-grant preflight, NEVER resource ownership.
     private function permissionPreflight(?string $reference,string $organization,string $permission):bool
