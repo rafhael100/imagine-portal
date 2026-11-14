@@ -1,0 +1,35 @@
+name: Portal F415 signed channel selection offline gate
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php'
+      - 'apps/portal/tests/Unit/PerformanceChannelReviewEnvelopeTest.php'
+      - 'apps/portal/tools/test_performance_channel_envelope_offline.php'
+      - '.github/workflows/portal-performance-channel-envelope-f415.yml'
+permissions:
+  contents: read
+jobs:
+  envelope-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact review SHA without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Syntax validation and HMAC tamper proof without network
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php
+          php -l apps/portal/tests/Unit/PerformanceChannelReviewEnvelopeTest.php
+          php -l apps/portal/tools/test_performance_channel_envelope_offline.php
+          php apps/portal/tools/test_performance_channel_envelope_offline.php
+      - name: Never infer real billing authorization from an offline green check
+        if: success()
+        run: |
+          echo 'F415: bounded HMAC channel review integrity passed, not a charge authorization.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Replay proof, IAM/consent, ledger, back-up, fiscal and release gates remain NO-GO.' >> "$GITHUB_STEP_SUMMARY"
