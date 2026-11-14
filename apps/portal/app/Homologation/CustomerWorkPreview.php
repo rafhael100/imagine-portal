@@ -14,6 +14,7 @@ final class CustomerWorkPreview
         $q->execute($owner===null?[$id]:[$id,$owner]);
         $row=$q->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
+        $row['offer_snapshot']=$row['offer_snapshot']===null?null:json_decode($row['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $q=$this->db->prepare('SELECT actor_kind,action,note,created_at FROM purchase_rehearsal.customer_order_events WHERE order_id=? ORDER BY revision LIMIT 200');
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);

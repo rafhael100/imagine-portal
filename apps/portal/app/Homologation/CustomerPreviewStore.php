@@ -24,13 +24,14 @@ final class CustomerPreviewStore
         $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customers WHERE username=? AND enabled=true'); $q->execute([$username]);
         return $q->fetch(PDO::FETCH_ASSOC)?:null;
     }
-    public function create(string $owner,string $key,string $product): array
+    public function create(string $owner,string $key,string $product,array $quote): array
     {
-        $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customer_orders(id,customer_id,request_key,product) VALUES (?,?,?,?) ON CONFLICT(customer_id,request_key) DO NOTHING');
-        $q->execute(['TEST-'.bin2hex(random_bytes(16)),$owner,$key,$product]);
+        $snapshot=json_encode($quote,JSON_THROW_ON_ERROR);
+        $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customer_orders(id,customer_id,request_key,product,offer_snapshot,offer_accepted_at) VALUES (?,?,?,?,?::jsonb,now()) ON CONFLICT(customer_id,request_key) DO NOTHING');
+        $q->execute(['TEST-'.bin2hex(random_bytes(16)),$owner,$key,$product,$snapshot]);
         $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE customer_id=? AND request_key=?'); $q->execute([$owner,$key]);
         $row=$q->fetch(PDO::FETCH_ASSOC);
-        if (!$row||$row['product']!==$product) throw new RuntimeException('Idempotency conflict');
+        if (!$row||$row['product']!==$product||json_decode($row['offer_snapshot']??'null',true)!=$quote) throw new RuntimeException('Idempotency conflict');
         return $this->result($row);
     }
     public function read(string $owner,string $id): ?array
@@ -59,6 +60,7 @@ final class CustomerPreviewStore
     {
         $row['revision']=(int)$row['revision'];
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
+        $row['offer_snapshot']=$row['offer_snapshot']===null?null:json_decode($row['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
         unset($row['customer_id'],$row['request_key']); return $row;
     }
 }

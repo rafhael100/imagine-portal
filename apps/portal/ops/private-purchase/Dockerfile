@@ -12,6 +12,7 @@ COPY apps/portal/app/Http/Controllers/CustomerPreviewController.php ./app/Http/C
 COPY apps/portal/app/Http/Controllers/FullPortalPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/FullPortalPreviewServiceProvider.php ./app/Providers/
 COPY apps/portal/app/Homologation ./app/Homologation
+COPY apps/portal/tools/test_commerce.php ./tools/test_commerce.php
 COPY apps/portal/app/Http/Controllers/PurchaseRehearsalController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php ./app/Providers/
 COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehearsal

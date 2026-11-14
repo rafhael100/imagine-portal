@@ -12,11 +12,23 @@
         <section class="card">
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
-            <p>Valores e escopo comercial ainda não definidos nesta homologação.</p>
+            @if($slug === 'performance')
+                <p><strong>Gestão Imagine: 20% da mídia investida.</strong> Mínimo de R$ 700 de anúncios por canal, pago diretamente ao Google ou à Meta. Honorários Imagine são separados da verba de anúncios.</p>
+                <p>Honorários antecipados sobre o investimento planejado, com acerto mensal conforme a mídia efetivamente investida. Informe o orçamento mensal de cada canal.</p>
+            @else
+                @include('portal.preview.offer-summary',['quote'=>(new \App\Homologation\Commerce\ApprovedOfferCatalog())->quote($slug)])
+            @endif
             <form method="post" action="{{ url('/_preview/portal/shop/orders') }}">
                 @csrf
                 <input type="hidden" name="product" value="{{ $slug }}">
                 <input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}">
+                <input type="hidden" name="offer_version" value="{{ $offerVersion }}">
+                @if($slug === 'performance')
+                    <label>Investimento Google Ads (R$; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
+                    <label>Investimento Meta (R$; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
+                    <small>Instagram e Facebook pertencem ao mesmo canal Meta.</small>
+                @endif
+                <label><input type="checkbox" name="offer_ack" value="1" required> Revisei as condições para esta simulação, sem cobrança ou contrato real.</label>
                 <button type="submit">Criar pedido de teste</button>
             </form>
         </section>
@@ -24,7 +36,14 @@
 @endforeach
 </div>
 @else
-<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl></section>
+<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
+@if($order['offer_snapshot'] !== null)
+    @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
+    <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
+@else
+    <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
+@endif
+</section>
 @if($order['briefing'] === null)
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
 @if($order['payment'] === 'approved')

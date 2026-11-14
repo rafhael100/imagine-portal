@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 use App\Homologation\CustomerPreviewStore;
 use App\Homologation\PreviewProfiles;
+use App\Homologation\Commerce\ApprovedOfferCatalog;
 use Illuminate\Http\Request;
 
 final class CustomerPreviewController
@@ -38,9 +39,16 @@ final class CustomerPreviewController
     }
     public function create(Request $r)
     {
-        $p=$this->owner($r); $this->fields($r,['product','request_key']);
-        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D']);
-        try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product']); }
+        $p=$this->owner($r); $this->fields($r,['product','request_key','offer_version','offer_ack','google_media','meta_media']);
+        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D','offer_version'=>'required|string|size:64','offer_ack'=>'accepted','google_media'=>'nullable|string|max:12','meta_media'=>'nullable|string|max:12']);
+        $catalog=new ApprovedOfferCatalog();
+        abort_unless(hash_equals($catalog->version(),$v['offer_version']),409,'A oferta mudou. Atualize e confira as condições.');
+        $media=[];
+        try {
+            foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if (($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
+            $quote=$catalog->quote($v['product'],$media);
+        } catch (\InvalidArgumentException) { abort(422,'Informe investimento de pelo menos R$ 700 por canal selecionado; deixe vazio o canal não contratado.'); }
+        try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product'],$quote); }
         catch (\Throwable) { abort(409,'Não foi possível criar o pedido de teste.'); }
         return redirect('/_preview/portal/shop/orders/'.$order['id']);
     }
@@ -69,6 +77,7 @@ final class CustomerPreviewController
     private function page(?array $order,?string $product=null)
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
-        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product]);
+        $catalog=new ApprovedOfferCatalog();
+        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version()]);
     }
 }
