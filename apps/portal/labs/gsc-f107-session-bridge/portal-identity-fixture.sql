@@ -23,6 +23,7 @@ CREATE TABLE public.portal_organizations (
  security_revision bigint NOT NULL
 );
 CREATE TABLE public.portal_memberships (
+ id uuid PRIMARY KEY,
  identity_id uuid NOT NULL, organization_id uuid NOT NULL,
  status text NOT NULL, membership_revision bigint NOT NULL,
  PRIMARY KEY(identity_id,organization_id)
@@ -50,7 +51,7 @@ GRANT SELECT(id,status,security_revision,email_verified_at,mfa_confirmed_at)
  ON public.portal_identities TO portal_browser_owner;
 GRANT SELECT(id,status,security_revision)
  ON public.portal_organizations TO portal_browser_owner;
-GRANT SELECT(identity_id,organization_id,status,membership_revision)
+GRANT SELECT(id,identity_id,organization_id,status,membership_revision)
  ON public.portal_memberships TO portal_browser_owner;
 GRANT SELECT(session_sha256,identity_id,organization_id,status,
  session_purpose,revoked_at,issued_at,expires_at,mfa_verified_at,
