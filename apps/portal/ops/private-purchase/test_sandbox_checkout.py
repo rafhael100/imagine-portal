@@ -36,5 +36,14 @@ with sync_playwright() as p:
     for name in ['business','goal','audience','materials']:page.locator('[name='+name+']').fill('Exemplo sandbox ficticio')
     page.get_by_role('button',name='Salvar briefing de teste').click()
     assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
+    # A later refund cannot delete the historic accepted briefing, but must
+    # block further fulfilment even when payment='approved' remains auditable.
+    fresh=json.loads(db.sql("SELECT row_to_json(i) FROM purchase_rehearsal.sandbox_payment_intents i WHERE order_id='"+oid+"';"))
+    api.payment['status']='REFUNDED'
+    w.process(fresh)
+    assert db.sql("SELECT payment_hold::text FROM purchase_rehearsal.customer_orders WHERE id='"+oid+"';")=='true'
+    page.reload()
+    assert 'Suspenso para revisão financeira' in page.locator('body').inner_text()
+    assert page.get_by_role('alert').filter(has_text='estornada ou contestada').count()==1
     b.close()
 print('PASS sandbox request -> immutable ledger -> provider reconciliation -> approved owned order -> briefing; browser cannot forge approval')
