@@ -27,6 +27,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Verify DB-signed ownership schema and private route fence on disposable CI runner
+        run: |
+          set -euo pipefail
+          php apps/portal/ops/private-purchase/test_route_gate.php
+          python3 apps/portal/ops/private-purchase/check_public_boundary.py --self-test
+          bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -115,6 +121,12 @@ jobs:
           CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           CUSTOMER_WORK_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Verify SQL user cannot enumerate another customer's records or forge signed admin principal
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
       - name: Audit five individual-customer screenshots and SHA256
         run: |
           python3 - <<'PY'
