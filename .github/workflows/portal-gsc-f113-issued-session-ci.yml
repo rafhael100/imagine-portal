@@ -190,6 +190,13 @@ jobs:
             2026_11_12_000001_create_portal_gsc_oauth_states.php; do
             php artisan migrate:rollback --force --no-interaction --realpath --path="$GITHUB_WORKSPACE/.qa/gsc-f109/apps/portal/database/migrations/$file"
           done
+          # Browser candidate SECURITY DEFINER functions depend on the
+          # session_purpose column. They must be explicitly torn down
+          # BEFORE reverting that migration. This is an ephemeral CI DB,
+          # and DROP OWNED affects ONLY the named synthetic auth roles.
+          popd
+          psql -X -v ON_ERROR_STOP=1 -c "DROP OWNED BY portal_browser_owner,portal_browser_runtime RESTRICT"
+          pushd apps/portal
           for file in \
             2026_11_14_000019_allow_seo_gsc_view_grant.php \
             2026_11_10_000007_allow_seo_gsc_connect_grant.php \
