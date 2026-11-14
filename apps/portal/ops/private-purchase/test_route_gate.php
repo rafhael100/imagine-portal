@@ -29,6 +29,14 @@ $denied=[
     '/_rehearsal/purchaser', '/_preview', '/_preview/portal-invalid',
     '/_preview/portalX', '/_preview/admin',
     '/api/customers', '/login', '/.env', '//_rehearsal/purchase',
+    '/_preview/portal/../_rehearsal/purchase',
+    '/_preview/portal/./admin/orders',
+    '/_preview/portal/%2e%2e/_rehearsal/purchase',
+    '/_preview/portal/%252e%252e/_rehearsal/purchase',
+    '/_preview/portal/%2Fadmin/orders',
+    '/_preview/portal//admin/orders',
+    '/_preview/portal\\\\admin/orders',
+    '/_rehearsal/purchase/../preview',
 ];
 foreach($valid as $path) {
     routeCheck(PrivatePreviewRouteGate::allows($path,false),
