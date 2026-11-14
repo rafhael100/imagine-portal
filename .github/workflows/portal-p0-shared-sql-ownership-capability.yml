@@ -5,6 +5,9 @@ on:
     paths:
       - 'apps/portal/ops/private-purchase/owner-capability-lab.sql'
       - 'apps/portal/tools/test_shared_sql_customer_capability_pg18.php'
+      - 'apps/portal/tools/test_php_capability_order_store_pg18.php'
+      - 'apps/portal/app/Homologation/SyntheticOwnerSqlCapability.php'
+      - 'apps/portal/app/Homologation/SyntheticCapabilityOrderStore.php'
       - 'docs/PORTAL-P0-SHARED-SQL-OWNER-CAPABILITY.md'
       - '.github/workflows/portal-p0-shared-sql-ownership-capability.yml'
   push:
@@ -50,6 +53,9 @@ jobs:
         run: |
           set -euo pipefail
           php -l apps/portal/tools/test_shared_sql_customer_capability_pg18.php
+          php -l apps/portal/app/Homologation/SyntheticOwnerSqlCapability.php
+          php -l apps/portal/app/Homologation/SyntheticCapabilityOrderStore.php
+          php -l apps/portal/tools/test_php_capability_order_store_pg18.php
           grep -q "current_database() <> 'portal_capability_ci'" apps/portal/ops/private-purchase/owner-capability-lab.sql
           grep -q "FORCE ROW LEVEL SECURITY" apps/portal/ops/private-purchase/owner-capability-lab.sql
           grep -q "REVOKE ALL ON portal_capability_lab.orders FROM PUBLIC" apps/portal/ops/private-purchase/owner-capability-lab.sql
@@ -71,4 +77,5 @@ jobs:
         run: |
           set -euo pipefail
           php apps/portal/tools/test_shared_sql_customer_capability_pg18.php
+          php apps/portal/tools/test_php_capability_order_store_pg18.php
           echo "NO-GO: capability is a disposable architecture candidate; Portal IAM runtime remains unchanged."
