@@ -1,0 +1,74 @@
+name: Portal P0 - Shared SQL principal customer isolation capability (CI-only NO-GO)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/ops/private-purchase/owner-capability-lab.sql'
+      - 'apps/portal/tools/test_shared_sql_customer_capability_pg18.php'
+      - 'docs/PORTAL-P0-SHARED-SQL-OWNER-CAPABILITY.md'
+      - '.github/workflows/portal-p0-shared-sql-ownership-capability.yml'
+  push:
+    branches:
+      - review/portal-p0-shared-sql-owner-gate-2026-11-13
+
+permissions:
+  contents: read
+
+jobs:
+  sql-capability:
+    name: PostgreSQL18 / PHP ${{ matrix.php }} / shared role DENY cross-customer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: portal_capability_ci
+          POSTGRES_PASSWORD: ci-postgres-capability-admin-only
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_capability_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    steps:
+      - name: Checkout exact candidate without saved credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Setup PHP with PostgreSQL PDO
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Guard disposable schema and PHP source syntax
+        run: |
+          set -euo pipefail
+          php -l apps/portal/tools/test_shared_sql_customer_capability_pg18.php
+          grep -q "current_database() <> 'portal_capability_ci'" apps/portal/ops/private-purchase/owner-capability-lab.sql
+          grep -q "FORCE ROW LEVEL SECURITY" apps/portal/ops/private-purchase/owner-capability-lab.sql
+          grep -q "REVOKE ALL ON portal_capability_lab.orders FROM PUBLIC" apps/portal/ops/private-purchase/owner-capability-lab.sql
+      - name: Install disposable privilege-separated SQL fixture (never operational migrations)
+        env:
+          PGPASSWORD: ci-postgres-capability-admin-only
+        run: |
+          set -euo pipefail
+          psql --version
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5432 \
+            -U postgres -d portal_capability_ci \
+            -f apps/portal/ops/private-purchase/owner-capability-lab.sql
+      - name: Exercise shared SQL login with scoped HMAC and deny direct table access
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_CAPABILITY_CI_ONLY: '1'
+          CAPABILITY_DB_HOST: 127.0.0.1
+          CAPABILITY_DB_NAME: portal_capability_ci
+        run: |
+          set -euo pipefail
+          php apps/portal/tools/test_shared_sql_customer_capability_pg18.php
+          echo "NO-GO: capability is a disposable architecture candidate; Portal IAM runtime remains unchanged."
