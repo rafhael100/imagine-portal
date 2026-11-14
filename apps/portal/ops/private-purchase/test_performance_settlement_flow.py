@@ -39,7 +39,7 @@ with sync_playwright() as p:
  if os.getenv('PERFORMANCE_REPORT_REOPEN')=='1':
   saved['user']=json.loads(fixture.read_text())['user'];login(saved['user'])
   work=json.loads(fixture.read_text())['work'];assert page.goto(work).status==200
-  expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False)).to_be_visible()
+  expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False).first).to_be_visible()
   assert page.locator('input[name=version]').count()==0
   assert 'SIM-CORRECAO-002' in page.content() and 'SIM-RELATORIO-001' in page.content()
   login('administrador.teste');assert page.goto(work).status==200;assert page.locator('form[action$="/performance-report"]').count()==1
@@ -94,7 +94,7 @@ with sync_playwright() as p:
   for width in [320,390,1280]:
    page.set_viewport_size({'width':width,'height':900});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
   form.locator('[name=report_ack]').check();form.get_by_role('button',name='Conferir apuração',exact=True).click()
-  expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False)).to_be_visible()
+  expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False).first).to_be_visible()
   login('administrador.teste');page.goto(work)
   assert page.locator('form[action$="/performance-report"]').count()==1
   assert post(work+'/performance-report',form=corrected|{'_token':token(),'revision':revision()}).status==409
