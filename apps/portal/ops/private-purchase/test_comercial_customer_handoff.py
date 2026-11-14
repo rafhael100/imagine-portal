@@ -100,6 +100,7 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                     args=["--no-sandbox", "--disable-background-networking"],
                 )
                 try:
+                    seen_orders: set[str] = set()
                     for slug, offer in cases:
                         context = browser.new_context(
                             viewport={"width": 1280, "height": 900},
@@ -138,71 +139,76 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         ).count() == 1, ("Real Portal guest login not reached", slug)
                         # The guest is not authenticated; offer intent stays
                         # in its server-side synthetic session through signup.
-                        if slug == "onepage":
-                            page.get_by_role(
-                                "link", name="Criar minha conta de teste"
-                            ).click()
-                            username = "demo-comercial-" + uuid.uuid4().hex[:12]
-                            for field, value in (
-                                ("name", "Pessoa inteiramente fictícia"),
-                                ("company", "Empresa fictícia Comercial"),
-                                ("username", username),
-                                ("password", "ci-comercial-portal-only-2026"),
-                                ("password_confirmation", "ci-comercial-portal-only-2026"),
-                            ):
-                                page.locator(f'[name="{field}"]').fill(value)
-                            page.get_by_role(
-                                "button", name="Criar conta e continuar"
-                            ).click()
-                            page.wait_for_url(local + "onepage")
-                            assert page.locator(
-                                'form[action$="/_preview/portal/shop/orders"]'
-                            ).count() == 1
-                            assert page.locator('input[name="product"]').get_attribute(
-                                "value"
-                            ) == "onepage"
-                            page.get_by_role(
-                                "button", name="Criar pedido de teste"
-                            ).click()
-                            page.get_by_role(
-                                "heading", name="Seu pedido de teste", exact=True
-                            ).wait_for()
-                            order_url = page.url
-                            assert "/shop/orders/TEST-" in order_url
-                            assert page.get_by_text("Pendente", exact=True).count() >= 1
-                            page.get_by_role("checkbox").check()
-                            page.locator('[name="outcome"]').select_option("approved")
-                            page.get_by_role(
-                                "button", name="Aplicar resultado de teste"
-                            ).click()
-                            for field in ("business", "goal", "audience", "materials"):
-                                page.locator(f'[name="{field}"]').fill(
-                                    "Exemplo sintético Comercial"
-                                )
-                            page.get_by_role(
-                                "button", name="Salvar briefing de teste"
-                            ).click()
-                            page.get_by_role(
-                                "heading", name="Briefing salvo no Portal de teste"
-                            ).wait_for()
-                            page.reload()
-                            page.get_by_role(
-                                "heading", name="Briefing salvo no Portal de teste"
-                            ).wait_for()
-                            page.goto(login + "/client/services")
-                            assert page.locator("tr[data-customer-order]").count() == 1
-                            assert page.get_by_text(
-                                "Aguardar análise do briefing", exact=True
-                            ).count() == 1
-                            # New browser without the customer's signed
-                            # session must not read a saved private order.
-                            outside = browser.new_context()
-                            try:
-                                unauth = outside.request.get(order_url)
-                                assert unauth.status == 403
-                            finally:
-                                outside.close()
-                            print("PASS real Comercial Onepage -> account -> PG18 order + sample briefing")
+                        # End-to-end ownership and PG18 persistence for EACH
+                        # distinct CTA. Google and Meta share the Performance
+                        # SKU but must retain separate customer/order records.
+                        page.get_by_role(
+                            "link", name="Criar minha conta de teste"
+                        ).click()
+                        username = "demo-comercial-" + uuid.uuid4().hex[:12]
+                        for field, value in (
+                            ("name", "Pessoa inteiramente fictícia"),
+                            ("company", "Empresa fictícia Comercial"),
+                            ("username", username),
+                            ("password", "ci-comercial-portal-only-2026"),
+                            ("password_confirmation", "ci-comercial-portal-only-2026"),
+                        ):
+                            page.locator(f'[name="{field}"]').fill(value)
+                        page.get_by_role(
+                            "button", name="Criar conta e continuar"
+                        ).click()
+                        page.wait_for_url(local + offer)
+                        assert page.locator(
+                            'form[action$="/_preview/portal/shop/orders"]'
+                        ).count() == 1
+                        assert page.locator('input[name="product"]').get_attribute(
+                            "value"
+                        ) == offer
+                        page.get_by_role(
+                            "button", name="Criar pedido de teste"
+                        ).click()
+                        page.get_by_role(
+                            "heading", name="Seu pedido de teste", exact=True
+                        ).wait_for()
+                        order_url = page.url
+                        assert "/shop/orders/TEST-" in order_url
+                        assert page.get_by_text("Pendente", exact=True).count() >= 1
+                        page.get_by_role("checkbox").check()
+                        page.locator('[name="outcome"]').select_option("approved")
+                        page.get_by_role(
+                            "button", name="Aplicar resultado de teste"
+                        ).click()
+                        for field in ("business", "goal", "audience", "materials"):
+                            page.locator(f'[name="{field}"]').fill(
+                                "Exemplo sintético Comercial"
+                            )
+                        page.get_by_role(
+                            "button", name="Salvar briefing de teste"
+                        ).click()
+                        page.get_by_role(
+                            "heading", name="Briefing salvo no Portal de teste"
+                        ).wait_for()
+                        page.reload()
+                        page.get_by_role(
+                            "heading", name="Briefing salvo no Portal de teste"
+                        ).wait_for()
+                        page.goto(login + "/client/services")
+                        rows = page.locator("tr[data-customer-order]")
+                        assert rows.count() == 1
+                        assert page.get_by_text(
+                            "Aguardar análise do briefing", exact=True
+                        ).count() == 1
+                        # New browser without the customer's signed session
+                        # must not read a saved private order.
+                        outside = browser.new_context()
+                        try:
+                            unauth = outside.request.get(order_url)
+                            assert unauth.status == 403
+                        finally:
+                            outside.close()
+                        assert order_url not in seen_orders
+                        seen_orders.add(order_url)
+                        print("PASS Comercial", slug, "->", offer, "-> independent synthetic PG18 order and briefing")
                         assert not errors, errors
                         assert not blocked, ("Only the two loopback servers allowed", blocked)
                         print("PASS Comercial CTA -> private Portal login:", slug, offer)
@@ -212,4 +218,4 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
         finally:
             server.shutdown()
             thread.join(timeout=5)
-print("PASS all four Comercial CTAs reach private Portal, one complete synthetic account; zero real clients/payments/deploy")
+print("PASS all four Comercial CTAs reach private Portal, four independent synthetic accounts; zero real clients/payments/deploy")
