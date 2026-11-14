@@ -1,0 +1,53 @@
+name: Portal F396 - Signed recovery no-skip triage (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationRecoveryTriageCandidate.php'
+      - 'infra/development/portal-recovery/f396-worker/**'
+      - '.github/workflows/portal-f396-signed-no-skip-ci.yml'
+permissions:
+  contents: read
+jobs:
+  worker-signed-ack-never-skips-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F396_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: none
+      - name: Validate actual Worker-signed cursor + ACK + lease never bypass SQL
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F396_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f396-worker/test-signed-triage.mjs
+          php -l apps/portal/app/Infrastructure/Recovery/SignedRevocationRecoveryTriageCandidate.php
+          php -l infra/development/portal-recovery/f396-worker/test-php-triage.php
+          if grep -R -E 'SignedRevocationRecoveryTriageCandidate|f396' \
+              apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'F396 must not be registered in public Laravel HTTP'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          export F396_SIGNED_FIXTURE_DIR="$scratch"
+          node infra/development/portal-recovery/f396-worker/test-signed-triage.mjs
+          php infra/development/portal-recovery/f396-worker/test-php-triage.php "$scratch"
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs
