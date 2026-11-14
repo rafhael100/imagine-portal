@@ -17,6 +17,20 @@ DO $$ BEGIN
     NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
  END IF;
 END $$;
+-- The existing signed owner policies were created with default TO PUBLIC.
+-- The worker has no EXECUTE on preview_order_allowed, and PostgreSQL may
+-- evaluate applicable policy expressions even when a worker-specific OR
+-- policy would otherwise permit the row. Scope each owner policy to the web
+-- role BEFORE introducing the separate restricted worker policy.
+ALTER POLICY customer_order_scope ON purchase_rehearsal.customer_orders
+ TO purchase_rehearsal_a;
+ALTER POLICY customer_preview_read_scope ON purchase_rehearsal.customers
+ TO purchase_rehearsal_a;
+ALTER POLICY customer_preview_insert_scope ON purchase_rehearsal.customers
+ TO purchase_rehearsal_a;
+ALTER POLICY customer_order_event_scope ON purchase_rehearsal.customer_order_events
+ TO purchase_rehearsal_a;
+
 ALTER TABLE purchase_rehearsal.customer_orders
  ADD COLUMN IF NOT EXISTS payment_source text NOT NULL DEFAULT 'manual_test'
  CHECK(payment_source IN ('manual_test','asaas_sandbox'));
