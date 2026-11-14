@@ -15,9 +15,8 @@ eventos de conversão nem qualquer comando de pagamento.
   comercial e técnica ainda depende de gates externos.
 - R$490 por canal é o valor de ativação aprovado, mas **não cobrado aqui**.
 - Mínimos/recomendações de mídia ilustram os valores da proposta v5.
-- 20% do planejamento é apenas referência; o real pós-pago depende de
-  gasto medido e aprovado, nunca de estimativa.
-- Mínimo mensal de gestão ainda não precificado neste contrato.
+- O cálculo ilustrativo aplica **20% do planejamento ou R$170, o maior, por canal**, separadamente, para mês completo.
+- O pós-pago definitivo depende de gasto real medido e aprovado; primeiro mês parcial exige análise contratual. A simulação nunca é fatura.
 - Não habilitar como rota pública até autenticação, consentimento, revisões,
   integração Portal/Performance e checkout Asaas/C6 controlado.
 
