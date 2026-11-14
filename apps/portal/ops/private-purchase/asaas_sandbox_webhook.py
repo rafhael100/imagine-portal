@@ -39,6 +39,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):self.reply(405)
     def do_POST(self):
         if self.path!=PATH:return self.reply(404)
+        if getattr(self.server,'expected_host',None) and self.headers.get('Host')!=self.server.expected_host:return self.reply(404)
         supplied=self.headers.get_all('asaas-access-token') or []
         if len(supplied)!=1 or not hmac.compare_digest(supplied[0].encode(),self.server.token.encode()):return self.reply(401)
         lengths=self.headers.get_all('Content-Length') or []
@@ -61,4 +62,4 @@ if __name__=='__main__':
     if stat.S_IMODE(config.stat().st_mode)!=0o600:raise SystemExit('Private mode must be 600')
     cfg=json.loads(config.read_text());token=cfg.get('auth_token','')
     if cfg.get('environment')!='sandbox' or not re.fullmatch(r'[A-Za-z0-9_-]{43,255}',token):raise SystemExit('Private sandbox token required')
-    server=http.server.HTTPServer(('127.0.0.1',18084),Handler);server.token=token;server.inbox=Inbox();server.serve_forever()
+    server=http.server.HTTPServer(('127.0.0.1',18084),Handler);server.token=token;server.expected_host='portal-dev.imaginecomunica.com.br';server.inbox=Inbox();server.serve_forever()

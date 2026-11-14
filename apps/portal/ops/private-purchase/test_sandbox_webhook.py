@@ -12,8 +12,8 @@ class Tests(unittest.TestCase):
   self.server=http.server.HTTPServer(('127.0.0.1',0),Handler);self.server.token=TOKEN;self.server.inbox=Inbox()
   self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
  def tearDown(self):self.server.shutdown();self.thread.join();self.server.server_close()
- def send(self,event=EVENT,token=TOKEN,path=PATH):
-  req=urllib.request.Request('http://127.0.0.1:'+str(self.server.server_port)+path,data=json.dumps(event).encode(),headers={'asaas-access-token':token,'Content-Type':'application/json'})
+ def send(self,event=EVENT,token=TOKEN,path=PATH,host=None):
+  req=urllib.request.Request('http://127.0.0.1:'+str(self.server.server_port)+path,data=json.dumps(event).encode(),headers={'asaas-access-token':token,'Content-Type':'application/json',**({'Host':host} if host else {})})
   try:
    with urllib.request.urlopen(req,timeout=2) as response:return response.status
   except urllib.error.HTTPError as e:return e.code
@@ -30,6 +30,9 @@ class Tests(unittest.TestCase):
    with self.subTest(event=event):self.assertEqual(self.send(event),400)
  def test_persistence_failure_never_acknowledged(self):
   self.server.inbox.fail=True;self.assertEqual(self.send(),503)
+ def test_public_host_is_pinned(self):
+  self.server.expected_host='portal-dev.imaginecomunica.com.br'
+  self.assertEqual(self.send(),404);self.assertEqual(self.send(host=self.server.expected_host),200)
  def test_path_and_size(self):
   self.assertEqual(self.send(path='/other'),404);self.assertEqual(self.send(EVENT|{'padding':'x'*65536}),413)
 if __name__=='__main__':unittest.main()
