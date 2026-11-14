@@ -21,7 +21,7 @@ def check_compose(doc):
     if not isinstance(doc, dict) or not isinstance(doc.get("services"), dict):
         raise ValueError("Expected structured Docker Compose JSON.")
     services=doc["services"]
-    if set(services)!={"database","application","gateway"}:
+    if set(services)!={"database","application","broker","gateway"}:
         raise ValueError("Unexpected public or missing service.")
     networks=doc.get("networks")
     if not isinstance(networks,dict) or set(networks)!={"private","host_access"}:
@@ -44,12 +44,22 @@ def check_compose(doc):
     p=ports[0]
     if p.get("host_ip")!="127.0.0.1" or str(p.get("published"))!="18083" or str(p.get("target"))!="8080" or p.get("protocol","tcp")!="tcp":
         raise ValueError("Private preview MUST bind 127.0.0.1:18083.")
-    for name in ("gateway","application"):
+    for name in ("gateway","application","broker"):
         svc=services[name]
         if svc.get("read_only") is not True or "ALL" not in svc.get("cap_drop",[]):
             raise ValueError("App and gateway must be read-only/cap-drop ALL.")
         if not any(str(v).startswith("no-new-privileges") for v in svc.get("security_opt",[])):
             raise ValueError("no-new-privileges not configured.")
+    broker=services["broker"]
+    if (broker.get("image")!="postgres:18-alpine" or
+        str(broker.get("user"))!="70:70" or
+        broker.get("entrypoint")!=["psql"] or
+        broker.get("environment")!={"PGPASSFILE":"/run/secrets/broker-pgpass",
+                                     "PGCONNECT_TIMEOUT":"5"} or
+        broker.get("restart") not in ("no",None)):
+        raise ValueError("Broker must be a non-root, one-shot, fixed psql client.")
+    if broker.get("command") not in (None,[]):
+        raise ValueError("Broker may not execute an unreviewed default command.")
     app=services["application"]
     if str(app.get("user"))!="82:82":
         raise ValueError("Application must run as unprivileged UID/GID 82.")
@@ -66,7 +76,8 @@ def check_compose(doc):
     for name,target in (
         ("application","/run/secrets/preview-runtime.json"),
         ("database","/run/secrets/admin-password"),
-        ("database","/docker-entrypoint-initdb.d/01-preview.sql")
+        ("database","/docker-entrypoint-initdb.d/01-preview.sql"),
+        ("broker","/run/secrets/broker-pgpass")
     ):
         mounts=services[name].get("volumes",[])
         correct=[v for v in mounts if isinstance(v,dict) and v.get("type")=="bind"
@@ -78,6 +89,7 @@ def check_files(private):
     for relative,mode,uid,directory in (
         (".",0o700,0,True),("runtime.json",0o400,82,False),
         ("admin-password",0o400,70,False),("init.sql",0o400,70,False),
+        ("broker.pgpass",0o400,70,False),
         ("profiles",0o700,82,True),("profiles/users.json",0o400,82,False)
     ):
         path=private/relative
@@ -96,10 +108,12 @@ def report():
         "gateway_loopback_port_only":True,
         "staging_route_gate_ci_disabled":True,
         "read_only_container_and_secret_metadata_verified":True,
+        "one_shot_broker_dedicated_login_metadata_verified":True,
         "real_iam_mfa_verified":False,
         "basic_auth_tls_outer_perimeter_verified":False,
         "external_revocation_witness_verified":False,
         "psp_payments_verified":False,
+        "broker_production_runtime_verified":False,
         "vps_deployed":False,
         "production_released":False,
         "release_gate":"NO_GO",
@@ -114,6 +128,12 @@ def self_test():
         "database":{"image":"postgres:18-alpine","networks":{"private":{}},"volumes":[
           {"type":"bind","target":"/run/secrets/admin-password","read_only":True},
           {"type":"bind","target":"/docker-entrypoint-initdb.d/01-preview.sql","read_only":True}]},
+        "broker":{"image":"postgres:18-alpine","entrypoint":["psql"],"user":"70:70",
+          "networks":{"private":{}},"read_only":True,"cap_drop":["ALL"],
+          "security_opt":["no-new-privileges:true"],"restart":"no",
+          "environment":{"PGPASSFILE":"/run/secrets/broker-pgpass",
+                         "PGCONNECT_TIMEOUT":"5"},
+          "volumes":[{"type":"bind","target":"/run/secrets/broker-pgpass","read_only":True}]},
         "application":{"networks":{"private":{}},"read_only":True,"cap_drop":["ALL"],
           "security_opt":["no-new-privileges:true"],"user":"82:82",
           "environment":EXPECTED_ENV.copy(),
@@ -138,6 +158,17 @@ def self_test():
         try: check_compose(altered)
         except ValueError: continue
         raise AssertionError("Unsafe preflight change was accepted.")
+    for mode in ("host-port","root-user","no-drop","wrong-client","injected-env"):
+        altered=json.loads(json.dumps(valid))
+        b=altered["services"]["broker"]
+        if mode=="host-port": b["ports"]=[{"host_ip":"0.0.0.0","published":"5432","target":5432}]
+        elif mode=="root-user": b["user"]="0:0"
+        elif mode=="no-drop": b["cap_drop"]=[]
+        elif mode=="wrong-client": b["entrypoint"]=["sh"]
+        else: b["environment"]["ASAAS_API_KEY"]="unsafe"
+        try: check_compose(altered)
+        except ValueError: continue
+        raise AssertionError("Unsafe broker change was accepted: "+mode)
     assert report()["claims"]["release_gate"]=="NO_GO"
     print("PASS: private preflight rejects unsafe network, permissions, and environment; NO-GO.")
 

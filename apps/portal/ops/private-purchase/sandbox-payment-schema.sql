@@ -12,10 +12,14 @@ DO $$ BEGIN
    AND tablename='customer_orders' AND policyname='customer_order_scope'
    AND qual LIKE '%preview_order_allowed%'
  ) THEN RAISE EXCEPTION 'Signed owner policy required BEFORE Sandbox ledger'; END IF;
- IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='purchase_rehearsal_psp') THEN
-  CREATE ROLE purchase_rehearsal_psp NOLOGIN NOSUPERUSER
-    NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
- END IF;
+ -- A broker must authenticate as its own SQL user, never as postgres
+ -- followed by SET ROLE. No plaintext password appears in tracked SQL.
+ IF NOT EXISTS(
+   SELECT 1 FROM pg_roles WHERE rolname='purchase_rehearsal_psp'
+     AND rolcanlogin AND NOT rolsuper AND NOT rolbypassrls
+     AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolinherit
+     AND NOT rolreplication
+ ) THEN RAISE EXCEPTION 'NO-GO: dedicated restricted PSP login missing'; END IF;
 END $$;
 ALTER TABLE purchase_rehearsal.customer_orders
  ADD COLUMN IF NOT EXISTS payment_source text NOT NULL DEFAULT 'manual_test'

@@ -32,6 +32,12 @@ jobs:
           set -euo pipefail
           bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
           python3 apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
+          python3 apps/portal/ops/private-purchase/check_staging_runtime_readonly.py --self-test
+          if APP_ENV=staging PORTAL_STAGING_READONLY_CHECK=1 \
+            python3 apps/portal/ops/private-purchase/check_staging_runtime_readonly.py --check; then
+            echo 'CRITICAL: operator-only staging verifier ran in GitHub CI' >&2
+            exit 1
+          fi
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -42,6 +48,14 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          # Inspect the real NON-CI Compose, including the one-shot broker,
+          # against file metadata. No secret bytes are loaded or printed.
+          docker compose -f compose.yaml config --format json > "$RUNNER_TEMP/portal-runtime-compose.json"
+          # .private is intentionally root-only; inspect stat metadata as
+          # root and never read key bytes. Runtime broker remains UID 70.
+          sudo python3 preflight_private_runtime.py --inspect \
+            --compose-json "$RUNNER_TEMP/portal-runtime-compose.json" \
+            --private-dir .private
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           # Signed customer policy must exist BEFORE Laravel's fail-closed
           # constructor initializes on the first readiness request.
@@ -49,14 +63,15 @@ jobs:
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-payment-schema.sql
-          # Catch SQL role authorization regressions before browser checkout.
-          # Provider is NEVER called. The worker exercises its actual SET ROLE.
-          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal <<'SQL'
-          SET ROLE purchase_rehearsal_psp;
-          SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;
-          SELECT count(*) FROM purchase_rehearsal.customer_orders WHERE payment_source='asaas_sandbox';
-          RESET ROLE;
-          SQL
+          # Exercise the real broker SQL login with a private SCRAM credential,
+          # not postgres followed by SET ROLE, before opening the web gateway.
+          docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user' \
+            | grep -Fx 'purchase_rehearsal_psp|f|f'
+          docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents'
 
           docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
           python3 - <<'PY'
@@ -79,9 +94,10 @@ jobs:
         run: |
           set -euo pipefail
           docker compose exec -T application php private-preview-route-gate.test.php
-          # Host worker must query its own table through its distinct NOLOGIN role.
-          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal \
-            -c 'SET ROLE purchase_rehearsal_psp; SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;' >/dev/null
+          # Broker psql runs with its own password on an internal Docker network.
+          docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents' >/dev/null
           echo 'PASS CI-only shared checkout and private VPS customer/admin route allowlist' >> "$GITHUB_STEP_SUMMARY"
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
@@ -144,6 +160,20 @@ jobs:
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_sandbox_scope.sql
+          # Actual password-authenticated broker must not read customer PII,
+          # mutate approved offer or read any HMAC verifier secret.
+          if docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT customer_id FROM purchase_rehearsal.customer_orders LIMIT 1' >/dev/null 2>&1; then
+            echo 'NO-GO: dedicated PSP broker can read customer identity' >&2
+            exit 1
+          fi
+          if docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT key FROM purchase_rehearsal.preview_scope_secret' >/dev/null 2>&1; then
+            echo 'NO-GO: dedicated PSP broker can read HMAC verification key' >&2
+            exit 1
+          fi
           echo 'PASS signed owner and admin claims protect orders, identities and delivery events at SQL layer' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:

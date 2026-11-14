@@ -1,6 +1,6 @@
 import copy,decimal,unittest,urllib.request
 from unittest import mock
-from asaas_sandbox_worker import Worker,Unconfirmed,Asaas,NoRedirect,FIXTURE_NAME,verify_payment,invoice_url
+from asaas_sandbox_worker import Worker,Unconfirmed,Asaas,NoRedirect,FIXTURE_NAME,Database,verify_payment,invoice_url
 OID='TEST-'+'a'*32
 class DB:
     def __init__(self):self.row={'order_id':OID,'state':'queued','amount_cents':33000,'due_date':'2026-11-14','customer_ref':None,'payment_ref':None,'sync_requested':True};self.approved=False;self.hold=False
@@ -81,6 +81,30 @@ class Tests(unittest.TestCase):
         ]:
             with self.subTest(change=change),self.assertRaises(Unconfirmed):
                 verify_payment(self.api.payment|change,self.db.row)
+
+    def test_broker_uses_dedicated_password_login_and_no_superuser_shortcut(self):
+        class Completed:
+            returncode=0
+            stdout='3'
+            stderr=''
+        with mock.patch('asaas_sandbox_worker.subprocess.run',return_value=Completed()) as runner:
+            self.assertEqual(Database().sql('SELECT 3'),'3')
+        args,kwargs=runner.call_args
+        argv=args[0]
+        self.assertEqual(argv[:7],['docker','compose','run','--rm','-T','--no-deps','broker'])
+        self.assertIn('-h',argv)
+        self.assertIn('database',argv)
+        self.assertIn('purchase_rehearsal_psp',argv)
+        self.assertNotIn('postgres',argv)
+        self.assertNotIn('SET ROLE',str(kwargs))
+        self.assertNotIn('input',kwargs)
+        self.assertEqual(argv[-2:],['-c','SELECT 3'])
+        self.assertTrue(kwargs['capture_output'])
+        self.assertFalse(kwargs['check'])
+        with mock.patch('asaas_sandbox_worker.subprocess.run',
+                        return_value=type('Bad',(),{'returncode':1,'stdout':'','stderr':'secret'})()):
+            with self.assertRaises(Unconfirmed) as caught: Database().sql('SELECT 3')
+            self.assertNotIn('secret',str(caught.exception))
 
     def test_live_worker_cli_always_denies_ci_and_unapproved_launch(self):
         import os,pathlib,subprocess,sys
