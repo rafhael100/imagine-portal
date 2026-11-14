@@ -82,8 +82,10 @@ final readonly class OfflinePortalGscOAuthStateStartReview
                   rolinherit,rolreplication
                 FROM pg_roles WHERE rolname=current_user'
             )->fetch(PDO::FETCH_ASSOC);
+            $expectedLab=getenv('PORTAL_GSC_F115_CALLBACK_LAB')==='1'
+                ? 'portal_gsc_f115_lab' : 'portal_gsc_f114_lab';
             if(!is_array($role) ||
-                $role['db']!=='portal_gsc_f114_lab' ||
+                $role['db']!==$expectedLab ||
                 $role['actor']!=='portal_gsc_f114_runtime' ||
                 !self::pgTrue($role['direct_login']))return null;
             foreach (['rolsuper','rolbypassrls','rolcreaterole',
@@ -143,8 +145,15 @@ final readonly class OfflinePortalGscOAuthStateStartReview
 
             // Revalidate session/grant and insert once while the identity
             // rows stay locked. Function receives NO tenant/actor from us.
+            // F115 laboratory binds the state to the ORIGINAL issued
+            // Portal session hash and security revision in the same INSERT
+            // transaction. The legacy F114 contract stays unchanged when
+            // F115 is not explicitly selected.
+            $storeFunction=getenv('PORTAL_GSC_F115_CALLBACK_LAB')==='1'
+                ? 'portal_gsc_f115_store_bound_state'
+                : 'portal_gsc_f114_store_state';
             $insert=$this->db->prepare(
-                'SELECT * FROM public.portal_gsc_f114_store_state(
+                'SELECT * FROM public.'.$storeFunction.'(
                     :digest, CAST(:org AS uuid), :hash, :sealed,
                     CAST(:issued AS bigint), CAST(:expires AS bigint)
                 )'
@@ -191,6 +200,154 @@ final readonly class OfflinePortalGscOAuthStateStartReview
             ];
         }catch(Throwable) {
             if ($this->db->inTransaction()) {
+                try{$this->db->rollBack();}catch(Throwable){}
+            }
+            return null;
+        }
+    }
+
+    /**
+     * F115: callback review ONLY, NEVER an operational OAuth token exchange.
+     * A first-party bearer MUST originate from the trusted Portal session,
+     * not from the callback query. PostgreSQL verifies the ORIGINAL issuer's
+     * session hash and membership revision while the state is consumed once.
+     *
+     * A successful return is a safe local verdict; no code, PKCE verifier,
+     * bearer, Google token or customer grant leaves this boundary.
+     */
+    public function reviewBoundCallback(
+        #[SensitiveParameter] mixed $firstPartySessionReference,
+        mixed $selectedOrganizationUuid,
+        #[SensitiveParameter] mixed $callback,
+        mixed $trustedNow,
+        ?Closure $onLockedRows=null,
+    ): ?array {
+        if (PHP_SAPI!=='cli' || getenv('APP_ENV')!=='testing' ||
+            getenv('PORTAL_GSC_F115_CALLBACK_LAB')!=='1' ||
+            !is_string($firstPartySessionReference) ||
+            preg_match('/\A[a-f0-9]{64}\z/D',$firstPartySessionReference)!==1 ||
+            !self::uuid($selectedOrganizationUuid) ||
+            !is_int($trustedNow) || abs(time()-$trustedNow)>4 ||
+            $trustedNow<1600000000 || $trustedNow>2200000000 ||
+            !is_array($callback) || array_is_list($callback) ||
+            count($callback)!==2 ||
+            !is_string($callback['state']??null) ||
+            preg_match('/\A[A-Za-z0-9_-]{43}\z/D',
+                $callback['state'])!==1 ||
+            !is_string($callback['code']??null) ||
+            strlen($callback['code'])<8 ||
+            strlen($callback['code'])>2048 ||
+            preg_match('/\A[A-Za-z0-9._~\/:-]+\z/D',
+                $callback['code'])!==1) return null;
+
+        try {
+            if ($this->db->inTransaction() ||
+                $this->db->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql')
+                return null;
+            $role=$this->db->query(
+                'SELECT current_database() AS db,
+                 current_user=session_user AS direct_login,
+                 current_user AS actor,
+                 rolsuper,rolbypassrls,rolcreaterole,rolcreatedb,
+                 rolinherit,rolreplication
+                 FROM pg_roles WHERE rolname=current_user'
+            )->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($role) ||
+                $role['db']!=='portal_gsc_f115_lab' ||
+                $role['actor']!=='portal_gsc_f114_runtime' ||
+                !self::pgTrue($role['direct_login']))return null;
+            foreach(['rolsuper','rolbypassrls','rolcreaterole',
+                'rolcreatedb','rolinherit','rolreplication'] as $priv) {
+                if(!self::pgFalse($role[$priv]??null))return null;
+            }
+            if(!$this->db->beginTransaction())return null;
+            $state=$callback['state'];
+            $stateHash=hash('sha256',$state);
+            $digest=hash('sha256',$firstPartySessionReference);
+            $stmt=$this->db->prepare(
+                'SELECT * FROM public.portal_gsc_f115_consume_bound_state(
+                    :digest, CAST(:org AS uuid), :hash,
+                    CAST(:observed AS bigint)
+                )'
+            );
+            if(!$stmt || !$stmt->execute([
+                'digest'=>$digest,'org'=>$selectedOrganizationUuid,
+                'hash'=>$stateHash,'observed'=>$trustedNow,
+            ]))throw new \RuntimeException('F115: bounded state unavailable');
+            $row=$stmt->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($row) ||
+                $stmt->fetch(PDO::FETCH_ASSOC)!==false ||
+                !is_string($row['tenant_ref']??null) ||
+                !is_string($row['actor_ref']??null))
+                throw new \RuntimeException('F115: invalid issuer or replay');
+            $expires=filter_var($row['expires_at']??null,
+                FILTER_VALIDATE_INT);
+            $sealed=$row['sealed_verifier']??null;
+            if($expires===false || $expires<$trustedNow ||
+                !is_string($sealed) || !str_starts_with($sealed,'v1.'))
+                throw new \RuntimeException('F115: expired state');
+            $bytes=base64_decode(substr($sealed,3),true);
+            if(!is_string($bytes) ||
+                strlen($bytes)<SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES+16)
+                throw new \RuntimeException('F115: encrypted state invalid');
+            $nonce=substr($bytes,0,SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
+            $cipher=substr($bytes,SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
+            $context=['tenantRef'=>$row['tenant_ref'],
+                'actorRef'=>$row['actor_ref']];
+            $aad='gsc-pkce-state-v1|'.$stateHash.'|'.$context['tenantRef']
+                .'|'.$context['actorRef'].'|'.$expires;
+            $verifier=sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
+                $cipher,$aad,$nonce,$this->key->getValue()
+            );
+            if(!is_string($verifier) ||
+                preg_match('/\A[A-Za-z0-9_-]{43}\z/D',$verifier)!==1)
+                throw new \RuntimeException('F115: cipher untrusted');
+            $stored=[
+                'tenantRef'=>$context['tenantRef'],
+                'actorRef'=>$context['actorRef'],
+                'stateSha256'=>$stateHash,
+                'codeVerifier'=>$verifier,
+                'issuedAt'=>$expires-600,
+                'expiresAt'=>$expires,
+                'consumed'=>false,
+            ];
+            // Reuse the existing strict callback syntax + stored PKCE
+            // matching. No trust is placed in the incoming code.
+            $decision=(new GoogleSearchConsoleOAuthCallbackPolicy(
+                new GoogleSearchConsoleOAuthPreflight()
+            ))->inspect($callback,$stored,$context,$trustedNow);
+            if ($decision===null ||
+                ($decision['decision']??null)!==
+                    'CODE_RECEIVED_REQUIRES_ATOMIC_STATE_CONSUMPTION' ||
+                ($decision['canExchangeTokens']??null)!==false) {
+                // The state was already atomically consumed: COMMIT keeps
+                // malformed callbacks from being replayed later.
+                $this->db->commit();
+                return null;
+            }
+            if($onLockedRows!==null && $onLockedRows()!==true)
+                throw new \RuntimeException('F115: concurrent revocation not fenced');
+            if(!$this->db->commit())
+                throw new \RuntimeException('F115: callback not committed');
+
+            return [
+                'contractVersion'=>'portal-gsc-f115-session-bound-callback-lab-v1',
+                'decision'=>'STATE_CONSUMED_AFTER_ORIGINAL_MFA_RECHECK',
+                'originalSessionBindingVerified'=>true,
+                'originalMembershipRevisionVerified'=>true,
+                'explicitConnectGrantVerifiedAtConsumption'=>true,
+                'stateConsumedOnce'=>true,
+                'callbackCodeHandledOnlyInServerMemory'=>true,
+                'googleOAuthVerified'=>false,
+                'tokenExchangeAuthorized'=>false,
+                'googleHttpPerformed'=>false,
+                'tokenPersistenceAuthorized'=>false,
+                'customerDisplayAuthorized'=>false,
+                'productionAuthorized'=>false,
+                'releaseStatus'=>'HOLD_GOOGLE_OAUTH_TOKEN_BACKEND_AND_APPSEC',
+            ];
+        }catch(Throwable) {
+            if($this->db->inTransaction()) {
                 try{$this->db->rollBack();}catch(Throwable){}
             }
             return null;
