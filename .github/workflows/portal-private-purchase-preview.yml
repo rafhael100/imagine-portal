@@ -48,6 +48,7 @@ jobs:
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-payment-schema.sql
           docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
           python3 - <<'PY'
           import time, urllib.request
@@ -88,7 +89,9 @@ jobs:
           '
       - name: Approved commercial catalog and sandbox adapter checks
         working-directory: apps/portal/ops/private-purchase
-        run: docker compose exec -T application php tools/test_commerce.php
+        run: |
+          docker compose exec -T application php tools/test_commerce.php
+          python3 test_asaas_sandbox_worker.py
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
@@ -100,6 +103,7 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           cd apps/portal/ops/private-purchase
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
@@ -123,6 +127,7 @@ jobs:
           set -euo pipefail
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_sandbox_scope.sql
           echo 'PASS signed owner and admin claims protect orders, identities and delivery events at SQL layer' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
