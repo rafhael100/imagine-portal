@@ -160,6 +160,11 @@ try {
     $probe=null;
     if($owner instanceof PDO) {
         try {
+            // Each scenario reuses the same disposable PostgreSQL service.
+            // Clean ONLY known synthetic lab rows, never broad user data.
+            $owner->exec("DELETE FROM portal_gsc_property_grants
+                WHERE tenant_ref IN ('imagine-demo','other-tenant')
+                AND actor_ref IN ('review-operator','different-actor')");
             $owner->exec('DROP OWNED BY gsc_f105_preview_probe');
             $owner->exec('DROP ROLE IF EXISTS gsc_f105_preview_probe');
         } catch(Throwable) {}
