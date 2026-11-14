@@ -1,0 +1,56 @@
+name: Portal F395 - Persistent retry lease CAS and crash recovery (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f395-worker/**'
+      - 'infra/development/portal-recovery/f376-worker/src/witness.mjs'
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationRetryLeaseCandidateVerifier.php'
+      - '.github/workflows/portal-f395-retry-lease-ci.yml'
+permissions:
+  contents: read
+jobs:
+  worker-persistent-retry-lease:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F395_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: none
+      - name: Test real Worker retry lease CAS, restart and cross-language receipt
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F395_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f395-worker/lease.mjs
+          node --check infra/development/portal-recovery/f395-worker/test-lease.mjs
+          node --check infra/development/portal-recovery/f376-worker/src/witness.mjs
+          php -l apps/portal/app/Infrastructure/Recovery/SignedRevocationRetryLeaseCandidateVerifier.php
+          php -l infra/development/portal-recovery/f395-worker/test-php-interop.php
+          if grep -R -E 'SignedRevocationRetryLeaseCandidateVerifier|revocation-retry-leases' \
+              apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'F395 must remain unbound to Laravel public HTTP'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          node infra/development/portal-recovery/f395-worker/test-lease.mjs seed "$scratch"
+          node infra/development/portal-recovery/f395-worker/test-lease.mjs restart "$scratch"
+          php infra/development/portal-recovery/f395-worker/test-php-interop.php "$scratch"
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs

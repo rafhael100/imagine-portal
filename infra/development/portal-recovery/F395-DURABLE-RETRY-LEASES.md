@@ -1,0 +1,19 @@
+# F395 — Bounded retry leases for independent revocation intents (review-only)
+
+F394 proved a local PostgreSQL18 revoked-row check is a precondition for creating an independent F393 ACK claim in a laboratory. F392 discovers pending intents by signed cursor after worker restart, but neither feature prevents two workers attempting the same revocation at once or persisting the retry count.
+
+F395 adds a **dormant, independently stored retry-lease candidate** to the existing F376 Worker code. Its new candidate D1 table `revocation_retry_leases` references F386 immutable revocation intents; SQLite triggers require a matching tenant, session SHA256, intent sequence and current witness sequence/floor. A single atomic UPSERT on the matching record acquires a **30-second lease** if there is no active claim, with a maximum of **five attempts**. A new attempt requires a NEW SHA256 of an ephemeral 256-bit random lease token. The original bearer/session reference is never included. A stale worker cannot overwrite an unexpired lease. The record and count survive process restart because CI tests against a file-backed (discardable) SQLite DB.
+
+`POST /v1/portal/revocation-retry-leases` accepts a six-field strict body and HMAC scoped to a new worker-only `LEASE_WORKER_HMAC_B64` (separate from intent publisher, cursor and ACK keys). Body/method/path/timestamp must match exact bytes, and the Worker pins organization/instance. A 204 confirms **lease acquisition only**. Duplicate, concurrent, stale, missing intent, wrong organization, unknown sequence and attempt number 6 fail closed. There is no RELEASE, DELETE, status=done, queue-compaction or serving grant.
+
+`GET /v1/portal/revocation-retry-leases/{intent_id}` requires a separate read-only `LEASE_READ_HMAC_B64`, a 256-bit nonce and timestamp. It checks the original F386 intent and current independent witness for rollback before emitting a 30-second Ed25519 receipt, with status `retry_lease_observed_not_completion` or `retry_lease_expired_not_completion`. PHP `SignedRevocationRetryLeaseCandidateVerifier` binds its exact signature to trusted tenant/instance/public key, intent ID, session digest, hashed lease token, nonce, attempt count and expiry. All HTTP/business/issuance/PG revoked/ACK/queue complete/recovery/deploy authority flags remain **false**.
+
+## Failure and restart tests
+
+Node24 runs actual F376/F386/F393/F395 modules against durable-across-two-process-invocations *disposable* SQLite. Simulated Worker crash/restart retains the first active lease. Concurrent second attempt fails; expired lease is reacquired with fresh hash, incrementing to 5; sixth attempt is refused even after expiry. A deliberately forged F393 ACK claim exists in the ledger, but does not skip any retry or grant authority. HMAC key confusion, stale replay, mutated/expired signature, SQL row mutation, and privileged witness rollback are rejected. Separate PHP 8.3/8.4 verifies actual Worker Ed25519 signatures. Time is advanced by injecting a controlled clock in the test handler, not waiting in real time. Legacy F376 regressions also run.
+
+## Important limits
+
+A retry lease is a scheduling coordination tool **not proof of SQL completion**. There is no production queue scheduler, independent worker identity, ACK handling that can safely close a job, rate limiting, maximum-attempt escalation queue, live Cloudflare D1, off-host key custody/rollback protection, lease holder proof in PG18, cross-region HA or positive HTTP serving. Lease fairness and clock skew require deeper review. Expired/exhausted jobs MUST remain discoverable via F392 and fail closed, never silently discarded. The maximum 5 attempts is a **lab safety cap**, not a production policy.
+
+No active Laravel service/route, migrations to live databases, merges to main, Leaseweb VPS changes, Cloudflare deploy, DNS, real customers or additional cost. Security issue #64 remains OPEN/NO-GO.
