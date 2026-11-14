@@ -1,0 +1,32 @@
+name: Portal F413 Performance activation to PSP to CRM offline
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php'
+      - 'apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php'
+      - 'apps/portal/tools/test_performance_activation_crm_routing_offline.php'
+      - '.github/workflows/portal-performance-activation-crm-f413.yml'
+permissions:
+  contents: read
+jobs:
+  activation-to-crm-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Exact SHA checkout with no persistent token
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP syntax and dependency-free cross-domain proof
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php
+          php -l apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php
+          php -l apps/portal/tools/test_performance_activation_crm_routing_offline.php
+          php apps/portal/tools/test_performance_activation_crm_routing_offline.php
+      - name: Reinforce explicit NO-GO
+        if: success()
+        run: |
+          echo 'F413 offline integration only: no fee charged, no CRM delivery, no Ads spend.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'C6 activation, live Asaas, tenant IAM, fiscal and billing remain NO-GO.' >> "$GITHUB_STEP_SUMMARY"
