@@ -135,6 +135,12 @@ jobs:
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_handoff.py
           echo 'PASS Comercial-built links to Laravel demo account, Postgres order and fake briefing; CI ONLY' >> "$GITHUB_STEP_SUMMARY"
+      - name: Prove forced per-customer SQL isolation under raw company login
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
+          echo 'PASS: direct database login cannot read any order without a valid signed claim' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify seven browser screenshots and strict NO-GO manifest
         run: |
           set -euo pipefail
