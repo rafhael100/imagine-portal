@@ -1,0 +1,73 @@
+{
+  "schema": "imagine.p0.release-candidate-manifest.v1",
+  "scope": "synthetic_ci_only_no_operational_release",
+  "candidates": [
+    {
+      "id": "comercial",
+      "repo": "rafhael100/imagine-comercial",
+      "pr": 374,
+      "head": "a575f75f7c41be3d3d7d35c3721fbf95ead59371",
+      "compare_base": "main",
+      "required_workflows": [
+        "Comercial P0 Portal do Cliente and four-CTA guarded preview",
+        "Commercial private purchase simulation",
+        "Imagine Comercial - PostgreSQL replay lab real e descartavel",
+        "Imagine Comercial - SEO, build e navegador"
+      ]
+    },
+    {
+      "id": "portal",
+      "repo": "rafhael100/imagine-portal",
+      "pr": 725,
+      "head": "e07c0f8948c788bd923f4d4673a73f7cd1b56a1f",
+      "compare_base": "dev/fast-track-portal-2026-11-05",
+      "required_workflows": [
+        "Portal isolated persistent private preview",
+        "Portal F64 - Private Container Homologation Smoke",
+        "Validacao isolada Laravel F1-01-A",
+        "Testes do portal",
+        "Portal GSC F102/F105/F107 — synthetic OAuth security contracts"
+      ]
+    },
+    {
+      "id": "sites",
+      "repo": "rafhael100/imagine-sites",
+      "pr": 466,
+      "head": "138609aa2c8d14e4bd6bff452f0b523de2a3f15e",
+      "compare_base": "dev",
+      "required_workflows": [
+        "Sites F1-383 versioned operational PG18 schema - safe default-deny only",
+        "F1-03 Laravel isolado - sintético sem deploy",
+        "Sites Engine - testes sinteticos (sem deploy)",
+        "F1-21 CI-only operational safety guard"
+      ]
+    }
+  ],
+  "parallel_lines": [
+    {
+      "repo": "rafhael100/imagine-sites",
+      "left": "feature/sites-f1-381-portal-purchase-http-pg18-2026-11-13",
+      "right": "feature/sites-f1-383-versioned-pg-operational-schema-2026-11-13",
+      "reason": "Branches diverge; real Portal->Sites signed HTTP+TLS tests cannot be assumed included in operational schema branch."
+    }
+  ],
+  "operational_gates": {
+    "psp_real_confirmation": false,
+    "real_customer_iam_mfa": false,
+    "trusted_s2s_authority_and_revocation": false,
+    "contract_consent_and_lgpd": false,
+    "db_appsec_independent_review": false,
+    "vps_leasweb_authenticated_staging_smoke": false,
+    "backup_restore_and_rollback": false,
+    "official_client_login_url_live": false,
+    "sites_operator_publishing_review": false,
+    "controlled_merge_authorization": false
+  },
+  "restrictions": {
+    "may_merge": false,
+    "may_deploy": false,
+    "may_bill": false,
+    "may_publish": false,
+    "may_process_real_customers": false
+  }
+}
