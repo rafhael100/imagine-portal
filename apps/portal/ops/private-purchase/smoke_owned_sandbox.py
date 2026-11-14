@@ -5,18 +5,24 @@ import argparse,http.cookiejar,json,os,pathlib,re,secrets,urllib.parse,urllib.re
 ROOT=pathlib.Path(__file__).resolve().parent
 BASE='http://127.0.0.1:18083/_preview/portal'
 STATE=ROOT/'.private/sandbox-smoke.json'
+PUBLIC_BASE='https://portal-dev.imaginecomunica.com.br/_preview/portal'
 class LocalRedirect(urllib.request.HTTPRedirectHandler):
+    def __init__(self,cookies):self.cookies=cookies
     def redirect_request(self,req,fp,code,msg,headers,newurl):
+        if newurl.startswith(PUBLIC_BASE+'/'):newurl=BASE+newurl[len(PUBLIC_BASE):]
         if not newurl.startswith(BASE+'/'):raise RuntimeError('Unexpected redirect outside private loopback preview')
-        return super().redirect_request(req,fp,code,msg,headers,newurl)
+        next_request=super().redirect_request(req,fp,code,msg,headers,newurl)
+        next_request.remove_header('Cookie')
+        next_request.add_header('Cookie','; '.join(c.name+'='+c.value for c in self.cookies))
+        return next_request
 class Browser:
     def __init__(self):
         self.cookies=http.cookiejar.CookieJar()
-        self.http=urllib.request.build_opener(LocalRedirect,urllib.request.HTTPCookieProcessor(self.cookies))
+        self.http=urllib.request.build_opener(LocalRedirect(self.cookies),urllib.request.HTTPCookieProcessor(self.cookies))
     def request(self,path,data=None):
         # The app correctly sets Secure cookies for public HTTPS. This operator-only
         # smoke connects to its private loopback upstream; keep server flags intact.
-        req=urllib.request.Request(BASE+path,data=data,headers={'Cookie':'; '.join(c.name+'='+c.value for c in self.cookies),'Origin':'http://127.0.0.1:18083'})
+        req=urllib.request.Request(BASE+path,data=data,headers={'Cookie':'; '.join(c.name+'='+c.value for c in self.cookies),'Origin':'https://portal-dev.imaginecomunica.com.br'})
         return self.http.open(req,timeout=20)
     def get(self,path):
         with self.request(path) as r:return r.geturl(),r.read().decode()
