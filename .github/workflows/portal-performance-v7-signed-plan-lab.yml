@@ -1,0 +1,41 @@
+name: Portal Performance V7 agreement/month channel media signed plan lab
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/PortalPerformanceV7AgreementPlanLabIssuer.php'
+      - 'apps/portal/tools/test_performance_v7_signed_plan_offline.php'
+      - '.github/workflows/portal-performance-v7-signed-plan-lab.yml'
+      - 'docs/PORTAL-PERFORMANCE-V7-SIGNED-PLAN-F419-2026-11-14.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-plan-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      APP_ENV: testing
+      PORTAL_PERF_V7_PLAN_AGREEMENT_LAB: '1'
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: PHP syntax for F419 and V7 agreement plan
+        run: |
+          php -l apps/portal/app/Domain/Performance/PortalPerformanceV7AgreementPlanLabIssuer.php
+          php -l apps/portal/tools/test_performance_v7_signed_plan_offline.php
+          php -l apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php
+          php -l apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php
+      - name: Verify F419→V7 plan signature, floors and hostile cases
+        run: php apps/portal/tools/test_performance_v7_signed_plan_offline.php
+      - name: Preserve F419 signed activation review behavior
+        run: php apps/portal/tools/test_performance_channel_envelope_offline.php
