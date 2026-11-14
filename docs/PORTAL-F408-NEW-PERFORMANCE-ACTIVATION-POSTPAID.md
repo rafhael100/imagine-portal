@@ -20,12 +20,8 @@ Asaas, webhooks, NFS-e, autenticação ou cron.
 - ChatGPT Ads pode existir no catálogo, mas só é selecionável se estiver
   explicitamente elegível; o fixture de teste mantém o canal bloqueado.
 - `monthlyReview` exige mês civil, data de ativação válida e todas as
-  medições sintéticas por canal. Calcula 20% do volume informado **somente
-  para revisão**, não boleto.
-- `minimum_management_fee_cents=null` e `real_invoice_authorized=false`
-  são propositalmente obrigatórios. Há uma diretriz de cobrar um mínimo de
-  gestão, mas **o valor e a regra exata desse mínimo não estão firmados neste
-  contrato versionado**. Não inferir nem faturar até a decisão ser registrada.
+  medições sintéticas por canal. Calcula o maior entre **20% da mídia real e R$170 para cada canal** em meses completos, somente para revisão, não boleto.
+- A política aprovada foi reconciliada em F419 com o cálculo sandbox F757: `minimum_management_fee_cents=17000` **por canal e mês completo**, versionado como `performance-postpaid-170-per-channel-2026-11-14`. `real_invoice_authorized=false` continua obrigatório.
 - O primeiro mês inclui apenas a janela ativação→último dia do mês. Não
   presumir gastos anteriores nem pró-rata de honorário mínimo.
 - A referência `SIM-...` é **evidência fictícia de teste**, nunca prova
@@ -39,8 +35,7 @@ Asaas, webhooks, NFS-e, autenticação ou cron.
    antecipação + acerto permanece **legado**, não é convertido neste PR.
 3. Homologar contrato, IAM/MFA, fornecedor e canal, consentimentos, LGPD,
    e origem dos valores reais (extratos oficiais de Google/Meta/ChatGPT).
-4. Definir política de gestão mínima por canal ou por contrato, vencimento,
-   corte de dados indisponíveis e prazo de contestação.
+4. O mínimo de R$170 por canal está definido para **mês completo**. Validar tratamento contratual de primeiro mês parcial, vencimento, corte de dados indisponíveis e prazo de contestação.
 5. Construir etapa financeira assinada, apuração idempotente, decisão
    humana auditável, NFS-e e cobrança por gateway com conciliação e rollback.
 6. Testes reais sandbox, segurança e lançamento liberado formalmente.
