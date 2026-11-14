@@ -5,7 +5,7 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 
-/** First paid advance only. Report review never authorizes a PSP charge or credit. */
+/** Legacy advances and new postpaid reports are separate; this class never creates PSP charges. */
 final class PerformanceSettlement
 {
     public function __construct(private PDO $db) {new \App\Homologation\RoleBoundTestPurchase($db);}
@@ -19,6 +19,53 @@ final class PerformanceSettlement
         foreach ($planned as $channel=>$cents) {
             if (!is_int($cents)||$cents<70000||$cents>100000000) throw new InvalidArgumentException('Invalid planned media');
             $sum+=$cents;
+        }
+        // New contracts: the activation amount is independent of the
+        // full-month management fee. A report remains review-only, never a
+        // payment command. Old stored contracts still reconcile advances.
+        if (($quote['pricing_policy']??null)===PerformancePostpaidPolicy::VERSION) {
+            $activation=count($planned)*PerformancePostpaidPolicy::ACTIVATION_CENTS;
+            if (($quote['amount_now_cents']??null)!==$activation ||
+                ($quote['activation_total_cents']??null)!==$activation ||
+                ($quote['minimum_management_fee_per_channel_cents']??null)!==PerformancePostpaidPolicy::MONTHLY_MINIMUM_CENTS ||
+                ($quote['activation_per_channel_cents']??null)!==PerformancePostpaidPolicy::ACTIVATION_CENTS ||
+                ($quote['real_charge_enabled']??null)!==false ||
+                ($quote['real_postpaid_invoice_authorized']??null)!==false) {
+                throw new InvalidArgumentException('Signed postpaid contract mismatch');
+            }
+            foreach ($planned as $channel=>$cents) {
+                $minimum=$channel==='google_ads'?100000:70000;
+                if ($cents<$minimum) throw new InvalidArgumentException('Invalid channel-specific budget');
+            }
+            $calculated=PerformancePostpaidPolicy::fullMonth(array_keys($planned),$actual);
+            if (($quote['estimated_management_fee_cents']??null)!==
+                PerformancePostpaidPolicy::fullMonth(array_keys($planned),$planned)['management_fee_cents']) {
+                throw new InvalidArgumentException('Stale approved postpaid offer snapshot');
+            }
+            $details=[];
+            foreach ($calculated['channels'] as $channel=>$amounts) {
+                $minimum=$channel==='google_ads'?100000:70000;
+                $details[$channel]=$amounts+[
+                    'planned_cents'=>$planned[$channel],
+                    'actual_cents'=>$actual[$channel],
+                    'below_planned_minimum'=>$actual[$channel]<$minimum,
+                ];
+            }
+            return [
+                'policy_version'=>PerformancePostpaidPolicy::VERSION,
+                'period'=>$period,
+                'evidence_ref'=>$evidence,
+                'currency'=>'BRL',
+                'activation_paid_cents'=>$activation,
+                'actual_management_fee_cents'=>$calculated['management_fee_cents'],
+                'channels'=>$details,
+                'status'=>'postpaid_requires_finance_review',
+                'real_invoice_authorized'=>false,
+                'first_partial_month_proration_not_approved'=>true,
+            ];
+        }
+        if (array_key_exists('pricing_policy',$quote)) {
+            throw new InvalidArgumentException('Unknown historical commercial policy');
         }
         $advance=intdiv($sum*2000+5000,10000);
         if (($quote['estimated_management_fee_cents']??null)!==$advance||($quote['amount_now_cents']??null)!==$advance) throw new InvalidArgumentException('Advance mismatch');
@@ -40,10 +87,19 @@ final class PerformanceSettlement
             if ($o['payment_source']==='asaas_sandbox') {
                 $q=$this->db->prepare("SELECT amount_cents FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? AND state='approved'");$q->execute([$id]);$paid=$q->fetchColumn();if($paid===false)throw new RuntimeException('Advance not confirmed');
             }
+            $quote=json_decode($o['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
+            $postpaid=($quote['pricing_policy']??null)===PerformancePostpaidPolicy::VERSION;
             $reports=$this->reports($id);$version=(int)$o['performance_report_version'];
-            if ($version>=20||($reports!==[]&&($reports[0]['version']!==$version||$reports[0]['decision']!=='disputed'))) throw new RuntimeException('Existing advance already assigned to a report');
-            $report=self::calculate(json_decode($o['offer_snapshot'],true,512,JSON_THROW_ON_ERROR),$period,$actual,$evidence);
-            if(isset($paid)&&(int)$paid!==$report['advance_fee_cents'])throw new RuntimeException('Paid advance mismatch');
+            if ($version>=20 ||
+                ($reports!==[] && (
+                    $reports[0]['version']!==$version ||
+                    ($postpaid
+                        ? !(($reports[0]['decision']==='disputed' && $period===$reports[0]['report']['period']) ||
+                            ($reports[0]['decision']==='acknowledged' && $period>$reports[0]['report']['period']))
+                        : $reports[0]['decision']!=='disputed')
+                ))) throw new RuntimeException('Existing report awaiting review');
+            $report=self::calculate($quote,$period,$actual,$evidence);
+            if(isset($paid)&&(int)$paid!==($report['activation_paid_cents']??$report['advance_fee_cents'])) throw new RuntimeException('Paid activation/advance mismatch');
             $q=$this->db->prepare('INSERT INTO purchase_rehearsal.performance_settlement_reports(order_id,version,report) VALUES (?,?,?::jsonb)');$q->execute([$id,$version+1,json_encode($report,JSON_THROW_ON_ERROR)]);
             $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET performance_report_version=?,revision=revision+1 WHERE id=?');$q->execute([$version+1,$id]);if ($ownTransaction) $this->db->commit();
         }catch(\Throwable $e){if($ownTransaction&&$this->db->inTransaction())$this->db->rollBack();throw $e;}

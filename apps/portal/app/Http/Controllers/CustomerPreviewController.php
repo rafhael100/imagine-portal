@@ -47,7 +47,7 @@ final class CustomerPreviewController
         try {
             foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if (($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
             $quote=$catalog->quote($v['product'],$media);
-        } catch (\InvalidArgumentException) { abort(422,'Informe investimento de pelo menos R$ 700 por canal selecionado; deixe vazio o canal não contratado.'); }
+        } catch (\InvalidArgumentException) { abort(422,'Informe orçamento mínimo de R$ 1.000 para Google Ads e R$ 700 para Meta; deixe vazio o canal não contratado.'); }
         try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product'],$quote); }
         catch (\Throwable) { abort(409,'Não foi possível criar o pedido de teste.'); }
         return redirect('/_preview/portal/shop/orders/'.$order['id']);
