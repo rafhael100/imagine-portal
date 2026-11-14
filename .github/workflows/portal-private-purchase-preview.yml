@@ -17,6 +17,7 @@ on:
       - review/portal-owned-four-project-crm-pg18-2026-11-14
       - review/portal-owned-customer-revocation-fence-2026-11-14
       - review/portal-preview-rehearsal-ci-only-2026-11-14
+      - review/portal-p0-vps-private-runtime-preflight-2026-11-14
 permissions:
   contents: read
 jobs:
@@ -39,6 +40,7 @@ jobs:
           php -l apps/portal/ops/private-purchase/router.php
           php apps/portal/ops/private-purchase/test_route_gate.php
           python3 -B apps/portal/ops/private-purchase/smoke.py --self-test
+          python3 -B apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -49,6 +51,13 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          # Inspect NON-CI VPS Compose configuration; fail on public ports,
+          # app/DB exposure, privileged containers, CI-only rehearsal or secrets drift.
+          docker compose -f compose.yaml config --format json > "$RUNNER_TEMP/private-portal-compose.json"
+          sudo python3 preflight_private_runtime.py --inspect \
+            --compose-json "$RUNNER_TEMP/private-portal-compose.json" \
+            --private-dir "$PWD/.private" \
+            --output "$RUNNER_TEMP/private-portal-preflight-no-go.json"
           # The customer policy must exist before the fail-closed Portal app starts.
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
@@ -192,6 +201,14 @@ jobs:
           cd ../../../..
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_reopen.py
           echo 'PASS four owned customer Portal orders/briefings after PG18/app restart; cross-customer denial' >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore synthetic PostgreSQL backup into a second disposable database and prove RLS
+        env:
+          P0_PG_RESTORE_CI: '1'
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/private-purchase/verify_pg_restore_ci.sh
+          bash apps/portal/ops/private-purchase/verify_pg_restore_ci.sh
+          echo 'PASS synthetic PostgreSQL backup/restore with signed customer RLS preserved; no VPS restore' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify seven browser screenshots and strict NO-GO manifest
         run: |
           set -euo pipefail
@@ -285,6 +302,13 @@ jobs:
         with:
           name: imagine-owned-customers-sites-fake-consented-crm-pg18-no-go
           path: ${{ runner.temp }}/p0-individual-portal-sites-crm-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Keep sanitized private-VPS metadata NO-GO preflight (7 days)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-portal-vps-private-metadata-preflight-no-go
+          path: ${{ runner.temp }}/private-portal-preflight-no-go.json
           if-no-files-found: error
           retention-days: 7
       - name: Diagnose failed synthetic browser flow

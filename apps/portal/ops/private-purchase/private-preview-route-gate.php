@@ -14,6 +14,15 @@ final class PrivatePreviewRouteGate
 {
     public static function allows(string $path, bool $ci): bool
     {
+        // Only canonical ASCII route paths are supported by this synthetic
+        // private preview. Reject normalization ambiguities *before* Laravel
+        // routing or an outer reverse proxy can interpret them differently.
+        // Query parameters have already been removed by parse_url().
+        if (str_contains($path, '%') || str_contains($path, '\\')
+            || str_contains($path, '//')
+            || preg_match('~(?:^|/)\\.\\.?(?:/|$)~D', $path) === 1) {
+            return false;
+        }
         if ($path === '/_preview/portal' ||
             str_starts_with($path, '/_preview/portal/')) {
             return true;
