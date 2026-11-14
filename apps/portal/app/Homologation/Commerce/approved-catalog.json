@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "decision_date": "2026-11-14",
   "currency": "BRL",
   "gateway": {
@@ -142,8 +142,8 @@
         "meta_ads"
       ],
       "meta_instagram_facebook_count_as_one_channel": true,
-      "reference_period": null,
-      "operational_settlement_policy": null,
+      "reference_period": "monthly",
+      "operational_settlement_policy": "estimated_management_fee_upfront_with_monthly_actual_media_spend_adjustment",
       "below_minimum_spend_policy": null,
       "setup_fee_cents": null,
       "setup_fee_status": "not_authorized_by_this_decision",
@@ -151,7 +151,8 @@
       "media_spend_paid_directly_to_platforms": true,
       "monthly_days_90_from_sites_inherited": false,
       "automatic_sites_discounts_inherited": false,
-      "decision_file": "docs/decisions/2026-11-14-performance-20-percent-media.md"
+      "decision_file": "docs/decisions/2026-11-14-performance-20-percent-media.md",
+      "minimum_media_investment_reference_period": "monthly"
     }
   ],
   "legacy_contract_policy": "preserve_original_prices_and_terms",

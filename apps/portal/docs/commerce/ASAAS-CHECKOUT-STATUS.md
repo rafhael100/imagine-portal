@@ -1,6 +1,6 @@
 # Checkout com ofertas aprovadas — 14/11/2026
 
-Base de aplicação: 67b064d99e8c7b959ddb3e008811a4cca7738a6e (PR #732). Catálogo recuperado da PR #737 em 0b247d9a06b86b87e2d4b34c69121fd6e72a5d52, copiado integralmente para app/Homologation/Commerce/approved-catalog.json e versionado por SHA-256. Nenhuma atualização automática por branch móvel.
+Base de aplicação: 67b064d99e8c7b959ddb3e008811a4cca7738a6e (PR #732). Catálogo recuperado da PR #737 em 4ae3f2489e3002ff91fe8dc55b9fbdf4829a9a24, copiado integralmente para app/Homologation/Commerce/approved-catalog.json e versionado por SHA-256. Nenhuma atualização automática por branch móvel.
 
 ## Implementado nesta alteração
 
@@ -21,11 +21,11 @@ Não conectar a rota que permite ao cliente escolher resultado fictício ao fina
 1. Conta e chave **Asaas sandbox** instaladas por canal privado; segredo webhook independente. Nunca colocar chave em GitHub, screenshots, logs ou chat. Nenhuma credencial foi disponibilizada nesta execução.
 2. Cadastro/vínculo de cliente Asaas, aceite contratual definitivo, intenções duráveis com exclusão concorrente por pedido, conciliação de escrita incerta, ledger e deduplicação de webhooks com releitura pela API. O adapter isolado não substitui esse ledger.
 3. Teste externo de pagamento inicial, falhas, duplicatas, estorno e worker D30/D60/assinatura D90. O adapter cria só uma cobrança vencível; não usa parcelamento bancário em substituição às três cobranças aprovadas.
-4. Para Performance: período de apuração e política de acerto/vencimento não definidos; orçamento informado gera estimativa, não autorização de cobrar mídia planejada como efetivamente investida.
+4. Performance: aprovada cobrança antecipada estimada com acerto mensal pela mídia efetiva; cálculo de complemento/crédito sem piso artificial está implementado e testado, mas a prova de gasto real, datas de vencimento e execução financeira do acerto continuam pendentes. Orçamento planejado não é gasto realizado.
 5. Login/recuperação definitivos, contrato, anexos, fiscal e ativação real continuam separados da homologação sintética.
 
 Documentação oficial consultada: https://docs.asaas.com/reference/criar-nova-cobranca e https://docs.asaas.com/docs/sandbox. Criar cobrança não confirma pagamento; sandbox não compartilha credenciais com produção.
 
 ## Verificação
 
-100 verificações standalone PHP executadas localmente com transporte injetado, sem PSP vivo. PHPUnit/Laravel/browser/PostgreSQL dependem do CI Docker desta branch. Resultado de transporte simulado não equivale à homologação Asaas nem a deploy na VPS.
+110 verificações standalone PHP executadas localmente com transporte injetado, sem PSP vivo. PHPUnit/Laravel/browser/PostgreSQL dependem do CI Docker desta branch. Resultado de transporte simulado não equivale à homologação Asaas nem a deploy na VPS.

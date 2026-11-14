@@ -3,8 +3,8 @@
 @foreach($quote['media_by_channel_cents'] as $channel=>$amount)
 <dt>Mídia {{ $channel === 'google_ads' ? 'Google Ads' : 'Meta (Instagram/Facebook)' }} — pagar ao canal</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($amount) }}</dd>
 @endforeach
-<dt>Gestão Imagine — estimativa de 20%</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($quote['estimated_management_fee_cents']) }}</dd>
-</dl><p>Somente os honorários serão cobrados pela Imagine via Asaas. A verba dos anúncios é paga diretamente aos canais. Esta estimativa não autoriza gasto e depende de apuração para cobrança real.</p>
+<dt>Gestão Imagine — honorários antecipados estimados de 20%</dt><dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($quote['estimated_management_fee_cents']) }}</dd>
+</dl><p>Somente os honorários serão cobrados pela Imagine via Asaas. A verba dos anúncios é paga diretamente aos canais. O acerto mensal compara os honorários antecipados com 20% da mídia efetivamente investida. Esta simulação não autoriza gasto ou cobrança real.</p>
 @else
 <p><strong>Implantação: {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($quote['setup_total_cents']) }}</strong></p>
 <ul>@foreach($quote['setup_charges'] as $charge)<li>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($charge['amount_cents']) }} — {{ $charge['offset_days'] === 0 ? 'na contratação' : 'após '.$charge['offset_days'].' dias' }}</li>@endforeach</ul>

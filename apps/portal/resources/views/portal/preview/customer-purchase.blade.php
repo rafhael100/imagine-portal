@@ -14,7 +14,7 @@
             <p>{{ $offer[1] }}</p>
             @if($slug === 'performance')
                 <p><strong>Gestão Imagine: 20% da mídia investida.</strong> Mínimo de R$ 700 de anúncios por canal, pago diretamente ao Google ou à Meta. Honorários Imagine são separados da verba de anúncios.</p>
-                <p>A estimativa será registrada no pedido; período de apuração e acerto financeiro ainda precisam ser definidos para cobrança real.</p>
+                <p>Honorários antecipados sobre o investimento planejado, com acerto mensal conforme a mídia efetivamente investida. Informe o orçamento mensal de cada canal.</p>
             @else
                 @include('portal.preview.offer-summary',['quote'=>(new \App\Homologation\Commerce\ApprovedOfferCatalog())->quote($slug)])
             @endif

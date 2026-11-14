@@ -34,13 +34,27 @@ final class ApprovedOfferCatalog
         }
         // Integer arithmetic; round half up only once, at final cent.
         $fee=intdiv($total*$offer['management_fee_basis_points']+5000,10000);
-        return $base+['media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'reference_period'=>null,'amount_now_cents'=>null,'settlement_policy_required'=>true];
+        return $base+['media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'reference_period'=>$offer['reference_period'],'amount_now_cents'=>$fee,'settlement_policy'=>$offer['operational_settlement_policy']];
     }
     public static function money(string $text): int
     {
         if (!preg_match('/\A(?:0|[1-9][0-9]{0,6})(?:[.,][0-9]{1,2})?\z/D',$text)) throw new InvalidArgumentException('Invalid amount');
         $parts=preg_split('/[.,]/',$text);
         return ((int)$parts[0])*100+(int)str_pad($parts[1]??'',2,'0');
+    }
+    /** Mathematical reconciliation only; actual spend must come from trusted evidence. */
+    public static function reconcilePerformance(array $quote,array $actualMedia): array
+    {
+        if (($quote['product']??null)!=='performance'||($quote['management_fee_basis_points']??null)!==2000||!is_int($quote['estimated_management_fee_cents']??null)) throw new InvalidArgumentException('Invalid Performance quote');
+        $expected=array_keys($quote['media_by_channel_cents']); $actual=array_keys($actualMedia); sort($expected); sort($actual);
+        if ($actual!==$expected) throw new InvalidArgumentException('Channel scope mismatch');
+        $sum=0;
+        foreach ($actualMedia as $cents) {
+            if (!is_int($cents)||$cents<0||$cents>100000000) throw new InvalidArgumentException('Invalid actual spend');
+            $sum+=$cents;
+        }
+        $fee=intdiv($sum*2000+5000,10000);
+        return ['actual_management_fee_cents'=>$fee,'adjustment_cents'=>$fee-$quote['estimated_management_fee_cents'],'automatic_charge_enabled'=>false];
     }
     public static function brl(int $cents): string { return 'R$ '.number_format($cents/100,2,',','.'); }
 }
