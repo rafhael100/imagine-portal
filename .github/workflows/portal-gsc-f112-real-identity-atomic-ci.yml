@@ -138,7 +138,19 @@ jobs:
             php artisan migrate --force --no-interaction --realpath --path="$GITHUB_WORKSPACE/.qa/gsc-f109/apps/portal/database/migrations/$file"
           done
           popd
-          psql -X -v ON_ERROR_STOP=1 -f .qa/gsc-f109/apps/portal/labs/gsc-f108-atomic-fence/locked-session-gsc.sql
+          # The pinned F108 fixture hardcodes its original disposable
+          # DB name in exactly ONE CONNECT GRANT statement. Change only
+          # that laboratory locator; retain the source SHA and all SQL.
+          umask 077
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          source=Path(".qa/gsc-f109/apps/portal/labs/gsc-f108-atomic-fence/locked-session-gsc.sql").read_text()
+          assert source.count("imagine_gsc_ci_test")==1
+          out=Path(os.environ["RUNNER_TEMP"])/"gsc-f108-real-schema.sql"
+          out.write_text(source.replace("imagine_gsc_ci_test","portal_gsc_f112_lab"))
+          PY
+          psql -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/gsc-f108-real-schema.sql"
           psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f112-integrated-pg18/portal-real-grants-f109-bridge.sql
       - name: Cross-stack real membership and atomic GSC review across 3 synthetic scenarios
         shell: bash
