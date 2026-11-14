@@ -41,6 +41,11 @@ with sync_playwright() as p:
     response=page.goto(BASE+'/client/services')
     assert response.status==200
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Client must see all three persisted test purchases'
+    client_refs=page.locator('tr[data-order-reference]').evaluate_all('(rows)=>rows.map(r=>r.dataset.orderReference)')
+    assert len(client_refs)==3 and len(set(client_refs))==3
+    assert all(ref.startswith('TEST-') for ref in client_refs)
+    assert page.get_by_role('columnheader',name='Próximo passo',exact=True).count()==1
+    assert page.get_by_text('Aguardar análise do briefing',exact=True).count()==3
     capture('02-client-services-desktop.png')
     assert page.locator('text=Pedidos da empresa fictícia').count()==1
     assert page.get_by_text('sem cobrança').count()>=1 or page.get_by_text('Pagamentos e contratações são simulados').count()>=1
@@ -48,6 +53,7 @@ with sync_playwright() as p:
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Reload must re-read PostgreSQL, not browser storage'
     page.goto(BASE+'/client/finance')
     assert page.locator('tr[data-preview-order-row]').count()==3, 'Client finance must read the same persisted fake payments'
+    assert page.locator('tr[data-order-reference]').evaluate_all('(rows)=>rows.map(r=>r.dataset.orderReference)')==client_refs
     capture('03-client-finance-desktop.png')
     assert page.get_by_text('Não existem faturas, cobranças nem recibos reais aqui.').count()==1
     page.get_by_role('link',name='Contratar serviço de teste').click()
@@ -86,6 +92,7 @@ with sync_playwright() as p:
         assert response.status==200,(section,response.status)
         if section=='orders':
             assert page.locator('table tbody tr').count()==3, 'Admin must see the same restricted SQL order rows'
+            assert page.locator('table tbody tr td:first-child').all_text_contents()==client_refs, 'Client and admin must read identical order IDs'
             capture('04-admin-orders-desktop.png')
     assert page.request.get(BASE+'/client/overview').status==403
     assert page.request.get(PURCHASE).status==403, 'Admin must not read client orders through checkout'
