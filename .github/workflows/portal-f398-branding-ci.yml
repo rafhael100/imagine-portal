@@ -1,0 +1,41 @@
+name: Portal F398 - Approved Imagine original branding and offline CSP
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/resources/views/components/portal/**'
+      - 'apps/portal/app/Presentation/DemoPortalStaticExporter.php'
+      - 'apps/portal/tests/Feature/DemoPortalStaticExporterTest.php'
+      - 'infra/development/portal-db/Dockerfile'
+      - 'infra/development/portal-demo/**'
+      - '.github/workflows/portal-f398-branding-ci.yml'
+permissions:
+  contents: read
+jobs:
+  original-asset-and-safe-offline-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Exact approved source PNG and local Laravel asset
+        run: |
+          set -Eeuo pipefail
+          test -s assets/logo-imagine.png
+          bash -n infra/development/portal-demo/prepare-brand-assets.sh
+          bash infra/development/portal-demo/prepare-brand-assets.sh
+          cmp assets/logo-imagine.png apps/portal/public/_development/branding/logo-imagine.png
+          test "$(head -c 8 assets/logo-imagine.png | od -An -tx1 | tr -d '[:space:]')" = "89504e470d0a1a0a"
+          grep -Fq -- '--pi-accent:#f9941d' apps/portal/resources/views/components/portal/styles.blade.php
+          grep -Fq -- '--pi-ink:#171b19' apps/portal/resources/views/components/portal/styles.blade.php
+          grep -Fq 'src="/_development/branding/logo-imagine.png"' apps/portal/resources/views/components/portal/brand.blade.php
+          grep -Fq "img-src 'self' data:" apps/portal/resources/views/components/portal/layout.blade.php
+          grep -Fq 'COPY assets/logo-imagine.png ./public/_development/branding/logo-imagine.png' infra/development/portal-db/Dockerfile
+          grep -Fq 'data:image/png;base64' apps/portal/app/Presentation/DemoPortalStaticExporter.php
+          grep -Fq 'img-src data:' apps/portal/app/Presentation/DemoPortalStaticExporter.php
+          test ! -e apps/portal/public/_development/branding/logo-imagine.png.export
+          if git diff --name-only --exit-code | grep .; then
+            echo 'F398 cannot modify tracked source during asset preparation'
+            exit 1
+          fi
+          echo 'PASS F398: original approved Imagine PNG, orange Laravel branding and stricter offline data-image CSP; no deployment.'
