@@ -131,6 +131,7 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                 )
                 try:
                     seen_orders: set[str] = set()
+                    reopen_checks: list[dict[str, str]] = []
                     for slug, offer in cases:
                         context = browser.new_context(
                             viewport={"width": 1280, "height": 900},
@@ -254,11 +255,24 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                             outside.close()
                         assert order_url not in seen_orders
                         seen_orders.add(order_url)
+                        reopen_checks.append({"slug": slug, "product": offer,
+                                              "username": username, "order_url": order_url})
                         print("PASS Comercial", slug, "->", offer, "-> independent synthetic PG18 order and briefing")
                         assert not errors, errors
                         assert not blocked, ("Only the two loopback servers allowed", blocked)
                         print("PASS Comercial CTA -> private Portal login:", slug, offer)
                         context.close()
+                    # Runner-only proof; never export customer IDs or passwords as screenshot artifacts.
+                    proof = Path(os.environ["IMAGINE_CUSTOMER_REOPEN_EVIDENCE"])
+                    assert proof.parent.resolve() == Path(os.environ["RUNNER_TEMP"]).resolve()
+                    assert not proof.exists() and len(reopen_checks) == 4
+                    assert {r["slug"] for r in reopen_checks} == {c[0] for c in cases}
+                    proof.write_text(json.dumps({
+                        "schema": "imagine.portal-p0.four-cta-post-restart.v1",
+                        "scope": "fictional-ci-only",
+                        "accounts": reopen_checks,
+                    }, ensure_ascii=False) + "\n", encoding="utf-8")
+                    proof.chmod(0o600)
                 finally:
                     browser.close()
         finally:
