@@ -102,7 +102,28 @@ with sync_playwright() as p:
         assert page.request.post(order_url+'/payment',form={'_token':csrf(),'revision':'2','outcome':'approved','sample_ack':'1'}).status==404
         assert page.request.post(order_url+'/briefing',form={'_token':csrf(),'revision':'2','business':'x','goal':'x','audience':'x','materials':'x'}).status==404
         assert page.request.get(BASE+'/admin/orders').status==403
+        # Customer B has already sent two denied mutation requests (payment,
+        # briefing). Ten additional malformed writes consume only B's
+        # twelve-per-minute bucket; the thirteenth must be rejected at 429,
+        # without inserting orders or leaking another customer's details.
+        page.goto(BASE+'/shop')
+        spam_token=csrf()
+        malformed={'_token':spam_token,'product':'onepage',
+                   'request_key':'TEST-rate-replay-12345678',
+                   'customer_id':'forged'}
+        for attempt in range(10):
+            denied=page.request.post(BASE+'/shop/orders',form=malformed)
+            assert denied.status==422,('expected strict field denial',attempt,denied.status)
+        limited=page.request.post(BASE+'/shop/orders',form=malformed)
+        assert limited.status==429,('synthetic account write limiter failed',limited.status)
         logout(); login(user,'ci-owned-customer-only-2026')
+        # Customer A has a separate trusted server-side limiter identity;
+        # customer B's quota exhaustion must not lock out A.
+        page.goto(BASE+'/shop')
+        independent=page.request.post(BASE+'/shop/orders',form={
+            '_token':csrf(),'product':'onepage',
+            'request_key':'TEST-rate-other-owner-12345678','customer_id':'forged'})
+        assert independent.status==422,('other account was throttled by B',independent.status)
         page.goto(BASE+'/client/finance')
         assert page.locator('tr[data-customer-order]').count()==1
         for width in [320,390,1280]:
