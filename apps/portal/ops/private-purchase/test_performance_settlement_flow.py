@@ -14,6 +14,19 @@ with sync_playwright() as p:
  def login(user):
   global page
   if user in pages:page=pages[user];return
+  if user=='administrador.teste' and os.getenv('GITHUB_ACTIONS')=='true':
+   # The earlier customer-flow suite authenticated the synthetic admin.
+   # Reuse its short-lived, CI-only session across processes rather than
+   # weakening the per-account authentication throttle or sleeping past it.
+   admin_state=pathlib.Path(os.environ['RUNNER_TEMP'])/'portal-ci-admin-storage-state.json'
+   if not admin_state.is_file() or admin_state.stat().st_mode&0o077:
+    raise RuntimeError('CI private admin session fixture missing or exposed')
+   context=b.new_context(storage_state=str(admin_state))
+   page=context.new_page()
+   response=page.goto(BASE+'/admin/orders')
+   assert response.status==200 and '/admin/' in page.url, 'CI admin session invalid'
+   pages[user]=page
+   return
   page=b.new_page()
   for attempt in range(2):
    page.goto(BASE);page.locator('[name=username]').fill(user);page.locator('[name=password]').fill('ci-admin-only-2026' if user=='administrador.teste' else 'ci-owned-customer-only-2026')
