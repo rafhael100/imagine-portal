@@ -8,7 +8,7 @@ CREATE TABLE portal_psp.asaas_inbox (
     account_ref uuid NOT NULL,
     event_id text NOT NULL CHECK (event_id ~ '^evt_[A-Za-z0-9_&-]{8,128}$'),
     event_type text NOT NULL CHECK (event_type ~ '^PAYMENT_[A-Z_]{3,64}$'),
-    payment_id text NOT NULL CHECK (payment_id ~ '^pay_[A-Za-z0-9]{6,64}$'),
+    payment_id text NOT NULL CHECK (payment_id ~ '^pay_[A-Za-z0-9_]{6,64}$'),
     payload_sha256 text NOT NULL CHECK (payload_sha256 ~ '^[a-f0-9]{64}$'),
     received_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     state text NOT NULL DEFAULT 'pending_reconciliation'
