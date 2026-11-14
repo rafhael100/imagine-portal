@@ -11,13 +11,17 @@ cd "$GITHUB_WORKSPACE"
 for entry in \
   '_sites_pg_candidate:3d20d83d544577a70c091ca1725c084ab6824d2a' \
   '_sites_signed_candidate:21732e9558b730e38a6845adb593d29f309ff6a9' \
-  '_portal_sites_signer_candidate:bf1b2794de4d6000f120ffa2b1e6dd557f34c35e'; do
+  '_portal_sites_signer_candidate:bf1b2794de4d6000f120ffa2b1e6dd557f34c35e' \
+  '_crm_fake_consent_candidate:50c1eb574aa0ed81055dc256e77302acd1781d71'; do
   IFS=: read -r folder sha <<< "$entry"
   test "$(git -C "$folder" rev-parse HEAD)" = "$sha"
 done
 php -l apps/portal/tools/test_owned_customer_to_sites_pg18.php >/dev/null
 container="imagine-ownedp0-sites-db"
-cleanup() { docker rm -f "$container" >/dev/null 2>&1 || :; }
+cleanup() {
+  rm -f "$RUNNER_TEMP/p0-owned-commercial-orders.tsv"
+  docker rm -f "$container" >/dev/null 2>&1 || :
+}
 trap cleanup EXIT
 docker run --rm -d --name "$container" \
   -e POSTGRES_DB=sites_f360_lab \
@@ -90,5 +94,48 @@ for key in ('customers_real','portal_identity_real','legal_contract_verified',
     assert c[key] is False,key
 print('PASS four owned Portal purchases -> two Sites projects/outbox/ACK, NO-GO and redacted evidence.')
 PY
+# Third database in the SAME disposable postgres: never a network/SaaS CRM.
+test "$P0_OWNED_TO_CRM_CI" = 1 || {
+  echo 'NO-GO: explicitly opt in to synthetic CRM bridge in CI' >&2
+  exit 2
+}
+php -l apps/portal/tools/test_owned_customer_sites_to_fake_crm_pg18.php >/dev/null
+test -f _crm_fake_consent_candidate/tests/Labs/P0_LeadIngest/synthetic-consented-leads-pg18.sql
+docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+  -U postgres -d postgres -c 'CREATE DATABASE crm_p0_consent_lab' >/dev/null
+docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 \
+  -U postgres -d crm_p0_consent_lab \
+  < _crm_fake_consent_candidate/tests/Labs/P0_LeadIngest/synthetic-consented-leads-pg18.sql >/dev/null
+export CRM_P0_CONSENT_LAB=1 CRM_LAB_DB=crm_p0_consent_lab
+php apps/portal/tools/test_owned_customer_sites_to_fake_crm_pg18.php
+python3 - <<'PY'
+import hashlib,json,os
+from pathlib import Path
+f=Path(os.environ['RUNNER_TEMP'])/'p0-individual-portal-sites-crm-evidence.json'
+raw=f.read_bytes()
+assert 100<len(raw)<2500
+for bad in (b'@',b'TEST-',b'demo-',b'password',b'Bearer ',b'Cookie:'):
+    assert bad not in raw, bad
+m=json.loads(raw)
+c=m['claims']
+assert m['sha256_integrity_only']==hashlib.sha256(
+    json.dumps(c,ensure_ascii=False,separators=(',',':')).encode()
+).hexdigest()
+assert c['schema']=='imagine.p0.individual-portal-sites-crm.pg18.v1'
+assert c['commercial_cta_individual_customer_orders_fake']==4
+assert c['sites_projects_acknowledged_fake']==2
+assert c['crm_receipts_created_fake']==2
+assert c['crm_repeated_receipts_idempotent']==2
+assert c['release_gate']=='NO_GO'
+for key in (
+ 'crm_raw_sql_customer_data_access_allowed',
+ 'crm_real_customer_identity_verified',
+ 'crm_real_explicit_consent_verified','crm_real_s2s_authentication',
+ 'sites_or_crm_public_endpoint_enabled','real_psp_or_contract_verified',
+ 'vps_changed','production_released'
+):
+    assert c[key] is False,key
+print('PASS four individual orders -> two Sites outbox ACK -> two fake CRM durable receipts; NO-GO.')
+PY
 rm -f "$RUNNER_TEMP/p0-owned-commercial-orders.tsv"
-echo 'PASS owned Portal→Sites PostgreSQL bridge; synthetic only, no live contract/payment' >> "$GITHUB_STEP_SUMMARY"
+echo 'PASS individually owned Portal→Sites→CRM PG18 test with synthetic consent only; NO-GO real lead intake' >> "$GITHUB_STEP_SUMMARY"
