@@ -197,21 +197,21 @@ try {
       ["UPDATE portal_auth_sessions SET status='revoked',
            revoked_at=now() WHERE session_sha256=?",hash('sha256',$ref),
        "UPDATE portal_auth_sessions SET status='active',
-           revoked_at=NULL WHERE session_sha256=?"],
+           revoked_at=NULL WHERE session_sha256=?",hash('sha256',$ref)],
       ["UPDATE portal_auth_sessions SET session_purpose='invitation'
            WHERE session_sha256=?",hash('sha256',$ref),
        "UPDATE portal_auth_sessions SET session_purpose='business'
-           WHERE session_sha256=?"],
+           WHERE session_sha256=?",hash('sha256',$ref)],
       ["UPDATE portal_auth_sessions SET mfa_verified_at=NULL
            WHERE session_sha256=?",hash('sha256',$ref),
        "UPDATE portal_auth_sessions SET mfa_verified_at=now()-interval '30 seconds'
-           WHERE session_sha256=?"],
+           WHERE session_sha256=?",hash('sha256',$ref)],
       ["UPDATE portal_memberships SET membership_revision=8
            WHERE id=?",$membership,
-       "UPDATE portal_memberships SET membership_revision=7 WHERE id=?"],
+       "UPDATE portal_memberships SET membership_revision=7 WHERE id=?",$membership],
       ["UPDATE portal_organizations SET security_revision=6
            WHERE id=?",$org,
-       "UPDATE portal_organizations SET security_revision=5 WHERE id=?"],
+       "UPDATE portal_organizations SET security_revision=5 WHERE id=?",$org],
       ["UPDATE portal_gsc_identity_scope_links
            SET link_status='revoked',revoked_at=? WHERE tenant_ref=?",
        [$now,$tenant],
