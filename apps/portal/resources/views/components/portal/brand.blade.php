@@ -1,5 +1,4 @@
 <div class="pi-brand" aria-label="Imagine — Portal do cliente">
-    <img class="pi-brand-image" src="/_development/branding/logo-imagine.png"
-        width="185" alt="Imagine Comunicação Digital" loading="eager" decoding="async">
+    <span class="pi-brand-image" role="img" aria-label="Imagine Comunicação Digital"></span>
     <small>Portal do cliente</small>
 </div>
