@@ -42,6 +42,12 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          # Inspect the real NON-CI Compose, including the one-shot broker,
+          # against file metadata. No secret bytes are loaded or printed.
+          docker compose -f compose.yaml config --format json > "$RUNNER_TEMP/portal-runtime-compose.json"
+          python3 preflight_private_runtime.py --inspect \
+            --compose-json "$RUNNER_TEMP/portal-runtime-compose.json" \
+            --private-dir .private
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           # Signed customer policy must exist BEFORE Laravel's fail-closed
           # constructor initializes on the first readiness request.
@@ -146,6 +152,20 @@ jobs:
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_sandbox_scope.sql
+          # Actual password-authenticated broker must not read customer PII,
+          # mutate approved offer or read any HMAC verifier secret.
+          if docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT customer_id FROM purchase_rehearsal.customer_orders LIMIT 1' >/dev/null 2>&1; then
+            echo 'NO-GO: dedicated PSP broker can read customer identity' >&2
+            exit 1
+          fi
+          if docker compose run --rm -T --no-deps broker -X -q -tA -v ON_ERROR_STOP=1 \
+            -h database -U purchase_rehearsal_psp -d portal_purchase_rehearsal \
+            -c 'SELECT key FROM purchase_rehearsal.preview_scope_secret' >/dev/null 2>&1; then
+            echo 'NO-GO: dedicated PSP broker can read HMAC verification key' >&2
+            exit 1
+          fi
           echo 'PASS signed owner and admin claims protect orders, identities and delivery events at SQL layer' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
