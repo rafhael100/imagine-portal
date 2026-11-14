@@ -50,7 +50,7 @@ export function assertManifest(manifest) {
 function exactRun(runs,name,head) {
   // Never count success on an earlier SHA or another similarly named job.
   const matching=(Array.isArray(runs)?runs:[]).filter(
-    x=>x.name===name && x.head_sha===head
+    x=>x.name===name && x.head_sha===head && x.event==='pull_request'
   ).sort((a,b)=>Number(b.id||0)-Number(a.id||0));
   return matching[0]??null;
 }
