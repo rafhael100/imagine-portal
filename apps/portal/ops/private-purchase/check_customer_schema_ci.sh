@@ -79,4 +79,29 @@ rls_count="$(docker exec "$name" psql -X -At -U postgres -d portal_purchase_rehe
   AND relrowsecurity AND relforcerowsecurity"
 )"
 assert_eq "$rls_count" 2 'FORCE RLS both customer/order tables'
-echo 'PASS SQL preflight: PostgreSQL18 syntax, signed RLS, raw-read refusal, verifier isolation'
+# Validate the Sandbox worker with the REAL restricted current_user before
+# expensive Chromium. A permissive FOR ALL owner policy can accidentally
+# force the worker to read unauthorized customer_id/HMAC and fail runtime.
+docker exec -i "$name" psql -X -v ON_ERROR_STOP=1 \
+  -U postgres -d portal_purchase_rehearsal < "$root/sandbox-payment-schema.sql" >/dev/null
+docker exec -i "$name" psql -X -v ON_ERROR_STOP=1 \
+  -U postgres -d portal_purchase_rehearsal >/dev/null <<'SQL'
+UPDATE purchase_rehearsal.customer_orders SET payment_source='asaas_sandbox'
+ WHERE id='TEST-'||repeat('a',32);
+INSERT INTO purchase_rehearsal.sandbox_payment_intents(order_id,amount_cents,due_date)
+ VALUES ('TEST-'||repeat('a',32),33000,'2026-11-14');
+SET ROLE purchase_rehearsal_psp;
+DO $recon$
+DECLARE n bigint;
+BEGIN
+ SELECT count(*) INTO n FROM purchase_rehearsal.sandbox_payment_intents
+  WHERE sync_requested;
+ IF n<>1 THEN RAISE EXCEPTION 'PSP role cannot read its own payment intent'; END IF;
+ SELECT count(*) INTO n FROM purchase_rehearsal.customer_orders
+  WHERE payment_source='asaas_sandbox';
+ IF n<>1 THEN RAISE EXCEPTION 'PSP role cannot read payment status'; END IF;
+END $recon$;
+RESET ROLE;
+SQL
+assert_eq "$(sql 'SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents')" 0 'unsigned customer must not enumerate Sandbox intents'
+echo 'PASS SQL preflight: signed customer owner + disjoint PSP role, PG18 FORCE RLS, raw-read refusal, verifier isolation'
