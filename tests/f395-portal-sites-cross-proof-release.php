@@ -60,14 +60,13 @@ const NOW_F395=1800000000;
 $digest=hash('sha256','fictional release html exact bytes');
 function assignment395(
     string $tenant='tenant-f395',
-    string $digest= '',
+    string $releaseDigest='',
     int $version=1,
     string $order='order-f395'
 ):PortalSitesReleaseAssignment {
-    global $digest;
     return new PortalSitesReleaseAssignment(
         $tenant,$order,'contract-f395',2,'onepage',
-        'site-f395','release-f395',$digest===''?$GLOBALS['digest']:$digest,
+        'site-f395','release-f395',$releaseDigest===''?$GLOBALS['digest']:$releaseDigest,
         4,$version
     );
 }
@@ -278,7 +277,7 @@ f395Check(!$siteApproval->verify($changedManifest,4)->allowed &&
 $assignmentReads=$assignments->reads;
 $assignments->current=assignment395(tenant:'other-tenant');
 f395Check(f395Refused($build),'same order and release with different trusted tenant denies');
-$assignments->current=assignment395(digest:hash('sha256','unapproved bytes'));
+$assignments->current=assignment395(releaseDigest:hash('sha256','unapproved bytes'));
 f395Check(f395Refused($build),'changed trusted release digest denies matching valid individual signatures');
 $assignments->current=assignment395(order:'other-order');
 f395Check(f395Refused($build),'reusing different order for same Site release denies');
