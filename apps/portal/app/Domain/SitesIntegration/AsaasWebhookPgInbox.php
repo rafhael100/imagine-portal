@@ -30,7 +30,7 @@ final readonly class AsaasWebhookPgInbox
             strlen($webhookAuthToken)<32 ||
             strlen($webhookAuthToken)>255 ||
             preg_match('/[\x00-\x20\x7f]/',$webhookAuthToken)===1 ||
-            preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/D',$providerAccountRef)!==1) {
+            preg_match('/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/D',$providerAccountRef)!==1) {
             throw new DomainException('PSP webhook identity unavailable.');
         }
         $db->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
@@ -70,12 +70,17 @@ final readonly class AsaasWebhookPgInbox
                 preg_match('/\Aevt_[A-Za-z0-9_&-]{8,128}\z/D',$event['id'])!==1 ||
                 !is_string($event['event']??null) ||
                 preg_match('/\APAYMENT_[A-Z_]{3,64}\z/D',$event['event'])!==1 ||
+                (!is_array($event['account']??null) ||
+                 array_is_list($event['account']) ||
+                 ($event['account']['id']??null)!==$this->providerAccountRef) ||
                 !is_array($event['payment']??null) ||
                 array_is_list($event['payment']) ||
                 !is_string($event['payment']['id']??null) ||
                 preg_match('/\Apay_[A-Za-z0-9]{6,64}\z/D',$event['payment']['id'])!==1) {
                 throw new DomainException('Webhook event shape not accepted.');
             }
+            // Asaas V3 includes account.id in the event root. Never accept
+            // another account under a valid-but-misrouted webhook token.
             $digest=hash('sha256',$rawBody);
             if ($this->db->inTransaction()) {
                 throw new RuntimeException('Webhook capture requires an independent transaction.');
