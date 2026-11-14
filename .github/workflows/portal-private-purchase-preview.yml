@@ -109,6 +109,10 @@ jobs:
           ref: a4d71ae43aa3208f1e61aaaaf0b6619416a87533
           path: external/comercial
           persist-credentials: false
+      - name: Set up pinned Node 22 for Astro build
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
       - name: Prepare isolated four-CTA Comercial build, no deploy
         working-directory: external/comercial
         env:
