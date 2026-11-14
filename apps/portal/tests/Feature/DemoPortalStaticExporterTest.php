@@ -41,6 +41,47 @@ final class DemoPortalStaticExporterTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_reviewed_commercial_to_client_journey_is_only_offline_links(): void
+    {
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $index=(string)file_get_contents($this->temporaryDirectory.'/index.html');
+        self::assertStringContainsString('Jornada comercial → Portal', $index);
+        self::assertStringContainsString('Não há compras, pagamentos, login', $index);
+
+        $dom=new \DOMDocument('1.0','UTF-8');
+        $previous=libxml_use_internal_errors(true);
+        try {
+            self::assertTrue($dom->loadHTML($index,LIBXML_NONET));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $xpath=new \DOMXPath($dom);
+        $nodes=$xpath->query('//section[@aria-labelledby="pi-commercial-portal-review"]/ol/li/a');
+        self::assertNotFalse($nodes);
+        self::assertCount(4, \App\Presentation\DemoCommercialPortalJourney::steps());
+        self::assertSame(4,$nodes->length);
+        foreach(\App\Presentation\DemoCommercialPortalJourney::steps() as $i=>$step) {
+            $link=$nodes->item($i);
+            self::assertInstanceOf(\DOMElement::class,$link);
+            self::assertSame($step['href'],$link->getAttribute('href'));
+            self::assertSame($step['title'],trim($link->textContent));
+            self::assertStringContainsString($step['description'],$index);
+            self::assertFileExists($this->temporaryDirectory.'/'.$step['href']);
+            self::assertStringNotContainsString('http://',$step['href']);
+            self::assertStringNotContainsString('https://',$step['href']);
+        }
+        self::assertFalse(\App\Presentation\DemoCommercialPortalJourney::authorizesCommercialCheckout());
+        self::assertFalse(\App\Presentation\DemoCommercialPortalJourney::authorizesPortalLogin());
+        self::assertFalse(\App\Presentation\DemoCommercialPortalJourney::authorizesAccountPurchase());
+        self::assertFalse(\App\Presentation\DemoCommercialPortalJourney::transfersCustomerData());
+        self::assertCount(11,\App\Presentation\DemoPortalArtifactManifest::pageNames());
+        self::assertTrue((new DemoPortalNavigationAudit())->verify($this->temporaryDirectory));
+        foreach(['<form','<input','<button','<script','<iframe','https://','http://'] as $forbidden) {
+            self::assertStringNotContainsString($forbidden,$index);
+        }
+    }
+
     public function test_offline_export_restores_original_imagine_logo_and_orange_theme(): void
     {
         $original=dirname(base_path(),2).'/assets/logo-imagine.png';
