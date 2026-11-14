@@ -156,7 +156,7 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                             ).click()
                             page.wait_for_url(local + "onepage")
                             assert page.locator(
-                                'form[action="/_preview/portal/shop/orders"]'
+                                'form[action$="/_preview/portal/shop/orders"]'
                             ).count() == 1
                             assert page.locator('input[name="product"]').get_attribute(
                                 "value"
