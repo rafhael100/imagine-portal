@@ -42,7 +42,12 @@ use App\Domain\SeoReview\OfflinePortalGscOAuthStateStartReview as Issuer;
 require_once dirname(__DIR__,2).'/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php';
 
 function requireF114(bool $b):void {
-    if(!$b)throw new RuntimeException('F114 issued MFA to GSC contract failed');
+    if(!$b) {
+        // Emit only a source line number. Never print PDO errors, secret
+        // values, bearer references, payloads or provider responses in CI.
+        $caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,1)[0]??[];
+        throw new RuntimeException('F418 assertion line '.(int)($caller['line']??0));
+    }
 }
 $sessionRef=null;$pendingRef=null;
 $org='22222222-2222-4222-8222-222222222220';
@@ -437,8 +442,13 @@ try{
     echo "F115: exact original-session/state binding; 2 initiation + ".
         "2 callback concurrent revocations fenced + 2 GSC fences; ".
         "one-use callback, replay and post-logout denial; NO GOOGLE HTTP\n";
-}catch(Throwable){
-    fwrite(STDERR,"F115 synthetic bound-session OAuth callback review failed\n");
+}catch(Throwable $error){
+    // Source coordinates only: exception messages may contain secrets.
+    $place=basename($error->getFile()).':'.(int)$error->getLine();
+    $stage=$error instanceof RuntimeException
+        && str_starts_with($error->getMessage(),'F418 assertion line ')
+        ? $error->getMessage() : get_class($error);
+    fwrite(STDERR,"F418 callback integration refused at ".$place." / ".$stage."\n");
     exit(1);
 }finally{
     $stateDb=null;$issuerDb=null;$gscPdo=null;$browserPdo=null;$revoker=null;
