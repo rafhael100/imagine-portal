@@ -1,0 +1,145 @@
+name: Portal GSC F110 - separate view permission and guarded real PostgreSQL migration
+
+on:
+  pull_request:
+    branches:
+      - review/portal-p0-f400-billing-calendar-synthetic-2026-11-14
+    paths:
+      - '.github/workflows/portal-gsc-f110-view-permission-ci.yml'
+      - 'apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php'
+      - 'apps/portal/app/Domain/Authorization/Permission.php'
+      - 'apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php'
+      - 'apps/portal/labs/gsc-f110-view-permission/**'
+permissions:
+  contents: read
+
+jobs:
+  postgres18-view-grant-migration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: portal_gsc_f110_lab
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f110_disposable_admin_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f110_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: '127.0.0.1'
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f110_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f110_disposable_admin_only
+      PGHOST: '127.0.0.1'
+      PGPORT: '5432'
+      PGDATABASE: portal_gsc_f110_lab
+      PGUSER: postgres
+      PGPASSWORD: f110_disposable_admin_only
+      PORTAL_GSC_F110_IDENTITY_LAB: '1'
+    steps:
+      - name: Checkout exact review SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup pinned PHP 8.4 and PDO PostgreSQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer
+      - name: Setup pinned Node22 for exact review allowlist
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Verify exact 6 review paths and no application route changes
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/f110-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const paths=readFileSync(process.env.RUNNER_TEMP+"/f110-paths","utf8").split("\0").filter(Boolean);
+            const allowed=new Set([
+              ".github/workflows/portal-gsc-f110-view-permission-ci.yml",
+              "apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php",
+              "apps/portal/app/Domain/Authorization/Permission.php",
+              "apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php",
+              "apps/portal/labs/gsc-f110-view-permission/test-postgres.php",
+              "apps/portal/labs/gsc-f110-view-permission/README.md"
+            ]);
+            if(paths.length!==allowed.size||paths.some(p=>!allowed.has(p)))
+              throw Error("F110: unexpected files, routing or privilege change");
+            console.log("F110: 6 exact files only");
+          '
+      - name: PHP syntax, composer lock and default-deny unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php
+          php -l apps/portal/app/Domain/Authorization/Permission.php
+          php -l apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php
+          php -l apps/portal/labs/gsc-f110-view-permission/test-postgres.php
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          cd apps/portal
+          vendor/bin/phpunit tests/Unit/PortalGscViewPermissionIsolationTest.php --no-progress --fail-on-warning --fail-on-risky
+      - name: Apply real additive permission migrations, enforce rollback hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          pushd apps/portal
+          for file in \
+            2026_11_09_000002_create_portal_identity_foundation.php \
+            2026_11_10_000007_allow_seo_gsc_connect_grant.php \
+            2026_11_14_000019_allow_seo_gsc_view_grant.php; do
+            php artisan migrate --force --no-interaction --path="database/migrations/$file"
+          done
+          popd
+          php apps/portal/labs/gsc-f110-view-permission/test-postgres.php setup
+          php apps/portal/labs/gsc-f110-view-permission/test-postgres.php verify
+          # An existing explicit view grant MUST block rollback of its
+          # permission vocabulary; never delete a customer grant on deploy.
+          if (cd apps/portal && php artisan migrate:rollback --force --no-interaction --path=database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php); then
+            echo 'F110 ERROR: rollback incorrectly removed an active view grant' >&2
+            exit 1
+          fi
+          php apps/portal/labs/gsc-f110-view-permission/test-postgres.php verify
+          php apps/portal/labs/gsc-f110-view-permission/test-postgres.php cleanup
+          pushd apps/portal
+          php artisan migrate:rollback --force --no-interaction \
+            --path=database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php
+          popd
+          # Original GSC connect vocabulary is unchanged after view rollback.
+          psql -X -v ON_ERROR_STOP=1 -tAc \
+            "SELECT CASE WHEN pg_get_constraintdef(oid) LIKE '%seo.gsc.connect%' AND pg_get_constraintdef(oid) NOT LIKE '%seo.gsc.view%' THEN 'ok' ELSE 'invalid' END FROM pg_constraint WHERE conrelid='public.portal_membership_grants'::regclass AND conname='portal_grant_permission_ck'" | grep -qx ok
+          php apps/portal/labs/gsc-f110-view-permission/test-postgres.php final-cleanup
+          pushd apps/portal
+          php artisan migrate:rollback --force --no-interaction \
+            --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php
+          php artisan migrate:rollback --force --no-interaction \
+            --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php
+          popd
+      - name: Verify no modified source or runtime secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
