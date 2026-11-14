@@ -14,3 +14,4 @@
 /storage/logs/*
 !/storage/logs/.gitignore
 *.log
+/public/_development/branding/
