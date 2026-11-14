@@ -34,7 +34,10 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
-          docker compose -f compose.yaml -f compose.ci.yaml up -d
+          # The customer policy must exist before the fail-closed Portal app starts.
+          docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+          docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
           python3 - <<'PY'
           import time, urllib.request
           for attempt in range(60):
@@ -50,9 +53,6 @@ jobs:
           test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
           test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
           test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
-      - name: Install isolated customer commerce schema
-        working-directory: apps/portal/ops/private-purchase
-        run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
