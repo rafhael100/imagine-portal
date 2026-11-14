@@ -158,7 +158,7 @@ final class CustomerPreviewStore
     public function payment(string $owner,string $id,int $revision,string $outcome): bool
     {
         return $this->scoped($owner, function () use ($owner,$id,$revision,$outcome): bool {
-            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL AND payment_source='manual_test' AND NOT payment_hold');
+            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL AND payment_source=\'manual_test\' AND NOT payment_hold');
             $q->execute([$outcome,$owner,$id,$revision]);
             return $q->rowCount()===1;
         });
