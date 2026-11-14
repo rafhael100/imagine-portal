@@ -131,6 +131,7 @@ jobs:
           PORTAL_CUSTOMER_COMMERCIAL_E2E: '1'
           IMAGINE_COMERCIAL_CUSTOMER_PREVIEW_ROOT: ${{ runner.temp }}/comercial-customer-prepared
           IMAGINE_CUSTOMER_VISUAL_REVIEW: ${{ runner.temp }}/p0-customer-visual-review
+          IMAGINE_CUSTOMER_REOPEN_EVIDENCE: ${{ runner.temp }}/p0-customer-reopen.json
         run: |
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_handoff.py
@@ -141,6 +142,30 @@ jobs:
           set -euo pipefail
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
           echo 'PASS: direct database login cannot read any order without a valid signed claim' >> "$GITHUB_STEP_SUMMARY"
+      - name: Restart both private services and re-login to all four owned Comercial purchases
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_CUSTOMER_COMMERCIAL_E2E: '1'
+          IMAGINE_CUSTOMER_REOPEN_EVIDENCE: ${{ runner.temp }}/p0-customer-reopen.json
+        run: |
+          set -euo pipefail
+          cd apps/portal/ops/private-purchase
+          docker compose restart database application
+          python3 - <<'PY'
+          import time,urllib.request
+          for attempt in range(60):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:18083/_preview/portal',timeout=2) as r:
+                      assert r.status==200
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Synthetic Portal did not recover after PG18/application restart')
+          PY
+          cd ../../../..
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_reopen.py
+          echo 'PASS four owned customer Portal orders/briefings after PG18/app restart; cross-customer denial' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify seven browser screenshots and strict NO-GO manifest
         run: |
           set -euo pipefail
