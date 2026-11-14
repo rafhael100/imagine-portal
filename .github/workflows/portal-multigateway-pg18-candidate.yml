@@ -40,7 +40,7 @@ jobs:
             if docker exec imagine-multigateway-pg18 pg_isready -U postgres -d imagine_multigateway_lab; then break; fi
             sleep 2
           done
-          test \"$(docker inspect imagine-multigateway-pg18 --format '{{len .HostConfig.PortBindings}}')\" = 0
+          test "$(docker inspect imagine-multigateway-pg18 --format '{{len .HostConfig.PortBindings}}')" = 0
       - name: Verify schema and deny-by-default access
         run: |
           set -euo pipefail
