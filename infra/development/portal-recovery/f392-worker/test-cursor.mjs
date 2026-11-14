@@ -13,7 +13,7 @@ const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 db.exec(readFileSync(new URL('../f376-worker/schema.sql',import.meta.url),'utf8'));
 db.exec(readFileSync(new URL('../f386-worker/intents.sql',import.meta.url),'utf8'));
-db.exec('CREATE INDEX f392_intent_order ON revocation_intents(organization,instance,to_sequence)');
+db.exec(readFileSync(new URL('./cursor-index.sql',import.meta.url),'utf8'));
 db.prepare('INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)')
  .run(org,instance,5,4,7,12,Math.floor(Date.now()/1000));
 const sqlite={
