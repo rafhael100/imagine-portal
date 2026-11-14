@@ -21,6 +21,33 @@ final class CustomerPreviewStore
         if (!preg_match('/\A[a-f0-9]{64}\z/D', $scopeKey)) {
             throw new RuntimeException('Invalid synthetic ownership verifier configuration.');
         }
+        // Fail closed if a migration or fixture accidentally removes SQL RLS.
+        $guard = $db->query(
+            "SELECT relrowsecurity, relforcerowsecurity
+               FROM pg_class WHERE oid='purchase_rehearsal.customer_orders'::regclass"
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($guard)
+            || !in_array($guard['relrowsecurity'] ?? null, [true, 't', 1, '1'], true)
+            || !in_array($guard['relforcerowsecurity'] ?? null, [true, 't', 1, '1'], true)) {
+            throw new RuntimeException('Customer orders require forced row-level security.');
+        }
+        $policy = $db->query(
+            "SELECT 1 FROM pg_policies
+             WHERE schemaname='purchase_rehearsal'
+               AND tablename='customer_orders'
+               AND policyname='customer_order_scope'
+               AND qual LIKE '%preview_order_allowed%'
+               AND with_check LIKE '%preview_order_allowed%'"
+        )->fetchColumn();
+        if ($policy === false) {
+            throw new RuntimeException('Customer-scoped signed SQL policy is required.');
+        }
+        $canReadSecret = $db->query(
+            "SELECT has_table_privilege(current_user,'purchase_rehearsal.preview_scope_secret','SELECT')"
+        )->fetchColumn();
+        if (in_array($canReadSecret,[true,'t',1,'1'],true)) {
+            throw new RuntimeException('Synthetic SQL login must not read the signing secret.');
+        }
     }
 
     /**
