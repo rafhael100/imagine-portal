@@ -27,6 +27,9 @@ final readonly class PostgresPortalPermissionPreflight
         'services.manage',
         'billing.view',
         'members.manage',
+        // F111: these are distinct opt-in memberships, NEVER HTTP allows.
+        'seo.gsc.connect',
+        'seo.gsc.view',
     ];
 
     public function __construct(private PDO $db, private string $database)
