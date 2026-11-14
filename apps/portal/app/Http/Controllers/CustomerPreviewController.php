@@ -8,7 +8,28 @@ use Illuminate\Http\Request;
 final class CustomerPreviewController
 {
     private const OFFERS=['onepage','landing-pages','performance'];
-    public function registerForm(Request $r) { return response()->view('portal.preview.register'); }
+    /**
+     * Synthetic customer pages contain forms, CSRF tokens and test account data.
+     * Keep them out of browser, proxy and search-engine caches; disallow frames
+     * and any outbound form destination even in the isolated preview.
+     */
+    private function protectedView(string $name, array $data = [])
+    {
+        return response()->view($name, $data)->withHeaders([
+            'Cache-Control' => 'no-store, private',
+            'Pragma' => 'no-cache',
+            'X-Robots-Tag' => 'noindex, nofollow',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+            'Referrer-Policy' => 'no-referrer',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+        ]);
+    }
+
+    public function registerForm(Request $r)
+    {
+        return $this->protectedView('portal.preview.register');
+    }
     public function register(Request $r)
     {
         $this->fields($r,['username','password','password_confirmation','name','company']);
@@ -34,7 +55,7 @@ final class CustomerPreviewController
         else $r->session()->forget('preview.intent'); // Explicitly choose a different offer.
         $p=app(PreviewProfiles::class)->current($r);
         if (!$p) return redirect('/_preview/portal');
-        if (!isset($p['customer_id'])) return response()->view('portal.preview.personal-required');
+        if (!isset($p['customer_id'])) return $this->protectedView('portal.preview.personal-required');
         $this->owner($r); return $this->page(null,$product);
     }
     public function create(Request $r)
@@ -74,6 +95,6 @@ final class CustomerPreviewController
     private function page(?array $order,?string $product=null)
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
-        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product]);
+        return $this->protectedView('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product]);
     }
 }
