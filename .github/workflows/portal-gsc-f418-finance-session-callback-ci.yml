@@ -100,17 +100,17 @@ jobs:
             import {readFileSync} from "node:fs";
             const paths=readFileSync(process.env.RUNNER_TEMP+"/f112-review-paths","utf8").split("\0").filter(Boolean);
             const allowed=new Set([
-  ".github/workflows/portal-gsc-f418-finance-session-callback-ci.yml",
-  "apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
-  "apps/portal/labs/gsc-f113-auth-to-grant/README.md",
-  "apps/portal/labs/gsc-f113-auth-to-grant/test-auth-mfa-gsc.php",
-  "apps/portal/labs/gsc-f114-oauth-state/README.md",
-  "apps/portal/labs/gsc-f114-oauth-state/connect-state-fence.sql",
-  "apps/portal/labs/gsc-f114-oauth-state/test-issued-session-pkce.php",
-  "apps/portal/labs/gsc-f115-callback/README.md",
-  "apps/portal/labs/gsc-f115-callback/bound-state-consumption.sql",
-  "apps/portal/labs/gsc-f115-callback/test-bound-callback.php"
-]);
+            ".github/workflows/portal-gsc-f418-finance-session-callback-ci.yml",
+            "apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+            "apps/portal/labs/gsc-f113-auth-to-grant/README.md",
+            "apps/portal/labs/gsc-f113-auth-to-grant/test-auth-mfa-gsc.php",
+            "apps/portal/labs/gsc-f114-oauth-state/README.md",
+            "apps/portal/labs/gsc-f114-oauth-state/connect-state-fence.sql",
+            "apps/portal/labs/gsc-f114-oauth-state/test-issued-session-pkce.php",
+            "apps/portal/labs/gsc-f115-callback/README.md",
+            "apps/portal/labs/gsc-f115-callback/bound-state-consumption.sql",
+            "apps/portal/labs/gsc-f115-callback/test-bound-callback.php"
+            ]);
             if(paths.length!==allowed.size||paths.some(p=>!allowed.has(p)))
               throw Error("F115: unauthorized migration or route");
             console.log("F418: ten isolated finance+GSC review files; source SHAs pinned");
