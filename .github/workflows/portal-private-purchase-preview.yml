@@ -201,6 +201,14 @@ jobs:
           cd ../../../..
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_reopen.py
           echo 'PASS four owned customer Portal orders/briefings after PG18/app restart; cross-customer denial' >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore synthetic PostgreSQL backup into a second disposable database and prove RLS
+        env:
+          P0_PG_RESTORE_CI: '1'
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/private-purchase/verify_pg_restore_ci.sh
+          bash apps/portal/ops/private-purchase/verify_pg_restore_ci.sh
+          echo 'PASS synthetic PostgreSQL backup/restore with signed customer RLS preserved; no VPS restore' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify seven browser screenshots and strict NO-GO manifest
         run: |
           set -euo pipefail
