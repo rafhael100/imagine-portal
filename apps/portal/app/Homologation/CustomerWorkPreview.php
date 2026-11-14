@@ -33,7 +33,7 @@ final class CustomerWorkPreview
             }
             // A refund, chargeback or deletion halts fulfilment even if an old
             // paid flag and accepted briefing are preserved for audit.
-            if ($row['payment_hold'] && $action!=='message') throw new RuntimeException('Financial hold');
+            if (in_array($row['payment_hold']??null,[true,'t',1,'1'],true) && $action!=='message') throw new RuntimeException('Financial hold');
             $state=$row['work_status']; $target=$state; $delivery=$row['delivery_note'];
             if ($action==='message') {
                 if (trim($note)==='') throw new RuntimeException('Message required');
