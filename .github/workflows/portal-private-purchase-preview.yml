@@ -53,6 +53,46 @@ jobs:
       - name: Install isolated customer commerce schema
         working-directory: apps/portal/ops/private-purchase
         run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+      - name: Audit ACTUAL private Portal PostgreSQL owner ACL and prove release stays NO-GO
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          python3 audit_shared_role_acl.py --self-test
+          docker compose exec -T database psql -X -U postgres -d portal_purchase_rehearsal -At \
+            -c "SELECT json_build_object(
+              'customer_table_select',has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.customers','SELECT'),
+              'orders_table_select',has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.customer_orders','SELECT'),
+              'customers_force_rls',(SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.customers'::regclass),
+              'orders_force_rls',(SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.customer_orders'::regclass),
+              'customer_rls_scopes_actor',(SELECT COALESCE(bool_or(position('customer_id' in COALESCE(qual,''))>0),false) FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='customers'),
+              'orders_rls_scopes_actor',(SELECT COALESCE(bool_or(position('customer_id' in COALESCE(qual,''))>0),false) FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='customer_orders'),
+              'role_superuser',(SELECT rolsuper FROM pg_roles WHERE rolname='purchase_rehearsal_a'),
+              'role_bypassrls',(SELECT rolbypassrls FROM pg_roles WHERE rolname='purchase_rehearsal_a')
+            )::text" > "$RUNNER_TEMP/p0-customer-current-sql-acl.json"
+          python3 audit_shared_role_acl.py \
+            --input "$RUNNER_TEMP/p0-customer-current-sql-acl.json" \
+            --output "$RUNNER_TEMP/p0-customer-sql-no-go-evidence.json"
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['RUNNER_TEMP'])/'p0-customer-sql-no-go-evidence.json').read_text())
+          claims=report['claims']
+          canonical=json.dumps(claims,ensure_ascii=False,separators=(',',':'))
+          assert report['integrity_sha256_not_signature']==hashlib.sha256(canonical.encode()).hexdigest()
+          assert report['authorized_deploy'] is False
+          assert claims['release_gate']=='NO_GO'
+          assert claims['migration_review_required'] is True
+          assert claims['can_enable_real_customer_data'] is False
+          assert claims['no_customer_rows_read'] is True
+          print('PASS: current SQL role still NO-GO until authenticated per-customer DB fence exists.')
+          PY
+      - name: Save sanitized current-schema NO-GO evidence for seven days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-portal-current-sql-owner-release-no-go
+          path: ${{ runner.temp }}/p0-customer-sql-no-go-evidence.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
