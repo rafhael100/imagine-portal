@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+function legacy(array $media):array { $fee=intdiv(array_sum($media)*2000+5000,10000);return ['product'=>'performance','currency'=>'BRL','media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'amount_now_cents'=>$fee,'reference_period'=>'monthly']; }
+
 require __DIR__.'/../app/Homologation/Commerce/ApprovedOfferCatalog.php';
 require __DIR__.'/../app/Homologation/Commerce/AsaasSandboxGateway.php';
 use App\Homologation\Commerce\ApprovedOfferCatalog as Catalog;
@@ -17,9 +19,9 @@ foreach (['onepage'=>[99000,33000],'landing-pages'=>[129000,43000]] as $product=
     check($q['monthly']['mandatory']===true); check($q['real_charge_enabled']===false);
     denied(fn()=>$c->quote($product,['google_ads'=>70000]));
 }
-foreach ([[['google_ads'=>70000],14000],[['meta_ads'=>70000],14000],[['google_ads'=>70000,'meta_ads'=>70000],28000],[['google_ads'=>200000],40000],[['meta_ads'=>70003],14001]] as [$media,$fee]) {
+foreach ([[['google_ads'=>70000],17000],[['meta_ads'=>70000],17000],[['google_ads'=>70000,'meta_ads'=>70000],34000],[['google_ads'=>200000],40000],[['meta_ads'=>70003],17000]] as [$media,$fee]) {
     $q=$c->quote('performance',$media); check($q['estimated_management_fee_cents']===$fee);
-    check($q['media_paid_directly_to_platforms']===true); check($q['amount_now_cents']===$fee);
+    check($q['media_paid_directly_to_platforms']===true); check($q['amount_now_cents']===count($media)*49000);
 }
 foreach ([[],['google_ads'=>69999],['google_ads'=>140000,'meta_ads'=>0],['facebook'=>70000],['google_ads'=>'70000'],['google_ads'=>70000.0],['google_ads'=>PHP_INT_MAX]] as $media) denied(fn()=>$c->quote('performance',$media));
 denied(fn()=>$c->quote('forged')); check(strlen($c->version())===64);
@@ -52,7 +54,7 @@ foreach ([302,400,401,429,500] as $status) {
 $n=0; $bad=new Gateway('fixture',function() use (&$n) {++$n;throw new RuntimeException('private upstream detail');});
 try {$bad->createPayment('cus_test1','imagine:TEST:setup:1',33000,'2026-11-14');check(false);} catch (RuntimeException $e) {check(str_contains($e->getMessage(),'uncertain'));check(!str_contains($e->getMessage(),'private'));}
 check($n===1);
-$q=$c->quote('performance',['google_ads'=>70000]);
+$q=legacy(['google_ads'=>70000]);
 check($q['reference_period']==='monthly');
 check(Catalog::reconcilePerformance($q,['google_ads'=>70000])['adjustment_cents']===0);
 check(Catalog::reconcilePerformance($q,['google_ads'=>100000])['adjustment_cents']===6000);

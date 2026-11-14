@@ -18,8 +18,10 @@ final class CustomerPreviewController
         try { app(CustomerPreviewStore::class)->register($v['username'],$v['password'],$v['name'],$v['company']); }
         catch (\Throwable) { return redirect('/_preview/portal/register')->withErrors(['username'=>'Não foi possível criar a conta. Escolha outro usuário ou tente mais tarde.']); }
         $intent=$r->session()->get('preview.intent');
+        $channel=$r->session()->get('preview.channel');
+        $channelQuery=$intent==='performance'&&in_array($channel,['google_ads','meta_ads'],true)?'&channel='.$channel:'';
         abort_unless(app(PreviewProfiles::class)->login($r,$v['username'],$v['password']),503);
-        return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/client/overview');
+        return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent.$channelQuery:'/_preview/portal/client/overview');
     }
     private function owner(Request $r): array
     {
@@ -30,6 +32,8 @@ final class CustomerPreviewController
     public function shop(Request $r)
     {
         $product=$r->query('product');
+        $channel=$r->query('channel');abort_unless($channel===null||in_array($channel,['google_ads','meta_ads'],true),422);
+        if($channel!==null)$r->session()->put('preview.channel',$channel);
         abort_unless($product===null||in_array($product,self::OFFERS,true),422);
         if ($product!==null) $r->session()->put('preview.intent',$product);
         $p=app(PreviewProfiles::class)->current($r);
@@ -39,13 +43,15 @@ final class CustomerPreviewController
     }
     public function create(Request $r)
     {
-        $p=$this->owner($r); $this->fields($r,['product','request_key','offer_version','offer_ack','google_media','meta_media']);
-        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D','offer_version'=>'required|string|size:64','offer_ack'=>'accepted','google_media'=>'nullable|string|max:12','meta_media'=>'nullable|string|max:12']);
+        $p=$this->owner($r); $this->fields($r,['product','request_key','offer_version','offer_ack','google_media','meta_media','channel_selection','channels']);
+        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D','offer_version'=>'required|string|size:64','offer_ack'=>'accepted','google_media'=>'nullable|string|max:12','meta_media'=>'nullable|string|max:12','channel_selection'=>'nullable|in:1','channels'=>'required_if:channel_selection,1|array|min:1|max:2','channels.*'=>'required|string|distinct|in:google_ads,meta_ads']);
         $catalog=new ApprovedOfferCatalog();
         abort_unless(hash_equals($catalog->version(),$v['offer_version']),409,'A oferta mudou. Atualize e confira as condições.');
         $media=[];
         try {
-            foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if (($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
+            if(isset($v['channel_selection'])&&$v['product']!=='performance')throw new \InvalidArgumentException('Unexpected channels');
+            foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if ((!isset($v['channel_selection'])||in_array($channel,$v['channels'],true))&&($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
+            if(isset($v['channel_selection'])&&array_diff($v['channels'],array_keys($media)))throw new \InvalidArgumentException('Missing selected channel budget');
             $quote=$catalog->quote($v['product'],$media);
         } catch (\InvalidArgumentException) { abort(422,'Informe investimento de pelo menos R$ 700 por canal selecionado; deixe vazio o canal não contratado.'); }
         try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product'],$quote); }
@@ -54,7 +60,25 @@ final class CustomerPreviewController
     }
     public function show(Request $r,string $id)
     {
-        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404); return $this->page($o);
+        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404); $o['sandbox']=app(CustomerPreviewStore::class)->sandboxStatus($p['customer_id'],$id); $o['future_billing']=app(CustomerPreviewStore::class)->futureStatus($p['customer_id'],$id); return $this->page($o);
+    }
+    public function sandbox(Request $r,string $id)
+    {
+        $p=$this->owner($r);$this->fields($r,['revision','sandbox_ack']);
+        abort_unless(app(CustomerPreviewStore::class)->read($p['customer_id'],$id),404);
+        $v=$r->validate(['revision'=>'required|integer|min:0|max:100000','sandbox_ack'=>'accepted']);
+        try {app(CustomerPreviewStore::class)->sandboxRequest($p['customer_id'],$id,(int)$v['revision']);}
+        catch (\Throwable) {abort(409,'Cobrança sandbox indisponível. Confira a oferta e a etapa do pedido.');}
+        return redirect('/_preview/portal/shop/orders/'.$id);
+    }
+    public function future(Request $r,string $id)
+    {
+        $p=$this->owner($r);$this->fields($r,['revision','sandbox_ack']);
+        abort_unless(app(CustomerPreviewStore::class)->read($p['customer_id'],$id),404);
+        $v=$r->validate(['revision'=>'required|integer|min:0|max:100000','sandbox_ack'=>'accepted']);
+        try {app(CustomerPreviewStore::class)->futureRequest($p['customer_id'],$id,(int)$v['revision']);}
+        catch (\Throwable) {abort(409,'Calendário sandbox indisponível. Confirme primeiro a cobrança inicial.');}
+        return redirect('/_preview/portal/shop/orders/'.$id);
     }
     public function payment(Request $r,string $id)
     {

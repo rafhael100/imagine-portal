@@ -41,13 +41,14 @@ try {
   'purchase_rehearsal_a',$config['database_password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
  $app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase($pdo));
  $app->instance(App\Homologation\PreviewOrderListing::class,new App\Homologation\PreviewOrderListing($pdo));
+ $app->instance(App\Homologation\Commerce\PerformanceSettlement::class,new App\Homologation\Commerce\PerformanceSettlement($pdo));
  $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo));
  $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);
 $request=Illuminate\Http\Request::capture(); $response=$kernel->handle($request);
 $response->headers->set('Cache-Control','no-store, private');
-$response->headers->set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+$response->headers->set('Content-Security-Policy',"default-src 'none'; script-src 'sha256-CYvqDl/6M8SuUoB0OPCv5ID+fF4qbKgS9qIPFVBswqg='; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
 $response->headers->set('X-Content-Type-Options','nosniff');
 $response->headers->set('Referrer-Policy','no-referrer');
 $response->headers->set('X-Robots-Tag','noindex, nofollow');

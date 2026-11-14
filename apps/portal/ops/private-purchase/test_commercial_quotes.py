@@ -22,16 +22,18 @@ with sync_playwright() as p:
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'1400','meta_media':'0'}).status==422
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'699,99'}).status==422
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'700','fee_cents':'1'}).status==422
+    assert page.request.post(BASE+'/shop/orders',headers={'Accept':'application/json'},form=data|{'channel_selection':'1','channels[0]':'google_ads','google_media':'','meta_media':'700'}).status==422
+    assert page.request.post(BASE+'/shop/orders',headers={'Accept':'application/json'},form=data|{'channel_selection':'1','channels[0]':'forged','google_media':'700'}).status==422
     page.locator('[name=google_media]').fill('700')
-    page.locator('[name=meta_media]').fill('700')
+    page.locator('[data-channel=meta_media]').check();page.locator('[name=meta_media]').fill('700')
     page.locator('[name=offer_ack]').check()
     page.get_by_role('button',name='Criar pedido de teste').click()
     owned_url=page.url
     body=page.locator('body').inner_text()
-    assert 'R$ 280,00' in body and body.count('R$ 700,00')==2
+    assert 'R$ 980,00' in body and 'R$ 340,00' in body and body.count('R$ 700,00')==2
     assert 'R$ 1.680,00' not in body
     page.reload()
-    assert 'R$ 280,00' in page.locator('body').inner_text()
+    assert 'R$ 340,00' in page.locator('body').inner_text()
     for width in [320,390,1280]:
         page.set_viewport_size({'width':width,'height':900})
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
@@ -44,6 +46,6 @@ with sync_playwright() as p:
     page.locator('[name=password]').fill('ci-admin-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     page.goto(BASE+'/work/'+owned_url.rsplit('/',1)[1])
-    assert 'R$ 280,00' in page.locator('body').inner_text()
+    assert 'R$ 340,00' in page.locator('body').inner_text()
     print('PASS Landing Page quote, separate Performance media and fee, per-channel minimum, frozen quote, price forgery rejection and admin view')
     browser.close()

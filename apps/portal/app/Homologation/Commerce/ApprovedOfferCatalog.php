@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Homologation\Commerce;
 
 use InvalidArgumentException;
+require_once __DIR__.'/PerformancePostpaidPolicy.php';
 
 /** Server-owned approved commercial terms. No PSP or financial side effects. */
 final class ApprovedOfferCatalog
@@ -32,9 +33,10 @@ final class ApprovedOfferCatalog
             if (!is_int($cents)||$cents<$offer['minimum_media_investment_per_channel_cents']||$cents>100000000) throw new InvalidArgumentException('Minimum R700 per channel');
             $total+=$cents;
         }
-        // Integer arithmetic; round half up only once, at final cent.
-        $fee=intdiv($total*$offer['management_fee_basis_points']+5000,10000);
-        return $base+['media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'reference_period'=>$offer['reference_period'],'amount_now_cents'=>$fee,'settlement_policy'=>$offer['operational_settlement_policy']];
+        // Round each channel separately before applying its monthly floor.
+        $estimate=PerformancePostpaidPolicy::fullMonth(array_keys($media),$media);
+        $fee=$estimate['management_fee_cents'];
+        return $base+['pricing_policy'=>PerformancePostpaidPolicy::VERSION,'minimum_management_fee_per_channel_cents'=>17000,'activation_per_channel_cents'=>49000,'activation_total_cents'=>$estimate['activation_total_cents'],'media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'reference_period'=>$offer['reference_period'],'amount_now_cents'=>$estimate['activation_total_cents'],'settlement_policy'=>$offer['operational_settlement_policy']];
     }
     public static function money(string $text): int
     {
@@ -45,6 +47,7 @@ final class ApprovedOfferCatalog
     /** Mathematical reconciliation only; actual spend must come from trusted evidence. */
     public static function reconcilePerformance(array $quote,array $actualMedia): array
     {
+        if (isset($quote['pricing_policy'])) throw new InvalidArgumentException('Postpaid orders have no prepaid adjustment');
         if (($quote['product']??null)!=='performance'||($quote['management_fee_basis_points']??null)!==2000||!is_int($quote['estimated_management_fee_cents']??null)) throw new InvalidArgumentException('Invalid Performance quote');
         $expected=array_keys($quote['media_by_channel_cents']); $actual=array_keys($actualMedia); sort($expected); sort($actual);
         if ($actual!==$expected) throw new InvalidArgumentException('Channel scope mismatch');

@@ -33,13 +33,15 @@ final class FullPortalPreviewController
         abort_unless(array_diff(array_keys($request->all()),['_token','username','password'])===[],422);
         $data=$request->validate(['username'=>'required|string|max:64','password'=>'required|string|max:256']);
         $intent=$request->session()->get('preview.intent');
+        $channel=$request->session()->get('preview.channel');
+        $channelQuery=$intent==='performance'&&in_array($channel,['google_ads','meta_ads'],true)?'&channel='.$channel:'';
         $auth=app(PreviewProfiles::class);
         abort_unless($auth->ready(),503,'Perfis de teste ainda não configurados.');
         if (!$auth->login($request,$data['username'],$data['password'])) {
             return redirect('/_preview/portal')->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
         }
         $p=$auth->current($request);
-        return redirect($p['role']==='client'&&isset($p['customer_id'])&&in_array($intent,['onepage','landing-pages','performance'],true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/'.$p['role'].'/overview');
+        return redirect($p['role']==='client'&&isset($p['customer_id'])&&in_array($intent,['onepage','landing-pages','performance'],true)?'/_preview/portal/shop?product='.$intent.$channelQuery:'/_preview/portal/'.$p['role'].'/overview');
     }
     public function logout(Request $request)
     {

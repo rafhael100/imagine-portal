@@ -1,0 +1,20 @@
+name: Performance postpaid per-channel minimum
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php'
+      - 'apps/portal/tools/test_performance_postpaid_policy.php'
+      - '.github/workflows/performance-postpaid-policy.yml'
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify approved amounts and reject missing spend evidence
+        run: docker run --rm --network none -v "$PWD:/workspace:ro" -w /workspace php:8.4-cli php apps/portal/tools/test_performance_postpaid_policy.php

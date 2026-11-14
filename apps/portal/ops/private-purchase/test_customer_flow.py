@@ -1,6 +1,6 @@
 """Two independent synthetic accounts, owned checkout and administrator visibility."""
 import os, json, pathlib, shutil, uuid, hashlib
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright,expect
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
 fixture=pathlib.Path('/tmp/portal-customer-ci.json')
 with sync_playwright() as p:
@@ -48,7 +48,7 @@ with sync_playwright() as p:
         assert page.url.rstrip('/')==BASE
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
-        assert page.get_by_role('button',name='Criar pedido de teste').count()==1
+        expect(page.get_by_role('button',name='Criar pedido de teste')).to_have_count(1)
         capture('02-selected-onepage-offer.png')
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         version=page.locator('[name=offer_version]').input_value()
@@ -62,14 +62,14 @@ with sync_playwright() as p:
         assert 'R$ 330,00' in page.locator('body').inner_text()
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','price_cents':'1'}).status==422
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':'0'*64,'offer_ack':'1'}).status==409
-        page.get_by_role('checkbox').check()
+        page.locator('[name=sample_ack]').check()
         page.locator('[name=outcome]').select_option('declined')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.locator('[name=business]').count()==0
         rev=page.locator('[name=revision]').first.input_value()
         rejected=page.request.post(order_url+'/briefing',form={'_token':csrf(),'revision':rev,'business':'x','goal':'x','audience':'x','materials':'x'})
         assert rejected.status==409
-        page.get_by_role('checkbox').check()
+        page.locator('[name=sample_ack]').check()
         page.locator('[name=outcome]').select_option('approved')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.request.post(order_url+'/payment',form={'_token':csrf(),'revision':rev,'outcome':'pending','sample_ack':'1'}).status==409
@@ -100,6 +100,18 @@ with sync_playwright() as p:
         logout(); login('administrador.teste','ci-admin-only-2026')
         page.goto(BASE+'/admin/orders')
         assert order_id in page.locator('body').inner_text()
+        # Preserve the synthetic admin's existing browser session for later
+        # CI-only workflows. This avoids exhausting the real per-account login
+        # throttle; NEVER relax the Laravel authentication controls.
+        if os.getenv('GITHUB_ACTIONS')=='true':
+            admin_state=pathlib.Path(os.environ['RUNNER_TEMP'])/'portal-ci-admin-storage-state.json'
+            old_umask=os.umask(0o077)
+            try:
+                page.context.storage_state(path=str(admin_state))
+                admin_state.chmod(0o600)
+            finally:
+                os.umask(old_umask)
+            assert admin_state.stat().st_mode&0o077==0
         capture('05-admin-owned-order.png')
         if shots:
             expected=['01-registration-blank.png','02-selected-onepage-offer.png',

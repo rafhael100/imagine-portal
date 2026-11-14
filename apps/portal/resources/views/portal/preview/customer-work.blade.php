@@ -2,6 +2,13 @@
 <x-portal.layout title="Acompanhamento do pedido" :current="$isAdmin?'orders':'journey'">
 <x-portal.panel title="Jornada do seu projeto"><p><strong>{{ $order['id'] }}</strong> · {{ $order['customer_name'] }} · {{ $order['company'] }}</p><p role="status">{{ $labels[$order['work_status']] }}</p><p>Esta jornada registra ações no ambiente de testes. Não ativa serviço ou publicação real.</p>
 @if($order['offer_snapshot']!==null)<h3>Condições registradas no pedido</h3>@include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])@endif
+@if(!empty($order['billing']))
+<h3>Financeiro no Asaas sandbox</h3><p>Somente homologação. Assinatura ativa não significa mensalidade paga.</p>
+<dl>@foreach($order['billing'] as $bill)
+<dt>{{ ['initial'=>($order['product']==='performance'?(isset($order['offer_snapshot']['pricing_policy'])?'Ativação de canais':'Honorários antecipados'):'Implantação 1/3'),'setup-2'=>'Implantação 2/3','setup-3'=>'Implantação 3/3','monthly'=>'Assinatura mensal','monthly-invoice'=>'Mensalidade faturada'][$bill['charge_key']] ?? ('Gestão Performance · '.substr($bill['charge_key'],12)) }}</dt>
+<dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl((int)$bill['amount_cents']) }} · {{ $bill['due_date'] }} · {{ $bill['provider_status'] ?? 'Aguardando processamento' }} @if($bill['invoice_url'])<a href="{{ $bill['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança no sandbox</a>@endif</dd>
+@endforeach</dl>
+@endif
 @if($order['briefing']===null)
 <p>Envie o briefing após o pagamento simulado aprovado para que a equipe possa iniciar.</p>
 @else
@@ -19,6 +26,7 @@
 <form method="post" action="/_preview/portal/work/{{ $order['id'] }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><input type="hidden" name="action" value="request_changes"><label for="changes">Quais ajustes deseja?</label><textarea style="display:block;width:100%;max-width:100%" id="changes" name="note" maxlength="1000" required></textarea><button class="preview-link" type="submit">Solicitar ajustes</button></form>
 @endif
 </x-portal.panel>
+@if($order['product']==='performance'&&$order['offer_snapshot']!==null)@include('portal.preview.performance-settlement')@endif
 <x-portal.panel title="Conversa e histórico"><p>As mensagens ficam registradas neste pedido. Não há envio de e-mail ou WhatsApp nesta etapa.</p><ol>@forelse($order['events'] as $event)<li><strong>{{ $event['actor_kind']==='admin'?'Equipe Imagine':'Cliente' }}</strong> · {{ ['start'=>'Produção iniciada','deliver'=>'Entrega enviada','approve'=>'Entrega aprovada','request_changes'=>'Ajustes solicitados','message'=>'Mensagem'][$event['action']] }} · {{ $event['created_at'] }}<p style="white-space:pre-wrap">{{ $event['note'] }}</p></li>@empty<li>Ainda não há mensagens ou ações da equipe.</li>@endforelse</ol><form method="post" action="/_preview/portal/work/{{ $order['id'] }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><input type="hidden" name="action" value="message"><label for="message">Mensagem de exemplo</label><textarea style="display:block;width:100%;max-width:100%" id="message" name="note" maxlength="1000" required></textarea><button class="preview-link" type="submit">Enviar mensagem</button></form></x-portal.panel>
 @if(!$isAdmin)<p><a href="/_preview/portal/shop/orders/{{ $order['id'] }}">Ver contratação, pagamento e briefing</a></p>@endif
 </x-portal.layout>
