@@ -1,0 +1,140 @@
+name: Portal GSC F105 - PostgreSQL RLS bound SEO daily review (synthetic)
+
+on:
+  pull_request:
+    branches:
+      - review/portal-seo-f104-date-bridge-lab-2026-11-14
+    paths:
+      - '.github/workflows/portal-gsc-f105-rls-review-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php'
+      - 'apps/portal/labs/gsc-f105-rls/**'
+
+permissions:
+  contents: read
+
+jobs:
+  f105-nonprivileged-rls-laboratory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: imagine_gsc_ci_test
+          POSTGRES_USER: imagine_ci
+          POSTGRES_PASSWORD: local_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imagine_ci -d imagine_gsc_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact isolated review HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable SEO Engine F104 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: ec1739621b20860f729c59d9863ba1b341da43e8
+          path: .qa/seo-f104
+          persist-credentials: false
+      - name: Install pinned PHP 8.4, PDO/PostgreSQL and Node 22
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # verified v2 commit
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer
+      - name: Install pinned Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Limit changes to the exact F105 review files
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-f104 rev-parse HEAD)" = ec1739621b20860f729c59d9863ba1b341da43e8
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/seo-f105-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const paths=readFileSync(process.env.RUNNER_TEMP+"/seo-f105-paths","utf8").split("\0").filter(Boolean);
+            const allowed=new Set([
+              ".github/workflows/portal-gsc-f105-rls-review-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php",
+              "apps/portal/labs/gsc-f105-rls/test-postgres.php",
+              "apps/portal/labs/gsc-f105-rls/README.md"
+            ]);
+            if(paths.length<3||paths.length>allowed.size||paths.some(p=>!allowed.has(p)))
+              throw Error("F105: modified files outside the authorized review slice");
+            console.log("F105: "+paths.length+" authorized changed files only");
+          '
+      - name: PHP and Node syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php
+          php -l apps/portal/labs/gsc-f105-rls/test-postgres.php
+          node --check apps/portal/labs/gsc-f104-bridge/emit-node.mjs
+      - name: Install locked Laravel dependencies in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress
+      - name: Apply isolated GSC grant, audit, token and RLS migrations; test; roll back
+        shell: bash
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_CONNECTION: pgsql
+          DB_HOST: '127.0.0.1'
+          DB_PORT: '5432'
+          DB_DATABASE: imagine_gsc_ci_test
+          DB_USERNAME: imagine_ci
+          DB_PASSWORD: local_test_only
+          PORTAL_OPENSEO_DAILY_LAB: '1'
+          PORTAL_GSC_F105_RLS_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          pushd apps/portal
+          php artisan migrate --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000003_create_portal_gsc_security_events.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php
+          php artisan migrate --force --path=database/migrations/2026_11_12_000005_enable_portal_gsc_tenant_rls.php
+          popd
+          for scenario in complete partial empty; do
+            node apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f105-rls/test-postgres.php "$fixture"
+          done
+          pushd apps/portal
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000005_enable_portal_gsc_tenant_rls.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000003_create_portal_gsc_security_events.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000002_create_portal_gsc_property_grants.php
+          php artisan migrate:rollback --force --path=database/migrations/2026_11_12_000001_create_portal_gsc_oauth_states.php
+          popd
+      - name: Verify both repositories left unchanged by lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
