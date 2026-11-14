@@ -1,4 +1,4 @@
-import http.server,json,threading,unittest,urllib.request,urllib.error
+import http.server,json,threading,unittest,urllib.request,urllib.error,os,subprocess,sys,pathlib
 from types import SimpleNamespace
 from unittest.mock import patch
 from asaas_sandbox_webhook import parse_event,InvalidEvent,Handler,PATH,Inbox as SqlInbox
@@ -19,6 +19,21 @@ class Tests(unittest.TestCase):
   try:
    with urllib.request.urlopen(req,timeout=2) as response:return response.status
   except urllib.error.HTTPError as e:return e.code
+ def test_webhook_process_cannot_start_in_ci_or_without_staging_opt_in(self):
+  script=str(pathlib.Path(__file__).with_name('asaas_sandbox_webhook.py'))
+  for override in ({},{'APP_ENV':'production','ASAAS_SANDBOX_WEBHOOK_ENABLED':'1'},
+                   {'APP_ENV':'staging','ASAAS_SANDBOX_WEBHOOK_ENABLED':'1','GITHUB_ACTIONS':'true'},
+                   {'APP_ENV':'staging','ASAAS_SANDBOX_WEBHOOK_ENABLED':'0'}):
+   with self.subTest(override=override):
+    env={k:v for k,v in os.environ.items()
+         if k not in ('APP_ENV','ASAAS_SANDBOX_WEBHOOK_ENABLED','GITHUB_ACTIONS')}
+    env.update(override)
+    result=subprocess.run([sys.executable,script],env=env,
+        text=True,capture_output=True,timeout=5,check=False)
+    self.assertNotEqual(result.returncode,0)
+    self.assertIn('NO-GO',result.stderr)
+    self.assertEqual(result.stdout,'')
+
  def test_sql_broker_never_uses_postgres_or_set_role(self):
   event=parse_event(json.dumps(EVENT).encode())
   with patch('asaas_sandbox_webhook.subprocess.run',
