@@ -64,7 +64,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '22'
-      - name: Verify exact 6 review paths and no application route changes
+      - name: Verify exact 8 review paths and no application route changes
         shell: bash
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -83,12 +83,14 @@ jobs:
               "apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php",
               "apps/portal/app/Domain/Authorization/Permission.php",
               "apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php",
+              "apps/portal/tests/Unit/PortalGscPermissionContractTest.php",
+              "apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php",
               "apps/portal/labs/gsc-f110-view-permission/test-postgres.php",
               "apps/portal/labs/gsc-f110-view-permission/README.md"
             ]);
             if(paths.length!==allowed.size||paths.some(p=>!allowed.has(p)))
               throw Error("F110: unexpected files, routing or privilege change");
-            console.log("F110: 6 exact files only");
+            console.log("F110: 8 exact files only");
           '
       - name: PHP syntax, composer lock and default-deny unit tests
         shell: bash
@@ -97,10 +99,12 @@ jobs:
           php -l apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php
           php -l apps/portal/app/Domain/Authorization/Permission.php
           php -l apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php
+          php -l apps/portal/tests/Unit/PortalGscPermissionContractTest.php
+          php -l apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php
           php -l apps/portal/labs/gsc-f110-view-permission/test-postgres.php
           composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
           cd apps/portal
-          vendor/bin/phpunit tests/Unit/PortalGscViewPermissionIsolationTest.php --no-progress --fail-on-warning --fail-on-risky
+          vendor/bin/phpunit tests/Unit/PortalGscViewPermissionIsolationTest.php tests/Unit/PortalGscPermissionContractTest.php tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php --no-progress --fail-on-warning --fail-on-risky
       - name: Apply real additive permission migrations, enforce rollback hold
         shell: bash
         run: |
