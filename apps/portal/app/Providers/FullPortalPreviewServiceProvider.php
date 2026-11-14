@@ -18,6 +18,24 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
     {
         RateLimiter::for('preview-register',static fn(Request $request)=>Limit::perMinute(6)->by($request->ip()));
         RateLimiter::for('preview-login',static fn(Request $request)=>[Limit::perMinute(60)->by('ip:'.$request->ip()),Limit::perMinute(6)->by('account:'.$request->ip().':'.hash('sha256',(string)$request->input('username','')))]);
+        // Preview-only abuse fence. Key is derived from the VERIFIED server
+        // session, not a posted owner/customer_id or arbitrary IP header.
+        // Separate customers of the same fictitious organization do not
+        // consume one another's write quota; anonymous requests have IP scope.
+        RateLimiter::for('preview-order-write',static function(Request $request) {
+            $profile=app(PreviewProfiles::class)->current($request);
+            $subject=isset($profile['customer_id'])
+                ? 'customer:'.$profile['customer_id']
+                : 'anonymous:'.$request->ip();
+            return Limit::perMinute(12)->by('synthetic-preview-write:'.$subject);
+        });
+        RateLimiter::for('preview-work-write', static function(Request $request) {
+            $profile=app(PreviewProfiles::class)->current($request);
+            $subject=isset($profile['customer_id'])
+                ? 'customer:'.$profile['customer_id']
+                : (($profile['role']??'')==='admin'?'admin':'anonymous:'.$request->ip());
+            return Limit::perMinute(12)->by('synthetic-preview-work:'.$subject);
+        });
         Route::prefix('_preview/portal')->middleware('web')->group(function(): void {
             Route::get('/',[FullPortalPreviewController::class,'login']);
             Route::post('login',[FullPortalPreviewController::class,'authenticate'])->middleware('throttle:preview-login');
@@ -25,12 +43,12 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::get('register',[\App\Http\Controllers\CustomerPreviewController::class,'registerForm']);
             Route::post('register',[\App\Http\Controllers\CustomerPreviewController::class,'register'])->middleware('throttle:preview-register');
             Route::get('shop',[\App\Http\Controllers\CustomerPreviewController::class,'shop']);
-            Route::post('shop/orders',[\App\Http\Controllers\CustomerPreviewController::class,'create']);
+            Route::post('shop/orders',[\App\Http\Controllers\CustomerPreviewController::class,'create'])->middleware('throttle:preview-order-write');
             Route::get('shop/orders/{id}',[\App\Http\Controllers\CustomerPreviewController::class,'show']);
-            Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
-            Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing']);
+            Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment'])->middleware('throttle:preview-order-write');
+            Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing'])->middleware('throttle:preview-order-write');
             Route::get('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'show']);
-            Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action']);
+            Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action'])->middleware('throttle:preview-work-write');
             Route::get('logo',[FullPortalPreviewController::class,'logo']);
             Route::get('client/{section}',[FullPortalPreviewController::class,'client']);
             Route::get('admin/{section}',[FullPortalPreviewController::class,'admin']);
