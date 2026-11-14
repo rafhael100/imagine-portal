@@ -1,5 +1,6 @@
-import copy,decimal,unittest
-from asaas_sandbox_worker import Worker,Unconfirmed,FIXTURE_NAME,verify_payment,invoice_url
+import copy,decimal,unittest,urllib.request
+from unittest import mock
+from asaas_sandbox_worker import Worker,Unconfirmed,Asaas,NoRedirect,FIXTURE_NAME,verify_payment,invoice_url
 OID='TEST-'+'a'*32
 class DB:
     def __init__(self):self.row={'order_id':OID,'state':'queued','amount_cents':33000,'due_date':'2026-11-14','customer_ref':None,'payment_ref':None,'sync_requested':True};self.approved=False;self.hold=False
@@ -100,6 +101,42 @@ class Tests(unittest.TestCase):
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('NO-GO:',result.stderr)
                 self.assertEqual(result.stdout,'')
+
+    def test_nov_2026_opaque_underscore_payment_ids(self):
+        # Official Asaas 05/11/2026 change: Sandbox supports new payment IDs
+        # containing an extra underscore, with old IDs still valid.
+        self.w.process(self.db.row)
+        new_id='pay_1_a1B2c3D4e5F6g7'
+        fake=self.api.payment | {'id':new_id,'status':'RECEIVED'}
+        intent=self.db.row | {'payment_ref':new_id}
+        self.assertEqual(verify_payment(fake,intent),'approved')
+        self.assertEqual(verify_payment(self.api.payment,self.db.row),'pending')
+        for bad in [
+            'pay_1_a1B2c3D4e5F6g7/../orders',
+            'pay_1_a1B2c3D4e5F6g7?token=abc',
+            'pay_1_a1B2c3D4e5F6g7%2F',
+        ]:
+            with self.subTest(id=bad),self.assertRaises(Unconfirmed):
+                verify_payment(fake | {'id':bad},intent)
+
+    def test_sandbox_psp_key_never_uses_ambient_https_proxy(self):
+        class Response:
+            status=200
+            def __enter__(self):return self
+            def __exit__(self,*args):return False
+            def read(self,n):return b'{"id":"pay_1_a1B2c3D4e5F6g7"}'
+        class Opener:
+            def open(self,request,timeout):
+                assert request.full_url=='https://api-sandbox.asaas.com/v3/payments/pay_1_a1B2c3D4e5F6g7'
+                assert timeout==20
+                return Response()
+        with mock.patch('asaas_sandbox_worker.urllib.request.build_opener',return_value=Opener()) as builder:
+            reply=Asaas('$aact_hmlg_'+'S'*40).call('GET','/payments/pay_1_a1B2c3D4e5F6g7')
+        self.assertEqual(reply['id'],'pay_1_a1B2c3D4e5F6g7')
+        handlers=builder.call_args.args
+        self.assertTrue(any(isinstance(x,urllib.request.ProxyHandler) and x.proxies=={}
+                            for x in handlers))
+        self.assertIn(NoRedirect,handlers)
 
     def test_urls(self):
         self.assertEqual(invoice_url('https://sandbox.asaas.com/i/fixture'),'https://sandbox.asaas.com/i/fixture')
