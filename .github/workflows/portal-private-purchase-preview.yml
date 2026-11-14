@@ -102,6 +102,34 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Checkout exact approved Comercial CTA candidate (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-comercial
+          ref: a4d71ae43aa3208f1e61aaaaf0b6619416a87533
+          path: external/comercial
+          persist-credentials: false
+      - name: Prepare isolated four-CTA Comercial build, no deploy
+        working-directory: external/comercial
+        env:
+          IMAGINE_PORTAL_CUSTOMER_PREVIEW: '1'
+          GITHUB_ACTIONS: 'true'
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          node scripts/verify-dist.mjs
+          node ops/review/purchase/prepare-customer-portal.mjs dist "$RUNNER_TEMP/comercial-customer-prepared"
+          node scripts/verify-dist.mjs
+      - name: Click built Comercial CTAs into real private Laravel customer checkout
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_CUSTOMER_COMMERCIAL_E2E: '1'
+          IMAGINE_COMERCIAL_CUSTOMER_PREVIEW_ROOT: ${{ runner.temp }}/comercial-customer-prepared
+        run: |
+          set -euo pipefail
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_handoff.py
+          echo 'PASS Comercial-built links to Laravel demo account, Postgres order and fake briefing; CI ONLY' >> "$GITHUB_STEP_SUMMARY"
       - name: Diagnose failed synthetic browser flow
         if: failure()
         working-directory: apps/portal/ops/private-purchase
