@@ -1,3 +1,7 @@
+# Atualização de precedência — 14/11/2026
+
+**Divergência de tabela resolvida:** após esta pesquisa, o titular definiu nova regra: 20% da mídia investida com investimento mínimo de R$ 700 por canal. Consulte [a decisão vigente](2026-11-14-performance-20-percent-media.md). As tabelas e pendências de identificação abaixo são histórico da pesquisa anterior e não impedem registrar o modelo comercial agora aprovado. As condições operacionais ainda não decididas constam da nova decisão.
+
 # Pesquisa histórica — Landing Page e Performance
 
 Data: 14/11/2026. O titular informou que ambos os serviços já possuem definições e solicitou pesquisa no GitHub/versão anterior. A informação do titular motivou busca além da main; este relatório não revoga aprovações externas aos documentos localizados e não escolhe silenciosamente entre tabelas divergentes.

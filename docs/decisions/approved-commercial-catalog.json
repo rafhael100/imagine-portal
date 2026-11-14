@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "decision_date": "2026-11-14",
   "currency": "BRL",
   "gateway": {
@@ -35,6 +35,12 @@
           "docs/performance-ai/PERF-P0-BL04-REVISAO-ECONOMICA-PRELIMINAR-2026-11-05.md"
         ],
         "status": "conflicting_historical_proposals_not_marked_approved"
+      },
+      {
+        "type": "explicit_owner_decision",
+        "date": "2026-11-14",
+        "decision": "20_percent_of_invested_media_minimum_R700_media_per_channel",
+        "supersedes": "historical_performance_pricing_proposals"
       }
     ]
   },
@@ -125,12 +131,27 @@
     },
     {
       "id": "performance",
-      "price_cents": null,
-      "pricing_status": "historical_values_recovered_approval_conflict_requires_reconciliation",
+      "pricing_status": "approved_by_owner_2026_11_14",
+      "billing_model": "percentage_of_invested_media",
+      "management_fee_basis_points": 2000,
+      "minimum_media_investment_per_channel_cents": 70000,
+      "minimum_is_media_budget_not_management_fee": true,
+      "calculation": "sum_of_invested_media_for_contracted_channels_times_20_percent",
+      "channels": [
+        "google_ads",
+        "meta_ads"
+      ],
+      "meta_instagram_facebook_count_as_one_channel": true,
+      "reference_period": null,
+      "operational_settlement_policy": null,
+      "below_minimum_spend_policy": null,
+      "setup_fee_cents": null,
+      "setup_fee_status": "not_authorized_by_this_decision",
       "direct_checkout_enabled": false,
       "media_spend_paid_directly_to_platforms": true,
       "monthly_days_90_from_sites_inherited": false,
-      "automatic_sites_discounts_inherited": false
+      "automatic_sites_discounts_inherited": false,
+      "decision_file": "docs/decisions/2026-11-14-performance-20-percent-media.md"
     }
   ],
   "legacy_contract_policy": "preserve_original_prices_and_terms",

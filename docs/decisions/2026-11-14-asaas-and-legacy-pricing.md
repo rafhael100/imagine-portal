@@ -45,7 +45,7 @@ O mesmo documento contém complemento **posterior** às condições Node iniciai
 
 Extras de sites: orçamento até R$ 270,00 inclusive é à vista; acima disso admite à vista ou até três parcelas opcionais. Não presumir juros, isenção de juros, entrada ou datas não definidas.
 
-Performance possui valores históricos recuperados, porém as fontes revisadas os classificam como propostas/simulações e apresentam modelos divergentes; ver [pesquisa e regras recuperadas](2026-11-14-landing-performance-pricing-research.md). Sua contratação direta permanece desabilitada nesta referência até reconciliar qual tabela foi aprovada. Sistemas, aplicativos e agentes IA têm preço nulo no catálogo inicial e dependem de proposta.
+**Decisão posterior do titular em 14/11/2026:** Performance passa a 20% da mídia investida, com investimento mínimo em anúncios de R$ 700 por canal. A divergência histórica de tabela está resolvida por essa nova decisão; ver [regra vigente](2026-11-14-performance-20-percent-media.md). A cobrança direta depende da implementação/homologação e das condições operacionais de apuração descritas na decisão. Sistemas, aplicativos e agentes IA têm preço nulo no catálogo inicial e dependem de proposta.
 
 ## Responsabilidades e migração
 
