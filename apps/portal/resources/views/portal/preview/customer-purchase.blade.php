@@ -41,7 +41,7 @@
 @endforeach
 </div>
 @else
-<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
+<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento fictício</dt><dd class="status">{{ !empty($order['payment_hold']) ? 'Suspenso para revisão financeira' : ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
@@ -49,9 +49,24 @@
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
 </section>
+@if(!empty($order['payment_hold']) || ($order['sandbox']['state']??null)==='reversed')<p role="alert">A cobrança foi estornada ou contestada. Aguarde revisão financeira antes de continuar.</p>@endif
 @if($order['briefing'] === null)
+@if($order['payment_source']==='manual_test')
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
-@if($order['payment'] === 'approved')
+@endif
+<section><h2>Cobrança no Asaas sandbox</h2>
+<p>Somente homologação: pagador fictício, sem e-mail/telefone, notificações desativadas e chave fora do servidor web.</p>
+@if(($order['sandbox']??null)!==null)
+<p>Etapa: <strong>{{ $order['sandbox']['state'] }}</strong>. Situação Asaas: {{ $order['sandbox']['provider_status']??'aguardando processamento' }}.</p>
+@if(!empty($order['sandbox']['invoice_url']) && empty($order['payment_hold']))<p><a href="{{ $order['sandbox']['invoice_url'] }}" rel="noopener noreferrer" target="_blank">Abrir cobrança de teste no Asaas</a></p>@endif
+@endif
+@if($order['payment']!=='approved' && empty($order['payment_hold']))
+<form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf
+<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito um teste no Asaas Sandbox com dados fictícios.</label>
+<button type="submit">{{ $order['payment_source']==='manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
+@endif
+</section>
+@if($order['payment'] === 'approved' && empty($order['payment_hold']))
 <section><h2>3. Preencher o briefing de exemplo</h2><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/briefing') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}">@foreach(['business'=>'Nome da empresa fictícia','goal'=>'Objetivo','audience'=>'Público','materials'=>'Materiais de exemplo'] as $field=>$label)<label>{{ $label }}<textarea name="{{ $field }}" required maxlength="200">{{ old($field) }}</textarea></label>@endforeach<button type="submit">Salvar briefing de teste</button></form></section>
 @else<p>O briefing será liberado após selecionar pagamento fictício aprovado.</p>@endif
 @else
