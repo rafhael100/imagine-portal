@@ -87,8 +87,8 @@ final readonly class PreviewCommercialCatalog
             !is_int($mediaMin) || $mediaMin!==70000 ||
             ($performance['minimum_is_media_budget_not_management_fee']??null)!==true ||
             ($performance['direct_checkout_enabled']??null)!==false ||
-            ($performance['reference_period']??'unexpected')!==null ||
-            ($performance['setup_fee_cents']??'unexpected')!==null) {
+            (!array_key_exists('reference_period',$performance) || $performance['reference_period']!==null) ||
+            (!array_key_exists('setup_fee_cents',$performance) || $performance['setup_fee_cents']!==null)) {
             throw new RuntimeException('Performance media policy requires separate commercial closure.');
         }
         $result['performance']=[
