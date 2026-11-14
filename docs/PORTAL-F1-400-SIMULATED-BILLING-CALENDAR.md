@@ -18,6 +18,14 @@ A tela do pedido de homologação mostra um **calendário ilustrativo** gerado e
 
 `test_commerce.php` verifica valores, datas, ano bissexto, fuso, dados adulterados e bloqueio de cobrança automática; Chromium verifica calendário Onepage, Landing e Performance no navegador.
 
+## Política de contratação direta e conciliação
+
+O catálogo aprovado explicita `direct_checkout_enabled=false` para **Landing Page** e **Performance**. Embora os dois serviços possam ter cotações e pedidos de demonstração, sua cotação **não** deve gerar transações financeiras por uma requisição direta do navegador. Esta revisão acrescenta três bloqueios independentes: (1) remove o botão de cobrança Sandbox nesses pedidos, (2) `SandboxCheckoutIntent::request` recusa qualquer produto diferente de Onepage, e (3) o `FORCE RLS` de `sandbox_payment_intents` exige `o.product='onepage'` nas cláusulas `USING` e `WITH CHECK` da role web. O broker PSP não tem permissão para inserir intenções de pagamento.
+
+O Onepage permanece disponível **somente para o ensaio fictício de primeira cobrança**, sem autorização de produção. Um pedido de Landing/Performance continua visível, mas tentativas diretas ao endpoint `/sandbox` retornam bloqueio (409) sem gerar intenção no banco. Os testes de navegador e SQL verificam essa política.
+
+A cotação assinada Performance foi atualizada para o envelope de laboratório v2, que vincula a competência `YYYY-MM` dentro do HMAC com prefixo de domínio próprio. Reutilizar uma cotação assinada de novembro para dezembro altera a assinatura; v1 permanece apenas para compatibilidade do laboratório e não serve como autorização de faturamento. Não há emissor operacional, recebedor S2S, chave real ou dados de gasto de mídia.
+
 ## O que falta para a operação comercial
 
 Aceite de contrato real/consentimentos, identidade empresarial/MFA, data contratual inequívoca, tributos/NFS-e, agendamento e recorrência Asaas Sandbox, recuperação de falhas e cancelamentos, reconciliação financeira após estorno, recibos idempotentes, plano LGPD, homologação com banco e segredos no Leaseweb e testes de restore/rollback em staging.
