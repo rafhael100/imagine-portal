@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/portal-gsc-f418-finance-session-callback-ci.yml'
       - 'apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php'
+      - 'apps/portal/database/security/portal_browser_auth.sql'
       - 'apps/portal/labs/gsc-f113-auth-to-grant/**'
       - 'apps/portal/labs/gsc-f114-oauth-state/**'
       - 'apps/portal/labs/gsc-f115-callback/**'
@@ -83,7 +84,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '22'
-      - name: Verify exact ancestry and 10-file F418 integration allowlist
+      - name: Verify exact ancestry and 11-file F418 integration allowlist
         shell: bash
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -102,6 +103,7 @@ jobs:
             const allowed=new Set([
             ".github/workflows/portal-gsc-f418-finance-session-callback-ci.yml",
             "apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+            "apps/portal/database/security/portal_browser_auth.sql",
             "apps/portal/labs/gsc-f113-auth-to-grant/README.md",
             "apps/portal/labs/gsc-f113-auth-to-grant/test-auth-mfa-gsc.php",
             "apps/portal/labs/gsc-f114-oauth-state/README.md",
@@ -113,7 +115,7 @@ jobs:
             ]);
             if(paths.length!==allowed.size||paths.some(p=>!allowed.has(p)))
               throw Error("F115: unauthorized migration or route");
-            console.log("F418: ten isolated finance+GSC review files; source SHAs pinned");
+            console.log("F418: eleven isolated finance+GSC review files; source SHAs pinned");
           '
           test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
           test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
