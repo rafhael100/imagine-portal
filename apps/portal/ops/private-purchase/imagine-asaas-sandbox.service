@@ -1,0 +1,13 @@
+[Unit]
+Description=Imagine Asaas sandbox requested-intent worker
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/imagine/purchase-preview/apps/portal/ops/private-purchase
+ExecStart=/usr/bin/python3 /srv/imagine/purchase-preview/apps/portal/ops/private-purchase/asaas_sandbox_worker.py --once
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+TimeoutStartSec=180

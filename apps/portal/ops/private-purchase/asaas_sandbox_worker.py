@@ -67,14 +67,16 @@ class Worker:
         if not row.get('customer_ref'):
             customer=self.api.find('customers',cref)
             if customer is None:
-                if row['state']!='queued':return # uncertain POST: never blindly repeat
+                if row['state']!='queued':
+                    patch(sync_requested=False);return # operator/customer must request another reconciliation
                 patch(state='customer_creating')
                 customer=self.api.call('POST','/customers',{'name':FIXTURE_NAME,'cpfCnpj':FIXTURE_DOCUMENT,'notificationDisabled':True,'externalReference':cref})
             if not re.fullmatch(r'cus_[A-Za-z0-9]+',customer.get('id','')) or customer.get('externalReference')!=cref or customer.get('notificationDisabled') is not True or customer.get('name')!=FIXTURE_NAME:raise Unconfirmed('Customer mismatch')
             patch(customer_ref=customer['id'],state='customer_ready')
         payment=self.api.call('GET','/payments/'+row['payment_ref']) if row.get('payment_ref') else self.api.find('payments',reference)
         if payment is None:
-            if row['state']!='customer_ready':return # payment_creating remains for reconciliation
+            if row['state']!='customer_ready':
+                patch(sync_requested=False);return # never repeat an uncertain write
             patch(state='payment_creating')
             payment=self.api.call('POST','/payments',{'customer':row['customer_ref'],'billingType':'UNDEFINED','value':row['amount_cents']/100,'dueDate':str(row['due_date']),'description':'Imagine - homologacao sem dinheiro real','externalReference':reference})
         state=verify_payment(payment,row)
@@ -114,4 +116,6 @@ if __name__=='__main__':
         db=Database();worker=Worker(db,Asaas(cfg['api_key']))
         for row in db.rows():
             try:worker.process(row);print('Sandbox intent reconciled')
-            except Unconfirmed as e:print('Sandbox intent requires reconciliation; no blind retry: '+str(e))
+            except Unconfirmed as e:
+                db.patch(row['order_id'],{'sync_requested':False})
+                print('Sandbox intent requires reconciliation; no blind retry: '+str(e))
