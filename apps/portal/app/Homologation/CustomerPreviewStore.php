@@ -50,10 +50,11 @@ final class CustomerPreviewStore
     }
     public function orders(?string $owner): array
     {
-        $sql='SELECT o.id,o.product,o.payment,o.revision,(o.briefing IS NOT NULL) AS briefing_saved,c.name AS customer_name,c.username FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id';
+        $sql='SELECT o.id,o.product,o.payment,o.revision,o.work_status,(o.briefing IS NOT NULL) AS briefing_saved,c.name AS customer_name,c.username FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id';
         $q=$this->db->prepare($sql.($owner===null?'':' WHERE o.customer_id=?').' ORDER BY o.created_at DESC,o.id LIMIT 100');
         $q->execute($owner===null?[]:[$owner]); return $q->fetchAll(PDO::FETCH_ASSOC);
     }
+    public function customers(): array { return $this->db->query('SELECT name,company,username,enabled FROM purchase_rehearsal.customers ORDER BY username LIMIT 100')->fetchAll(PDO::FETCH_ASSOC); }
     private function result(array $row): array
     {
         $row['revision']=(int)$row['revision'];

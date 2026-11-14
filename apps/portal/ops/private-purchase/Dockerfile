@@ -7,6 +7,7 @@ COPY apps/portal/app/Presentation ./app/Presentation
 COPY apps/portal/resources/views/portal/demo ./resources/views/portal/demo
 COPY apps/portal/resources/views/portal/preview ./resources/views/portal/preview
 COPY apps/portal/ops/private-purchase/full-layout.blade.php ./resources/views/components/portal/layout.blade.php
+COPY apps/portal/app/Http/Controllers/CustomerWorkPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/CustomerPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/FullPortalPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/FullPortalPreviewServiceProvider.php ./app/Providers/

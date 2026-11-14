@@ -29,6 +29,8 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::get('shop/orders/{id}',[\App\Http\Controllers\CustomerPreviewController::class,'show']);
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
             Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing']);
+            Route::get('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'show']);
+            Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action']);
             Route::get('logo',[FullPortalPreviewController::class,'logo']);
             Route::get('client/{section}',[FullPortalPreviewController::class,'client']);
             Route::get('admin/{section}',[FullPortalPreviewController::class,'admin']);
