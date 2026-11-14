@@ -50,7 +50,7 @@ with sync_playwright() as p:
   page.goto(BASE+'/shop?product=performance&channel=google_ads');
   expect(page.locator('[data-performance-summary]')).to_contain_text('490,00')
   page.locator('[data-channel=meta_media]').check();expect(page.locator('[data-performance-summary]')).to_contain_text('980,00');page.locator('[data-channel=meta_media]').uncheck()
-  page.locator('[name=google_media]').fill('700,00');page.locator('[name=offer_ack]').check();page.get_by_role('button',name='Criar pedido de teste',exact=True).click()
+  page.locator('[name=google_media]').fill('700,00');page.locator('[name=offer_ack]').check();page.locator('[data-performance-submit]').click()
   page.locator('[name=sandbox_ack]').check();page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
   oid=page.url.rsplit('/',1)[1];db=Database();row=next(x for x in db.rows() if x['order_id']==oid);assert row['amount_cents']==49000
   initial=InitialAPI();original=initial.call
