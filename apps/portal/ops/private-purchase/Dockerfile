@@ -9,6 +9,7 @@ COPY apps/portal/resources/views/portal/preview ./resources/views/portal/preview
 COPY apps/portal/ops/private-purchase/full-layout.blade.php ./resources/views/components/portal/layout.blade.php
 COPY apps/portal/app/Http/Controllers/CustomerPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/FullPortalPreviewController.php ./app/Http/Controllers/
+COPY apps/portal/app/Http/Controllers/CustomerWorkPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/FullPortalPreviewServiceProvider.php ./app/Providers/
 COPY apps/portal/app/Homologation ./app/Homologation
 COPY apps/portal/app/Http/Controllers/PurchaseRehearsalController.php ./app/Http/Controllers/
