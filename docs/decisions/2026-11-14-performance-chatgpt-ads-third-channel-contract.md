@@ -7,16 +7,16 @@
 ## Status
 
 DRAFT / NO-MERGE / NO-DEPLOY / NO-CHARGE / NO-ADS-WRITE.
-Este documento NÃO altera o JSON canônico approved-commercial-catalog.json, o checkout, a cobrança Asaas ou contratos já firmados. O usuário pediu uma recomendação de valores, sem ratificar os pisos exatos propostos.
+Este documento NÃO altera o JSON canônico approved-commercial-catalog.json, o checkout, a cobrança Asaas ou contratos já firmados. Em seguida o titular aprovou expressamente os pisos e investimentos recomendados por canal. A ativação comercial e financeira continua dependente de migração e homologação.
 
 ## Regra de catálogo candidato: preços por canal
 
-Metadados candidatos:
+Valores comerciais aprovados para novas ofertas, ainda não implantados no catálogo ativo:
 - meta_ads: mínimo Imagine de mídia mensal R$700, investimento recomendado R$1000;
 - google_ads: mínimo Imagine de mídia mensal R$1000, recomendado R$1500;
 - chatgpt_ads: mínimo Imagine de mídia mensal R$1200, recomendado R$1800.
 
-Não interpretar o piso mensal Imagine como limite técnico universal da plataforma. OpenAI exige orçamento diário mínimo de BRL 40 por campanha para contas BRL com orçamento diário, não mensalidade geral de R$1.200; orçamento total tem semântica própria. Os demais pisos são critérios comerciais candidatos, não mínimos universais de provedores.
+Não interpretar o piso mensal Imagine como limite técnico universal da plataforma. OpenAI exige orçamento diário mínimo de BRL 40 por campanha para contas BRL com orçamento diário, não mensalidade geral de R$1.200; orçamento total tem semântica própria. Os demais pisos são políticas comerciais Imagine aprovadas, não mínimos universais de provedores.
 
 Honorários aprovados permanecem **20% da mídia efetivamente investida**, com estimativa antecipada pelo orçamento contratado e acerto mensal revisado. Cliente paga mídia DIRETAMENTE à Meta/Google/OpenAI. A Imagine cobra somente gestão via Portal, sujeita à reconciliação e autorização. Nunca faturar a mídia pela Imagine por confusão com o serviço.
 
@@ -37,7 +37,7 @@ Honorários aprovados permanecem **20% da mídia efetivamente investida**, com e
 - Testes fail-closed dos três canais, legado v4, troca de tenant e account, moeda/timezone, limite de mídia e arredondamento 20%.
 - Teste crossrepo Portal+Performance PR #351 com catálogo futuro, antes de qualquer merge.
 - Todos os comandos de publicação/cobrança desabilitados no laboratório.
-- Bloquear preço público e contratação até aprovação explícita dos três pisos e verificação de conta OpenAI.
+- Bloquear preço público e contratação até implantação e homologação dos três pisos aprovados e verificação de conta OpenAI.
 - Registrar trilha de consentimento/autorização do anunciante para API e rastreamento.
 
 Fontes oficiais:
