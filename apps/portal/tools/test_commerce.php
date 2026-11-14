@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/../app/Homologation/Commerce/ApprovedOfferCatalog.php';
+require __DIR__.'/../app/Homologation/Commerce/CustomerPreviewHandoff.php';
 require __DIR__.'/../app/Homologation/Commerce/AsaasSandboxGateway.php';
 use App\Homologation\Commerce\ApprovedOfferCatalog as Catalog;
 use App\Homologation\Commerce\AsaasSandboxGateway as Gateway;
@@ -66,4 +67,15 @@ denied(fn()=>Catalog::reconcilePerformance($c->quote('onepage'),['google_ads'=>7
 check(Gateway::verifyWebhookToken(str_repeat('x',32),str_repeat('x',32)));
 check(!Gateway::verifyWebhookToken(str_repeat('x',32),str_repeat('y',32)));
 check(!Gateway::verifyWebhookToken('short','short'));
-echo 'PASS '.$checks." commerce and sandbox adapter checks (injected transport; no live PSP)\n";
+foreach (['onepage','landing-pages'] as $product) {
+    check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl($product)==='/_preview/portal/shop?product='.$product);
+    denied(fn()=>\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl($product,'google_ads'));
+}
+foreach (['google_ads','meta_ads'] as $channel) {
+    check(\App\Homologation\Commerce\CustomerPreviewHandoff::channel('performance',$channel)===$channel);
+    check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl('performance',$channel)==='/_preview/portal/shop?product=performance&channel='.$channel);
+}
+check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl('performance')==='/_preview/portal/shop?product=performance');
+foreach (['google','meta','facebook','../../admin','',1,[],['google_ads']] as $bad) denied(fn()=>\App\Homologation\Commerce\CustomerPreviewHandoff::channel('performance',$bad));
+check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl('unknown')===null);
+echo 'PASS '.$checks." commerce, handoff and sandbox checks (injected transport; no live PSP)\n";
