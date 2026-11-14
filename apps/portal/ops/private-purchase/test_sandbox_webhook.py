@@ -1,7 +1,7 @@
-import http.server,json,threading,unittest,urllib.request,urllib.error,os,subprocess,sys,pathlib
+import http.server,json,threading,unittest,urllib.request,urllib.error,os,subprocess,sys,pathlib,tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
-from asaas_sandbox_webhook import parse_event,InvalidEvent,Handler,PATH,Inbox as SqlInbox
+from asaas_sandbox_webhook import parse_event,InvalidEvent,Handler,PATH,Inbox as SqlInbox,load_private_config
 TOKEN='sandbox-test-fixture-token-not-a-live-credential-0001'
 EVENT={'id':'evt_05b708f961d739ea7eba7e4db318f621&368604920','event':'PAYMENT_RECEIVED','payment':{'id':'pay_0_fixture','customer':'private-not-retained','value':330,'externalReference':'imagine:TEST-'+'a'*32+':initial'}}
 class Inbox:
@@ -33,6 +33,29 @@ class Tests(unittest.TestCase):
     self.assertNotEqual(result.returncode,0)
     self.assertIn('NO-GO',result.stderr)
     self.assertEqual(result.stdout,'')
+
+ def test_private_config_checks_the_open_descriptor(self):
+  payload={'environment':'sandbox','auth_token':'x'*43}
+  with tempfile.TemporaryDirectory() as td:
+   path=pathlib.Path(td)/'asaas-webhook.json'
+   path.write_text(json.dumps(payload));path.chmod(0o600)
+   self.assertEqual(load_private_config(path),payload)
+   path.chmod(0o644)
+   with self.assertRaises(ValueError):load_private_config(path)
+   path.chmod(0o600)
+   path.write_text('x'*8193)
+   with self.assertRaises(ValueError):load_private_config(path)
+   path.write_text(json.dumps(payload))
+   target=pathlib.Path(td)/'target.json';path.rename(target)
+   path.symlink_to(target)
+   with self.assertRaises(OSError):load_private_config(path)
+   path.unlink()
+   if hasattr(os,'mkfifo'):
+    os.mkfifo(path)
+    with self.assertRaises(ValueError):load_private_config(path)
+   path.unlink()
+   path.write_text(json.dumps(['not-an-object']*8));path.chmod(0o600)
+   with self.assertRaises(ValueError):load_private_config(path)
 
  def test_sql_broker_never_uses_postgres_or_set_role(self):
   event=parse_event(json.dumps(EVENT).encode())

@@ -67,6 +67,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except Exception:return self.reply(503)
         self.reply(200)
 
+def load_private_config(path):
+    """Open and verify the same descriptor: lstat followed by read_text is racy."""
+    # O_NOFOLLOW rejects symlinks even if the pathname is swapped at open time.
+    # O_NONBLOCK avoids a blocking FIFO open before fstat can reject it.
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    fd = os.open(path, flags)
+    with os.fdopen(fd, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or
+            stat.S_IMODE(info.st_mode) != 0o600 or
+            info.st_uid != os.geteuid() or
+            not 64 <= info.st_size <= 8192):
+            raise ValueError('unsafe')
+        raw = stream.read(8193)
+        if len(raw) != info.st_size:
+            raise ValueError('unsafe')
+        cfg = json.loads(raw)
+        if not isinstance(cfg, dict):
+            raise ValueError('unsafe')
+        return cfg
+
 if __name__=='__main__':
     # The receiver is an explicit operator-only staging process, not a general
     # entrypoint. Do not let CI, an unconfigured shell or production start it.
@@ -76,13 +97,7 @@ if __name__=='__main__':
         raise SystemExit('NO-GO: explicit staging-only webhook opt-in required')
     config=ROOT/'.private/asaas-webhook.json'
     try:
-        info=config.lstat()
-        if (not stat.S_ISREG(info.st_mode) or
-            stat.S_IMODE(info.st_mode)!=0o600 or
-            info.st_uid!=os.geteuid() or
-            not 64<=info.st_size<=8192):
-            raise ValueError('unsafe')
-        cfg=json.loads(config.read_text())
+        cfg=load_private_config(config)
     except (OSError,ValueError,TypeError):
         raise SystemExit('NO-GO: private webhook configuration unavailable') from None
     token=cfg.get('auth_token','')
