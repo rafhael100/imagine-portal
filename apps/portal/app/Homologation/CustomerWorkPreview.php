@@ -21,6 +21,7 @@ final class CustomerWorkPreview
         // Only after the order ownership/admin scope has been established above.
         $q=$this->db->prepare("SELECT 'initial' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? UNION ALL SELECT charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_future_billing WHERE order_id=? UNION ALL SELECT 'monthly-invoice' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_subscription_invoices WHERE order_id=? ORDER BY due_date,charge_key");
         $q->execute([$id,$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
+        $row['performance_reports']=$row['product']==='performance'?(new \App\Homologation\Commerce\PerformanceSettlement($this->db))->reports($id):[];
         unset($row['customer_id'],$row['request_key']); return $row;
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool
