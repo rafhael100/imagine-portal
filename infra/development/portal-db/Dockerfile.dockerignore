@@ -1,4 +1,6 @@
 **
+!assets/
+!assets/logo-imagine.png
 !apps/
 !apps/portal/
 !apps/portal/composer.json

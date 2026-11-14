@@ -65,6 +65,7 @@ final class DemoPortalStaticExporter
                 preg_match('~(?:https?:)?//~i', $html) === 1) {
                 throw new LogicException('The demo view is not suitable for offline static export.');
             }
+            $html = $this->withEmbeddedApprovedLogo($html);
             // F138: mark the current exported page without adding JS routes
             // or falsely granting a clickable customer Portal menu.
             $pageNav = str_replace(
@@ -89,6 +90,7 @@ final class DemoPortalStaticExporter
             || preg_match('~(?:https?:)?//~i', $reviewHtml) === 1) {
             throw new LogicException('The delivery-review preview is not safe for offline export.');
         }
+        $reviewHtml = $this->withEmbeddedApprovedLogo($reviewHtml);
         $reviewNav = str_replace(
             'href="delivery-review.html"',
             'href="delivery-review.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
@@ -111,6 +113,7 @@ final class DemoPortalStaticExporter
                 || preg_match('~(?:https?:)?//~i', $extraHtml) === 1) {
                 throw new LogicException('Extra demo illustration is not safe for offline export.');
             }
+            $extraHtml = $this->withEmbeddedApprovedLogo($extraHtml);
             $extraNav = str_replace(
                 'href="' . $slug . '.html"',
                 'href="' . $slug . '.html" aria-current="page" style="font-weight:700;text-decoration:underline"',
@@ -163,8 +166,8 @@ final class DemoPortalStaticExporter
             '<meta http-equiv="Content-Security-Policy" content="' .
             htmlspecialchars(DemoPortalNavigationAudit::OFFLINE_CSP, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">' .
             '<title>Imagine Portal — prévia interna offline</title>' .
-            '<style>body{font:16px/1.6 system-ui;margin:30px auto;max-width:760px;padding:0 20px;color:#142239}' .
-            'a{color:#225fc2}li{padding:7px 0}.warning{border:1px solid #c78b39;padding:15px}</style>' .
+            '<style>body{font:16px/1.6 system-ui;margin:30px auto;max-width:760px;padding:0 20px;color:#171b19}' .
+            'a{color:#8b4600}li{padding:7px 0}.warning{border:1px solid #c78b39;padding:15px}</style>' .
             '</head><body><a href="#pi-content">Pular para o conteúdo</a>' .
             '<main id="pi-content"><h1>Imagine Portal — prévia interna offline</h1>' .
             '<p class="warning">Somente dados fictícios. Sem login, contrato, pagamento, cliente ou publicação.</p>' .
@@ -221,6 +224,54 @@ final class DemoPortalStaticExporter
                 @unlink($claimFile);
             }
         }
+    }
+
+    /**
+     * F398: the online-ish private Blade uses the same-origin approved logo,
+     * while the CLOSED offline exporter must embed the exact original PNG.
+     * Keep the exported CSP more restrictive (data: only) and never insert
+     * external URLs, scripts, forms or browser calls into eleven demo pages.
+     */
+    private function withEmbeddedApprovedLogo(string $html): string
+    {
+        $needle="url('/_development/branding/logo-imagine.png')";
+        if (substr_count($html,$needle)!==1) {
+            throw new LogicException('Approved Imagine logo missing or repeated.');
+        }
+        $paths=[
+            public_path('_development/branding/logo-imagine.png'),
+            dirname(base_path(),2).'/assets/logo-imagine.png',
+        ];
+        $image=null;
+        foreach($paths as $path){
+            if (!is_file($path)||is_link($path)){
+                continue;
+            }
+            $size=filesize($path);
+            if(!is_int($size)||$size<1024||$size>65536){
+                throw new LogicException('Approved Imagine image must be a small local PNG.');
+            }
+            $bytes=file_get_contents($path);
+            if(!is_string($bytes)||substr($bytes,0,8)!=="\x89PNG\r\n\x1a\n"){
+                throw new LogicException('Approved Imagine image is not PNG.');
+            }
+            if($image!==null&&!hash_equals(hash('sha256',$image),hash('sha256',$bytes))){
+                throw new LogicException('Imagine logo copies differ; refusing offline export.');
+            }
+            $image=$bytes;
+        }
+        if(!is_string($image)){
+            throw new RuntimeException('Approved Imagine logo is unavailable to offline exporter.');
+        }
+        $html=str_replace($needle,
+            "url('data:image/png;base64,".base64_encode($image)."')",$html);
+        // Online Blade can load same-origin assets, but exported offline
+        // pages must remain self-contained under data-only image CSP.
+        $live="img-src 'self' data:";
+        if(substr_count($html,$live)!==1){
+            throw new LogicException('Unexpected online image policy for demo export.');
+        }
+        return str_replace($live,'img-src data:',$html);
     }
 
     public static function authorizesCustomerAccess(): bool { return false; }

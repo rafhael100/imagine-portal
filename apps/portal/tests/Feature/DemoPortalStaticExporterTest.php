@@ -41,6 +41,36 @@ final class DemoPortalStaticExporterTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_offline_export_restores_original_imagine_logo_and_orange_theme(): void
+    {
+        $original=dirname(base_path(),2).'/assets/logo-imagine.png';
+        self::assertFileExists($original);
+        $bytes=file_get_contents($original);
+        self::assertIsString($bytes);
+        self::assertSame("\x89PNG\r\n\x1a\n",substr($bytes,0,8));
+
+        (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
+        $expected="url('data:image/png;base64,".base64_encode($bytes)."')";
+
+        foreach(['overview','services','available','contracts','modules',
+            'journey','requests','delivery-review','help','notices']as$slug){
+            $html=file_get_contents($this->temporaryDirectory.'/'.$slug.'.html');
+            self::assertIsString($html);
+            self::assertStringContainsString($expected,$html);
+            self::assertStringContainsString('--pi-accent:#f9941d',$html);
+            self::assertStringContainsString(
+                DemoPortalNavigationAudit::OFFLINE_CSP,$html
+            );
+            self::assertStringNotContainsString(
+                "url('/_development/branding/logo-imagine.png')",$html
+            );
+            self::assertStringNotContainsString("img-src 'self' data:",$html);
+        }
+        self::assertTrue(
+            (new DemoPortalNavigationAudit())->verify($this->temporaryDirectory)
+        );
+    }
+
     public function test_export_creates_navigable_index_and_read_only_review_preview(): void
     {
         $pages = (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
