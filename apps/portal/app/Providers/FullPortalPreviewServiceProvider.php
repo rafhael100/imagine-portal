@@ -29,6 +29,13 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                 : 'anonymous:'.$request->ip();
             return Limit::perMinute(12)->by('synthetic-preview-write:'.$subject);
         });
+        RateLimiter::for('preview-work-write', static function(Request $request) {
+            $profile=app(PreviewProfiles::class)->current($request);
+            $subject=isset($profile['customer_id'])
+                ? 'customer:'.$profile['customer_id']
+                : (($profile['role']??'')==='admin'?'admin':'anonymous:'.$request->ip());
+            return Limit::perMinute(12)->by('synthetic-preview-work:'.$subject);
+        });
         Route::prefix('_preview/portal')->middleware('web')->group(function(): void {
             Route::get('/',[FullPortalPreviewController::class,'login']);
             Route::post('login',[FullPortalPreviewController::class,'authenticate'])->middleware('throttle:preview-login');
@@ -41,7 +48,7 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment'])->middleware('throttle:preview-order-write');
             Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing'])->middleware('throttle:preview-order-write');
             Route::get('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'show']);
-            Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action'])->middleware('throttle:preview-order-write');
+            Route::post('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'action'])->middleware('throttle:preview-work-write');
             Route::get('logo',[FullPortalPreviewController::class,'logo']);
             Route::get('client/{section}',[FullPortalPreviewController::class,'client']);
             Route::get('admin/{section}',[FullPortalPreviewController::class,'admin']);
