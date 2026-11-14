@@ -60,6 +60,7 @@ jobs:
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < performance-settlement-schema.sql
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < performance-postpaid-schema.sql
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
@@ -160,11 +161,6 @@ jobs:
         if: failure()
         working-directory: apps/portal/ops/private-purchase
         run: docker compose logs --tail 100 application gateway
-      - name: Remove synthetic short-lived admin browser session artifact
-        if: always()
-        run: |
-          rm -f -- "$RUNNER_TEMP/portal-ci-admin-storage-state.json"
-          test ! -e "$RUNNER_TEMP/portal-ci-admin-storage-state.json"
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase

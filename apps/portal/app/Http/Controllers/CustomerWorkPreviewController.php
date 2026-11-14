@@ -34,6 +34,17 @@ final class CustomerWorkPreviewController
         catch(\Throwable){abort(409,'Relatório indisponível. Confira o pagamento e a versão atual do pedido.');}
         return redirect('/_preview/portal/work/'.$id);
     }
+    public function performanceInvoice(Request $r,string $id)
+    {
+        $p=$this->context($r);abort_unless($p['role']==='admin',403);
+        abort_unless(app(CustomerWorkPreview::class)->read(null,$id),404);
+        abort_unless(array_diff(array_keys($r->all()),['_token','revision','version','due_date','sandbox_ack'])===[],422);
+        $v=$r->validate(['revision'=>'required|integer|min:0|max:100000','version'=>'required|integer|min:1|max:20','due_date'=>'required|date_format:Y-m-d','sandbox_ack'=>'accepted']);
+        try { app(\App\Homologation\Commerce\PerformanceSettlement::class)->invoice($id,(int)$v['revision'],(int)$v['version'],$v['due_date']); }
+        catch(\InvalidArgumentException){abort(422,'Confira a competência e o vencimento posterior à apuração.');}
+        catch(\Throwable){abort(409,'Confirme a ativação no Asaas sandbox, a conferência do cliente e os dados da cobrança existente.');}
+        return redirect('/_preview/portal/work/'.$id);
+    }
     public function performanceRespond(Request $r,string $id)
     {
         $p=$this->context($r);abort_unless($p['role']==='client'&&isset($p['customer_id']),403);

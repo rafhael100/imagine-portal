@@ -44,9 +44,12 @@ def invoice_url(value):
     except ValueError: pass
     return None
 
+def valid_future_key(key):
+    return isinstance(key,str) and (key in ('setup-2','setup-3','monthly') or re.fullmatch(r'performance-20[0-9]{2}-(0[1-9]|1[0-2])',key) is not None)
+
 def verify_payment(p,row,reference_key='initial'):
     try:
-        if reference_key not in ('initial','setup-2','setup-3'):raise ValueError()
+        if reference_key!='initial' and (not valid_future_key(reference_key) or reference_key=='monthly'):raise ValueError()
         cents=decimal.Decimal(str(p['value']))*100
         if not cents.is_finite() or cents!=row['amount_cents']: raise ValueError()
         if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':'+reference_key or not re.fullmatch(r'pay_[A-Za-z0-9_]{1,100}',p.get('id','')): raise ValueError()
@@ -122,7 +125,7 @@ class Database:
             if not task['order_id']:
                 self.sql("UPDATE purchase_rehearsal.sandbox_webhook_inbox SET processed_at=now() WHERE event_hash='"+digest+"';");continue
             oid=task['order_id'];key=task['charge_key']
-            if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('initial','setup-2','setup-3','monthly'):raise Unconfirmed('Invalid inbox route')
+            if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or (key!='initial' and not valid_future_key(key)):raise Unconfirmed('Invalid inbox route')
             self.sql("UPDATE purchase_rehearsal.sandbox_webhook_inbox SET next_attempt_at=now()+make_interval(secs=>LEAST(900,15*(2^attempts)::integer)),attempts=attempts+1 WHERE event_hash='"+digest+"';")
             table='sandbox_payment_intents' if key=='initial' else 'sandbox_future_billing'
             extra=",provider_status='VERIFYING',state=CASE WHEN state IN ('approved','active') THEN 'pending' ELSE state END"
@@ -146,7 +149,7 @@ class FutureDatabase(Database):
         self.sql('INSERT INTO purchase_rehearsal.sandbox_subscription_invoices(payment_ref,order_id,amount_cents,due_date,state,provider_status,invoice_url) VALUES ('+','.join(lit(x) for x in values)+') ON CONFLICT(payment_ref) DO UPDATE SET state=EXCLUDED.state,provider_status=EXCLUDED.provider_status,invoice_url=EXCLUDED.invoice_url,updated_at=now() WHERE sandbox_subscription_invoices.order_id=EXCLUDED.order_id AND sandbox_subscription_invoices.amount_cents=EXCLUDED.amount_cents AND sandbox_subscription_invoices.due_date=EXCLUDED.due_date;')
     def patch_future(self,oid,key,changes):
         allowed={'state','provider_ref','invoice_url','provider_status','sync_requested'}
-        if set(changes)-allowed or not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('setup-2','setup-3','monthly'):raise Unconfirmed('Invalid future ledger update')
+        if set(changes)-allowed or not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or not valid_future_key(key):raise Unconfirmed('Invalid future ledger update')
         def lit(v):
             if v is None:return 'NULL'
             if isinstance(v,bool):return 'true' if v else 'false'
@@ -158,8 +161,12 @@ class FutureWorker:
     def __init__(self,db,api):self.db=db;self.api=api
     def process(self,row):
         oid=row['order_id'];key=row['charge_key'];monthly=key=='monthly'
-        if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('setup-2','setup-3','monthly') or type(row['amount_cents']) is not int or not 1<=row['amount_cents']<=100000000 or not re.fullmatch(r'cus_[A-Za-z0-9_]{1,100}',row.get('customer_ref','')):raise Unconfirmed('Invalid future intent')
+        if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or not valid_future_key(key) or type(row['amount_cents']) is not int or not 1<=row['amount_cents']<=100000000 or not re.fullmatch(r'cus_[A-Za-z0-9_]{1,100}',row.get('customer_ref','')):raise Unconfirmed('Invalid future intent')
         due=str(row['due_date']);datetime.date.fromisoformat(due)
+        if key.startswith('performance-'):
+            period=datetime.date.fromisoformat(key.removeprefix('performance-')+'-01')
+            next_month=period.replace(year=period.year+(period.month==12),month=period.month%12+1)
+            if row.get('kind')!='performance' or datetime.date.fromisoformat(due)<next_month:raise Unconfirmed('Invalid postpaid due date')
         reference='imagine:'+oid+':'+key;kind='subscriptions' if monthly else 'payments'
         obj=self.api.call('GET','/'+kind+'/'+row['provider_ref']) if row.get('provider_ref') else self.api.find(kind,reference)
         if obj is None:
@@ -168,6 +175,7 @@ class FutureWorker:
             self.db.patch_future(oid,key,{'state':'payment_creating'})
             payload={'customer':row['customer_ref'],'billingType':'UNDEFINED','value':row['amount_cents']/100,'description':'Imagine - homologacao sem dinheiro real','externalReference':reference}
             payload.update({'cycle':'MONTHLY','nextDueDate':due} if monthly else {'dueDate':due})
+            if key.startswith('performance-'):payload['billingType']='BOLETO'
             obj=self.api.call('POST','/'+kind,payload)
         if monthly:
             try:
@@ -202,6 +210,7 @@ class FutureWorker:
             state='active' if obj['status']=='ACTIVE' else 'inactive' 
         else:
             if obj.get('dueDate')!=due:raise Unconfirmed('Future due date mismatch')
+            if key.startswith('performance-') and obj.get('billingType')!='BOLETO':raise Unconfirmed('Postpaid boleto required')
             state=verify_payment(obj,row|{'payment_ref':row.get('provider_ref')},key)
         self.db.patch_future(oid,key,{'provider_ref':obj['id'],'provider_status':obj['status'],'invoice_url':None if monthly else invoice_url(obj.get('invoiceUrl')),'state':state,'sync_requested':False})
         return True

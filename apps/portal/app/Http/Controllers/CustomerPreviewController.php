@@ -30,6 +30,8 @@ final class CustomerPreviewController
     public function shop(Request $r)
     {
         $product=$r->query('product');
+        $channel=$r->query('channel');abort_unless($channel===null||in_array($channel,['google_ads','meta_ads'],true),422);
+        if($channel!==null)$r->session()->put('preview.channel',$channel);
         abort_unless($product===null||in_array($product,self::OFFERS,true),422);
         if ($product!==null) $r->session()->put('preview.intent',$product);
         $p=app(PreviewProfiles::class)->current($r);

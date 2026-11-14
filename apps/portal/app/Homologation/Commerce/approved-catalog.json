@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "decision_date": "2026-11-14",
   "currency": "BRL",
   "gateway": {
@@ -132,27 +132,30 @@
     {
       "id": "performance",
       "pricing_status": "approved_by_owner_2026_11_14",
-      "billing_model": "percentage_of_invested_media",
+      "billing_model": "activation_plus_postpaid_per_channel",
       "management_fee_basis_points": 2000,
       "minimum_media_investment_per_channel_cents": 70000,
       "minimum_is_media_budget_not_management_fee": true,
-      "calculation": "sum_of_invested_media_for_contracted_channels_times_20_percent",
+      "calculation": "sum(max(17000,round_half_up(channel_actual_media_cents*20_percent)))",
       "channels": [
         "google_ads",
         "meta_ads"
       ],
       "meta_instagram_facebook_count_as_one_channel": true,
       "reference_period": "monthly",
-      "operational_settlement_policy": "estimated_management_fee_upfront_with_monthly_actual_media_spend_adjustment",
-      "below_minimum_spend_policy": null,
+      "operational_settlement_policy": "calendar_month_actual_spend_per_channel_floor_postpaid",
+      "below_minimum_spend_policy": "management_floor_170_per_contracted_channel",
       "setup_fee_cents": null,
-      "setup_fee_status": "not_authorized_by_this_decision",
+      "setup_fee_status": "approved_490_per_channel",
       "direct_checkout_enabled": false,
       "media_spend_paid_directly_to_platforms": true,
       "monthly_days_90_from_sites_inherited": false,
       "automatic_sites_discounts_inherited": false,
-      "decision_file": "docs/decisions/2026-11-14-performance-20-percent-media.md",
-      "minimum_media_investment_reference_period": "monthly"
+      "decision_file": "docs/decisions/2026-11-14-performance-monthly-floor-170-approved.md",
+      "minimum_media_investment_reference_period": "monthly",
+      "pricing_policy": "performance-postpaid-170-per-channel-2026-11-14",
+      "minimum_management_fee_per_channel_cents": 17000,
+      "activation_per_channel_cents": 49000
     }
   ],
   "legacy_contract_policy": "preserve_original_prices_and_terms",

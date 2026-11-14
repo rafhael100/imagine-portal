@@ -13,8 +13,9 @@
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
             @if($slug === 'performance')
-                <p><strong>Gestão Imagine: 20% da mídia investida.</strong> Mínimo de R$ 700 de anúncios por canal, pago diretamente ao Google ou à Meta. Honorários Imagine são separados da verba de anúncios.</p>
-                <p>Honorários antecipados sobre o investimento planejado, com acerto mensal conforme a mídia efetivamente investida. Informe o orçamento mensal de cada canal.</p>
+                <p><strong>Gestão de anúncios a partir de R$170/mês por canal.</strong> Você paga 20% do investimento realizado, com mínimo de R$170 por mês em cada canal contratado. A cobrança vem após a apuração do mês.</p>
+                <p><strong>Ativação única: R$490 por canal.</strong> A verba de anúncios é paga diretamente às plataformas. Orçamento mínimo desta oferta de teste: R$700 por canal.</p>
+                <details><summary>Como funciona a gestão mensal?</summary><p>R$350 investidos em um canal → R$170 de gestão. R$4.000 investidos → R$800 de gestão. Cada canal é calculado separadamente; Facebook e Instagram contam como um único canal Meta Ads.</p></details>
             @else
                 @include('portal.preview.offer-summary',['quote'=>(new \App\Homologation\Commerce\ApprovedOfferCatalog())->quote($slug)])
             @endif
@@ -24,17 +25,39 @@
                 <input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}">
                 <input type="hidden" name="offer_version" value="{{ $offerVersion }}">
                 @if($slug === 'performance')
-                    <label>Investimento Google Ads (R$; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
-                    <label>Investimento Meta (R$; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
-                    <small>Instagram e Facebook pertencem ao mesmo canal Meta.</small>
+                    @foreach(['google_ads'=>['Google Ads','google_media'],'meta_ads'=>['Meta Ads (Facebook e Instagram)','meta_media']] as $channel=>$details)
+                    <label><input type="checkbox" data-channel="{{ $details[1] }}" @checked(session('preview.channel','google_ads')===$channel)> Adicionar {{ $details[0] }}</label>
+                    <label>Orçamento mensal planejado · {{ $details[0] }} (R$)<input name="{{ $details[1] }}" inputmode="decimal" placeholder="700,00" maxlength="12" value="{{ old($details[1],'700,00') }}"></label>
+                    @endforeach
+                    <noscript><p>Informe o orçamento dos canais desejados e deixe vazio o campo dos demais. O resumo será calculado ao criar o pedido.</p></noscript>
+                    <div role="status" aria-live="polite" data-performance-summary><p>Ativação: R$490 por canal. Gestão: 20%, mínimo de R$170/mês por canal, após apuração.</p></div>
                 @endif
                 <label><input type="checkbox" name="offer_ack" value="1" required> Revisei as condições para esta simulação, sem cobrança ou contrato real.</label>
-                <button type="submit">Criar pedido de teste</button>
+                <button type="submit" @if($slug==='performance') data-performance-submit @endif>Criar pedido de teste</button>
             </form>
         </section>
     @endif
 @endforeach
 </div>
+<script>
+(() => {
+ const money = cents => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(cents/100);
+ const parse = text => /^(?:0|[1-9][0-9]{0,6})(?:[.,][0-9]{1,2})?$/.test(text) ? Math.round(Number(text.replace(',','.'))*100) : null;
+ document.querySelectorAll('form').forEach(form => {
+  const checks=[...form.querySelectorAll('[data-channel]')]; if(!checks.length)return;
+  const update=()=>{
+   let count=0, estimate=0, valid=true;
+   checks.forEach(check=>{const input=form.elements[check.dataset.channel]; input.disabled=!check.checked;input.required=check.checked;
+    if(check.checked){count++;const amount=parse(input.value);if(amount===null||amount<70000)valid=false;else estimate+=Math.max(17000,Math.round(amount*0.2));}
+   });
+   const summary=form.querySelector('[data-performance-summary]');
+   summary.textContent='Pagar agora: '+money(count*49000)+' de ativação. Gestão mensal: 20% do investimento, mínimo total de '+money(count*17000)+' para '+count+' canal(is). '+(valid&&count?'Estimativa para os orçamentos informados: '+money(estimate)+'/mês. ':'')+'Mídia paga diretamente às plataformas. Gestão cobrada após apuração.';
+   const button=form.querySelector('[data-performance-submit]');button.disabled=!count;button.setAttribute('aria-label',count?'Criar pedido de teste · '+count+' canal(is) · '+money(count*49000)+' de ativação':'Selecione ao menos um canal');
+  };
+  checks.forEach(check=>check.addEventListener('change',update));form.addEventListener('input',update);update();
+ });
+})();
+</script>
 @else
 <h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento de homologação</dt><dd class="status">{{ $order['payment_source']==='asaas_sandbox' && $order['payment']==='approved' && ($order['sandbox']['state'] ?? null)!=='approved' ? 'Em conferência no Asaas' : ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
 @if($order['offer_snapshot'] !== null)

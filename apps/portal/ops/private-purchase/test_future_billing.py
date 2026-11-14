@@ -20,6 +20,20 @@ class Tests(unittest.TestCase):
   self.w.process(self.db.row);self.w.process(self.db.row)
   self.assertEqual(self.api.posts,['/payments']);self.assertEqual(self.db.row['state'],'pending')
   self.assertEqual(self.api.obj['externalReference'],'imagine:'+OID+':setup-2')
+ def test_performance_boleto_month_scope_and_no_duplicate(self):
+  self.db.row.update(charge_key='performance-2026-11',kind='performance',amount_cents=17000,due_date='2026-12-10')
+  self.w.process(self.db.row);self.w.process(self.db.row)
+  self.assertEqual(self.api.posts,['/payments']);self.assertEqual(self.api.obj['billingType'],'BOLETO')
+  self.api.obj['status']='RECEIVED';self.w.process(self.db.row);self.assertEqual(self.db.row['state'],'approved')
+  for changes in [{'value':1},{'billingType':'PIX'},{'externalReference':'imagine:'+OID+':performance-2026-12'}]:
+   original=self.api.obj.copy();self.api.obj.update(changes)
+   with self.subTest(changes=changes),self.assertRaises(Unconfirmed):self.w.process(self.db.row)
+   self.api.obj=original
+ def test_performance_invalid_month_or_premature_due_rejected(self):
+  for key,due in [('performance-2026-13','2027-01-10'),('performance-2026-11','2026-11-30')]:
+   self.db.row.update(charge_key=key,kind='performance',amount_cents=17000,due_date=due)
+   with self.assertRaises(Unconfirmed):self.w.process(self.db.row)
+  self.assertEqual(self.api.posts,[])
  def test_monthly_native_subscription(self):
   self.db.row.update(charge_key='monthly',kind='monthly',amount_cents=7990,due_date='2027-02-12')
   self.w.process(self.db.row);self.w.process(self.db.row)
