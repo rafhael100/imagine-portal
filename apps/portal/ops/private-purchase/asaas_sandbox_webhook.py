@@ -27,9 +27,20 @@ class Inbox:
         def lit(v):return 'NULL' if v is None else "'"+v.replace("'","''")+"'"
         values=','.join(lit(event[k]) for k in ['event_hash','event_type','resource_ref','subscription_ref','external_ref'])
         # Payload is deliberately not retained: only routing IDs, no personal/financial data.
-        sql="BEGIN; SET LOCAL ROLE purchase_rehearsal_hook; SELECT pg_advisory_xact_lock(724116); INSERT INTO purchase_rehearsal.sandbox_webhook_inbox(event_hash,event_type,resource_ref,subscription_ref,external_ref) SELECT "+values+" WHERE (SELECT count(*) FROM purchase_rehearsal.sandbox_webhook_inbox)<10000 ON CONFLICT DO NOTHING; SELECT EXISTS(SELECT FROM purchase_rehearsal.sandbox_webhook_inbox WHERE event_hash="+lit(event['event_hash'])+"); COMMIT;"
-        p=subprocess.run(['docker','compose','exec','-T','database','psql','-X','-q','-tA','-v','ON_ERROR_STOP=1','-U','postgres','-d','portal_purchase_rehearsal'],input=sql,cwd=ROOT,capture_output=True,text=True,timeout=10)
-        if p.returncode or p.stdout.strip().splitlines()[-1:]!=['t']:raise RuntimeError('Inbox unavailable')
+        sql="BEGIN; SELECT pg_advisory_xact_lock(724116); INSERT INTO purchase_rehearsal.sandbox_webhook_inbox(event_hash,event_type,resource_ref,subscription_ref,external_ref) SELECT "+values+" WHERE (SELECT count(*) FROM purchase_rehearsal.sandbox_webhook_inbox)<10000 ON CONFLICT DO NOTHING; SELECT EXISTS(SELECT FROM purchase_rehearsal.sandbox_webhook_inbox WHERE event_hash="+lit(event['event_hash'])+"); COMMIT;"
+        # Do not authenticate as postgres even briefly. A one-shot psql client
+        # has its own LOGIN, read-only pgpass mount and RLS-scoped grants.
+        command=['docker','compose','run','--rm','-T','--no-deps',
+                 'webhook-broker','-X','-q','-tA','-v','ON_ERROR_STOP=1',
+                 '-h','database','-p','5432','-U','purchase_rehearsal_hook',
+                 '-d','portal_purchase_rehearsal']
+        try:
+            p=subprocess.run(command,input=sql,cwd=ROOT,capture_output=True,
+                             text=True,timeout=25,check=False)
+        except (OSError,subprocess.TimeoutExpired):
+            raise RuntimeError('Inbox unavailable') from None
+        if p.returncode or p.stdout.strip().splitlines()[-1:]!=['t']:
+            raise RuntimeError('Inbox unavailable')
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self,*args):pass # Never log headers, token or provider payload.
