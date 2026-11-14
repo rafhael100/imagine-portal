@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Homologation\CustomerPreviewStore;
 use App\Homologation\PreviewProfiles;
 use App\Homologation\Commerce\ApprovedOfferCatalog;
+use App\Homologation\Commerce\CustomerPreviewHandoff;
 use Illuminate\Http\Request;
 
 final class CustomerPreviewController
@@ -18,8 +19,11 @@ final class CustomerPreviewController
         try { app(CustomerPreviewStore::class)->register($v['username'],$v['password'],$v['name'],$v['company']); }
         catch (\Throwable) { return redirect('/_preview/portal/register')->withErrors(['username'=>'Não foi possível criar a conta. Escolha outro usuário ou tente mais tarde.']); }
         $intent=$r->session()->get('preview.intent');
+        $channel=$r->session()->get('preview.intent_channel');
         abort_unless(app(PreviewProfiles::class)->login($r,$v['username'],$v['password']),503);
-        return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/client/overview');
+        try { $target=CustomerPreviewHandoff::shopUrl($intent,$channel); }
+        catch (\InvalidArgumentException) { $target=null; }
+        return redirect($target??'/_preview/portal/client/overview');
     }
     private function owner(Request $r): array
     {
@@ -31,11 +35,19 @@ final class CustomerPreviewController
     {
         $product=$r->query('product');
         abort_unless($product===null||in_array($product,self::OFFERS,true),422);
-        if ($product!==null) $r->session()->put('preview.intent',$product);
+        try { $channel=CustomerPreviewHandoff::channel($product,$r->query('channel')); }
+        catch (\InvalidArgumentException) { abort(422,'Canal de origem inválido'); }
+        if ($product!==null) {
+            $r->session()->put('preview.intent',$product);
+            if ($channel!==null) $r->session()->put('preview.intent_channel',$channel);
+            else $r->session()->forget('preview.intent_channel');
+        } else {
+            $r->session()->forget(['preview.intent','preview.intent_channel']);
+        }
         $p=app(PreviewProfiles::class)->current($r);
         if (!$p) return redirect('/_preview/portal');
         if (!isset($p['customer_id'])) return response()->view('portal.preview.personal-required');
-        $this->owner($r); return $this->page(null,$product);
+        $this->owner($r); return $this->page(null,$product,$channel);
     }
     public function create(Request $r)
     {
@@ -74,10 +86,10 @@ final class CustomerPreviewController
         return redirect('/_preview/portal/shop/orders/'.$id);
     }
     private function fields(Request $r,array $allowed): void { abort_unless(array_diff(array_keys($r->all()),[...$allowed,'_token'])===[],422); }
-    private function page(?array $order,?string $product=null)
+    private function page(?array $order,?string $product=null,?string $channel=null)
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
         $catalog=new ApprovedOfferCatalog();
-        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version()]);
+        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'selectedChannel'=>$channel,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version()]);
     }
 }
