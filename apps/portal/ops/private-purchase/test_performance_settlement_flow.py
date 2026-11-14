@@ -14,7 +14,7 @@ with sync_playwright() as p:
  def login(user):
   global page
   if user in pages:page=pages[user];return
-  if user=='administrador.teste' and os.getenv('GITHUB_ACTIONS')=='true':
+  if user=='administrador.teste' and os.getenv('GITHUB_ACTIONS')=='true' and os.getenv('PERFORMANCE_REPORT_REOPEN')!='1':
    # The earlier customer-flow suite authenticated the synthetic admin.
    # Reuse its short-lived, CI-only session across processes rather than
    # weakening the per-account authentication throttle or sleeping past it.
