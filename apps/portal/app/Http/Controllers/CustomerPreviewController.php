@@ -41,13 +41,15 @@ final class CustomerPreviewController
     }
     public function create(Request $r)
     {
-        $p=$this->owner($r); $this->fields($r,['product','request_key','offer_version','offer_ack','google_media','meta_media']);
-        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D','offer_version'=>'required|string|size:64','offer_ack'=>'accepted','google_media'=>'nullable|string|max:12','meta_media'=>'nullable|string|max:12']);
+        $p=$this->owner($r); $this->fields($r,['product','request_key','offer_version','offer_ack','google_media','meta_media','channel_selection','channels']);
+        $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D','offer_version'=>'required|string|size:64','offer_ack'=>'accepted','google_media'=>'nullable|string|max:12','meta_media'=>'nullable|string|max:12','channel_selection'=>'nullable|in:1','channels'=>'required_if:channel_selection,1|array|min:1|max:2','channels.*'=>'required|string|distinct|in:google_ads,meta_ads']);
         $catalog=new ApprovedOfferCatalog();
         abort_unless(hash_equals($catalog->version(),$v['offer_version']),409,'A oferta mudou. Atualize e confira as condições.');
         $media=[];
         try {
-            foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if (($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
+            if(isset($v['channel_selection'])&&$v['product']!=='performance')throw new \InvalidArgumentException('Unexpected channels');
+            foreach (['google_media'=>'google_ads','meta_media'=>'meta_ads'] as $field=>$channel) if ((!isset($v['channel_selection'])||in_array($channel,$v['channels'],true))&&($v[$field]??'')!=='') $media[$channel]=ApprovedOfferCatalog::money($v[$field]);
+            if(isset($v['channel_selection'])&&array_diff($v['channels'],array_keys($media)))throw new \InvalidArgumentException('Missing selected channel budget');
             $quote=$catalog->quote($v['product'],$media);
         } catch (\InvalidArgumentException) { abort(422,'Informe investimento de pelo menos R$ 700 por canal selecionado; deixe vazio o canal não contratado.'); }
         try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product'],$quote); }

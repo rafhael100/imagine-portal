@@ -22,6 +22,8 @@ with sync_playwright() as p:
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'1400','meta_media':'0'}).status==422
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'699,99'}).status==422
     assert page.request.post(BASE+'/shop/orders',form=data|{'google_media':'700','fee_cents':'1'}).status==422
+    assert page.request.post(BASE+'/shop/orders',form=data|{'channel_selection':'1','channels[0]':'google_ads','google_media':'','meta_media':'700'}).status==422
+    assert page.request.post(BASE+'/shop/orders',form=data|{'channel_selection':'1','channels[0]':'forged','google_media':'700'}).status==422
     page.locator('[name=google_media]').fill('700')
     page.locator('[data-channel=meta_media]').check();page.locator('[name=meta_media]').fill('700')
     page.locator('[name=offer_ack]').check()

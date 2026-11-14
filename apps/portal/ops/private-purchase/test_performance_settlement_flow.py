@@ -123,6 +123,24 @@ with sync_playwright() as p:
   assert post(work+'/performance-invoice',form=invoice|{'_token':token()}).status==403
   assert 'RECEIVED' in page.content()
   login('administrador.teste');page.goto(work)
+  second={'_token':token(),'revision':revision(),'period':'2026-12','evidence_ref':'SIM-SEGUNDO-MES-003','actual_google_ads':'4000,00','synthetic_ack':'1'}
+  assert post(work+'/performance-report',form=second).status==200
+  login(saved['user']);page.goto(work)
+  assert 'R$ 800,00' in page.content()
+  assert post(work+'/performance-response',form={'_token':token(),'revision':revision(),'version':'3','decision':'acknowledged','report_ack':'1'}).status==200
+  login('administrador.teste');page.goto(work)
+  second_invoice={'_token':token(),'revision':revision(),'version':'3','due_date':'2027-01-10','sandbox_ack':'1'}
+  assert post(work+'/performance-invoice',form=second_invoice).status==200
+  second_row=next(x for x in fdb.rows() if x['order_id']==oid and x['charge_key']=='performance-2026-12')
+  assert second_row['amount_cents']==80000
+  provider2=MonthlyAPI();call2=provider2.call
+  def second_call(method,path,body=None):
+   obj=call2(method,path,body)
+   if method=='POST':obj['id']='pay_performance_december';provider2.obj=obj.copy()
+   return obj
+  provider2.call=second_call;FutureWorker(fdb,provider2).process(second_row)
+  assert len(provider2.posts)==1 and provider2.obj['value']==800 and provider2.obj['billingType']=='BOLETO'
+  assert fdb.sql("SELECT count(*) FROM purchase_rehearsal.sandbox_future_billing WHERE order_id='"+oid+"';")=='2'
   assert Database().sql('SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;')==str(int(psp_count)+1) # One activation, one separately scoped monthly invoice; no duplicate initial charge.
   fixture.write_text(json.dumps({'work':work,'user':saved['user']}))
   print('PASS Performance advance -> report -> customer dispute -> immutable correction -> customer review; role/ownership/price tampering denied; activation490, per-channel floor170 and one idempotent postpaid boleto confirmed by authoritative provider reconciliation')

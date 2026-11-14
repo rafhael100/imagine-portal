@@ -25,11 +25,12 @@
                 <input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}">
                 <input type="hidden" name="offer_version" value="{{ $offerVersion }}">
                 @if($slug === 'performance')
+                    <input type="hidden" name="channel_selection" value="1">
                     @foreach(['google_ads'=>['Google Ads','google_media'],'meta_ads'=>['Meta Ads (Facebook e Instagram)','meta_media']] as $channel=>$details)
-                    <label><input type="checkbox" data-channel="{{ $details[1] }}" @checked(session('preview.channel','google_ads')===$channel)> Adicionar {{ $details[0] }}</label>
+                    <label><input type="checkbox" name="channels[]" value="{{ $channel }}" data-channel="{{ $details[1] }}" @checked(session('preview.channel','google_ads')===$channel)> Adicionar {{ $details[0] }}</label>
                     <label>Orçamento mensal planejado · {{ $details[0] }} (R$)<input name="{{ $details[1] }}" inputmode="decimal" placeholder="700,00" maxlength="12" value="{{ old($details[1],'700,00') }}"></label>
                     @endforeach
-                    <noscript><p>Informe o orçamento dos canais desejados e deixe vazio o campo dos demais. O resumo será calculado ao criar o pedido.</p></noscript>
+                    <noscript><p>Marque os canais desejados e informe seus orçamentos. O resumo será calculado ao criar o pedido.</p></noscript>
                     <div role="status" aria-live="polite" data-performance-summary><p>Ativação: R$490 por canal. Gestão: 20%, mínimo de R$170/mês por canal, após apuração.</p></div>
                 @endif
                 <label><input type="checkbox" name="offer_ack" value="1" required> Revisei as condições para esta simulação, sem cobrança ou contrato real.</label>
