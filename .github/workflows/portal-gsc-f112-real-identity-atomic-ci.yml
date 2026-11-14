@@ -1,0 +1,197 @@
+name: Portal F412 - crossline financial review plus GSC real membership disposable test
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-gsc-f112-real-identity-atomic-ci.yml'
+      - 'apps/portal/labs/gsc-f112-integrated-pg18/**'
+      - 'apps/portal/app/Domain/Authorization/Permission.php'
+      - 'apps/portal/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php'
+      - 'apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php'
+      - 'apps/portal/tests/Unit/PortalGsc*'
+      - 'apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php'
+
+permissions:
+  contents: read
+
+jobs:
+  real-portal-identity-and-gsc-grant-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: portal_gsc_f112_lab
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f112_synthetic_admin_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f112_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: '127.0.0.1'
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f112_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f112_synthetic_admin_only
+      PGHOST: '127.0.0.1'
+      PGPORT: '5432'
+      PGDATABASE: portal_gsc_f112_lab
+      PGUSER: postgres
+      PGPASSWORD: f112_synthetic_admin_only
+      PORTAL_OPENSEO_DAILY_LAB: '1'
+      PORTAL_GSC_F108_ATOMIC_LAB: '1'
+      PORTAL_GSC_F109_VIEW_LAB: '1'
+      PORTAL_GSC_F112_REAL_SCHEMA_LAB: '1'
+    steps:
+      - name: Checkout exact Portal identity review head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout exact independently reviewed GSC F109 chain
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: de3315df4e8b8c07228d76f6613c799f9c174f31
+          path: .qa/gsc-f109
+          persist-credentials: false
+      - name: Checkout synthetic SEO Engine F104 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: ec1739621b20860f729c59d9863ba1b341da43e8
+          path: .qa/seo-f104
+          persist-credentials: false
+      - name: Set up pinned PHP 8.4 PDO PostgreSQL and Node22
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer
+      - name: Install exact Node22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Verify integrated candidate HEAD, pinned GSC/SEO SHA and GSC-only delta
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
+          test "$(git -C .qa/seo-f104 rev-parse HEAD)" = ec1739621b20860f729c59d9863ba1b341da43e8
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          while IFS= read -r changed; do
+            case "$changed" in
+              .github/workflows/portal-gsc-f112-real-identity-atomic-ci.yml|\
+              apps/portal/app/Domain/Authorization/Permission.php|\
+              apps/portal/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php|\
+              apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php|\
+              apps/portal/labs/gsc-f110-view-permission/*|\
+              apps/portal/labs/gsc-f111-browser-permission/*|\
+              apps/portal/labs/gsc-f112-integrated-pg18/*|\
+              apps/portal/tests/Unit/PortalGscPermissionContractTest.php|\
+              apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php|\
+              apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php) ;;
+              *) echo "Unexpected F412 changed path" >&2; exit 1;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
+      - name: Locked composer + PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/gsc-f112-integrated-pg18/test-real-schema.php
+          php -l .qa/gsc-f109/apps/portal/app/Domain/SeoReview/OfflinePortalGscMetricsGrantReview.php
+          node --check .qa/gsc-f109/apps/portal/labs/gsc-f104-bridge/emit-node.mjs
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+      - name: Apply genuine Laravel identity and GSC migrations on same disposable DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          pushd apps/portal
+          for file in \
+            2026_11_09_000002_create_portal_identity_foundation.php \
+            2026_11_10_000004_add_org_revision_to_portal_sessions.php \
+            2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php \
+            2026_11_10_000007_allow_seo_gsc_connect_grant.php \
+            2026_11_14_000019_allow_seo_gsc_view_grant.php; do
+            php artisan migrate --force --no-interaction --path="database/migrations/$file"
+          done
+          for file in \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php; do
+            php artisan migrate --force --no-interaction --realpath --path="$GITHUB_WORKSPACE/.qa/gsc-f109/apps/portal/database/migrations/$file"
+          done
+          popd
+          # The pinned F108 fixture hardcodes its original disposable
+          # DB name in exactly ONE CONNECT GRANT statement. Change only
+          # that laboratory locator; retain the source SHA and all SQL.
+          umask 077
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          source=Path(".qa/gsc-f109/apps/portal/labs/gsc-f108-atomic-fence/locked-session-gsc.sql").read_text()
+          assert source.count("imagine_gsc_ci_test")==1
+          out=Path(os.environ["RUNNER_TEMP"])/"gsc-f108-real-schema.sql"
+          out.write_text(source.replace("imagine_gsc_ci_test","portal_gsc_f112_lab"))
+          PY
+          psql -X -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/gsc-f108-real-schema.sql"
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f112-integrated-pg18/portal-real-grants-f109-bridge.sql
+      - name: Cross-stack real membership and atomic GSC review across 3 synthetic scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete partial empty; do
+            node .qa/gsc-f109/apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f112-integrated-pg18/test-real-schema.php \
+              "$fixture" \
+              ".qa/gsc-f109/apps/portal/app/Domain/SeoReview/OfflinePortalGscMetricsGrantReview.php"
+          done
+      - name: Roll back all six GSC and five identity migrations after fixture cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          pushd apps/portal
+          for file in \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php; do
+            php artisan migrate:rollback --force --no-interaction --realpath --path="$GITHUB_WORKSPACE/.qa/gsc-f109/apps/portal/database/migrations/$file"
+          done
+          for file in \
+            2026_11_14_000019_allow_seo_gsc_view_grant.php \
+            2026_11_10_000007_allow_seo_gsc_connect_grant.php \
+            2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php \
+            2026_11_10_000004_add_org_revision_to_portal_sessions.php \
+            2026_11_09_000002_create_portal_identity_foundation.php; do
+            php artisan migrate:rollback --force --no-interaction --path="database/migrations/$file"
+          done
+          popd
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"

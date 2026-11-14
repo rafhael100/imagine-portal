@@ -18,4 +18,6 @@ enum Permission: string
     case ViewBilling = 'billing.view';
     case ManageMembers = 'members.manage';
     case ConnectGoogleSearchConsole = 'seo.gsc.connect';
+    // Explicit metrics-read grant; never implied by property connection.
+    case ViewGoogleSearchConsoleMetrics = 'seo.gsc.view';
 }
