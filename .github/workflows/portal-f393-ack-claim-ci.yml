@@ -1,0 +1,56 @@
+name: Portal F393 - Append-only signed revocation ACK claims (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'infra/development/portal-recovery/f393-worker/**'
+      - 'infra/development/portal-recovery/f376-worker/src/witness.mjs'
+      - 'apps/portal/app/Infrastructure/Recovery/SignedRevocationAckClaimCandidateVerifier.php'
+      - '.github/workflows/portal-f393-ack-claim-ci.yml'
+permissions:
+  contents: read
+jobs:
+  immutable-ack-and-signed-receipt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F393_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: none
+      - name: Verify independent ACK is never a SQL revocation certificate
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F393_CI" = DISPOSABLE_ONLY
+          node --check infra/development/portal-recovery/f393-worker/ack.mjs
+          node --check infra/development/portal-recovery/f393-worker/test-ack.mjs
+          node --check infra/development/portal-recovery/f376-worker/src/witness.mjs
+          php -l apps/portal/app/Infrastructure/Recovery/SignedRevocationAckClaimCandidateVerifier.php
+          php -l infra/development/portal-recovery/f393-worker/test-php-interop.php
+          if grep -R -E 'SignedRevocationAckClaimCandidateVerifier|revocation-acks' \
+              apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'F393 ACK candidate must not become public Laravel HTTP'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          export F393_INTEROP_DIR="$scratch"
+          node infra/development/portal-recovery/f393-worker/test-ack.mjs
+          php infra/development/portal-recovery/f393-worker/test-php-interop.php "$scratch"
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs
