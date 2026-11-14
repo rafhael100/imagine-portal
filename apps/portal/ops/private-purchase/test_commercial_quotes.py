@@ -3,11 +3,15 @@ import json,pathlib,shutil,os
 from playwright.sync_api import sync_playwright
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
 saved=json.loads(pathlib.Path('/tmp/portal-customer-ci.json').read_text())
+# A separate already-registered synthetic customer avoids CI re-logins
+# exhausting the real six-per-minute per-account security throttle.
+quote_user=saved['user'].replace('demo-a-','demo-b-',1)
+assert quote_user!=saved['user'] and quote_user.startswith('demo-b-')
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page()
     page.goto(BASE)
-    page.locator('[name=username]').fill(saved['user'])
+    page.locator('[name=username]').fill(quote_user)
     page.locator('[name=password]').fill('ci-owned-customer-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     for channel,description in [('google_ads','Google Ads'),('meta_ads','Meta Ads')]:
@@ -24,7 +28,7 @@ with sync_playwright() as p:
     page.get_by_role('button',name='Sair',exact=True).click()
     page.goto(BASE+'/shop?product=performance&channel=meta_ads')
     assert page.url.rstrip('/')==BASE
-    page.locator('[name=username]').fill(saved['user'])
+    page.locator('[name=username]').fill(quote_user)
     page.locator('[name=password]').fill('ci-owned-customer-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/shop?product=performance&channel=meta_ads'),page.url

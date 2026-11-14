@@ -87,7 +87,7 @@ CREATE POLICY customer_preview_insert_scope ON purchase_rehearsal.customers FOR 
  WITH CHECK(tenant='test-org-a' AND current_user='purchase_rehearsal_a');
 
 DROP POLICY IF EXISTS customer_order_scope ON purchase_rehearsal.customer_orders;
-CREATE POLICY customer_order_scope ON purchase_rehearsal.customer_orders FOR ALL
+CREATE POLICY customer_order_scope ON purchase_rehearsal.customer_orders FOR ALL TO purchase_rehearsal_a
  USING(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(customer_id))
  WITH CHECK(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(customer_id));
 GRANT SELECT,INSERT ON purchase_rehearsal.customers TO purchase_rehearsal_a;

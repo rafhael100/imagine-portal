@@ -66,8 +66,29 @@ final class CustomerPreviewController
     }
     public function show(Request $r,string $id)
     {
-        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404); return $this->page($o);
+        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404);
+        $o['sandbox']=app(CustomerPreviewStore::class)->sandboxStatus($p['customer_id'],$id);
+        return $this->page($o);
     }
+    public function sandbox(Request $r,string $id)
+    {
+        $p=$this->owner($r);
+        $this->fields($r,['revision','sandbox_ack']);
+        abort_unless(app(CustomerPreviewStore::class)->read($p['customer_id'],$id),404);
+        $v=$r->validate([
+            'revision'=>'required|integer|min:0|max:100000',
+            'sandbox_ack'=>'accepted',
+        ]);
+        try {
+            app(CustomerPreviewStore::class)->sandboxRequest(
+                $p['customer_id'],$id,(int)$v['revision']
+            );
+        } catch (\Throwable) {
+            abort(409,'Cobrança sandbox indisponível. Confira a etapa e o histórico.');
+        }
+        return redirect('/_preview/portal/shop/orders/'.$id);
+    }
+
     public function payment(Request $r,string $id)
     {
         $p=$this->owner($r); $this->fields($r,['revision','outcome','sample_ack']);

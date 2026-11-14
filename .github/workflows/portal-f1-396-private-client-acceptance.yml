@@ -1,0 +1,53 @@
+name: Portal F1-396 private client approval resolver CI (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feature/portal-f1-396-private-client-approval-resolver-2026-11-14
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PortalSitesClientAcceptanceResolver.php'
+      - 'tests/f396-private-client-acceptance-resolver.php'
+      - '.github/workflows/portal-f1-396-private-client-acceptance.yml'
+      - 'docs/PORTAL-F1-396-PRIVATE-CLIENT-APPROVAL.md'
+permissions:
+  contents: read
+jobs:
+  private-acceptance-resolver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F396_RESOLVER_CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium
+          coverage: none
+      - name: Lint private resolver and canonical Portal issuer
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SitesIntegration/PortalSitesClientAcceptanceResolver.php
+          php -l apps/portal/app/Domain/SitesIntegration/PortalEd25519ClientAcceptanceIssuer.php
+          php -l tests/f396-private-client-acceptance-resolver.php
+      - name: Test S2S authorization, exact release binding and fail-closed cases
+        run: |
+          set -euo pipefail
+          if PORTAL_F396_RESOLVER_CI=0 php tests/f396-private-client-acceptance-resolver.php; then
+            echo "Unsafe: private resolver fixture ran without CI guard" >&2
+            exit 1
+          fi
+          php tests/f396-private-client-acceptance-resolver.php
+      - name: Preserve absence of public endpoint and live privileged consent adapter
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalSitesClientAcceptanceResolver' apps/portal/app/Providers apps/portal/routes
+          ! grep -R -n 'PortalEd25519ClientAcceptanceIssuer' apps/portal/app/Providers apps/portal/routes
+          echo 'No route, IAM adapter, current customer consent or key vault bound: NO-GO.'

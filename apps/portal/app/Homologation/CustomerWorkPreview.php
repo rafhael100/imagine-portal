@@ -29,10 +29,20 @@ final class CustomerWorkPreview
             $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE id=?'.($owner===null?'':' AND customer_id=?').' FOR UPDATE');
             $q->execute($owner===null?[$id]:[$id,$owner]); $row=$q->fetch(PDO::FETCH_ASSOC);
             if (!$row||(int)$row['revision']!==$revision) throw new RuntimeException('Unavailable or stale order');
+            $hold=in_array($row['payment_hold']??null,[true,'t',1,'1'],true);
+            if ($hold && $action!=='message') throw new RuntimeException('Financial hold');
+            $financialAllowed=$row['payment_source']==='manual_test';
+            if (!$financialAllowed) {
+                $check=$this->db->prepare(
+                    'SELECT state FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=?'
+                );
+                $check->execute([$id]);
+                $financialAllowed=$check->fetchColumn()==='approved';
+            }
             $state=$row['work_status']; $target=$state; $delivery=$row['delivery_note'];
             if ($action==='message') {
                 if (trim($note)==='') throw new RuntimeException('Message required');
-            } elseif ($owner===null&&$action==='start'&&in_array($state,['queued','changes_requested'],true)&&$row['briefing']!==null&&$row['payment']==='approved') {
+            } elseif ($owner===null&&$action==='start'&&in_array($state,['queued','changes_requested'],true)&&$row['briefing']!==null&&$row['payment']==='approved'&&$financialAllowed) {
                 $target='in_production';
             } elseif ($owner===null&&$action==='deliver'&&$state==='in_production'&&trim($note)!=='') {
                 $target='awaiting_approval'; $delivery=$note;
