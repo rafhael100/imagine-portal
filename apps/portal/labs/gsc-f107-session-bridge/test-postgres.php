@@ -109,8 +109,13 @@ try {
     ]);
     foreach(['portal_identities','portal_auth_sessions',
         'portal_gsc_property_grants'] as $t) {
-        must((int)$identityDb->query("SELECT count(*) FROM {$t}")
-            ->fetchColumn()===0);
+        // The identity reader has EXECUTE-only access, not even SELECT
+        // privilege on these tables. Query role ACL from the lab owner.
+        $priv=$owner->prepare(
+            "SELECT has_table_privilege('portal_browser_runtime',:table,'SELECT')"
+        );
+        $priv->execute(['table'=>'public.'.$t]);
+        must(in_array($priv->fetchColumn(),[false,'f','0',0],true));
     }
     must((int)$gscDb->query(
         'SELECT count(*) FROM portal_gsc_property_grants'
