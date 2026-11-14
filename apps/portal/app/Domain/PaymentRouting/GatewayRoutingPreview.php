@@ -71,6 +71,12 @@ final class GatewayRoutingPreview
             }
             // Integer arithmetic and rounded-up percentage prevent floating point drift.
             $fee = $fixed + intdiv($grossCents * $basisPoints + 9_999, 10_000);
+            // An amount that cannot cover the provider's quoted fee is not a
+            // usable payment route. Fail closed rather than presenting a
+            // negative net settlement or silently choosing a loss-making PSP.
+            if ($fee >= $grossCents) {
+                continue;
+            }
             $quotes[$gateway] = [
                 'gateway' => $gateway,
                 'method' => $method,
