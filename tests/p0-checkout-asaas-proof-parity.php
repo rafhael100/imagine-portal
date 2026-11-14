@@ -107,8 +107,8 @@ $reader->record=[
     'value'=>330.00,'deleted'=>false,'refunds'=>[],
     'refundedDate'=>null,'subscription'=>null,
 ];
-verifyP0(AsaasSandboxGateway::settled($reader->record),
-    'sandbox preview CONFIRMED card alone would show a positive UX payment state');
+verifyP0(!AsaasSandboxGateway::settled($reader->record),
+    'sandbox preview CONFIRMED card must remain pending before actual RECEIVED');
 $source=new AsaasVerifiedSettlementSource($binding,$reader);
 verifyP0($source->findCurrentSettledOrder($order)===null,
     'operational issuer must NOT accept CONFIRMED card before RECEIVED cash availability');
