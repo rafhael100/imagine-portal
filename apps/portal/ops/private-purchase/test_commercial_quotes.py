@@ -37,6 +37,9 @@ with sync_playwright() as p:
     page.locator('[name=offer_ack]').check()
     page.get_by_role('button',name='Criar pedido de teste').click()
     assert 'R$ 1.290,00' in page.locator('body').inner_text()
+    assert page.locator('[data-billing-kind="setup"]').count()==3
+    assert page.locator('[data-billing-kind="monthly"]').count()==3
+    assert 'R$ 430,00' in page.locator('[data-billing-calendar]').inner_text()
     page.goto(BASE+'/shop?product=performance')
     assert '20%' in page.locator('body').inner_text()
     data={'_token':page.locator('[name=_token]').input_value(),'product':'performance','request_key':page.locator('[name=request_key]').input_value(),'offer_ack':'1','offer_version':page.locator('[name=offer_version]').input_value()}
