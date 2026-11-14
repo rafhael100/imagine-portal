@@ -10,7 +10,7 @@ if(PHP_SAPI!=='cli'||$argc!==2||
     getenv('PORTAL_GSC_F110_IDENTITY_LAB')!=='1'||
     getenv('PGHOST')!=='127.0.0.1'||
     getenv('PGDATABASE')!=='portal_gsc_f110_lab'||
-    !in_array($argv[1],['setup','verify','cleanup'],true)){
+    !in_array($argv[1],['setup','verify','cleanup','final-cleanup'],true)){
     fwrite(STDERR,"F110 disposable CI only\n");exit(2);
 }
 function failUnless(bool $ok):void{
@@ -29,17 +29,17 @@ $view='55555555-5555-4555-8555-555555555550';
 try{
     $version=(int)$pdo->query("SELECT current_setting('server_version_num')::integer/10000")->fetchColumn();
     failUnless($version===18);
-    $mustCheck=static function(string $permission)use($pdo):bool{
+    $mustCheck=static function()use($pdo):bool{
         $s=$pdo->prepare(
             'SELECT COUNT(*) FROM pg_constraint c
-             WHERE c.conrelid = :target::regclass
+             WHERE c.conrelid = to_regclass(:target)
                AND c.conname = :constraint'
         );
         $s->execute(['target'=>'public.portal_membership_grants',
             'constraint'=>'portal_grant_permission_ck']);
         return (int)$s->fetchColumn()===1;
     };
-    failUnless($mustCheck('seo.gsc.view'));
+    failUnless($mustCheck());
     if($argv[1]==='setup'){
         $pdo->prepare("INSERT INTO portal_identities
            (id,email_normalized,status,created_at,updated_at)
@@ -61,12 +61,13 @@ try{
         failUnless((int)$pdo->query("SELECT COUNT(*) FROM portal_membership_grants")
             ->fetchColumn()===2);
         // A wildcard or foreign permission can never be inserted.
-        foreach(['seo.gsc.*','seo.gsc.admin','gsc.view','*'] as $invalid) {
+        foreach(['seo.gsc.*','seo.gsc.admin','gsc.view','*'] as $index=>$invalid) {
             try{
-                $insert->execute([$view,$member,$invalid]);
+                $invalidId=sprintf('99999999-9999-4999-8999-%012d',$index+1);
+                $insert->execute([$invalidId,$member,$invalid]);
                 failUnless(false);
             }catch(PDOException $e){
-                failUnless($e->getCode()==='23514'||$e->getCode()==='23505');
+                failUnless($e->getCode()==='23514');
             }
         }
         // Duplicate grant is rejected by the foundation unique constraint.
@@ -84,12 +85,19 @@ try{
             WHERE tablename='portal_membership_grants'");
         failUnless((int)$q->fetchColumn()===0);
         echo "F110 verify: rollback refused while view is still granted\n";
-    } else {
+    } elseif($argv[1]==='cleanup') {
         $pdo->prepare("DELETE FROM portal_membership_grants
             WHERE id=? AND permission_code='seo.gsc.view'")->execute([$view]);
         failUnless((int)$pdo->query("SELECT COUNT(*) FROM portal_membership_grants
             WHERE permission_code='seo.gsc.connect'")->fetchColumn()===1);
         echo "F110 cleanup: explicit view grant revoked, connect still exists\n";
+    } else {
+        $pdo->prepare("DELETE FROM portal_membership_grants WHERE id=?")->execute([$connect]);
+        $pdo->prepare("DELETE FROM portal_memberships WHERE id=?")->execute([$member]);
+        $pdo->prepare("DELETE FROM portal_identities WHERE id=?")->execute([$ident]);
+        $pdo->prepare("DELETE FROM portal_organizations WHERE id=?")->execute([$org]);
+        failUnless((int)$pdo->query("SELECT COUNT(*) FROM portal_membership_grants")->fetchColumn()===0);
+        echo "F110 final cleanup: original connect grant and all fixture rows safely cleared\n";
     }
 }catch(Throwable $e){
     fwrite(STDERR,"F110 disposable permission test failed\n");exit(1);
