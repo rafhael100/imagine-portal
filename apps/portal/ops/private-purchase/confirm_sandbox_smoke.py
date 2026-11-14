@@ -9,6 +9,7 @@ def confirm(product,scenario='standard',provider_only=False):
     private=ROOT/'.private'
     cfg_file=private/'asaas-sandbox.json'
     state_file=private/('sandbox-smoke.json' if product=='onepage' else 'sandbox-smoke-'+product+'.json')
+    if scenario=='postpaid':state_file=private/('sandbox-smoke-postpaid-'+product+'.json')
     if scenario=='webhook':state_file=private/('sandbox-smoke-webhook-'+product+'.json')
     for path in [cfg_file,state_file]:
         if stat.S_IMODE(path.stat().st_mode)!=0o600:raise RuntimeError('Private mode must be 600')
@@ -31,5 +32,5 @@ def confirm(product,scenario='standard',provider_only=False):
         print('PASS synthetic '+product+' payment confirmed and reconciled in sandbox')
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--product',choices=['onepage','landing-pages','performance'],required=True)
-    parser.add_argument('--scenario',choices=['standard','webhook'],default='standard');parser.add_argument('--provider-only',action='store_true')
+    parser.add_argument('--scenario',choices=['standard','webhook','postpaid'],default='standard');parser.add_argument('--provider-only',action='store_true')
     args=parser.parse_args();os.umask(0o077);confirm(args.product,args.scenario,args.provider_only)
