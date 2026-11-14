@@ -1,0 +1,32 @@
+name: Portal F408 Performance activation postpaid offline
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php'
+      - 'apps/portal/tests/Unit/ActivationPostpaidPreviewTest.php'
+      - 'apps/portal/tools/test_performance_postpaid_offline.php'
+      - '.github/workflows/portal-performance-postpaid-offline-f408.yml'
+permissions:
+  contents: read
+jobs:
+  offline-postpaid:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact review commit, no credentials persisted
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP syntax and postpaid proof without external services
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php
+          php -l apps/portal/tests/Unit/ActivationPostpaidPreviewTest.php
+          php -l apps/portal/tools/test_performance_postpaid_offline.php
+          php apps/portal/tools/test_performance_postpaid_offline.php
+      - name: Explicitly preserve commercial and release gates
+        if: success()
+        run: |
+          echo 'PASS: F408 synthetic R$490/channel and 20pct actual-media review.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO: monthly management minimum unresolved, no verified real spend, no contract or invoice.' >> "$GITHUB_STEP_SUMMARY"
