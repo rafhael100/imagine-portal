@@ -12,6 +12,9 @@ on:
       - 'apps/portal/resources/views/portal/rehearsal/**'
       - 'apps/portal/tools/test_purchase_browser.py'
       - '.github/workflows/portal-private-purchase-preview.yml'
+  push:
+    branches:
+      - review/portal-owned-four-project-crm-pg18-2026-11-14
 permissions:
   contents: read
 jobs:
