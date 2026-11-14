@@ -11,6 +11,7 @@ COPY apps/portal/bootstrap ./bootstrap
 COPY apps/portal/config ./config
 COPY apps/portal/routes ./routes
 COPY apps/portal/public ./public
+COPY assets/logo-imagine.png ./public/_development/branding/logo-imagine.png
 COPY apps/portal/resources ./resources
 COPY apps/portal/database/migrations ./database/migrations
 COPY apps/portal/database/security/portal_browser_auth.sql apps/portal/database/security/portal_browser_envelopes.sql ./database/security/
