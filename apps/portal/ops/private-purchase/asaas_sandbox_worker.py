@@ -125,7 +125,8 @@ class Database:
             if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('initial','setup-2','setup-3','monthly'):raise Unconfirmed('Invalid inbox route')
             self.sql("UPDATE purchase_rehearsal.sandbox_webhook_inbox SET next_attempt_at=now()+make_interval(secs=>LEAST(900,15*(2^attempts)::integer)),attempts=attempts+1 WHERE event_hash='"+digest+"';")
             table='sandbox_payment_intents' if key=='initial' else 'sandbox_future_billing'
-            self.sql('UPDATE purchase_rehearsal.'+table+" SET sync_requested=true"+(",state=CASE WHEN payment_ref IS NOT NULL AND state='approved' THEN 'pending' ELSE state END" if key=='initial' else '')+" WHERE order_id='"+oid+"'"+(" AND charge_key='"+key+"'" if key!='initial' else '')+';')
+            extra=",provider_status='VERIFYING',state=CASE WHEN state IN ('approved','active') THEN 'pending' ELSE state END"
+            self.sql('UPDATE purchase_rehearsal.'+table+" SET sync_requested=true"+extra+" WHERE order_id='"+oid+"'"+(" AND charge_key='"+key+"'" if key!='initial' else '')+';')
         return tasks
     def ack_event_tasks(self,tasks,oid,key):
         hashes=[t['event_hash'] for t in tasks if t['order_id']==oid and t['charge_key']==key]

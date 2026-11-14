@@ -36,7 +36,7 @@
 @endforeach
 </div>
 @else
-<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento de homologação</dt><dd class="status">{{ ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
+<h1>Seu pedido de teste</h1><p><code>{{ $order['id'] }}</code></p><section><h2>1. Resumo</h2><dl><dt>Serviço</dt><dd>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</dd><dt>Contratação</dt><dd>Somente demonstração; sem valor cobrado ou aceite jurídico.</dd><dt>Pagamento de homologação</dt><dd class="status">{{ $order['payment_source']==='asaas_sandbox' && $order['payment']==='approved' && ($order['sandbox']['state'] ?? null)!=='approved' ? 'Em conferência no Asaas' : ['approved'=>'Aprovado','pending'=>'Pendente','declined'=>'Recusado'][$order['payment']] }}</dd></dl>
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
