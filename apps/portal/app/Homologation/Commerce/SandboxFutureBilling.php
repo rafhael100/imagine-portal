@@ -8,7 +8,7 @@ final class SandboxFutureBilling
     public function __construct(private PDO $db) { new \App\Homologation\RoleBoundTestPurchase($db); }
     public function request(string $owner,string $id,int $revision):void
     {
-        $this->db->beginTransaction();
+        $ownTransaction=!$this->db->inTransaction(); if ($ownTransaction) $this->db->beginTransaction();
         try {
             $this->db->query('SELECT pg_advisory_xact_lock(724115)');
             $q=$this->db->prepare('SELECT o.* FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.sandbox_payment_intents i ON i.order_id=o.id WHERE o.id=? AND o.customer_id=? AND i.state=\'approved\' AND o.payment_source=\'asaas_sandbox\' FOR UPDATE OF o');$q->execute([$id,$owner]);$o=$q->fetch(PDO::FETCH_ASSOC);
@@ -21,8 +21,8 @@ final class SandboxFutureBilling
                 $q=$this->db->prepare('INSERT INTO purchase_rehearsal.sandbox_future_billing(order_id,charge_key,kind,amount_cents,due_date) VALUES (?,?,?,?,?) ON CONFLICT(order_id,charge_key) DO UPDATE SET sync_requested=true');
                 $q->execute([$id,$key,$item['kind'],$item['amount_cents'],$item['due_date']]);
             }
-            $this->db->commit();
-        }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+            if ($ownTransaction) $this->db->commit();
+        }catch(\Throwable $e){if($ownTransaction&&$this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
     public function read(string $owner,string $id):array
     {
