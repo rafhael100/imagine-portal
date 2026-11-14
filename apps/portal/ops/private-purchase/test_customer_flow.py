@@ -6,6 +6,17 @@ fixture=pathlib.Path('/tmp/portal-customer-ci.json')
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page()
+    def check_private_headers(response,where):
+        assert response.status==200,(where,response.status)
+        headers=response.headers
+        assert 'no-store' in headers.get('cache-control','').lower(),(where,'cache')
+        assert headers.get('x-robots-tag','').lower()=='noindex, nofollow',(where,'robots')
+        assert headers.get('referrer-policy','').lower()=='no-referrer',(where,'referrer')
+        assert headers.get('x-content-type-options','').lower()=='nosniff',(where,'sniff')
+        assert headers.get('x-frame-options','').lower()=='deny',(where,'frames')
+        csp=headers.get('content-security-policy','')
+        for directive in ["default-src 'none'","form-action 'self'","frame-ancestors 'none'","base-uri 'none'"]:
+            assert directive in csp,(where,'CSP',directive,csp)
     def login(user,password):
         page.goto(BASE)
         page.locator('[name=username]').fill(user)
@@ -20,14 +31,14 @@ with sync_playwright() as p:
     if os.environ.get('CUSTOMER_REOPEN')=='1':
         saved=json.loads(fixture.read_text())
         login(saved['user'],'ci-owned-customer-only-2026')
-        assert page.goto(saved['order']).status==200
+        check_private_headers(page.goto(saved['order']),'reopened order after restart')
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
         assert 'Aurora ficticia' in page.locator('body').inner_text()
         print('PASS owned purchase, account and briefing recovered after database/application restart')
     else:
         suffix=uuid.uuid4().hex[:10]
         def signup(user):
-            page.goto(BASE+'/register')
+            check_private_headers(page.goto(BASE+'/register'),'registration before signup')
             for name,value in [('name','Cliente ficticio '+user),('company','Aurora ficticia'),('username',user),('password','ci-owned-customer-only-2026'),('password_confirmation','ci-owned-customer-only-2026')]:
                 page.locator('[name='+name+']').fill(value)
             page.get_by_role('button',name='Criar conta e continuar').click()
@@ -36,6 +47,7 @@ with sync_playwright() as p:
         assert page.url.rstrip('/')==BASE
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
+        check_private_headers(page.goto(BASE+'/shop?product=onepage'),'selected offer')
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         # Tampering with the chosen SKU after a Comercial onepage handoff
@@ -46,7 +58,9 @@ with sync_playwright() as p:
         assert forged.status==422, ('POST may not change the chosen offer',forged.status)
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         page.get_by_role('button',name='Criar pedido de teste').click()
+        page.wait_for_url('**/shop/orders/TEST-*',timeout=15000)
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
+        check_private_headers(page.goto(order_url),'owned order details')
         def check_next_step(expected):
             # Two independent Portal views must show the persisted order state.
             for section in ('services','finance'):
@@ -75,7 +89,7 @@ with sync_playwright() as p:
         for name in ['business','goal','audience','materials']:
             page.locator('[name='+name+']').fill('Aurora ficticia')
         page.get_by_role('button',name='Salvar briefing de teste').click()
-        page.reload()
+        check_private_headers(page.reload(),'completed briefing view')
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
         check_next_step('Aguardar análise do briefing')
         page.goto(BASE+'/client/services')
@@ -89,7 +103,28 @@ with sync_playwright() as p:
         assert page.request.post(order_url+'/payment',form={'_token':csrf(),'revision':'2','outcome':'approved','sample_ack':'1'}).status==404
         assert page.request.post(order_url+'/briefing',form={'_token':csrf(),'revision':'2','business':'x','goal':'x','audience':'x','materials':'x'}).status==404
         assert page.request.get(BASE+'/admin/orders').status==403
+        # Customer B has already sent two denied mutation requests (payment,
+        # briefing). Ten additional malformed writes consume only B's
+        # twelve-per-minute bucket; the thirteenth must be rejected at 429,
+        # without inserting orders or leaking another customer's details.
+        page.goto(BASE+'/shop')
+        spam_token=csrf()
+        malformed={'_token':spam_token,'product':'onepage',
+                   'request_key':'TEST-rate-replay-12345678',
+                   'customer_id':'forged'}
+        for attempt in range(10):
+            denied=page.request.post(BASE+'/shop/orders',form=malformed)
+            assert denied.status==422,('expected strict field denial',attempt,denied.status)
+        limited=page.request.post(BASE+'/shop/orders',form=malformed)
+        assert limited.status==429,('synthetic account write limiter failed',limited.status)
         logout(); login(user,'ci-owned-customer-only-2026')
+        # Customer A has a separate trusted server-side limiter identity;
+        # customer B's quota exhaustion must not lock out A.
+        page.goto(BASE+'/shop')
+        independent=page.request.post(BASE+'/shop/orders',form={
+            '_token':csrf(),'product':'onepage',
+            'request_key':'TEST-rate-other-owner-12345678','customer_id':'forged'})
+        assert independent.status==422,('other account was throttled by B',independent.status)
         page.goto(BASE+'/client/finance')
         assert page.locator('tr[data-customer-order]').count()==1
         for width in [320,390,1280]:
