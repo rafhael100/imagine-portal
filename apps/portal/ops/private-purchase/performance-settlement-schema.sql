@@ -10,9 +10,13 @@ CREATE TABLE IF NOT EXISTS purchase_rehearsal.performance_settlement_reports (
 );
 ALTER TABLE purchase_rehearsal.performance_settlement_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.performance_settlement_reports FORCE ROW LEVEL SECURITY;
-DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='performance_settlement_reports' AND policyname='performance_report_scope') THEN
-CREATE POLICY performance_report_scope ON purchase_rehearsal.performance_settlement_reports FOR ALL USING(current_user='purchase_rehearsal_a') WITH CHECK(current_user='purchase_rehearsal_a');
-END IF; END $$;
+DROP POLICY IF EXISTS performance_report_scope ON purchase_rehearsal.performance_settlement_reports;
+CREATE POLICY performance_report_scope ON purchase_rehearsal.performance_settlement_reports
+ FOR ALL TO purchase_rehearsal_a
+ USING(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)))
+ WITH CHECK(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)));
 GRANT SELECT ON purchase_rehearsal.performance_settlement_reports TO purchase_rehearsal_a;
 GRANT INSERT(order_id,version,report) ON purchase_rehearsal.performance_settlement_reports TO purchase_rehearsal_a;
 GRANT UPDATE(decision,client_note,decided_at) ON purchase_rehearsal.performance_settlement_reports TO purchase_rehearsal_a;

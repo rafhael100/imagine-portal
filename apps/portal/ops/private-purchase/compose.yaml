@@ -52,6 +52,26 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     cpus: 0.5
+  # On-demand PSP client; read-only credential and SQL role. CI/host
+  # operator controls Docker but the PHP app cannot obtain this password.
+  broker:
+    profiles: [on-demand]
+    image: postgres:18-alpine
+    entrypoint: [psql]
+    user: '70:70'
+    environment:
+      PGPASSFILE: /run/secrets/broker-pgpass
+      PGCONNECT_TIMEOUT: '5'
+    volumes:
+      - ./.private/broker.pgpass:/run/secrets/broker-pgpass:ro
+    networks: [private]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=4m']
+    restart: 'no'
+    mem_limit: 64m
+    cpus: 0.25
   # Explicitly invoked by the host-only webhook receiver; never started by
   # normal 'docker compose up'. No superuser, socket, or network exposure.
   webhook-broker:

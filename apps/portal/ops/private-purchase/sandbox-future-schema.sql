@@ -13,9 +13,19 @@ CREATE TABLE IF NOT EXISTS purchase_rehearsal.sandbox_future_billing (
 );
 ALTER TABLE purchase_rehearsal.sandbox_future_billing ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.sandbox_future_billing FORCE ROW LEVEL SECURITY;
-DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='sandbox_future_billing' AND policyname='sandbox_future_scope') THEN
- CREATE POLICY sandbox_future_scope ON purchase_rehearsal.sandbox_future_billing FOR ALL USING(current_user IN ('purchase_rehearsal_a','purchase_rehearsal_psp')) WITH CHECK(current_user IN ('purchase_rehearsal_a','purchase_rehearsal_psp'));
-END IF; END $$;
+DROP POLICY IF EXISTS sandbox_future_scope ON purchase_rehearsal.sandbox_future_billing;
+DROP POLICY IF EXISTS sandbox_future_owner_scope ON purchase_rehearsal.sandbox_future_billing;
+DROP POLICY IF EXISTS sandbox_future_worker_scope ON purchase_rehearsal.sandbox_future_billing;
+CREATE POLICY sandbox_future_owner_scope ON purchase_rehearsal.sandbox_future_billing
+ FOR ALL TO purchase_rehearsal_a
+ USING(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)))
+ WITH CHECK(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)));
+CREATE POLICY sandbox_future_worker_scope ON purchase_rehearsal.sandbox_future_billing
+ FOR ALL TO purchase_rehearsal_psp
+ USING(current_user='purchase_rehearsal_psp')
+ WITH CHECK(current_user='purchase_rehearsal_psp');
 GRANT SELECT ON purchase_rehearsal.sandbox_future_billing TO purchase_rehearsal_a,purchase_rehearsal_psp;
 GRANT INSERT(order_id,charge_key,kind,amount_cents,due_date) ON purchase_rehearsal.sandbox_future_billing TO purchase_rehearsal_a;
 GRANT UPDATE(sync_requested) ON purchase_rehearsal.sandbox_future_billing TO purchase_rehearsal_a;

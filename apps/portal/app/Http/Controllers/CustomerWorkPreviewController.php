@@ -29,7 +29,9 @@ final class CustomerWorkPreviewController
         $actual=[];
         try {
             foreach(['google_ads','meta_ads'] as $channel) if(array_key_exists('actual_'.$channel,$v)&&$v['actual_'.$channel]!==null) $actual[$channel]=\App\Homologation\Commerce\ApprovedOfferCatalog::money($v['actual_'.$channel]);
-            app(\App\Homologation\Commerce\PerformanceSettlement::class)->submit($id,(int)$v['revision'],$v['period'],$actual,$v['evidence_ref']);
+            app(\App\Homologation\CustomerPreviewStore::class)->withVerifiedScope(null,
+                fn()=>app(\App\Homologation\Commerce\PerformanceSettlement::class)
+                    ->submit($id,(int)$v['revision'],$v['period'],$actual,$v['evidence_ref']));
         }catch(\InvalidArgumentException){abort(422,'Confira a competência, a referência SIM e o gasto de cada canal contratado.');}
         catch(\Throwable){abort(409,'Relatório indisponível. Confira o pagamento e a versão atual do pedido.');}
         return redirect('/_preview/portal/work/'.$id);
@@ -40,7 +42,9 @@ final class CustomerWorkPreviewController
         abort_unless(app(CustomerWorkPreview::class)->read($p['customer_id'],$id),404);
         abort_unless(array_diff(array_keys($r->all()),['_token','revision','version','decision','note','report_ack'])===[],422);
         $v=$r->validate(['revision'=>'required|integer|min:0|max:100000','version'=>'required|integer|min:1|max:20','decision'=>'required|in:acknowledged,disputed','note'=>'nullable|string|max:1000','report_ack'=>'accepted']);
-        try {app(\App\Homologation\Commerce\PerformanceSettlement::class)->respond($p['customer_id'],$id,(int)$v['revision'],(int)$v['version'],$v['decision'],$v['note']??'');}
+        try {app(\App\Homologation\CustomerPreviewStore::class)->withVerifiedScope($p['customer_id'],
+                fn()=>app(\App\Homologation\Commerce\PerformanceSettlement::class)
+                    ->respond($p['customer_id'],$id,(int)$v['revision'],(int)$v['version'],$v['decision'],$v['note']??''));}
         catch(\InvalidArgumentException){abort(422,'Informe o motivo ao solicitar correção.');}
         catch(\Throwable){abort(409,'Relatório já conferido ou alterado. Atualize a página.');}
         return redirect('/_preview/portal/work/'.$id);

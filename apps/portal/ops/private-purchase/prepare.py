@@ -6,6 +6,8 @@ root = pathlib.Path(__file__).resolve().parent / '.private'
 root.mkdir(mode=0o700, exist_ok=False)
 password = secrets.token_hex(32)
 webhook_db_password = secrets.token_hex(32)  # Only the one-shot webhook SQL broker.
+psp_password = secrets.token_hex(32)  # The payment worker receives no web-app secret.
+scope_key = secrets.token_hex(32)  # Never exposed through SQL application role.
 admin = secrets.token_hex(32)
 key = 'base64:' + base64.b64encode(secrets.token_bytes(32)).decode()
 sql = """CREATE SCHEMA purchase_rehearsal;
@@ -17,16 +19,21 @@ CREATE TABLE purchase_rehearsal.orders (
  UNIQUE(tenant,request_key), CHECK (briefing IS NULL OR payment='approved'));
 CREATE ROLE purchase_rehearsal_a LOGIN PASSWORD '%s' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 CREATE ROLE purchase_rehearsal_hook LOGIN PASSWORD '%s' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE purchase_rehearsal_psp LOGIN PASSWORD '%s' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT CONNECT ON DATABASE portal_purchase_rehearsal TO purchase_rehearsal_a;
 GRANT USAGE ON SCHEMA purchase_rehearsal TO purchase_rehearsal_a;
 GRANT SELECT,INSERT,UPDATE ON purchase_rehearsal.orders TO purchase_rehearsal_a;
+-- The shared SQL login cannot read this HMAC key, even if it can set arbitrary GUCs.
+CREATE TABLE purchase_rehearsal.preview_scope_secret(id integer PRIMARY KEY CHECK(id=1), key bytea NOT NULL CHECK(octet_length(key)=32));
+INSERT INTO purchase_rehearsal.preview_scope_secret(id,key) VALUES(1,decode('%s','hex'));
+REVOKE ALL ON purchase_rehearsal.preview_scope_secret FROM PUBLIC,purchase_rehearsal_a,purchase_rehearsal_hook;
 ALTER TABLE purchase_rehearsal.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.orders FORCE ROW LEVEL SECURITY;
 CREATE POLICY preview_scope ON purchase_rehearsal.orders FOR ALL
  USING (tenant='test-org-a' AND current_user='purchase_rehearsal_a')
  WITH CHECK (tenant='test-org-a' AND current_user='purchase_rehearsal_a');
-""" % (password, webhook_db_password)
-for name,content,uid in [('runtime.json',json.dumps({'database_password':password,'app_key':key}),82),('admin-password',admin,70),('init.sql',sql,70),('hook.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_hook:'+webhook_db_password,70)]:
+""" % (password, webhook_db_password, psp_password, scope_key)
+for name,content,uid in [('runtime.json',json.dumps({'database_password':password,'app_key':key,'customer_scope_key':scope_key}),82),('admin-password',admin,70),('init.sql',sql,70),('hook.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_hook:'+webhook_db_password,70),('broker.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_psp:'+psp_password,70)]:
     file = root / name
     file.write_text(content)
     file.chmod(0o400)

@@ -31,9 +31,19 @@ CREATE TABLE IF NOT EXISTS purchase_rehearsal.sandbox_subscription_invoices (
 );
 ALTER TABLE purchase_rehearsal.sandbox_subscription_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.sandbox_subscription_invoices FORCE ROW LEVEL SECURITY;
-DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='sandbox_subscription_invoices' AND policyname='sandbox_invoice_scope') THEN
- CREATE POLICY sandbox_invoice_scope ON purchase_rehearsal.sandbox_subscription_invoices FOR ALL USING(current_user IN ('purchase_rehearsal_a','purchase_rehearsal_psp')) WITH CHECK(current_user IN ('purchase_rehearsal_a','purchase_rehearsal_psp'));
-END IF; END $$;
+DROP POLICY IF EXISTS sandbox_invoice_scope ON purchase_rehearsal.sandbox_subscription_invoices;
+DROP POLICY IF EXISTS sandbox_invoice_owner_scope ON purchase_rehearsal.sandbox_subscription_invoices;
+DROP POLICY IF EXISTS sandbox_invoice_worker_scope ON purchase_rehearsal.sandbox_subscription_invoices;
+CREATE POLICY sandbox_invoice_owner_scope ON purchase_rehearsal.sandbox_subscription_invoices
+ FOR ALL TO purchase_rehearsal_a
+ USING(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)))
+ WITH CHECK(EXISTS(SELECT 1 FROM purchase_rehearsal.customer_orders o
+  WHERE o.id=order_id AND purchase_rehearsal.preview_order_allowed(o.customer_id)));
+CREATE POLICY sandbox_invoice_worker_scope ON purchase_rehearsal.sandbox_subscription_invoices
+ FOR ALL TO purchase_rehearsal_psp
+ USING(current_user='purchase_rehearsal_psp')
+ WITH CHECK(current_user='purchase_rehearsal_psp');
 GRANT SELECT ON purchase_rehearsal.sandbox_subscription_invoices TO purchase_rehearsal_a,purchase_rehearsal_psp;
 GRANT INSERT ON purchase_rehearsal.sandbox_subscription_invoices TO purchase_rehearsal_psp;
 GRANT UPDATE(state,provider_status,invoice_url,updated_at) ON purchase_rehearsal.sandbox_subscription_invoices TO purchase_rehearsal_psp;

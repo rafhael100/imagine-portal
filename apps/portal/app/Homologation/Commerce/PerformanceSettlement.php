@@ -33,7 +33,7 @@ final class PerformanceSettlement
     }
     public function submit(string $id,int $revision,string $period,array $actual,string $evidence):void
     {
-        $this->db->beginTransaction();
+        $ownTransaction=!$this->db->inTransaction(); if ($ownTransaction) $this->db->beginTransaction();
         try {
             $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE id=? FOR UPDATE');$q->execute([$id]);$o=$q->fetch(PDO::FETCH_ASSOC);
             if (!$o||$o['product']!=='performance'||(int)$o['revision']!==$revision||$o['payment']!=='approved'||$o['briefing']===null||$o['offer_snapshot']===null) throw new RuntimeException('Report unavailable');
@@ -45,18 +45,18 @@ final class PerformanceSettlement
             $report=self::calculate(json_decode($o['offer_snapshot'],true,512,JSON_THROW_ON_ERROR),$period,$actual,$evidence);
             if(isset($paid)&&(int)$paid!==$report['advance_fee_cents'])throw new RuntimeException('Paid advance mismatch');
             $q=$this->db->prepare('INSERT INTO purchase_rehearsal.performance_settlement_reports(order_id,version,report) VALUES (?,?,?::jsonb)');$q->execute([$id,$version+1,json_encode($report,JSON_THROW_ON_ERROR)]);
-            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET performance_report_version=?,revision=revision+1 WHERE id=?');$q->execute([$version+1,$id]);$this->db->commit();
-        }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET performance_report_version=?,revision=revision+1 WHERE id=?');$q->execute([$version+1,$id]);if ($ownTransaction) $this->db->commit();
+        }catch(\Throwable $e){if($ownTransaction&&$this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
     public function respond(string $owner,string $id,int $revision,int $version,string $decision,string $note):void
     {
         if (!in_array($decision,['acknowledged','disputed'],true)||strlen($note)>1000||($decision==='disputed'&&trim($note)===''))throw new InvalidArgumentException('Report response required');
-        $this->db->beginTransaction();
+        $ownTransaction=!$this->db->inTransaction(); if ($ownTransaction) $this->db->beginTransaction();
         try {
             $q=$this->db->prepare("SELECT performance_report_version,revision FROM purchase_rehearsal.customer_orders WHERE id=? AND customer_id=? AND product='performance' FOR UPDATE");$q->execute([$id,$owner]);$o=$q->fetch(PDO::FETCH_ASSOC);
             if(!$o||(int)$o['revision']!==$revision||(int)$o['performance_report_version']!==$version)throw new RuntimeException('Report unavailable');
             $q=$this->db->prepare("UPDATE purchase_rehearsal.performance_settlement_reports SET decision=?,client_note=?,decided_at=now() WHERE order_id=? AND version=? AND decision='pending'");$q->execute([$decision,trim($note),$id,$version]);if($q->rowCount()!==1)throw new RuntimeException('Already reviewed');
-            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET revision=revision+1 WHERE id=?');$q->execute([$id]);$this->db->commit();
-        }catch(\Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET revision=revision+1 WHERE id=?');$q->execute([$id]);if ($ownTransaction) $this->db->commit();
+        }catch(\Throwable $e){if($ownTransaction&&$this->db->inTransaction())$this->db->rollBack();throw $e;}
     }
 }
