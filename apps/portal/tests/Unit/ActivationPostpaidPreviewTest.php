@@ -24,7 +24,8 @@ final class ActivationPostpaidPreviewTest extends TestCase
         self::assertTrue($two['media_paid_directly_to_platforms']);
         self::assertFalse($two['checkout_enabled']);
         self::assertFalse($two['asaas_write_enabled']);
-        self::assertNull($two['minimum_management_fee_cents']);
+        self::assertSame(17_000,$two['minimum_management_fee_cents']);
+        self::assertSame('per_active_channel_full_month',$two['minimum_management_scope']);
     }
 
     public function test_three_eligible_channels_charge_1470_only_for_activation(): void
@@ -61,7 +62,9 @@ final class ActivationPostpaidPreviewTest extends TestCase
         self::assertSame(7_000,$result['informational_management_20pct_cents']);
         self::assertTrue($result['finance_review_required']);
         self::assertFalse($result['real_invoice_authorized']);
-        self::assertNull($result['minimum_management_fee_cents']);
+        self::assertSame(17_000,$result['minimum_management_fee_cents']);
+        self::assertSame(34_000,$result['informational_full_month_management_fee_cents']);
+        self::assertTrue($result['first_month_partial_contract_review_required']);
     }
 
     public function test_subsequent_month_uses_civil_month_even_when_actual_is_zero(): void
@@ -70,6 +73,8 @@ final class ActivationPostpaidPreviewTest extends TestCase
         self::assertSame('2026-12-01',$result['start_date']);
         self::assertSame('2026-12-31',$result['end_date']);
         self::assertSame(0,$result['informational_management_20pct_cents']);
+        self::assertSame(17_000,$result['informational_full_month_management_fee_cents']);
+        self::assertFalse($result['first_month_partial_contract_review_required']);
         self::assertFalse($result['real_invoice_authorized']);
     }
 
@@ -90,4 +95,24 @@ final class ActivationPostpaidPreviewTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         Candidate::monthlyReview(['meta_ads'],'2026-02-30','2026-03',['meta_ads'=>100],'SIM-BAD-DATE');
     }
+    public function test_full_month_respects_minimum_per_channel_not_on_aggregated_spend(): void
+    {
+        // Explicitly approved examples: R$350 Meta => R$170 management;
+        // R$4,000 Google => R$800. Sum is R$970, not max(20%, R$170).
+        $result=Candidate::monthlyReview(
+            ['meta_ads','google_ads'],'2026-10-01','2026-11',
+            ['meta_ads'=>35_000,'google_ads'=>400_000],'SIM-FULL-350-4000'
+        );
+        self::assertSame(435_000,$result['synthetic_actual_media_total_cents']);
+        self::assertSame(87_000,$result['informational_management_20pct_cents']);
+        self::assertSame(97_000,$result['informational_full_month_management_fee_cents']);
+        self::assertSame('google_ads',$result['channels'][0]['channel']);
+        self::assertSame(80_000,$result['channels'][0]['informational_full_month_management_fee_cents']);
+        self::assertFalse($result['channels'][0]['minimum_applied']);
+        self::assertSame(17_000,$result['channels'][1]['informational_full_month_management_fee_cents']);
+        self::assertTrue($result['channels'][1]['minimum_applied']);
+        self::assertFalse($result['first_month_partial_contract_review_required']);
+        self::assertFalse($result['real_invoice_authorized']);
+    }
+
 }
