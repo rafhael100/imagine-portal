@@ -49,10 +49,49 @@ ALTER TABLE purchase_rehearsal.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.customers FORCE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.customer_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.customer_orders FORCE ROW LEVEL SECURITY;
-DO $$ BEGIN
- IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='customers' AND policyname='customer_preview_scope') THEN
- CREATE POLICY customer_preview_scope ON purchase_rehearsal.customers FOR ALL USING(tenant='test-org-a' AND current_user='purchase_rehearsal_a') WITH CHECK(tenant='test-org-a' AND current_user='purchase_rehearsal_a');
+-- PostgreSQL login must not list identity records or password hashes in raw SQL.
+-- The only anonymous pre-login lookup is a single-username definer function
+-- in the disposable database. Its bounded output is NOT operational IAM.
+CREATE OR REPLACE FUNCTION purchase_rehearsal.preview_lookup_account(login_username text)
+RETURNS TABLE(id text, username text, password_hash text, name text, company text, enabled boolean)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog
+AS $lookup$
+  SELECT c.id,c.username,c.password_hash,c.name,c.company,c.enabled
+    FROM purchase_rehearsal.customers c
+   WHERE session_user='purchase_rehearsal_a'
+     AND length(login_username) BETWEEN 8 AND 48
+     AND login_username ~ '^demo-[a-z0-9-]+ CREATE POLICY customer_order_scope ON purchase_rehearsal.customer_orders FOR ALL
+ USING(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(customer_id))
+ WITH CHECK(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(customer_id));
  END IF;
+END $$;
+GRANT SELECT,INSERT ON purchase_rehearsal.customers TO purchase_rehearsal_a;
+GRANT SELECT,INSERT,UPDATE ON purchase_rehearsal.customer_orders TO purchase_rehearsal_a;
+COMMIT;
+
+     AND c.username=login_username AND c.enabled=true;
+$lookup$;
+REVOKE ALL ON FUNCTION purchase_rehearsal.preview_lookup_account(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION purchase_rehearsal.preview_lookup_account(text) TO purchase_rehearsal_a;
+
+CREATE OR REPLACE FUNCTION purchase_rehearsal.preview_customer_count()
+RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog
+AS $count$
+ SELECT CASE WHEN session_user='purchase_rehearsal_a'
+    THEN (SELECT count(*) FROM purchase_rehearsal.customers) ELSE 0 END;
+$count$;
+REVOKE ALL ON FUNCTION purchase_rehearsal.preview_customer_count() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION purchase_rehearsal.preview_customer_count() TO purchase_rehearsal_a;
+
+DROP POLICY IF EXISTS customer_preview_scope ON purchase_rehearsal.customers;
+DROP POLICY IF EXISTS customer_preview_read_scope ON purchase_rehearsal.customers;
+DROP POLICY IF EXISTS customer_preview_insert_scope ON purchase_rehearsal.customers;
+CREATE POLICY customer_preview_read_scope ON purchase_rehearsal.customers FOR SELECT
+ USING(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(id));
+-- Registration generates a random immutable ID in PHP and never RETURNING data.
+CREATE POLICY customer_preview_insert_scope ON purchase_rehearsal.customers FOR INSERT
+ WITH CHECK(tenant='test-org-a' AND current_user='purchase_rehearsal_a');
+DO $ BEGIN
  IF NOT EXISTS(SELECT FROM pg_policies WHERE schemaname='purchase_rehearsal' AND tablename='customer_orders' AND policyname='customer_order_scope') THEN
  CREATE POLICY customer_order_scope ON purchase_rehearsal.customer_orders FOR ALL
  USING(tenant='test-org-a' AND purchase_rehearsal.preview_order_allowed(customer_id))
