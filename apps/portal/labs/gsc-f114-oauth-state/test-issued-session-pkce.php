@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 if(PHP_SAPI!=='cli'||$argc!==3||
    getenv('APP_ENV')!=='testing'||
-   getenv('PORTAL_GSC_F114_MFA_LAB')!=='1'||
+   getenv('PORTAL_GSC_F114_OAUTH_LAB')!=='1'||
    getenv('PORTAL_GSC_F109_VIEW_LAB')!=='1'||
    getenv('PORTAL_GSC_F108_ATOMIC_LAB')!=='1'||
    getenv('PORTAL_OPENSEO_DAILY_LAB')!=='1'||
