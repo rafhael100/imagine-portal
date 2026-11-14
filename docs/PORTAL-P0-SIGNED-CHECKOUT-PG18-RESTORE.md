@@ -5,7 +5,7 @@
 Sobre a [PR #748](https://github.com/rafhael100/imagine-portal/pull/748), verificada em **11/11 workflows**, esta candidata acrescenta o ensaio de restore da linha de segurança #742, mantendo a oferta versionada, os pedidos individualizados, o pós-venda e os componentes Asaas desligados.
 
 - Após a jornada Chromium com vários clientes fictícios, transaciona-se um backup `pg_dump -Fc` do banco PostgreSQL18 **descartável** para um segundo banco criado no mesmo contêiner de CI.
-- `pg_restore --exit-on-error` falha fechado. Compara-se a quantidade de clientes, pedidos, briefings e eventos antes/depois; exige pelo menos quatro clientes e pedidos, dois briefings e sete eventos.
+- `pg_restore --exit-on-error` falha fechado. Compara-se a quantidade de clientes, pedidos, briefings e eventos antes/depois; exige pelo menos dois clientes distintos, três pedidos persistidos, um briefing e sete eventos (massa sintética efetivamente criada pela suíte Chromium desta candidata).
 - Conferem-se `FORCE RLS` nas tabelas clientes, pedidos e eventos, políticas de propriedade assinada e conteúdo imutável da oferta.
 - A consulta de regressão é realizada com **conexão SQL real do papel de login limitado** `purchase_rehearsal_a`, não por `SET ROLE` de um administrador; a identidade sem MAC válida deve enxergar zero clientes, pedidos e eventos.
 - Uma função de limpeza elimina a base de restauração do CI independentemente do resultado. A base sintética original continua até o fim da rodada para verificar o restart e os screenshots.
