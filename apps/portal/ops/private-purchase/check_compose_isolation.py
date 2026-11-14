@@ -85,11 +85,11 @@ def self_test() -> None:
     sample = {
         "services": {
             "database": service(cap_drop=[], security_opt=["no-new-privileges:true"]),
-            "application": service(read_only=True, environment={
+            "application": service(read_only=True, security_opt=["no-new-privileges:true"], environment={
                 "APP_DEBUG": "false", "APP_ENV": "staging",
                 "PORTAL_DEVELOPMENT_AUTH_ENABLED": "false",
                 "PORTAL_PURCHASE_PREVIEW_ENABLED": "1"}),
-            "gateway": service(read_only=True,
+            "gateway": service(read_only=True, security_opt=["no-new-privileges:true"],
                 networks={"private": None, "host_access": None},
                 ports=[{"host_ip": "127.0.0.1", "published": "18083",
                         "target": 8080, "protocol": "tcp"}]),
