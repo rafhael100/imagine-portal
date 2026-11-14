@@ -74,18 +74,24 @@ if (!is_array($lines) || count($lines) !== 4) {
 }
 $orders = [];
 $products = [];
+$owners = [];
 foreach ($lines as $line) {
     $cells = explode("\t", $line);
-    if (count($cells) !== 4) throw new RuntimeException('Invalid customer order shape.');
-    [$id,$product,$payment,$briefing] = $cells;
+    if (count($cells) !== 8) throw new RuntimeException('Invalid individually owned order shape.');
+    [$id,$product,$payment,$briefing,$owner,$orderTenant,$ownerTenant,$enabled] = $cells;
     if (!preg_match('/\ATEST-[a-f0-9]{32}\z/D',$id)
         || !in_array($product,['onepage','landing-pages','performance'],true)
         || !in_array($payment,['pending','declined','approved'],true)
         || !in_array($briefing,['0','1'],true)
+        || !preg_match('/\Ademo-[a-f0-9]{32}\z/D',$owner)
+        || $orderTenant!=='test-org-a' || $ownerTenant!==$orderTenant
+        || $enabled!=='t' || isset($owners[$owner])
         || isset($orders[$id])) {
         throw new RuntimeException('Invalid or duplicate customer order.');
     }
-    $orders[$id]=['product'=>$product,'payment'=>$payment,'briefing'=>$briefing==='1'];
+    $orders[$id]=['product'=>$product,'payment'=>$payment,'briefing'=>$briefing==='1',
+      'owner'=>$owner,'tenant'=>$orderTenant,'enabled'=>true];
+    $owners[$owner]=true;
     $products[$product] = ($products[$product] ?? 0)+1;
 }
 ksort($products);
@@ -100,7 +106,7 @@ foreach ($orders as $row) {
 
 final readonly class OwnedPortalContractFixture implements PortalSiteContractSource
 {
-    /** @param array<string,array{product:string,payment:string,briefing:bool}> $orders */
+    /** @param array<string,array{product:string,payment:string,briefing:bool,owner:string,tenant:string,enabled:bool}> $orders */
     public function __construct(private array $orders) {}
 
     public function findAuthorizedSiteOrder(string $orderRef): ?SiteContractSnapshot
@@ -108,7 +114,9 @@ final readonly class OwnedPortalContractFixture implements PortalSiteContractSou
         $row=$this->orders[$orderRef] ?? null;
         // TEST authority only: no PSP, legal contract, IAM or external witness.
         if (!is_array($row) || $row['payment'] !== 'approved'
-            || !$row['briefing']
+            || !$row['briefing'] || !$row['enabled']
+            || $row['tenant'] !== 'test-org-a'
+            || !preg_match('/\Ademo-[a-f0-9]{32}\z/D',$row['owner'])
             || !in_array($row['product'],['onepage','landing-pages'],true)) {
             return null;
         }
@@ -228,6 +236,22 @@ ownedCheck(is_string($onepage) && ownedDenied(
     static fn()=> $blockedEncoder->build($onepage,'operation-ownedp0-unbriefed','idem-ownedp0-unbriefed')
 ), 'approved fictional status without briefing does not authorize Sites');
 
+// A revocation or tenant mismatch must block future provisioning even if
+// payment=approved and briefing was already saved in the test database.
+$inactive=$orders;
+$inactive[$onepage]['enabled']=false;
+$inactiveEncoder=new SitesCreateProjectEncoder(new OwnedPortalContractFixture($inactive));
+ownedCheck(ownedDenied(static fn()=> $inactiveEncoder->build(
+    $onepage,'operation-ownedp0-disabled','idem-ownedp0-disabled'
+)), 'disabled owner must be refused despite fake paid order');
+
+$foreign=$orders;
+$foreign[$onepage]['tenant']='test-org-b';
+$foreignEncoder=new SitesCreateProjectEncoder(new OwnedPortalContractFixture($foreign));
+ownedCheck(ownedDenied(static fn()=> $foreignEncoder->build(
+    $onepage,'operation-ownedp0-foreign','idem-ownedp0-foreign'
+)), 'forged tenant metadata must not authorize a Site contract');
+
 $rows=$admin->query(
     "SELECT
        (SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-ownedp0-%') AS projects,
@@ -261,6 +285,8 @@ $evidence=[
     'schema'=>'imagine.portal-p0.owned-customer-to-sites.pg18.v1',
     'source'=>'four_individual_synthetic_postgresql_customer_orders',
     'customers_from_real_chromium_checkout'=>4,
+    'unique_synthetic_customer_owners_verified'=>4,
+    'disabled_and_foreign_owners_refused'=>true,
     'sites_projects_admitted_nonpublishable'=>2,
     'sites_outbox_events_acknowledged'=>2,
     'performance_offers_excluded'=>2,

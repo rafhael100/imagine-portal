@@ -44,7 +44,8 @@ test "$ready" = 1 || { echo 'NO-GO: Site PG18 not ready' >&2; exit 1; }
  docker compose exec -T database psql -X -v ON_ERROR_STOP=1 \
    -U postgres -d portal_purchase_rehearsal -At -F $'\t' -c "
      SELECT o.id,o.product,o.payment,
-            CASE WHEN o.briefing IS NOT NULL THEN '1' ELSE '0' END
+            CASE WHEN o.briefing IS NOT NULL THEN '1' ELSE '0' END,
+            o.customer_id,o.tenant,c.tenant,c.enabled
        FROM purchase_rehearsal.customer_orders o
        JOIN purchase_rehearsal.customers c ON c.id=o.customer_id
       WHERE c.username LIKE 'demo-comercial-%'
@@ -82,6 +83,8 @@ assert report['sha256_integrity_only']==hashlib.sha256(
 ).hexdigest()
 assert c['schema']=='imagine.portal-p0.owned-customer-to-sites.pg18.v1'
 assert c['customers_from_real_chromium_checkout']==4
+assert c['unique_synthetic_customer_owners_verified']==4
+assert c['disabled_and_foreign_owners_refused'] is True
 assert c['sites_projects_admitted_nonpublishable']==2
 assert c['sites_outbox_events_acknowledged']==2
 assert c['performance_offers_excluded']==2
