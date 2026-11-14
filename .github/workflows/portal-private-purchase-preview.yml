@@ -72,6 +72,7 @@ jobs:
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_OWNED_PREVIEW_SHOTS_DIR: ${{ runner.temp }}/portal-customer-review-shots
         run: |
           python3 -m venv /tmp/private-purchase-browser
           /tmp/private-purchase-browser/bin/pip install playwright==1.56.0
@@ -102,6 +103,37 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           CUSTOMER_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Audit five individual-customer screenshots and SHA256
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          folder=Path(os.environ['RUNNER_TEMP'])/'portal-customer-review-shots'
+          manifest=json.loads((folder/'manifest.json').read_text())
+          expected=[
+            '01-registration-blank.png','02-selected-onepage-offer.png',
+            '03-owned-purchase-complete.png','04-customer-service-list.png',
+            '05-admin-owned-order.png',
+          ]
+          assert manifest['no_real_customer_data'] is True
+          assert manifest['no_public_deploy'] is True
+          assert manifest['credentials_captured'] is False
+          assert [item['name'] for item in manifest['files']]==expected
+          assert {p.name for p in folder.iterdir()}==set(expected+['manifest.json'])
+          for item in manifest['files']:
+              data=(folder/item['name']).read_bytes()
+              assert data[:8]==bytes.fromhex('89504e470d0a1a0a')
+              assert len(data)>2048
+              assert hashlib.sha256(data).hexdigest()==item['sha256']
+          print('PASS 5 synthetic customer/admin screenshots with SHA256 checks')
+          PY
+      - name: Preserve synthetic individual-customer flow screenshots (7 days)
+        uses: actions/upload-artifact@v5
+        with:
+          name: imagine-portal-individual-customer-flow
+          path: ${{ runner.temp }}/portal-customer-review-shots/
+          if-no-files-found: error
+          retention-days: 7
       - name: Diagnose failed synthetic browser flow
         if: failure()
         working-directory: apps/portal/ops/private-purchase
