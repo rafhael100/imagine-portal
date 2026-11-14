@@ -27,10 +27,11 @@ jobs:
       SITES_F391_APPROVAL_LAB: '1'
       F394_SITES_CHECKOUT: ./sites-candidate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: rafhael100/imagine-sites
           ref: 1bb80823a112cd935f4498e36ad9e0da853f851f
