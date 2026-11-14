@@ -20,7 +20,7 @@ final class CustomerWorkPreview
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);
         // Only after the order ownership/admin scope has been established above.
         $q=$this->db->prepare("SELECT 'initial' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? UNION ALL SELECT charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_future_billing WHERE order_id=? ORDER BY due_date,charge_key");
-        $q->execute([$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
+        $q->execute([$id,$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
         unset($row['customer_id'],$row['request_key']); return $row;
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool

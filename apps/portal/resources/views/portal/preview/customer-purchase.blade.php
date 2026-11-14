@@ -82,7 +82,7 @@
 <form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito teste no Asaas sandbox com dados fictícios.</label><button type="submit">{{ $order['payment_source'] === 'manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
 @endif
 </section>
-@if($order['payment'] === 'approved')
+@if($order['payment'] === 'approved' && ($order['payment_source'] === 'manual_test' || ($order['sandbox']['state'] ?? null) === 'approved'))
 <section><h2>3. Preencher o briefing de exemplo</h2><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/briefing') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}">@foreach(['business'=>'Nome da empresa fictícia','goal'=>'Objetivo','audience'=>'Público','materials'=>'Materiais de exemplo'] as $field=>$label)<label>{{ $label }}<textarea name="{{ $field }}" required maxlength="200">{{ old($field) }}</textarea></label>@endforeach<button type="submit">Salvar briefing de teste</button></form></section>
 @else<p>O briefing será liberado após aprovação na modalidade de teste escolhida.</p>@endif
 @else

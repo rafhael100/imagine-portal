@@ -3,12 +3,13 @@ from asaas_sandbox_worker import FutureWorker,Unconfirmed
 OID='TEST-'+'a'*32
 class DB:
  def __init__(self):self.row={'order_id':OID,'charge_key':'setup-2','kind':'setup','amount_cents':33000,'due_date':'2027-01-14','state':'queued','customer_ref':'cus_fixture','provider_ref':None}
+ def save_invoice(self,row,payment,state):self.invoice=(payment,state)
  def patch_future(self,oid,key,changes):assert oid==OID and key==self.row['charge_key'];self.row.update(changes)
 class API:
- def __init__(self):self.obj=None;self.posts=[];self.uncertain=False
+ def __init__(self):self.obj=None;self.posts=[];self.uncertain=False;self.invoices=[]
  def find(self,kind,ref):return copy.deepcopy(self.obj)
  def call(self,method,path,body=None):
-  if method=='GET':return copy.deepcopy(self.obj)
+  if method=='GET':return {'data':copy.deepcopy(self.invoices),'hasMore':False} if '/payments?' in path else copy.deepcopy(self.obj)
   self.posts.append(path);monthly=path=='/subscriptions'
   self.obj=body|{'id':'sub_0_fixture' if monthly else 'pay_0_fixture','status':'ACTIVE' if monthly else 'PENDING','invoiceUrl':'https://sandbox.asaas.com/i/fixture'}
   if self.uncertain:raise Unconfirmed('Timeout')
@@ -25,6 +26,8 @@ class Tests(unittest.TestCase):
   self.assertEqual(self.api.posts,['/subscriptions']);self.assertEqual(self.db.row['state'],'active')
   self.assertEqual(self.api.obj['cycle'],'MONTHLY');self.assertEqual(self.api.obj['nextDueDate'],'2027-02-12')
   self.assertIsNone(self.db.row['invoice_url'])
+  self.api.invoices=[{'id':'pay_monthly_first','status':'RECEIVED','value':79.9,'dueDate':'2027-02-12','customer':'cus_fixture','subscription':'sub_0_fixture'}]
+  self.w.process(self.db.row);self.assertEqual(self.db.invoice[1],'approved')
  def test_uncertain_post_recovered(self):
   self.api.uncertain=True
   with self.assertRaises(Unconfirmed):self.w.process(self.db.row)
@@ -35,7 +38,7 @@ class Tests(unittest.TestCase):
   self.db.row.update(charge_key='monthly',kind='monthly',amount_cents=7990,due_date='2099-01-31')
   self.w.process(self.db.row);self.api.obj['nextDueDate']='2099-02-28'
   original=self.api.call
-  invoice={'dueDate':'2099-01-31','value':79.9,'customer':'cus_fixture','subscription':'sub_0_fixture'}
+  invoice={'id':'pay_monthly_fixture','status':'PENDING','dueDate':'2099-01-31','value':79.9,'customer':'cus_fixture','subscription':'sub_0_fixture'}
   self.api.call=lambda method,path,body=None: {'data':[invoice],'hasMore':False} if '/payments?' in path else original(method,path,body)
   self.w.process(self.db.row);self.assertEqual(len(self.api.posts),1)
   invoice['value']=1

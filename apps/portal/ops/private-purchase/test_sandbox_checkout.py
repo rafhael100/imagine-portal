@@ -31,7 +31,16 @@ with sync_playwright() as p:
     assert len(api.posts)==2
     page.locator('[name=sandbox_ack]').check();page.get_by_role('button',name='Solicitar atualização do Asaas',exact=True).click()
     row=next(x for x in db.rows() if x['order_id']==oid)
-    api.payment['status']='RECEIVED';w.process(row)
+    from asaas_sandbox_webhook import Inbox,parse_event
+    event={'id':'evt_ci_pending','event':'PAYMENT_RECEIVED','payment':{'id':api.payment['id'],'value':1,'status':'RECEIVED'}}
+    inbox=Inbox();inbox.save(parse_event(json.dumps(event).encode()));inbox.save(parse_event(json.dumps(event).encode()))
+    tasks=db.request_event_tasks();row=next(x for x in db.rows() if x['order_id']==oid)
+    w.process(row);db.ack_event_tasks(tasks,oid,'initial')
+    page.reload();assert page.locator('[name=business]').count()==0 # Claimed webhook value/status cannot approve.
+    assert db.sql("SELECT count(*) FROM purchase_rehearsal.sandbox_webhook_inbox;")=='1'
+    event['id']='evt_ci_received';inbox.save(parse_event(json.dumps(event).encode()))
+    api.payment['status']='RECEIVED';tasks=db.request_event_tasks();row=next(x for x in db.rows() if x['order_id']==oid)
+    w.process(row);db.ack_event_tasks(tasks,oid,'initial')
     page.reload();assert page.locator('[name=business]').count()==1;assert len(api.posts)==2
     # Future charges are explicitly requested after provider-confirmed initial payment.
     assert page.request.post(url+'/future-billing',form={'_token':token(),'revision':revision(),'sandbox_ack':'1','amount_cents':'1'}).status==422

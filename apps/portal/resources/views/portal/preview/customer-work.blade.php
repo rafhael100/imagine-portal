@@ -5,7 +5,7 @@
 @if(!empty($order['billing']))
 <h3>Financeiro no Asaas sandbox</h3><p>Somente homologação. Assinatura ativa não significa mensalidade paga.</p>
 <dl>@foreach($order['billing'] as $bill)
-<dt>{{ ['initial'=>($order['product']==='performance'?'Honorários antecipados':'Implantação 1/3'),'setup-2'=>'Implantação 2/3','setup-3'=>'Implantação 3/3','monthly'=>'Assinatura mensal'][$bill['charge_key']] }}</dt>
+<dt>{{ ['initial'=>($order['product']==='performance'?'Honorários antecipados':'Implantação 1/3'),'setup-2'=>'Implantação 2/3','setup-3'=>'Implantação 3/3','monthly'=>'Assinatura mensal','monthly-invoice'=>'Mensalidade faturada'][$bill['charge_key']] }}</dt>
 <dd>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl((int)$bill['amount_cents']) }} · {{ $bill['due_date'] }} · {{ $bill['provider_status'] ?? 'Aguardando processamento' }} @if($bill['invoice_url'])<a href="{{ $bill['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança no sandbox</a>@endif</dd>
 @endforeach</dl>
 @endif
