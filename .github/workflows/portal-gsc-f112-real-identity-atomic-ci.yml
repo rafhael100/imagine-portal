@@ -1,4 +1,4 @@
-name: Portal F412 - crossline financial review plus GSC real membership disposable test
+name: Portal F412/F413 - GSC identity PG18 plus Performance PSP CRM review
 
 on:
   pull_request:
@@ -10,6 +10,10 @@ on:
       - 'apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php'
       - 'apps/portal/tests/Unit/PortalGsc*'
       - 'apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php'
+      - 'apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php'
+      - 'apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php'
+      - 'apps/portal/tools/test_performance_activation_crm_routing_offline.php'
+      - '.github/workflows/portal-performance-activation-crm-f413.yml'
 
 permissions:
   contents: read
@@ -82,7 +86,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '22'
-      - name: Verify integrated candidate HEAD, pinned GSC/SEO SHA and GSC-only delta
+      - name: Verify exact HEAD, pinned GSC/SEO SHA and bounded F412/F413 change set
         shell: bash
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -105,7 +109,12 @@ jobs:
               apps/portal/labs/gsc-f112-integrated-pg18/*|\
               apps/portal/tests/Unit/PortalGscPermissionContractTest.php|\
               apps/portal/tests/Unit/PortalGscViewPermissionIsolationTest.php|\
-              apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php) ;;
+              apps/portal/tests/Unit/PortalIntegratedPermissionRolloutFenceTest.php|\
+              apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php|\
+              apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php|\
+              apps/portal/tools/test_performance_activation_crm_routing_offline.php|\
+              .github/workflows/portal-performance-activation-crm-f413.yml|\
+              docs/PORTAL-F413-PERFORMANCE-ACTIVATION-TO-CRM-REVIEW.md) ;;
               *) echo "Unexpected F412 changed path" >&2; exit 1;;
             esac
           done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
