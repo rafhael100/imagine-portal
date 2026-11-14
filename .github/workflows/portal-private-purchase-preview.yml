@@ -24,6 +24,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Offline fail-closed perimeter check (never probes external host in CI)
+        run: |
+          python3 -B apps/portal/ops/private-purchase/check_public_boundary.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
