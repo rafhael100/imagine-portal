@@ -36,7 +36,7 @@ class Browser:
     def login(self,state):
         _,page=self.get('');self.post('/login',{'_token':self.field(page,'_token'),'username':state['username'],'password':state['password']})
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('action',choices=['prepare','verify','verify-paid','briefing']);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('action',choices=['prepare','verify','verify-paid','briefing','future','verify-future']);args=parser.parse_args()
     os.umask(0o077);b=Browser()
     if args.action=='prepare' and not STATE.exists():
         state={'username':'demo-sbx-'+secrets.token_hex(6),'password':secrets.token_urlsafe(24)}
@@ -55,6 +55,13 @@ if __name__=='__main__':
             _,page=b.post(path+'/sandbox',{'_token':b.field(page,'_token'),'revision':b.field(page,'revision'),'sandbox_ack':'1'})
         if 'name="outcome"' in page:raise RuntimeError('Manual approval not blocked')
         print('PASS owned synthetic order requested Asaas sandbox; private demo credentials saved')
+    elif args.action=='future':
+        _,page=b.post(path+'/future-billing',{'_token':b.field(page,'_token'),'revision':b.field(page,'revision'),'sandbox_ack':'1'})
+        if 'Atualizar parcelas e assinatura' not in page:raise RuntimeError('Future billing request unavailable')
+        print('PASS owned order requested future sandbox charges and subscription')
+    elif args.action=='verify-future':
+        if 'ACTIVE' not in page or page.count('Abrir cobrança</a>')!=2:raise RuntimeError('Future provider reconciliation incomplete')
+        print('PASS owned order shows two future invoices and active monthly sandbox subscription')
     elif args.action=='verify':
         if 'https://sandbox.asaas.com/i/' not in page:raise RuntimeError('Sandbox invoice not yet available')
         if 'name="outcome"' in page:raise RuntimeError('Manual approval still enabled')
