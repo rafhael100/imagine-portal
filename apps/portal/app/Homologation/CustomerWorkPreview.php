@@ -7,9 +7,10 @@ use RuntimeException;
 /** Persistent operations for synthetic customer orders, never production fulfilment. */
 final class CustomerWorkPreview
 {
-    public function __construct(private PDO $db) { new RoleBoundTestPurchase($db); }
+    public function __construct(private PDO $db, private CustomerPreviewStore $owners) { new RoleBoundTestPurchase($db); }
     public function read(?string $owner,string $id): ?array
     {
+        return $this->owners->withVerifiedScope($owner, function () use ($owner,$id): ?array {
         $q=$this->db->prepare('SELECT o.*,c.name AS customer_name,c.company FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id WHERE o.id=?'.($owner===null?'':' AND o.customer_id=?'));
         $q->execute($owner===null?[$id]:[$id,$owner]);
         $row=$q->fetch(PDO::FETCH_ASSOC);
@@ -19,11 +20,12 @@ final class CustomerWorkPreview
         $q=$this->db->prepare('SELECT actor_kind,action,note,created_at FROM purchase_rehearsal.customer_order_events WHERE order_id=? ORDER BY revision LIMIT 200');
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);
         unset($row['customer_id'],$row['request_key']); return $row;
+        });
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool
     {
-        $this->db->beginTransaction();
         try {
+            return $this->owners->withVerifiedScope($owner, function () use ($owner,$id,$revision,$action,$note): bool {
             $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE id=?'.($owner===null?'':' AND customer_id=?').' FOR UPDATE');
             $q->execute($owner===null?[$id]:[$id,$owner]); $row=$q->fetch(PDO::FETCH_ASSOC);
             if (!$row||(int)$row['revision']!==$revision) throw new RuntimeException('Unavailable or stale order');
@@ -45,7 +47,8 @@ final class CustomerWorkPreview
             if ($q->rowCount()!==1) throw new RuntimeException('Stale order');
             $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customer_order_events(order_id,revision,actor_kind,action,note) VALUES (?,?,?,?,?)');
             $q->execute([$id,$revision+1,$owner===null?'admin':'client',$action,trim($note)]);
-            $this->db->commit(); return true;
-        } catch (\Throwable) { if ($this->db->inTransaction()) $this->db->rollBack(); return false; }
+            return true;
+            });
+        } catch (\Throwable) { return false; }
     }
 }

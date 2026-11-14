@@ -37,7 +37,13 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
-          docker compose -f compose.yaml -f compose.ci.yaml up -d
+          docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
+          # Signed customer policy must exist BEFORE Laravel's fail-closed
+          # constructor initializes on the first readiness request.
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
+          docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
           python3 - <<'PY'
           import time, urllib.request
           for attempt in range(60):
@@ -53,12 +59,12 @@ jobs:
           test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
           test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
           test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
-      - name: Install isolated customer commerce schema
+      - name: Verify shared checkout CI-only boundary and deny traversal on VPS
         working-directory: apps/portal/ops/private-purchase
         run: |
-          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
-          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
-          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
+          set -euo pipefail
+          docker compose exec -T application php private-preview-route-gate.test.php
+          echo 'PASS CI-only shared checkout and private VPS customer/admin route allowlist' >> "$GITHUB_STEP_SUMMARY"
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
@@ -106,6 +112,13 @@ jobs:
           PY
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
+      - name: Deny raw SQL enumeration and forged admin/customer claims under signed FORCE RLS
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
+          echo 'PASS signed owner and admin claims protect orders, identities and delivery events at SQL layer' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase

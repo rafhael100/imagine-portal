@@ -9,7 +9,8 @@ if (getenv('PORTAL_PURCHASE_PREVIEW_ENABLED')!=='1'||getenv('APP_ENV')!=='stagin
     ||getenv('PORTAL_DEVELOPMENT_AUTH_ENABLED')!=='false') { http_response_code(404); exit; }
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH);
 if ($path==='/up') { header('Content-Type: application/json'); echo '{"synthetic_preview":true}'; exit; }
-if (!is_string($path)||(!str_starts_with($path,'/_rehearsal/purchase')&&!str_starts_with($path,'/_preview/portal'))) { http_response_code(404); exit; }
+require __DIR__.'/private-preview-route-gate.php';
+if (!is_string($path)||!PrivatePreviewRouteGate::allows($path,$ci)) { http_response_code(404); exit; }
 $handle=fopen('/run/secrets/preview-runtime.json','rb');
 $stat=$handle===false?false:fstat($handle);
 if (!$stat||($stat['mode']&077)!==0||$stat['uid']!==82||$stat['size']>2048) { http_response_code(503); exit; }
@@ -41,8 +42,8 @@ try {
   'purchase_rehearsal_a',$config['database_password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
  $app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase($pdo));
  $app->instance(App\Homologation\PreviewOrderListing::class,new App\Homologation\PreviewOrderListing($pdo));
- $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo));
- $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo));
+ $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo,$config['customer_scope_key']??''));
+ $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);
 $request=Illuminate\Http\Request::capture(); $response=$kernel->handle($request);
