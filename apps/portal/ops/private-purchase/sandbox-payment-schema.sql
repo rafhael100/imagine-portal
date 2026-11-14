@@ -45,7 +45,7 @@ DROP POLICY IF EXISTS sandbox_worker_intent_scope ON purchase_rehearsal.sandbox_
 -- The shared SQL app login can only access intentions under a transaction-local
 -- HMAC principal verified by the DB, not arbitrary customer_id in HTTP input.
 CREATE POLICY sandbox_owner_intent_scope ON purchase_rehearsal.sandbox_payment_intents
- FOR ALL
+ FOR ALL TO purchase_rehearsal_a
  USING(EXISTS(
   SELECT 1 FROM purchase_rehearsal.customer_orders o
   WHERE o.id=order_id AND o.tenant='test-org-a'
@@ -59,10 +59,10 @@ CREATE POLICY sandbox_owner_intent_scope ON purchase_rehearsal.sandbox_payment_i
 -- Host worker can reconcile all queued Sandbox intents using a distinct
 -- NOLOGIN role; app role is NOT a member and cannot set this role.
 CREATE POLICY sandbox_worker_intent_scope ON purchase_rehearsal.sandbox_payment_intents
- FOR ALL USING(current_user='purchase_rehearsal_psp')
+ FOR ALL TO purchase_rehearsal_psp USING(current_user='purchase_rehearsal_psp')
  WITH CHECK(current_user='purchase_rehearsal_psp');
 CREATE POLICY sandbox_worker_orders ON purchase_rehearsal.customer_orders
- FOR ALL USING(tenant='test-org-a' AND current_user='purchase_rehearsal_psp')
+ FOR ALL TO purchase_rehearsal_psp USING(tenant='test-org-a' AND current_user='purchase_rehearsal_psp')
  WITH CHECK(tenant='test-org-a' AND current_user='purchase_rehearsal_psp');
 
 CREATE OR REPLACE FUNCTION purchase_rehearsal.preview_sandbox_intent_count()
