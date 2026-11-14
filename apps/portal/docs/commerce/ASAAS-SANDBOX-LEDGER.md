@@ -10,7 +10,7 @@ Estado em 14/11/2026: chave sandbox fornecida pelo titular, instalada somente na
 - O worker no host mantém a chave fora do contêiner web e preserva a rede interna Docker. Pede ao Asaas um pagador fictício com documento de exemplo da documentação oficial (https://docs.asaas.com/reference/criar-novo-cliente), SEM e-mail/telefone e com notificationDisabled=true. Nunca transmite o nome/empresa digitado no cadastro demo.
 - Referência externa determinística por pedido, busca antes de criar e estágio persistido antes de cada POST. Resultado incerto permanece para conciliação, sem repetir POST quando a busca não localiza recurso. Referência/cliente/valor divergentes são recusados.
 - Link de fatura só admite HTTPS no host exato sandbox.asaas.com, caminho /i/, sem credenciais, porta, query ou fragmento.
-- A confirmação oficial RECEIVED ou CONFIRMED de cartão pode liberar briefing. CONFIRMED de PIX não é tratado como recebido. Estorno/contestação permanece registrado e bloqueia novos inícios de produção/briefing. Aprovação comercial não publica site real.
+- Somente uma confirmação atual RECEIVED no Sandbox, com identidade da cobrança, valor e referência preservados, pode liberar o briefing sintético. CONFIRMED de cartão ou PIX não é liquidação suficiente. Estorno, contestação, exclusão ou reembolso ativam payment_hold persistente, que não é apagado por uma leitura futura RECEIVED, e bloqueiam briefing e transições de produção; o histórico já aceito permanece para auditoria. A resolução do hold é manual e está fora deste recorte. Aprovação comercial não publica site real.
 
 ## Operação privada
 
