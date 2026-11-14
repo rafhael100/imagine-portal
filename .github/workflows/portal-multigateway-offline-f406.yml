@@ -1,0 +1,33 @@
+name: Portal F406 multi-gateway offline safety
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/PaymentRouting/**'
+      - 'apps/portal/tests/Unit/GatewayRoutingPreviewTest.php'
+      - 'apps/portal/tools/test_multigateway_offline.php'
+      - '.github/workflows/portal-multigateway-offline-f406.yml'
+permissions:
+  contents: read
+jobs:
+  offline-routing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed HEAD without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP syntax and deterministic offline routing smoke
+        run: |
+          set -euo pipefail
+          php -v
+          php -l apps/portal/app/Domain/PaymentRouting/GatewayRoutingPreview.php
+          php -l apps/portal/tests/Unit/GatewayRoutingPreviewTest.php
+          php -l apps/portal/tools/test_multigateway_offline.php
+          php apps/portal/tools/test_multigateway_offline.php
+      - name: No commercial activation from green tests
+        if: success()
+        run: |
+          echo 'PASS: F406 offline routing, pinned PSP, no C6 API or real charges.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO: production, staging payment gateway activation, external credentials and actual funds.' >> "$GITHUB_STEP_SUMMARY"
