@@ -30,3 +30,48 @@ BEGIN
  IF n<>0 THEN RAISE EXCEPTION 'CRITICAL: forged SQL admin enumerates charge intents'; END IF;
 END $deny$;
 RESET SESSION AUTHORIZATION;
+
+-- Verify the worker on a genuine SQL identity (current_user=PSP) sees ONLY
+-- its approved metadata rows and does not need the app's HMAC function
+-- or customer_id visibility. This query must fail the workflow on any RLS
+-- permission regression; it must NOT bypass policies with owner credentials.
+DO $scopes$
+DECLARE
+  app_policy_roles name[];
+  worker_policy_roles name[];
+  order_policy_roles name[];
+BEGIN
+  SELECT roles INTO app_policy_roles FROM pg_policies
+    WHERE schemaname='purchase_rehearsal'
+      AND tablename='sandbox_payment_intents'
+      AND policyname='sandbox_owner_intent_scope';
+  SELECT roles INTO worker_policy_roles FROM pg_policies
+    WHERE schemaname='purchase_rehearsal'
+      AND tablename='sandbox_payment_intents'
+      AND policyname='sandbox_worker_intent_scope';
+  SELECT roles INTO order_policy_roles FROM pg_policies
+    WHERE schemaname='purchase_rehearsal'
+      AND tablename='customer_orders'
+      AND policyname='customer_order_scope';
+  IF app_policy_roles<>ARRAY['purchase_rehearsal_a']::name[]
+     OR worker_policy_roles<>ARRAY['purchase_rehearsal_psp']::name[]
+     OR order_policy_roles<>ARRAY['purchase_rehearsal_a']::name[] THEN
+    RAISE EXCEPTION 'Role-scoped owner/PSP RLS must be disjoint';
+  END IF;
+END $scopes$;
+
+SET ROLE purchase_rehearsal_psp;
+DO $psp$
+DECLARE
+  n bigint;
+BEGIN
+  SELECT count(*) INTO n
+    FROM purchase_rehearsal.sandbox_payment_intents
+   WHERE sync_requested;
+  IF n<1 THEN RAISE EXCEPTION 'Worker cannot read pending sandbox intents'; END IF;
+  SELECT count(*) INTO n
+    FROM purchase_rehearsal.customer_orders
+   WHERE tenant='test-org-a' AND payment_source='asaas_sandbox';
+  IF n<1 THEN RAISE EXCEPTION 'Worker cannot read scoped payment status'; END IF;
+END $psp$;
+RESET ROLE;
