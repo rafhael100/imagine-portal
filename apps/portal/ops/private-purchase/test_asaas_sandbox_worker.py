@@ -81,6 +81,26 @@ class Tests(unittest.TestCase):
             with self.subTest(change=change),self.assertRaises(Unconfirmed):
                 verify_payment(self.api.payment|change,self.db.row)
 
+    def test_live_worker_cli_always_denies_ci_and_unapproved_launch(self):
+        import os,pathlib,subprocess,sys
+        script=str(pathlib.Path(__file__).with_name('asaas_sandbox_worker.py'))
+        examples=[
+          {},
+          {'APP_ENV':'production','PORTAL_SANDBOX_BROKER_ONCE':'1'},
+          {'APP_ENV':'staging','PORTAL_SANDBOX_BROKER_ONCE':'1','GITHUB_ACTIONS':'true'},
+          {'APP_ENV':'staging','PORTAL_SANDBOX_BROKER_ONCE':'0'},
+        ]
+        for override in examples:
+            with self.subTest(override=override):
+                env={k:v for k,v in os.environ.items()
+                     if k not in ('APP_ENV','PORTAL_SANDBOX_BROKER_ONCE','GITHUB_ACTIONS')}
+                env.update(override)
+                result=subprocess.run([sys.executable,script,'--once'],
+                    env=env,text=True,capture_output=True,timeout=5,check=False)
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('NO-GO:',result.stderr)
+                self.assertEqual(result.stdout,'')
+
     def test_urls(self):
         self.assertEqual(invoice_url('https://sandbox.asaas.com/i/fixture'),'https://sandbox.asaas.com/i/fixture')
         for url in ['http://sandbox.asaas.com/i/x','https://asaas.com/i/x','https://sandbox.asaas.com.evil/i/x','https://user:pass@sandbox.asaas.com/i/x','https://sandbox.asaas.com:443/i/x','https://sandbox.asaas.com/i/x?token=bad','javascript:alert(1)','https://sandbox.asaas.com/other']:
