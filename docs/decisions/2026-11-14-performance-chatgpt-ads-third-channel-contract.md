@@ -20,6 +20,20 @@ Não interpretar o piso mensal Imagine como limite técnico universal da platafo
 
 Honorários aprovados permanecem **20% da mídia efetivamente investida**, com estimativa antecipada pelo orçamento contratado e acerto mensal revisado. Cliente paga mídia DIRETAMENTE à Meta/Google/OpenAI. A Imagine cobra somente gestão via Portal, sujeita à reconciliação e autorização. Nunca faturar a mídia pela Imagine por confusão com o serviço.
 
+## Entrega adicional — prévia de cotação v5 (sem faturamento)
+
+O arquivo `server/performance-channel-pricing-v5-lab.mjs` usa exclusivamente o JSON de proposta **aprovada pelo titular** para calcular, de forma determinística, uma cotação *informativa* com três canais, mínimos separados, referência recomendada e honorários de gestão estimados a 20% do plano. É um laboratório read-only, não acessível por checkout, API ou interface em produção.
+
+`tests/performance-channel-pricing-v5-lab.test.mjs` protege os seguintes cenários:
+- três pisos: Meta R$700, Google R$1.000 e ChatGPT R$1.200;
+- três recomendados: Meta R$1.000, Google R$1.500 e ChatGPT R$1.800;
+- investimento mínimo agregado R$2.900; gestão ilustrativa R$580; total informativo R$3.480;
+- valores recomendados agregados R$4.300; gestão ilustrativa R$860;
+- rejeição de canais duplicados, desconhecidos, orçamento inferior ao piso individual, getters maliciosos e compensação entre canais;
+- catálogo canônico v4 preservado; `checkout_enabled=false`, `asaas_charge_enabled=false`, `ads_write_enabled=false`.
+
+A cotação NÃO representa valores efetivamente investidos ou verificados, logo não gera documento fiscal, checkout, cobrança ou comando de anúncio. Antes de migrar o catálogo v4, faltam contrato assinado, atualização versionada do Portal Laravel e testes de autorização/segurança/comunicação com Performance AI.
+
 ## Contratos necessários (versão seguinte)
 
 1. Catálogo versionado deve usar um mapa por canal de media_minimum_cents, em vez de mínimo universal. A versão 4 não suporta este formato; migração requer PR independente com testes de retrocompatibilidade.
