@@ -18,7 +18,7 @@ class API:
             self.customer=dict(payload,id='cus_fixture')
             result=self.customer
         else:
-            self.payment=dict(payload,id='pay_fixture',status='PENDING',invoiceUrl='https://sandbox.asaas.com/i/fixture')
+            self.payment=dict(payload,id='pay_0_fixture',status='PENDING',invoiceUrl='https://sandbox.asaas.com/i/fixture')
             result=self.payment
         if self.uncertain==path:raise Unconfirmed('Write outcome uncertain')
         return copy.deepcopy(result)

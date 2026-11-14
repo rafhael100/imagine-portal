@@ -48,7 +48,7 @@ def verify_payment(p,row):
     try:
         cents=decimal.Decimal(str(p['value']))*100
         if not cents.is_finite() or cents!=row['amount_cents']: raise ValueError()
-        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':initial' or not re.fullmatch(r'pay_[A-Za-z0-9]+',p.get('id','')): raise ValueError()
+        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':initial' or not re.fullmatch(r'pay_[A-Za-z0-9_]{1,100}',p.get('id','')): raise ValueError()
         if row.get('payment_ref') and p['id']!=row['payment_ref']:raise ValueError()
         if not isinstance(p.get('status'),str) or not re.fullmatch('[A-Z_]{1,64}',p['status']):raise ValueError()
     except Exception: raise Unconfirmed('Payment financial mismatch') from None
