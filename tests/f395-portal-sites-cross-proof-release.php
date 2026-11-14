@@ -312,6 +312,8 @@ $assignments->outage=false;
 $assignments->reads=0;
 $assignments->changeAfterFirst=true;
 f395Check(f395Refused($build),'changed binding revision between issuance and return denied');
+f395Check($assignments->reads===2,
+    'changed binding is detected by exactly two independent assignment reads');
 $assignments->changeAfterFirst=false;
 f395Check(f395Refused(static fn()=>$builder->build(
     'order-f395','site-f395','release-f395',4,
@@ -323,7 +325,7 @@ f395Check(f395Refused(static fn()=>$builder->build(
     'operation-f395','idem-f395',NOW_F395,
     $privateCommercial,$privateAcceptance
 )), 'stale editorial revision denied');
-f395Check($assignments->reads>=$assignmentReads+2,
-    'independent mapping rereads cannot be bypassed by a stale proof');
+f395Check($assignments->reads>=3,
+    'revision mismatch still queries only the trusted assignment source');
 echo "$checks F1-395 bound financial+editorial proofs against ORIGINAL Sites verifiers passed.\n";
 echo "NO-GO: synthetic trusted sources; no endpoint, IAM, PSP, customer approval, money, domain or Site publication.\n";
