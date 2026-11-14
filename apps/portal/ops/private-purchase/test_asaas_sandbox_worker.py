@@ -85,7 +85,7 @@ class Tests(unittest.TestCase):
     def test_broker_uses_dedicated_password_login_and_no_superuser_shortcut(self):
         class Completed:
             returncode=0
-            stdout='3\\n'
+            stdout='3'
             stderr=''
         with mock.patch('asaas_sandbox_worker.subprocess.run',return_value=Completed()) as runner:
             self.assertEqual(Database().sql('SELECT 3'),'3')
