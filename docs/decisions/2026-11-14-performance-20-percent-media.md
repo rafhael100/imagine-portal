@@ -31,3 +31,10 @@ Asaas é o gateway escolhido para os honorários Imagine, sob autoridade finance
 Ainda precisam de definição operacional antes de cobrança real: período de referência do mínimo/apuração (não explicitado nesta mensagem), datas de vencimento, antecipação versus acerto posterior, definição conciliável de mídia investida e tratamento de créditos/estornos/ajustes e de investimento realizado abaixo do mínimo. Não preencher automaticamente essas lacunas com D90 ou descontos dos sites, pisos antigos, multas, taxa de implantação ou complemento de honorários não aprovados.
 
 O catálogo do Portal passa a registrar o modelo percentual aprovado, em vez de preço ausente. Este documento não ativa gateway, cobrança, anúncios, acesso a contas ou alterações retroativas. A integração técnica e a homologação continuam separadas da aprovação comercial.
+
+
+## Complemento aprovado — antecipado com acerto mensal (14/11/2026)
+
+O titular escolheu expressamente **Antecipado com acerto**: cobrar os 20% estimados no início e ajustar após apuração da mídia efetivamente investida, com investimento mínimo mensal de R$ 700 por canal. Este complemento resolve a pendência de período e modalidade indicada acima.
+
+Exibir no pedido o investimento planejado por canal e os honorários antecipados estimados, mantendo mídia paga diretamente às plataformas. No fechamento mensal, comparar 20% da mídia efetiva com os honorários antecipados e apresentar a diferença para acerto (crédito ou complemento), sem confundir investimento planejado com gasto realizado. Não presumir novo piso de honorários, multa por baixo investimento, método/prazo de devolução, data fixa de vencimento ou débito adicional automático sem condições contratuais aplicáveis. Pagamentos, conciliação e autorização devem ser comprovados no Portal/Asaas.
