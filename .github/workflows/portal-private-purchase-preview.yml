@@ -40,6 +40,10 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          python3 check_compose_isolation.py --self-test
+          docker compose -f compose.yaml -f compose.ci.yaml config --format json > "$RUNNER_TEMP/p0-compose-normalized.json"
+          python3 check_compose_isolation.py --config-json "$RUNNER_TEMP/p0-compose-normalized.json"
+          rm -f "$RUNNER_TEMP/p0-compose-normalized.json"
           # The customer policy must exist before the fail-closed Portal app starts.
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
