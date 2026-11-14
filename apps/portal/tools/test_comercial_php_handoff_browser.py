@@ -10,6 +10,8 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import os
 from pathlib import Path
+from hashlib import sha256
+import json
 import shutil
 from threading import Thread
 from urllib.parse import urlsplit
@@ -28,6 +30,30 @@ OFFERS = (
 root = Path(os.environ["COMERCIAL_P0_HANDOFF_ROOT"]).resolve(strict=True)
 assert root.is_dir() and not root.is_symlink()
 assert (root / "index.html").is_file()
+
+review_dir_env = os.environ.get("P0_REVIEW_SCREENSHOT_DIR")
+review_dir = Path(review_dir_env) if review_dir_env else None
+if review_dir is not None:
+    assert review_dir.is_absolute() and not review_dir.exists()
+    review_dir.mkdir(parents=True, mode=0o700)
+review_expected = (
+    "01-comercial-desktop.png",
+    "02-comercial-mobile.png",
+    "03-portal-choice-desktop.png",
+    "04-portal-choice-mobile.png",
+    "05-payment-blocked.png",
+    "06-briefing-saved.png",
+)
+
+def capture_review(page, filename: str, *, mask_order: bool = False) -> None:
+    if review_dir is None:
+        return
+    assert filename in review_expected
+    options = {"path": str(review_dir / filename), "animations": "disabled"}
+    if mask_order:
+        options["mask"] = [page.locator("code")]
+    page.screenshot(**options)
+
 
 
 class NoWriteLocalSite(SimpleHTTPRequestHandler):
@@ -79,6 +105,12 @@ with ThreadingHTTPServer(
                         page.on("pageerror", lambda err: errors.append(type(err).__name__))
                         home = page.goto(COMERCIAL, wait_until="domcontentloaded", timeout=15000)
                         assert home and home.status == 200
+                        if slug == "onepage" and review_dir is not None:
+                            capture_review(page, "01-comercial-desktop.png")
+                            page.set_viewport_size({"width": 390, "height": 844})
+                            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                            capture_review(page, "02-comercial-mobile.png")
+                            page.set_viewport_size({"width": 1280, "height": 900})
                         link = page.locator(
                             f'article[data-quick-hire="{slug}"] a[data-quick-hire-action]'
                         )
@@ -96,6 +128,12 @@ with ThreadingHTTPServer(
                         assert selected.count() == 1
                         assert page.locator('section[data-handoff-selected="true"]').count() == 1
                         assert page.get_by_role("button", name="Criar pedido de teste").count() == 3
+                        if slug == "onepage" and review_dir is not None:
+                            capture_review(page, "03-portal-choice-desktop.png")
+                            page.set_viewport_size({"width": 390, "height": 844})
+                            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                            capture_review(page, "04-portal-choice-mobile.png")
+                            page.set_viewport_size({"width": 1280, "height": 900})
                         # CSRF must remain enforced even with a valid offer hint.
                         bad = page.request.post(
                             PORTAL + "/orders",
@@ -114,6 +152,8 @@ with ThreadingHTTPServer(
                             assert page.get_by_role(
                                 "button", name="Salvar briefing de teste"
                             ).count() == 0
+                            if slug == "onepage" and state == "pending":
+                                capture_review(page, "05-payment-blocked.png", mask_order=True)
                         page.get_by_role("checkbox").check()
                         page.locator("select[name=outcome]").select_option("approved")
                         page.get_by_role("button", name="Aplicar resultado de teste").click()
@@ -128,6 +168,8 @@ with ThreadingHTTPServer(
                         page.get_by_role(
                             "heading", name="Briefing salvo no Portal de teste"
                         ).wait_for()
+                        if slug == "onepage":
+                            capture_review(page, "06-briefing-saved.png", mask_order=True)
                         page.reload()
                         assert page.get_by_text("<script>alert(1)</script>", exact=True).count() == 1
                         assert page.locator("script").count() == 0
@@ -155,5 +197,29 @@ with ThreadingHTTPServer(
     finally:
         server.shutdown()
         worker.join(timeout=5)
+if review_dir is not None:
+    images = sorted(review_dir.glob("*.png"))
+    assert [p.name for p in images] == list(review_expected)
+    records = []
+    for image in images:
+        content = image.read_bytes()
+        assert len(content) > 2000 and len(content) < 2_500_000
+        assert content.startswith(b"\x89PNG\r\n\x1a\n")
+        records.append({"filename": image.name, "bytes": len(content), "sha256": sha256(content).hexdigest()})
+    manifest = {
+        "schema": "imagine.p0.visual-review.v1",
+        "source": "synthetic-astro-laravel-pg18-chromium",
+        "screenshots": records,
+        "all_data_fictitious": True,
+        "customer_sessions_used": False,
+        "real_purchases_executed": False,
+        "external_navigation_authorized": False,
+        "publishable": False,
+        "release_gate": "NO_GO",
+    }
+    (review_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    print("PASS: six review screenshots + SHA256 manifest produced; NO-GO for real service.")
 print("PASS: 4 Astro CTA -> actual Laravel HTTP + CSRF + PG18 durable fake payment/briefing.")
 print("NO-GO: no customer login, authorization, real payment, public route or VPS.")

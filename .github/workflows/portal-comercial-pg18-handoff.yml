@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - review/portal-commercial-php-purchase-handoff-2026-11-13
+      - review/portal-p0-comercial-portal-visual-evidence-2026-11-13
 permissions:
   contents: read
 jobs:
@@ -98,6 +99,7 @@ jobs:
           APP_ENV: staging
           APP_DEBUG: 'false'
           COMERCIAL_P0_HANDOFF_ROOT: ${{ runner.temp }}/comercial-php-handoff-lab
+          P0_REVIEW_SCREENSHOT_DIR: ${{ runner.temp }}/p0-browser-images
         run: |
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/portal-comercial-playwright"
@@ -118,6 +120,42 @@ jobs:
           PY
           "$RUNNER_TEMP/portal-comercial-playwright/bin/python" tools/test_comercial_php_handoff_browser.py
           echo 'NO-GO: GitHub temporary loopback only; no VPS, deployment, customer IAM or real payments.'
+      - name: Validate all six Chromium screenshots and trusted metadata
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json,os
+          d=Path(os.environ['RUNNER_TEMP'])/'p0-browser-images'
+          expected=['01-comercial-desktop.png','02-comercial-mobile.png',
+                    '03-portal-choice-desktop.png','04-portal-choice-mobile.png',
+                    '05-payment-blocked.png','06-briefing-saved.png']
+          report=json.loads((d/'manifest.json').read_text(encoding='utf-8'))
+          assert report['schema']=='imagine.p0.visual-review.v1'
+          assert report['release_gate']=='NO_GO' and report['publishable'] is False
+          assert report['all_data_fictitious'] is True
+          for key in ['customer_sessions_used','real_purchases_executed','external_navigation_authorized']:
+              assert report[key] is False
+          assert [r['filename'] for r in report['screenshots']]==expected
+          assert sorted(p.name for p in d.iterdir())==sorted(expected+['manifest.json'])
+          for record in report['screenshots']:
+              image=d/record['filename']
+              assert not image.is_symlink()
+              data=image.read_bytes()
+              assert data[:8]==bytes.fromhex('89504e470d0a1a0a')
+              assert 2000<len(data)<2500000 and record['bytes']==len(data)
+              assert record['sha256']==sha256(data).hexdigest()
+          assert len((d/'manifest.json').read_bytes())<3000
+          print('PASS: six reproducible, checksum-verified simulated journey screenshots, NO-GO.')
+          PY
+      - name: Upload visual preview snapshots for 7-day review (NO-GO)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-p0-comercial-portal-visual-browser-review
+          path: ${{ runner.temp }}/p0-browser-images
+          if-no-files-found: error
+          retention-days: 7
       - name: Checkout exact Sites PG18 atomic outbox candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
