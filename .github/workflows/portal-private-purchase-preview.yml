@@ -242,6 +242,13 @@ jobs:
           ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           path: _portal_sites_signer_candidate
           persist-credentials: false
+      - name: Checkout independently verified CRM fake consent PG18 fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 50c1eb574aa0ed81055dc256e77302acd1781d71
+          path: _crm_fake_consent_candidate
+          persist-credentials: false
       - name: Use PHP8.4 with PostgreSQL PDO for isolated second database
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
@@ -252,6 +259,7 @@ jobs:
       - name: Four individually owned Portal orders to Sites PG18 and outbox worker
         env:
           P0_OWNED_TO_SITES_CI: '1'
+          P0_OWNED_TO_CRM_CI: '1'
         run: |
           set -euo pipefail
           bash -n apps/portal/ops/private-purchase/run_owned_to_sites_ci.sh
@@ -261,6 +269,13 @@ jobs:
         with:
           name: imagine-owned-customer-to-sites-pg18-no-go
           path: ${{ runner.temp }}/p0-owned-customer-to-sites-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain four-project individually owned fake-consent PostgreSQL proof
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-owned-customers-sites-fake-consented-crm-pg18-no-go
+          path: ${{ runner.temp }}/p0-individual-portal-sites-crm-evidence.json
           if-no-files-found: error
           retention-days: 7
       - name: Diagnose failed synthetic browser flow
