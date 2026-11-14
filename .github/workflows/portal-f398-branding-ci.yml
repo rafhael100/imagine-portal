@@ -31,6 +31,7 @@ jobs:
           grep -Fq 'src="/_development/branding/logo-imagine.png"' apps/portal/resources/views/components/portal/brand.blade.php
           grep -Fq "img-src 'self' data:" apps/portal/resources/views/components/portal/layout.blade.php
           grep -Fq 'COPY assets/logo-imagine.png ./public/_development/branding/logo-imagine.png' infra/development/portal-db/Dockerfile
+          grep -Fxq '!assets/logo-imagine.png' infra/development/portal-db/Dockerfile.dockerignore
           grep -Fq 'data:image/png;base64' apps/portal/app/Presentation/DemoPortalStaticExporter.php
           grep -Fq 'img-src data:' apps/portal/app/Presentation/DemoPortalStaticExporter.php
           test ! -e apps/portal/public/_development/branding/logo-imagine.png.export
