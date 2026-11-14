@@ -13,6 +13,11 @@
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
             @if($slug === 'performance')
+                @if($selectedChannel === 'google_ads')
+                    <p class="notice" data-channel-origin="google_ads">Você veio do serviço Google Ads no site Imagine. Informe e confirme o orçamento de mídia abaixo; nenhum valor foi escolhido automaticamente.</p>
+                @elseif($selectedChannel === 'meta_ads')
+                    <p class="notice" data-channel-origin="meta_ads">Você veio do serviço Meta Ads no site Imagine. Informe e confirme o orçamento de mídia abaixo; nenhum valor foi escolhido automaticamente.</p>
+                @endif
                 <p><strong>Gestão Imagine: 20% da mídia investida.</strong> Mínimo de R$ 700 de anúncios por canal, pago diretamente ao Google ou à Meta. Honorários Imagine são separados da verba de anúncios.</p>
                 <p>A estimativa será registrada no pedido; período de apuração e acerto financeiro ainda precisam ser definidos para cobrança real.</p>
             @else
