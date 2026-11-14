@@ -13,8 +13,8 @@
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
             @if($slug === 'performance')
-                <p><strong>Gestão Imagine: 20% da mídia investida.</strong> Mínimo de R$ 700 de anúncios por canal, pago diretamente ao Google ou à Meta. Honorários Imagine são separados da verba de anúncios.</p>
-                <p>Honorários antecipados sobre o investimento planejado, com acerto mensal conforme a mídia efetivamente investida. Informe o orçamento mensal de cada canal.</p>
+                <p><strong>Ativação única de R$ 490 por canal selecionado.</strong> Gestão pós-paga: 20% do investimento efetivo, com <strong>mínimo mensal de R$ 170 por canal</strong> em meses completos.</p>
+                <p>O investimento mínimo em anúncios é de <strong>R$ 1.000 no Google Ads</strong> e <strong>R$ 700 na Meta</strong>, pagos diretamente a cada plataforma. Estes valores não são a taxa de gestão. O primeiro mês parcial exige revisão do contrato; esta é uma simulação sem cobrança.</p>
             @else
                 @include('portal.preview.offer-summary',['quote'=>(new \App\Homologation\Commerce\ApprovedOfferCatalog())->quote($slug)])
             @endif
@@ -24,8 +24,8 @@
                 <input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}">
                 <input type="hidden" name="offer_version" value="{{ $offerVersion }}">
                 @if($slug === 'performance')
-                    <label>Investimento Google Ads (R$; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
-                    <label>Investimento Meta (R$; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
+                    <label>Investimento Google Ads (R$; mínimo 1.000,00; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="1.000,00" maxlength="12"></label>
+                    <label>Investimento Meta (R$; mínimo 700,00; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
                     <small>Instagram e Facebook pertencem ao mesmo canal Meta.</small>
                 @endif
                 <label><input type="checkbox" name="offer_ack" value="1" required> Revisei as condições para esta simulação, sem cobrança ou contrato real.</label>
@@ -79,7 +79,11 @@
 @if($order['sandbox']['invoice_url'])<p><a href="{{ $order['sandbox']['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança de teste no Asaas</a></p>@endif
 @endif
 @if($order['payment'] !== 'approved')
+@if($order['product'] === 'onepage')
 <form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito teste no Asaas sandbox com dados fictícios.</label><button type="submit">{{ $order['payment_source'] === 'manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
+@else
+<p>O checkout Asaas sandbox ainda não está habilitado nesta demonstração para {{ $order['product'] === 'performance' ? 'Performance' : 'Landing Page' }}. Use o cenário manual fictício, sem dinheiro real.</p>
+@endif
 @endif
 </section>
 @if($order['payment'] === 'approved' && ($order['payment_source'] === 'manual_test' || ($order['sandbox']['state'] ?? null) === 'approved'))
