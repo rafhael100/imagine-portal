@@ -16,6 +16,8 @@ if (!$stat||($stat['mode']&077)!==0||$stat['uid']!==82||$stat['size']>2048) { ht
 $config=json_decode(stream_get_contents($handle),true,8,JSON_THROW_ON_ERROR); fclose($handle);
 if (!is_array($config)||!is_string($config['database_password']??null)
     ||!preg_match('/\A[a-f0-9]{64}\z/D',$config['database_password'])
+    ||!is_string($config['customer_scope_key']??null)
+    ||!preg_match('/\A[a-f0-9]{64}\z/D',$config['customer_scope_key'])
     ||!is_string($config['app_key']??null)||!str_starts_with($config['app_key'],'base64:')
     ||strlen(base64_decode(substr($config['app_key'],7),true)?:'')!==32) { http_response_code(503); exit; }
 // Gateway is private to this sandbox and pins Host. Ignore all forwarded headers.
@@ -41,7 +43,7 @@ try {
   'purchase_rehearsal_a',$config['database_password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
  $app->instance(App\Homologation\RoleBoundTestPurchase::class,new App\Homologation\RoleBoundTestPurchase($pdo));
  $app->instance(App\Homologation\PreviewOrderListing::class,new App\Homologation\PreviewOrderListing($pdo));
- $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo));
+ $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo,$config['customer_scope_key']));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);
 $request=Illuminate\Http\Request::capture(); $response=$kernel->handle($request);
