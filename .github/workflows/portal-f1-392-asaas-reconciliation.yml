@@ -2,6 +2,9 @@ name: Portal F1-392 Asaas webhook reconciliation lease PG18 (synthetic)
 on:
   pull_request:
     paths:
+      - 'apps/portal/ops/private-purchase/customer-schema.sql'
+      - 'apps/portal/app/Homologation/CustomerPreviewStore.php'
+      - 'docs/PORTAL-P0-SIGNED-SQL-CHECKOUT-CONSOLIDATION.md'
       - 'apps/portal/app/Domain/SitesIntegration/AsaasWebhookReconciliationWorker.php'
       - 'apps/portal/app/Domain/SitesIntegration/AsaasTrustedEventPaymentSource.php'
       - 'apps/portal/app/Domain/SitesIntegration/DenyingAsaasEventPaymentSource.php'
