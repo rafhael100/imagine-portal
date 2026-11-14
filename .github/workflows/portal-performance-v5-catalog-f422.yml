@@ -1,0 +1,56 @@
+name: Portal F422 approved Performance V5 catalog and postpaid review safety
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php'
+      - 'apps/portal/app/Homologation/Commerce/approved-catalog.json'
+      - 'apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php'
+      - 'apps/portal/app/Homologation/Commerce/PerformanceSettlement.php'
+      - 'apps/portal/app/Http/Controllers/CustomerPreviewController.php'
+      - 'apps/portal/resources/views/portal/preview/**'
+      - 'apps/portal/tools/test_commerce.php'
+      - 'apps/portal/tools/test_performance_postpaid_policy.php'
+      - 'apps/portal/tools/test_performance_v5_catalog_settlement_offline.php'
+      - '.github/workflows/portal-performance-v5-catalog-f422.yml'
+permissions:
+  contents: read
+jobs:
+  server-owned-catalog-postpaid:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact SHA without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Verify syntax and V5 server catalog without external APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php
+          php -l apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php
+          php -l apps/portal/app/Homologation/Commerce/PerformanceSettlement.php
+          php -l apps/portal/tools/test_performance_v5_catalog_settlement_offline.php
+          php apps/portal/tools/test_commerce.php
+          php apps/portal/tools/test_performance_postpaid_policy.php
+          php apps/portal/tools/test_performance_v5_catalog_settlement_offline.php
+      - name: Confirm sandbox Performance charges remain disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "if (\$o['product']!=='onepage')" apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php
+          grep -Fq '"direct_checkout_enabled": false' apps/portal/app/Homologation/Commerce/approved-catalog.json
+          echo 'F422: V5 quote and postpaid review are server-owned; PSP charges remain unavailable.' >> "$GITHUB_STEP_SUMMARY"
