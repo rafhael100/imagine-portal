@@ -1,0 +1,48 @@
+name: Portal Performance three-channel V5 candidate signed quote lab
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/performance-channel-minima-candidate-v5.json'
+      - 'apps/portal/app/Homologation/Commerce/PerformanceTriChannelV5CandidateCatalog.php'
+      - 'apps/portal/app/Homologation/Commerce/PortalPerformanceTriChannelV5LabIssuer.php'
+      - 'apps/portal/tools/test_performance_trichannel_v5_lab.php'
+      - '.github/workflows/portal-perf-trichannel-v5-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-v5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      APP_ENV: testing
+      PORTAL_PERF_TRICHANNEL_V5_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read owner-approved commercial proposal from its exact reviewed commit
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: fa96f973bd0b826ee8eb88c688a96c0b0d3176f9
+          path: pricing-source-reference
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: Confirm candidate input is bit-for-bit the approved pricing decision
+        run: cmp -s apps/portal/app/Homologation/Commerce/performance-channel-minima-candidate-v5.json pricing-source-reference/docs/decisions/performance-channel-minima-proposal-v1.json
+      - name: Syntax validation
+        run: |
+          php -l apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php
+          php -l apps/portal/app/Homologation/Commerce/PerformanceTriChannelV5CandidateCatalog.php
+          php -l apps/portal/app/Homologation/Commerce/PortalPerformanceTriChannelV5LabIssuer.php
+          php -l apps/portal/tools/test_performance_trichannel_v5_lab.php
+      - name: Candidate quote, legacy v4 unchanged, HMAC separation and fail-closed checks
+        run: php apps/portal/tools/test_performance_trichannel_v5_lab.php
