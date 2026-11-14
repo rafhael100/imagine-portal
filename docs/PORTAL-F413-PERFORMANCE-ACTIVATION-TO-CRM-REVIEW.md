@@ -24,8 +24,7 @@ e ao contrato assinado de **revisão** do CRM.
 6. A demonstração não contém contato ou identificação de consumidor;
    não cria contrato, invoice, evento, outbox, idempotency key operacional,
    webhook, boleto, cobrança ou transferência CRM.
-7. O mínimo mensal de gestão está pendente de uma regra comercial
-   versionada. É representado por `null`, não por um valor suposto.
+7. Em F419, a regra já aprovada e implementada no checkout sandbox F757 é **R$170 por canal/mês completo** ou 20% da mídia efetiva, o maior. É representada por `17000` centavos, com versão `performance-postpaid-170-per-channel-2026-11-14`; não autoriza faturamento automático.
 
 ## Antes de homologação real
 
@@ -35,7 +34,7 @@ e ao contrato assinado de **revisão** do CRM.
   por ambiente e teste com provedor, com conciliação financeira independente.
 - Persistência atômica do método, PSP, versão, montante e deduplicação,
   outbox e idempotência antes de qualquer `POST` de pagamento.
-- Extratos oficiais de mídia, revisão/contestação, NFS-e e mínimo de gestão.
+- Extratos oficiais de mídia, revisão/contestação, NFS-e, política de mínimo R$170/canal e tratamento do primeiro mês parcial.
 - Ensaios backup/restauração/rollback em staging Leaseweb e auditoria independente.
 
 Apenas após esses gates deve existir um endpoint autenticado de contratação.
