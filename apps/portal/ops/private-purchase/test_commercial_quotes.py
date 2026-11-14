@@ -10,7 +10,30 @@ with sync_playwright() as p:
     page.locator('[name=username]').fill(saved['user'])
     page.locator('[name=password]').fill('ci-owned-customer-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
+    # Comercial Google/Meta CTA context is only a hint; never prefill money or accept unsafe channels.
+    for channel,description in [('google_ads','Google Ads'),('meta_ads','Meta Ads')]:
+        page.goto(BASE+'/shop?product=performance&channel='+channel)
+        assert page.locator('[data-channel-origin="'+channel+'"]').count()==1
+        assert description in page.locator('[data-channel-origin]').inner_text()
+        assert page.locator('[name=google_media]').input_value()==''
+        assert page.locator('[name=meta_media]').input_value()==''
+    for bad in [BASE+'/shop?product=onepage&channel=google_ads',
+                BASE+'/shop?product=performance&channel=unknown',
+                BASE+'/shop?product=performance&channel[]=google_ads']:
+        assert page.request.get(bad).status==422
+    # A known channel must survive preview sign-in without granting money or services.
+    page.goto(BASE)
+    page.get_by_role('button',name='Sair',exact=True).click()
+    page.goto(BASE+'/shop?product=performance&channel=meta_ads')
+    assert page.url.rstrip('/')==BASE
+    page.locator('[name=username]').fill(saved['user'])
+    page.locator('[name=password]').fill('ci-owned-customer-only-2026')
+    page.get_by_role('button',name='Entrar',exact=True).click()
+    assert page.url.endswith('/shop?product=performance&channel=meta_ads'),page.url
+    assert page.locator('[data-channel-origin="meta_ads"]').count()==1
+    assert page.locator('[name=meta_media]').input_value()==''
     page.goto(BASE+'/shop?product=landing-pages')
+    assert page.locator('[data-channel-origin]').count()==0
     assert 'R$ 1.290,00' in page.locator('body').inner_text()
     assert 'R$ 430,00' in page.locator('body').inner_text()
     page.locator('[name=offer_ack]').check()
