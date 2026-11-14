@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "decision_date": "2026-11-14",
+  "currency": "BRL",
+  "gateway": {
+    "provider": "asaas",
+    "decision": "approved_by_owner",
+    "migration_default_environment": "sandbox",
+    "production_activation_authorized_by_this_file": false
+  },
+  "source": {
+    "repository": "rafhael100/imagine-portal",
+    "commit": "50b683a499e674641df5749051f3d05f7ac3f627",
+    "files": [
+      "docs/OFERTA-ONEPAGE.md",
+      "docs/ASSINATURA-CLIENTE.md",
+      "server/store.mjs",
+      "server/recurring-billing.mjs"
+    ],
+    "additional_sources": [
+      {
+        "repository": "rafhael100/imagine-portal",
+        "commit": "76ce533da42bf5d195ebffcdc8a110d1bc70f9b8",
+        "file": "docs/OFERTA-LANDING-PAGE.md",
+        "decision": "IN-115",
+        "status": "commercial_planning_approved"
+      },
+      {
+        "repository": "rafhael100/imagine-performance-ai",
+        "commit": "b152687b7e3c06543ccad8c938d74a9bc612b12f",
+        "files": [
+          "docs/performance-ai/PERF-ROADMAP-CANAIS-LANCAMENTO-EXPANSAO.md",
+          "docs/performance-ai/PERF-P0-BL01-OFERTA-PLANOS-FRANQUIAS.md",
+          "docs/performance-ai/PERF-P0-BL02-COBRANCA-DESCONTOS-MIDIA-ALCADAS.md",
+          "docs/performance-ai/PERF-P0-BL04-REVISAO-ECONOMICA-PRELIMINAR-2026-11-05.md"
+        ],
+        "status": "conflicting_historical_proposals_not_marked_approved"
+      },
+      {
+        "type": "explicit_owner_decision",
+        "date": "2026-11-14",
+        "decision": "20_percent_of_invested_media_minimum_R700_media_per_channel",
+        "supersedes": "historical_performance_pricing_proposals"
+      }
+    ]
+  },
+  "offers": [
+    {
+      "id": "onepage",
+      "legacy_product_id": "site",
+      "billing_model": "subscription-v2",
+      "setup_total_cents": 99000,
+      "setup_charges": [
+        {
+          "offset_days": 0,
+          "amount_cents": 33000
+        },
+        {
+          "offset_days": 30,
+          "amount_cents": 33000
+        },
+        {
+          "offset_days": 60,
+          "amount_cents": 33000
+        }
+      ],
+      "monthly": {
+        "amount_cents": 7990,
+        "mandatory": true,
+        "first_due_offset_days": 90,
+        "anchor": "contract_acceptance",
+        "independent_of_publication": true
+      },
+      "timezone": "America/Sao_Paulo",
+      "setup_payment_semantics": "three_separately_scheduled_card_transactions",
+      "delivery_business_days_after_material_validation": 7,
+      "included_adjustment_rounds": 2,
+      "content_updates": {
+        "existing_blocks_included": true,
+        "new_layout_sections_or_features": "separate_quote",
+        "fixed_monthly_request_cap": null,
+        "fair_use_required": true,
+        "simple_update_review_business_days_after_complete_materials": 3,
+        "source_decision": "IN-115 subsequent complement; preserve legacy contracts"
+      }
+    },
+    {
+      "id": "landing-pages",
+      "pricing_status": "recovered_approved_commercial_planning_IN115",
+      "setup_total_cents": 129000,
+      "setup_charges": [
+        {
+          "offset_days": 0,
+          "amount_cents": 43000
+        },
+        {
+          "offset_days": 30,
+          "amount_cents": 43000
+        },
+        {
+          "offset_days": 60,
+          "amount_cents": 43000
+        }
+      ],
+      "monthly": {
+        "amount_cents": 7990,
+        "mandatory": true,
+        "first_due_offset_days": 90,
+        "anchor": "contract_acceptance",
+        "independent_of_publication": true
+      },
+      "timezone": "America/Sao_Paulo",
+      "included_adjustment_rounds": 2,
+      "delivery_business_days_after_material_validation": 7,
+      "content_updates": {
+        "existing_blocks_included": true,
+        "new_layout_sections_or_features": "separate_quote",
+        "fixed_monthly_request_cap": null,
+        "fair_use_required": true,
+        "simple_update_review_business_days_after_complete_materials": 3,
+        "source_decision": "IN-115 subsequent complement; preserve legacy contracts"
+      },
+      "crm_basic_benefit": {
+        "eligible_contract_required": true,
+        "second_crm_monthly_charge": false,
+        "provisioned_by_this_catalog": false
+      },
+      "direct_checkout_enabled": false,
+      "source_commit": "76ce533da42bf5d195ebffcdc8a110d1bc70f9b8",
+      "source_file": "docs/OFERTA-LANDING-PAGE.md"
+    },
+    {
+      "id": "performance",
+      "pricing_status": "approved_by_owner_2026_11_14",
+      "billing_model": "percentage_of_invested_media",
+      "management_fee_basis_points": 2000,
+      "minimum_media_investment_per_channel_cents": 70000,
+      "minimum_is_media_budget_not_management_fee": true,
+      "calculation": "sum_of_invested_media_for_contracted_channels_times_20_percent",
+      "channels": [
+        "google_ads",
+        "meta_ads"
+      ],
+      "meta_instagram_facebook_count_as_one_channel": true,
+      "reference_period": null,
+      "operational_settlement_policy": null,
+      "below_minimum_spend_policy": null,
+      "setup_fee_cents": null,
+      "setup_fee_status": "not_authorized_by_this_decision",
+      "direct_checkout_enabled": false,
+      "media_spend_paid_directly_to_platforms": true,
+      "monthly_days_90_from_sites_inherited": false,
+      "automatic_sites_discounts_inherited": false,
+      "decision_file": "docs/decisions/2026-11-14-performance-20-percent-media.md"
+    }
+  ],
+  "legacy_contract_policy": "preserve_original_prices_and_terms",
+  "runtime_status": "migration_reference_only_not_connected_to_checkout",
+  "additional_site_services": {
+    "applies_to": [
+      "onepage",
+      "landing-pages"
+    ],
+    "upfront_only_max_total_cents_inclusive": 27000,
+    "optional_max_installments_above_threshold": 3,
+    "automatic_interest_or_due_dates_defined": false,
+    "quote_and_customer_acceptance_required": true
+  }
+}

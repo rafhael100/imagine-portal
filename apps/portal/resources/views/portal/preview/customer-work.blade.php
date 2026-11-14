@@ -1,6 +1,7 @@
 @php($labels=['queued'=>'Aguardando análise do briefing','in_production'=>'Em produção de teste','awaiting_approval'=>'Aguardando sua aprovação','changes_requested'=>'Ajustes solicitados','completed'=>'Concluído no teste'])
 <x-portal.layout title="Acompanhamento do pedido" :current="$isAdmin?'orders':'journey'">
 <x-portal.panel title="Jornada do seu projeto"><p><strong>{{ $order['id'] }}</strong> · {{ $order['customer_name'] }} · {{ $order['company'] }}</p><p role="status">{{ $labels[$order['work_status']] }}</p><p>Esta jornada registra ações no ambiente de testes. Não ativa serviço ou publicação real.</p>
+@if($order['offer_snapshot']!==null)<h3>Condições registradas no pedido</h3>@include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])@endif
 @if($order['briefing']===null)
 <p>Envie o briefing após o pagamento simulado aprovado para que a equipe possa iniciar.</p>
 @else

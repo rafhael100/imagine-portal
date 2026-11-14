@@ -51,11 +51,17 @@ with sync_playwright() as p:
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         capture('02-selected-onepage-offer.png')
         token=csrf(); key=page.locator('[name=request_key]').input_value()
+        version=page.locator('[name=offer_version]').input_value()
+        assert 'R$ 990,00' in page.locator('body').inner_text()
+        page.locator('[name=offer_ack]').check()
         page.get_by_role('button',name='Criar pedido de teste').click()
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
-        duplicate=page.request.post(BASE+'/shop/orders',form={'_token':token,'request_key':key,'product':'onepage'})
+        duplicate=page.request.post(BASE+'/shop/orders',form={'_token':token,'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1'})
         assert duplicate.status==200 and duplicate.url==order_url
-        assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','customer_id':'forged'}).status==422
+        assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','customer_id':'forged'}).status==422
+        assert 'R$ 330,00' in page.locator('body').inner_text()
+        assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','price_cents':'1'}).status==422
+        assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':'0'*64,'offer_ack':'1'}).status==409
         page.get_by_role('checkbox').check()
         page.locator('[name=outcome]').select_option('declined')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
