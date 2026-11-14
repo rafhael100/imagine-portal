@@ -1,0 +1,51 @@
+name: Imagine P0 Leaseweb read-only preflight - no host changes
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/integration/leaseweb_readonly_preflight.py'
+      - 'apps/portal/tools/integration/test_leaseweb_readonly_preflight.py'
+      - '.github/workflows/portal-p0-leaseweb-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-mutating-operations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout candidate without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify only approved read-only commands and parsers
+        run: |
+          set -euo pipefail
+          python3 -m py_compile apps/portal/tools/integration/leaseweb_readonly_preflight.py
+          python3 -m unittest discover -s apps/portal/tools/integration -p 'test_leaseweb_readonly_preflight.py' -v
+      - name: Execute on disposable GitHub runner with zero live credentials
+        run: |
+          set -euo pipefail
+          python3 apps/portal/tools/integration/leaseweb_readonly_preflight.py --json > "$RUNNER_TEMP/imagine-p0-host-only-no-go.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          file=Path(os.environ["RUNNER_TEMP"])/"imagine-p0-host-only-no-go.json"
+          raw=file.read_bytes()
+          assert len(raw) < 5000
+          report=json.loads(raw)
+          assert report["safety"]=={
+            "read_only":True,"secrets_read":False,"credentials_output":False,
+            "docker_writes_executed":False,"sql_queries_executed":False,
+            "public_network_access":False,"deployment_executed":False
+          }
+          assert report["release_decision"]["status"]=="NO_GO"
+          assert all(v is False for k,v in report["release_decision"].items() if k.endswith("_allowed"))
+          assert report["checks"]["staging_folder_exists"] is False
+          print("PASS non-mutating Leaseweb preflight on disposable runner; NO-GO for release")
+          PY
+      - name: Record operational limitation
+        run: |
+          echo 'Preflight executed on a disposable GitHub runner, NOT the Leaseweb VPS.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'It cannot prove TLS, IAM, backup/restore, PSP or an operational Portal/Sites release.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO remains mandatory. No install, network changes, SQL or Docker mutations executed.' >> "$GITHUB_STEP_SUMMARY"
