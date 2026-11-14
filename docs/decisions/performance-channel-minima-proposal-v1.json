@@ -1,0 +1,33 @@
+{
+  "schema_version": "performance_channel_minima_proposal_v1",
+  "status": "proposal_requires_owner_confirmation_no_active_catalog_change",
+  "currency": "BRL",
+  "base_commercial_catalog_version": 4,
+  "base_contract_repository": "rafhael100/imagine-portal",
+  "management_fee_basis_points": 2000,
+  "media_paid_directly_to_providers": true,
+  "provider_charge_authorized": false,
+  "asaas_charge_authorized": false,
+  "checkout_enabled": false,
+  "ad_write_enabled": false,
+  "reference_period": "monthly",
+  "channel_minimums_cents": {
+    "meta_ads": 70000,
+    "google_ads": 100000,
+    "chatgpt_ads": 120000
+  },
+  "channel_recommended_cents": {
+    "meta_ads": 100000,
+    "google_ads": 150000,
+    "chatgpt_ads": 180000
+  },
+  "chatgpt_platform_daily_minimum_brl_cents": 4000,
+  "note": "ChatGPT BRL 40/dia é mínimo de campanha com orçamento diário; R$1200 equivale a 30 dias, não mínimo mensal universal. Estes pisos são recomendações Imagine ainda não aprovadas.",
+  "blocked_until": [
+    "owner_confirms_exact_per_channel_floor",
+    "portal_signed_contract_v5",
+    "performance_real_ads_api_credentials",
+    "ads_readonly_provider_verification",
+    "security_lgpd_finance_homologation"
+  ]
+}
