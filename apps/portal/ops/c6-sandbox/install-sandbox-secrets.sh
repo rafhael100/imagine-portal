@@ -7,7 +7,7 @@ if [[ $EUID -ne 0 || ! -t 0 ]]; then
   exit 1
 fi
 TARGET=/etc/imagine/secrets/c6-sandbox
-if [[ -e "$TARGET" ]]; then
+if [[ -e "$TARGET" || -L "$TARGET" ]]; then
   echo 'C6 sandbox já configurado: não sobrescrever automaticamente.' >&2
   exit 1
 fi
@@ -32,12 +32,36 @@ if [[ -z "$CLIENT_ID" || -z "$CLIENT_SECRET" ]]; then
   echo 'Credenciais vazias: abortado.' >&2
   exit 1
 fi
-install -d -m 0700 -o root -g root /etc/imagine /etc/imagine/secrets "$TARGET"
-printf '%s' "$CLIENT_ID" > "$TARGET/client_id"
-printf '%s' "$CLIENT_SECRET" > "$TARGET/client_secret"
+# Refuse path redirection before creating or writing any credential.
+if [[ -L /etc/imagine || -L /etc/imagine/secrets ]]; then
+  echo 'Diretório de credenciais indireto ou inseguro.' >&2
+  exit 1
+fi
+install -d -m 0700 -o root -g root /etc/imagine /etc/imagine/secrets
+STAGE=$(mktemp -d /etc/imagine/secrets/.c6-sandbox-install.XXXXXXXX)
+chmod 0700 "$STAGE"
+cleanup() {
+  if [[ -n "${STAGE:-}" && -d "$STAGE" ]]; then
+    rm -rf -- "$STAGE"
+  fi
+}
+trap cleanup EXIT
+printf '%s' "$CLIENT_ID" > "$STAGE/client_id"
+printf '%s' "$CLIENT_SECRET" > "$STAGE/client_secret"
 unset CLIENT_ID CLIENT_SECRET
-install -m 0600 -o root -g root -- "$CRT" "$TARGET/client.crt"
-install -m 0600 -o root -g root -- "$KEY" "$TARGET/client.key"
-chmod 0600 "$TARGET"/*
+install -m 0600 -o root -g root -- "$CRT" "$STAGE/client.crt"
+install -m 0600 -o root -g root -- "$KEY" "$STAGE/client.key"
+chmod 0600 "$STAGE"/*
+# Publish the complete bundle in one rename. Never expose partial files.
+if [[ -e "$TARGET" || -L "$TARGET" ]]; then
+  echo 'C6 sandbox configurado por outro processo: operação cancelada.' >&2
+  exit 1
+fi
+mv -Tn -- "$STAGE" "$TARGET"
+if [[ -d "$STAGE" ]]; then
+  echo 'Não foi possível publicar o bundle sem sobrescrever.' >&2
+  exit 1
+fi
+STAGE=''
 echo 'Segredos sandbox instalados apenas localmente com acesso root-only.'
 echo 'Nenhuma autenticação ou cobrança foi executada. Proteja arquivos de origem.'
