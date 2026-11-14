@@ -156,5 +156,27 @@ check((int)$admin->query(
 )->fetchColumn()===0,
     'no PAYMENT_RECEIVED webhook can ever mark a settlement/entitlement by itself');
 
+
+// Asaas released an opaque underscore payment ID variant in Sandbox on
+// 09/11/2026. Ingest it as a new pending event, never as a paid contract.
+$updatedId='pay_1_a1B2c3D4e5F6g7';
+$newEvent=$event;
+$newEvent['id']='evt_12345678abcdef0113';
+$newEvent['payment']['id']=$updatedId;
+check($inbox->capture('POST','application/json',$token,
+    json_encode($newEvent,JSON_THROW_ON_ERROR))===
+    ['received'=>true,'duplicate'=>false],
+    'official 2026 underscore payment identifier persisted under tenant RLS');
+$recovered=$admin->query(
+    "SELECT payment_id,state FROM portal_psp.asaas_inbox
+      WHERE event_id='evt_12345678abcdef0113'"
+)->fetch(PDO::FETCH_ASSOC);
+check($recovered['payment_id']===$updatedId &&
+    $recovered['state']==='pending_reconciliation',
+    'new Asaas ID remains pending, not treated as settlement');
+check((int)$admin->query(
+    "SELECT count(*) FROM portal_psp.asaas_inbox"
+)->fetchColumn()===3,'new distinct event has exactly one additional durable row');
+
 echo "$checks F1-391 authenticated, durable, idempotent PG18 Asaas webhook inbox guards passed.\n";
 echo "NO-GO: synthetic tokens/accounts; no HTTP endpoint, PSP keys, reconciler, payment, contract, Site or VPS.\n";
