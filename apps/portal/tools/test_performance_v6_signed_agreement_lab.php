@@ -17,9 +17,9 @@ function v6Deny(callable $f,string $label):void {
 $cat=new Catalog();$secret=str_repeat('G',48);
 $tenant='tenant_v6_portal_1234567';$period='2026-11';$now=1794660000;
 $media=['meta_ads'=>70000,'google_ads'=>100000,'chatgpt_ads'=>120000];
-$issue=static fn(string $agreement,array $plan=$media,string $month='2026-11',
+$issue=static fn(string $agreement,?array $plan=null,string $month='2026-11',
     string $nonce='nonce_v6_issuer_1234567890')=>
-    Issuer::issue($cat,$plan,$tenant,$agreement,$month,
+    Issuer::issue($cat,$plan??$media,$tenant,$agreement,$month,
         'k_v6_contract_test',$nonce,$now-1,$now+120,$secret);
 $a=$issue('agreement_brand_01_1234567');
 $b=$issue('agreement_brand_02_1234567');
