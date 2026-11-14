@@ -1,0 +1,194 @@
+name: Portal GSC RC F104-F106 - integrated offline PostgreSQL release review
+
+on:
+  pull_request:
+    branches:
+      - review/portal-gsc-integration-slice-ab-2026-11-12
+    paths:
+      - '.github/workflows/portal-gsc-rc-f104-f106-ci.yml'
+      - 'apps/portal/docs/PORTAL-GSC-RC-F104-F106-REVIEW.md'
+      - 'apps/portal/labs/gsc-f104-bridge/**'
+      - 'apps/portal/labs/gsc-f105-rls/**'
+      - 'apps/portal/labs/gsc-f106-identity-binding/**'
+      - 'apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php'
+      - 'apps/portal/app/Domain/SeoReview/OfflinePortalGscIdentityBindingReview.php'
+      - 'apps/portal/app/Domain/SeoReview/GoogleSearchConsoleTenantScopedTransaction.php'
+      - 'apps/portal/database/migrations/2026_11_14_000006_create_portal_gsc_identity_scope_links.php'
+
+permissions:
+  contents: read
+
+jobs:
+  integrated-gsc-synthetic-release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: imagine_gsc_ci_test
+          POSTGRES_USER: imagine_ci
+          POSTGRES_PASSWORD: local_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imagine_ci -d imagine_gsc_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact release-review commit (no credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable SEO F104 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: ec1739621b20860f729c59d9863ba1b341da43e8
+          path: .qa/seo-f104
+          persist-credentials: false
+      - name: PHP 8.4 from exact setup-php commit
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer
+      - name: Node 22 from exact setup-node commit
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Strict ancestry, immutable sources and full release allowlist
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-f104 rev-parse HEAD)" = ec1739621b20860f729c59d9863ba1b341da43e8
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/rc-gsc-files"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const actual=readFileSync(process.env.RUNNER_TEMP+"/rc-gsc-files","utf8").split("\0").filter(Boolean);
+            const allowed=new Set([
+              ".github/workflows/portal-seo-f104-bridge-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php",
+              "apps/portal/labs/gsc-f104-bridge/emit-node.mjs",
+              "apps/portal/labs/gsc-f104-bridge/test-php.php",
+              "apps/portal/labs/gsc-f104-bridge/README.md",
+              ".github/workflows/portal-gsc-f105-rls-review-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php",
+              "apps/portal/labs/gsc-f105-rls/test-postgres.php",
+              "apps/portal/labs/gsc-f105-rls/README.md",
+              ".github/workflows/portal-gsc-f106-identity-binding-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflinePortalGscIdentityBindingReview.php",
+              "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleTenantScopedTransaction.php",
+              "apps/portal/database/migrations/2026_11_14_000006_create_portal_gsc_identity_scope_links.php",
+              "apps/portal/labs/gsc-f106-identity-binding/test-postgres.php",
+              "apps/portal/labs/gsc-f106-identity-binding/README.md",
+              ".github/workflows/portal-gsc-rc-f104-f106-ci.yml",
+              "apps/portal/docs/PORTAL-GSC-RC-F104-F106-REVIEW.md"
+            ]);
+            if(actual.length!==allowed.size||actual.some(p=>!allowed.has(p))) {
+              console.error("Unexpected changes in RC F104-F106");process.exit(1);
+            }
+            console.log("Portal GSC RC: 17 exact paths, no auth routes or secrets");
+          '
+      - name: Run complete SEO F104 Node tests and syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix .qa/seo-f104 test
+          for file in \
+            apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php \
+            apps/portal/app/Domain/SeoReview/OfflineOpenSeoRlsReviewGateway.php \
+            apps/portal/app/Domain/SeoReview/OfflinePortalGscIdentityBindingReview.php \
+            apps/portal/app/Domain/SeoReview/GoogleSearchConsoleTenantScopedTransaction.php \
+            apps/portal/database/migrations/2026_11_14_000006_create_portal_gsc_identity_scope_links.php \
+            apps/portal/labs/gsc-f104-bridge/test-php.php \
+            apps/portal/labs/gsc-f105-rls/test-postgres.php \
+            apps/portal/labs/gsc-f106-identity-binding/test-postgres.php; do
+            php -l "$file"
+          done
+      - name: Verify raw Node to PHP F104 contract (all scenarios and tampering)
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_OPENSEO_DAILY_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete partial empty; do
+            node apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f104-bridge/test-php.php "$fixture" "$scenario"
+          done
+      - name: Install locked Laravel dependencies for disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress
+      - name: Prove F105/F106 RLS isolation together and migration rollback
+        shell: bash
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_CONNECTION: pgsql
+          DB_HOST: '127.0.0.1'
+          DB_PORT: '5432'
+          DB_DATABASE: imagine_gsc_ci_test
+          DB_USERNAME: imagine_ci
+          DB_PASSWORD: local_test_only
+          PORTAL_GSC_F105_RLS_LAB: '1'
+          PORTAL_GSC_F106_BINDING_LAB: '1'
+          PORTAL_OPENSEO_DAILY_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          pushd apps/portal
+          for file in \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php; do
+            php artisan migrate --force --path="database/migrations/$file"
+          done
+          popd
+          for scenario in complete partial empty; do
+            node apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f105-rls/test-postgres.php "$fixture"
+            php apps/portal/labs/gsc-f106-identity-binding/test-postgres.php "$fixture"
+          done
+          pushd apps/portal
+          for file in \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php; do
+            php artisan migrate:rollback --force --path="database/migrations/$file"
+          done
+          popd
+      - name: Verify no source mutation or production publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
