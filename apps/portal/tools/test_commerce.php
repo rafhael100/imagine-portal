@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/../app/Homologation/Commerce/ApprovedOfferCatalog.php';
+require __DIR__.'/../app/Homologation/Commerce/CustomerPreviewHandoff.php';
 require __DIR__.'/../app/Homologation/Commerce/AsaasSandboxGateway.php';
 use App\Homologation\Commerce\ApprovedOfferCatalog as Catalog;
 use App\Homologation\Commerce\AsaasSandboxGateway as Gateway;
