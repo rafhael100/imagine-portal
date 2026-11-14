@@ -38,7 +38,7 @@ final readonly class AsaasReadOnlyPaymentClient implements AsaasOfficialPaymentR
     /** @return array<string,mixed>|null */
     public function fetchPayment(string $paymentId): ?array
     {
-        if (preg_match('/\Apay_[A-Za-z0-9]{6,64}\z/D',$paymentId)!==1 ||
+        if (preg_match('/\Apay_[A-Za-z0-9_]{6,64}\z/D',$paymentId)!==1 ||
             !function_exists('curl_init')) {
             throw new DomainException('Official PSP payment reader unavailable.');
         }
