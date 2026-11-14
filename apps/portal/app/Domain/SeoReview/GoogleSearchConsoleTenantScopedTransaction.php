@@ -29,13 +29,24 @@ final class GoogleSearchConsoleTenantScopedTransaction
         try {
             if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql')
                 return null;
+            // F106: the session identity must be the restricted login
+            // itself, not a role adopted through SET ROLE. A role able to
+            // create roles/databases or inherit memberships is not a safe
+            // GSC data-read principal, even when BYPASSRLS is false.
             $role=$this->pdo->query(
-                'SELECT rolsuper, rolbypassrls FROM pg_roles
-                 WHERE rolname = current_user'
+                'SELECT current_user = session_user AS direct_login,
+                    rolsuper,rolbypassrls,rolcreaterole,rolcreatedb,
+                    rolreplication,rolinherit
+                 FROM pg_roles WHERE rolname = current_user'
             )->fetch(PDO::FETCH_ASSOC);
             if (!is_array($role) ||
+                !in_array($role['direct_login']??null,[true,'t','1',1],true) ||
                 !self::isPgFalse($role['rolsuper']??null) ||
-                !self::isPgFalse($role['rolbypassrls']??null))return null;
+                !self::isPgFalse($role['rolbypassrls']??null) ||
+                !self::isPgFalse($role['rolcreaterole']??null) ||
+                !self::isPgFalse($role['rolcreatedb']??null) ||
+                !self::isPgFalse($role['rolreplication']??null) ||
+                !self::isPgFalse($role['rolinherit']??null))return null;
 
             if (!$this->pdo->beginTransaction())return null;
             $stmt=$this->pdo->prepare(
