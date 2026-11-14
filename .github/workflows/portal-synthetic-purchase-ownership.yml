@@ -4,17 +4,60 @@ on:
     paths:
       - 'apps/portal/app/Homologation/SyntheticPurchaseOwnership.php'
       - 'apps/portal/tools/test_synthetic_purchase_ownership.php'
+      - 'apps/portal/tools/test_synthetic_purchase_ownership_pg18.php'
       - '.github/workflows/portal-synthetic-purchase-ownership.yml'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   ownership:
+    name: PostgreSQL 18 / PHP ${{ matrix.php }} / isolated individual ownership
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: portal_ownership_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-postgres-admin-synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_ownership_ci"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout exact pull request commit
+        uses: actions/checkout@v4
         with:
-          php-version: '8.4'
+          persist-credentials: false
+      - name: Prepare PHP for disposable PostgreSQL tests
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
           coverage: none
-      - run: php apps/portal/tools/test_synthetic_purchase_ownership.php
+      - name: Lint isolated ownership PHP
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/SyntheticPurchaseOwnership.php
+          php -l apps/portal/tools/test_synthetic_purchase_ownership.php
+          php -l apps/portal/tools/test_synthetic_purchase_ownership_pg18.php
+      - name: Run pure ownership policy denial checks
+        run: php apps/portal/tools/test_synthetic_purchase_ownership.php
+      - name: Run FORCE RLS and owner-scoped idempotency against PostgreSQL 18
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_P0_OWNER_PG_LAB: '1'
+          PORTAL_OWNER_PG_HOST: '127.0.0.1'
+          PORTAL_OWNER_PG_DB: 'portal_ownership_ci'
+        run: |
+          set -euo pipefail
+          php apps/portal/tools/test_synthetic_purchase_ownership_pg18.php
+          echo 'PASS: no Laravel routes, server identities, migrations or production DB writes'
