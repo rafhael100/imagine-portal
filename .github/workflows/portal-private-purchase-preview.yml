@@ -33,6 +33,7 @@ jobs:
           php apps/portal/ops/private-purchase/test_route_gate.php
           python3 apps/portal/ops/private-purchase/check_public_boundary.py --self-test
           bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
+          python3 apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -147,6 +148,14 @@ jobs:
           set -euo pipefail
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_scope.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < test_customer_work_scope.sql
+      - name: Stream private synthetic PG18 backup into NEW database and verify signed customer RLS
+        working-directory: apps/portal/ops/private-purchase
+        env:
+          P0_PG_RESTORE_CI: '1'
+        run: |
+          set -euo pipefail
+          bash ./verify_pg_restore_ci.sh
+          echo 'PASS isolated restore preserving scoped clients, orders, briefing/events and forced RLS; not Leaseweb DR' >> "$GITHUB_STEP_SUMMARY"
       - name: Audit five individual-customer screenshots and SHA256
         run: |
           python3 - <<'PY'
