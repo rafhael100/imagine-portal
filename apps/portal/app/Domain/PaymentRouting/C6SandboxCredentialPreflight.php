@@ -20,10 +20,21 @@ final class C6SandboxCredentialPreflight
         $names = $hasP12
             ? ['client_id', 'client_secret', 'client.p12', 'client_p12_passphrase']
             : ['client_id', 'client_secret', 'client.crt', 'client.key'];
+        // A sandbox credential directory is a four-file immutable bundle.
+        // Reject extra backups, stale credentials, hidden files and mixed
+        // formats rather than accidentally selecting the wrong certificate.
+        $entries = scandir($dir);
+        if (!is_array($entries)
+            || array_diff($entries, array_merge(['.', '..'], $names)) !== []
+            || array_diff($names, $entries) !== []) {
+            throw new RuntimeException('Unexpected C6 sandbox bundle files');
+        }
+        $dirOwner = fileowner($dir);
         $files = [];
         foreach ($names as $name) {
             $path = rtrim($dir,'/').'/'.$name;
             if (is_link($path) || !is_file($path) || !is_readable($path)
+                || fileowner($path) !== $dirOwner
                 || ((fileperms($path) & 0077) !== 0) || filesize($path) < 1
                 || filesize($path) > 65536) {
                 throw new RuntimeException('C6 sandbox file unavailable or unsafe');
