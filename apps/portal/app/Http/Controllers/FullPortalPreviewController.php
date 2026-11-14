@@ -32,13 +32,14 @@ final class FullPortalPreviewController
     {
         abort_unless(array_diff(array_keys($request->all()),['_token','username','password'])===[],422);
         $data=$request->validate(['username'=>'required|string|max:64','password'=>'required|string|max:256']);
+        $intent=$request->session()->get('preview.intent');
         $auth=app(PreviewProfiles::class);
         abort_unless($auth->ready(),503,'Perfis de teste ainda não configurados.');
         if (!$auth->login($request,$data['username'],$data['password'])) {
             return redirect('/_preview/portal')->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
         }
         $p=$auth->current($request);
-        return redirect('/_preview/portal/'.$p['role'].'/overview');
+        return redirect($p['role']==='client'&&isset($p['customer_id'])&&in_array($intent,['onepage','landing-pages','performance'],true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/'.$p['role'].'/overview');
     }
     public function logout(Request $request)
     {
@@ -48,7 +49,12 @@ final class FullPortalPreviewController
     public function client(Request $request,string $section)
     {
         if (!app(PreviewProfiles::class)->current($request)) return redirect('/_preview/portal');
-        $this->profile($request,'client');
+        $profile=$this->profile($request,'client');
+        if (isset($profile['customer_id'])) {
+            abort_unless(in_array($section,['overview','services','available','contracts','finance','requests','journey','delivery-review','files','notices','modules','account','help'],true),404);
+            if ($section==='available') return redirect('/_preview/portal/shop');
+            return $this->page('portal.preview.customer-panel',['section'=>$section,'orders'=>app(\App\Homologation\CustomerPreviewStore::class)->orders($profile['customer_id'])]);
+        }
         // Same restricted PostgreSQL reader used by the test administrator.
         // No simulated active service grants or billing are implied.
         if (in_array($section,['services','finance'],true)) {
@@ -68,7 +74,7 @@ final class FullPortalPreviewController
         $this->profile($request,'admin');
         $pages=['overview','clients','orders','services','finance','contracts','requests','settings'];
         abort_unless(in_array($section,$pages,true),404);
-        return $this->page('portal.preview.admin',['section'=>$section,'orders'=>app(\App\Homologation\PreviewOrderListing::class)->rows()]);
+        return $this->page('portal.preview.admin',['section'=>$section,'orders'=>[...app(\App\Homologation\PreviewOrderListing::class)->rows(),...app(\App\Homologation\CustomerPreviewStore::class)->orders(null)]]);
     }
     public function logo()
     {

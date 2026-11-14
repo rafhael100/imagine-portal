@@ -1,0 +1,9 @@
+<x-portal.layout :title="['overview'=>'Visão geral','services'=>'Meus pedidos','finance'=>'Financeiro','account'=>'Minha conta'][$section]??'Portal do cliente'" :current="$section">
+@if($section==='account')
+<x-portal.panel title="Minha conta de teste"><dl><dt>Nome</dt><dd>{{ $previewProfile['name'] }}</dd><dt>Empresa</dt><dd>{{ $previewProfile['company'] }}</dd><dt>Usuário</dt><dd>{{ $previewProfile['id'] }}</dd></dl><p>Dados de exemplo. Alteração cadastral e recuperação de senha ainda não estão habilitadas nesta homologação.</p></x-portal.panel>
+@elseif(in_array($section,['overview','services','finance'],true))
+<x-portal.panel title="Suas contratações de teste"><p>Somente pedidos vinculados à sua conta. Pagamentos são simulados, sem cobrança real.</p><div class="preview-table"><table><thead><tr><th>Pedido</th><th>Serviço</th><th>Pagamento</th><th>Briefing</th><th>Acompanhar</th></tr></thead><tbody>@forelse($orders as $order)<tr data-customer-order="{{ $order['id'] }}"><td>{{ $order['id'] }}</td><td>{{ ['onepage'=>'Site Onepage','landing-pages'=>'Landing Page','performance'=>'Performance'][$order['product']] }}</td><td>{{ ['pending'=>'Pendente','approved'=>'Aprovado no teste','declined'=>'Recusado'][$order['payment']] }}</td><td>{{ in_array($order['briefing_saved'],[true,'t',1,'1'],true)?'Recebido':'Aguardando envio' }}</td><td><a href="/_preview/portal/shop/orders/{{ $order['id'] }}">Ver pedido</a></td></tr>@empty<tr><td colspan="5">Nenhum pedido ainda. Escolha um serviço para começar.</td></tr>@endforelse</tbody></table></div><p><a class="preview-link" href="/_preview/portal/shop">Contratar serviço de teste</a></p></x-portal.panel>
+@else
+<x-portal.panel title="Acompanhamento do cliente"><p>Esta área ainda não possui operação integrada. Consulte seus pedidos para acompanhar pagamento simulado e briefing.</p><a class="preview-link" href="/_preview/portal/client/services">Meus pedidos</a></x-portal.panel>
+@endif
+</x-portal.layout>

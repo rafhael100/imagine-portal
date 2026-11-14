@@ -29,6 +29,13 @@ final class PreviewProfiles
     public function ready(): bool { try {$this->accounts();return true;}catch(\Throwable){return false;} }
     public function login(Request $request,string $id,#[\SensitiveParameter] string $password): bool
     {
+        if (str_starts_with($id,'demo-')&&app()->bound(CustomerPreviewStore::class)) {
+            $a=app(CustomerPreviewStore::class)->account($id);
+            if (!$a||strlen($password)>72||!password_verify($password,$a['password_hash'])) return false;
+            $request->session()->invalidate(); $request->session()->regenerateToken();
+            $request->session()->put('preview.customer',['username'=>$id,'fingerprint'=>hash('sha256',$a['password_hash']),'expires'=>time()+3600]);
+            return true;
+        }
         $accounts=$this->accounts(); $a=$accounts[$id]??null;
         if (!is_array($a)||strlen($password)>72||!password_verify($password,$a['hash'])) return false;
         $request->session()->invalidate(); $request->session()->regenerateToken();
@@ -37,6 +44,13 @@ final class PreviewProfiles
     }
     public function current(Request $request): ?array
     {
+        $c=$request->session()->get('preview.customer');
+        if (is_array($c)) {
+            if (!is_string($c['username']??null)||!is_string($c['fingerprint']??null)||!is_int($c['expires']??null)||$c['expires']<=time()) return null;
+            try { $a=app(CustomerPreviewStore::class)->account($c['username']); } catch (\Throwable) {return null;}
+            if (!$a||!hash_equals(hash('sha256',$a['password_hash']),$c['fingerprint'])) { $request->session()->forget('preview.customer'); return null; }
+            return ['id'=>$a['username'],'customer_id'=>$a['id'],'role'=>'client','name'=>$a['name'],'company'=>$a['company']];
+        }
         try {$accounts=$this->accounts();}catch(\Throwable){return null;}
         $s=$request->session()->get('preview.profile');
         if (!is_array($s)||!is_string($s['id']??null)||!is_string($s['fingerprint']??null)
