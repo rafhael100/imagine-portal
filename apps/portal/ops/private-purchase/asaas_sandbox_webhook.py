@@ -68,9 +68,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.reply(200)
 
 if __name__=='__main__':
-    if os.environ.get('APP_ENV')=='production':raise SystemExit('Sandbox only')
+    # The receiver is an explicit operator-only staging process, not a general
+    # entrypoint. Do not let CI, an unconfigured shell or production start it.
+    if (os.environ.get('APP_ENV')!='staging' or
+        os.environ.get('ASAAS_SANDBOX_WEBHOOK_ENABLED')!='1' or
+        os.environ.get('GITHUB_ACTIONS')=='true'):
+        raise SystemExit('NO-GO: explicit staging-only webhook opt-in required')
     config=ROOT/'.private/asaas-webhook.json'
-    if stat.S_IMODE(config.stat().st_mode)!=0o600:raise SystemExit('Private mode must be 600')
-    cfg=json.loads(config.read_text());token=cfg.get('auth_token','')
-    if cfg.get('environment')!='sandbox' or not re.fullmatch(r'[A-Za-z0-9_-]{43,255}',token):raise SystemExit('Private sandbox token required')
-    server=http.server.HTTPServer(('127.0.0.1',18084),Handler);server.token=token;server.expected_host='portal-dev.imaginecomunica.com.br';server.inbox=Inbox();server.serve_forever()
+    try:
+        info=config.lstat()
+        if (not stat.S_ISREG(info.st_mode) or
+            stat.S_IMODE(info.st_mode)!=0o600 or
+            info.st_uid!=os.geteuid() or
+            not 64<=info.st_size<=8192):
+            raise ValueError('unsafe')
+        cfg=json.loads(config.read_text())
+    except (OSError,ValueError,TypeError):
+        raise SystemExit('NO-GO: private webhook configuration unavailable') from None
+    token=cfg.get('auth_token','')
+    if (cfg.get('environment')!='sandbox' or
+        not isinstance(token,str) or
+        not re.fullmatch(r'[A-Za-z0-9_-]{43,255}',token)):
+        raise SystemExit('NO-GO: private Sandbox webhook token is invalid')
+    server=http.server.HTTPServer(('127.0.0.1',18084),Handler)
+    server.token=token
+    server.expected_host='portal-dev.imaginecomunica.com.br'
+    server.inbox=Inbox()
+    server.serve_forever()
