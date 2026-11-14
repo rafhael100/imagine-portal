@@ -31,6 +31,7 @@ final class CustomerPreviewController
         $product=$r->query('product');
         abort_unless($product===null||in_array($product,self::OFFERS,true),422);
         if ($product!==null) $r->session()->put('preview.intent',$product);
+        else $r->session()->forget('preview.intent'); // Explicitly choose a different offer.
         $p=app(PreviewProfiles::class)->current($r);
         if (!$p) return redirect('/_preview/portal');
         if (!isset($p['customer_id'])) return response()->view('portal.preview.personal-required');
@@ -40,6 +41,10 @@ final class CustomerPreviewController
     {
         $p=$this->owner($r); $this->fields($r,['product','request_key']);
         $v=$r->validate(['product'=>'required|in:onepage,landing-pages,performance','request_key'=>'required|string|regex:/\ATEST-[a-zA-Z0-9-]{8,64}\z/D']);
+        // An offer brought from Imagine Comercial is preserved through signup.
+        // A modified POST cannot silently switch the selected service.
+        $intent=$r->session()->get('preview.intent');
+        abort_unless($intent===null || (is_string($intent) && hash_equals($intent,$v['product'])),422);
         try { $order=app(CustomerPreviewStore::class)->create($p['customer_id'],$v['request_key'],$v['product']); }
         catch (\Throwable) { abort(409,'Não foi possível criar o pedido de teste.'); }
         return redirect('/_preview/portal/shop/orders/'.$order['id']);
