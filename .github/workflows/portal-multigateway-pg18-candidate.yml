@@ -1,0 +1,51 @@
+name: Portal multigateway PG18 candidate isolation
+
+on:
+  push:
+    branches:
+      - review/portal-multigateway-crm-signed-contract-2026-11-14
+    paths:
+      - 'apps/portal/labs/multigateway/**'
+      - '.github/workflows/portal-multigateway-pg18-candidate.yml'
+  pull_request:
+    paths:
+      - 'apps/portal/labs/multigateway/**'
+      - '.github/workflows/portal-multigateway-pg18-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-multigateway-pg18-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-policy-ledger:
+    name: PostgreSQL 18 / FORCE RLS / provider event deduplication
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Start ephemeral PG18 with no host ports
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name imagine-multigateway-pg18 \
+            -e POSTGRES_PASSWORD=ci-only-secret \
+            -e POSTGRES_DB=imagine_multigateway_lab \
+            postgres:18-alpine
+          for i in $(seq 1 60); do
+            if docker exec imagine-multigateway-pg18 pg_isready -U postgres -d imagine_multigateway_lab; then break; fi
+            sleep 2
+          done
+          test "$(docker inspect imagine-multigateway-pg18 --format '{{len .HostConfig.PortBindings}}')" = 0
+      - name: Verify schema and deny-by-default access
+        run: |
+          set -euo pipefail
+          docker exec -i imagine-multigateway-pg18 psql -v ON_ERROR_STOP=1 -U postgres -d imagine_multigateway_lab < apps/portal/labs/multigateway/schema.sql
+          docker exec -i imagine-multigateway-pg18 psql -v ON_ERROR_STOP=1 -U postgres -d imagine_multigateway_lab < apps/portal/labs/multigateway/prove.sql
+      - name: Destroy disposable instance
+        if: always()
+        run: docker rm -f imagine-multigateway-pg18 || true
