@@ -51,6 +51,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "if (\$o['product']!=='onepage')" apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php
+          grep -Fq "self::requireApprovedActivationOnly(\$quote,\$amount)" apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php
+          grep -Fq "if (!in_array(\$o['product'],['onepage','performance'],true))" apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php
           grep -Fq '"direct_checkout_enabled": false' apps/portal/app/Homologation/Commerce/approved-catalog.json
-          echo 'F422: V5 quote and postpaid review are server-owned; PSP charges remain unavailable.' >> "$GITHUB_STEP_SUMMARY"
+          grep -Fq "o.offer_snapshot->>'pricing_policy'='performance-postpaid-170-per-channel-2026-11-14'" apps/portal/ops/private-purchase/sandbox-payment-schema.sql
+          echo 'F423: only signed-owner sandbox Performance activation can create synthetic Asaas intent; no production or recurring billing.' >> "$GITHUB_STEP_SUMMARY"
