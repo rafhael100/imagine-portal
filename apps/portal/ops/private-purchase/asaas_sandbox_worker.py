@@ -115,15 +115,37 @@ class Database:
             self.sql("UPDATE purchase_rehearsal.customer_orders o SET payment_hold=true,revision=revision+1 WHERE id='"+oid+"' AND payment_source='asaas_sandbox' AND NOT payment_hold AND EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=o.id AND i.state='reversed');")
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--once',action='store_true',required=True);args=parser.parse_args()
-    if os.environ.get('APP_ENV')=='production':raise SystemExit('Production is not supported')
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--once',action='store_true',required=True)
+    parser.parse_args()
+    # A normal process startup never writes to an external payment provider.
+    # Only a private operator-controlled staging invocation may make a POST.
+    if (os.environ.get('APP_ENV')!='staging' or
+        os.environ.get('PORTAL_SANDBOX_BROKER_ONCE')!='1' or
+        os.environ.get('GITHUB_ACTIONS')=='true'):
+        raise SystemExit('NO-GO: explicit staging operator opt-in required; CI/production denied')
     config=ROOT/'.private/asaas-sandbox.json'
-    if stat.S_IMODE(config.stat().st_mode)!=0o600:raise SystemExit('Private configuration mode must be 600')
-    cfg=json.loads(config.read_text())
-    if cfg.get('environment')!='sandbox':raise SystemExit('Only sandbox is supported')
-    with open(ROOT/'.private/asaas-worker.lock','w') as lock:
-        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        db=Database();worker=Worker(db,Asaas(cfg['api_key']))
-        for row in db.rows():
-            try:worker.process(row);print('Sandbox intent reconciled')
-            except Unconfirmed:print('Sandbox intent requires reconciliation; no blind retry')
+    try:
+        info=config.lstat()
+        if (stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode) or
+            stat.S_IMODE(info.st_mode)!=0o600 or info.st_uid!=os.geteuid() or
+            info.st_size>8192):
+            raise ValueError()
+        cfg=json.loads(config.read_text())
+    except (OSError,ValueError,TypeError):
+        raise SystemExit('NO-GO: private sandbox configuration inaccessible or unsafe') from None
+    if cfg.get('environment')!='sandbox':raise SystemExit('NO-GO: only Sandbox is supported')
+    lock_path=ROOT/'.private/asaas-worker.lock'
+    # No symlink following for lock file; do not assume the private directory
+    # is safe until it has been reviewed by the independent VPS preflight.
+    flags=os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW
+    fd=os.open(lock_path,flags,0o600)
+    try:
+        with os.fdopen(fd,'w') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            db=Database();worker=Worker(db,Asaas(cfg['api_key']))
+            for row in db.rows():
+                try:worker.process(row);print('Sandbox intent reconciled')
+                except Unconfirmed:print('Sandbox intent requires reconciliation; no blind retry')
+    except OSError:
+        raise SystemExit('NO-GO: worker lock unavailable') from None
