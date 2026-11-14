@@ -55,7 +55,8 @@ final class PerformanceChannelReviewEnvelope
             || ($review['channels'] ?? null) !== $activation['channels']
             || ($review['management_fee_postpaid_basis_points'] ?? null) !== 2000
             || !array_key_exists('minimum_management_fee_cents', $review)
-            || $review['minimum_management_fee_cents'] !== null
+            || $review['minimum_management_fee_cents'] !== ActivationPostpaidPreview::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS
+            || ($review['postpaid_policy_version'] ?? null) !== ActivationPostpaidPreview::POLICY_VERSION
             || ($review['media_paid_to_platforms_not_this_gateway'] ?? null) !== true
             || ($review['can_charge'] ?? null) !== false
             || ($review['can_activate'] ?? null) !== false
@@ -93,7 +94,8 @@ final class PerformanceChannelReviewEnvelope
             'issued_at' => $issuedAtUtc,
             'expires_at' => $issued->modify('+15 minutes')->format('Y-m-d\TH:i:s\Z'),
             'management_fee_postpaid_basis_points' => 2000,
-            'minimum_management_fee_cents' => null,
+            'minimum_management_fee_cents' => ActivationPostpaidPreview::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
+            'postpaid_policy_version' => ActivationPostpaidPreview::POLICY_VERSION,
             'media_paid_directly_to_platforms' => true,
             'can_charge' => false,
             'can_activate' => false,

@@ -70,7 +70,8 @@ final class PerformanceChannelReviewEnvelopeTest extends TestCase
         self::assertSame('pix', $wire['payload']['method']);
         self::assertSame('2026-11-14T21:00:00Z', $wire['payload']['expires_at']);
         self::assertSame(2000, $wire['payload']['management_fee_postpaid_basis_points']);
-        self::assertNull($wire['payload']['minimum_management_fee_cents']);
+        self::assertSame(17_000,$wire['payload']['minimum_management_fee_cents']);
+        self::assertSame('performance-postpaid-170-per-channel-2026-11-14',$wire['payload']['postpaid_policy_version']);
         self::assertFalse($wire['payload']['can_charge']);
         self::assertFalse($wire['payload']['can_activate']);
         self::assertFalse($wire['payload']['can_collect_personal_data']);
@@ -113,6 +114,8 @@ final class PerformanceChannelReviewEnvelopeTest extends TestCase
             ['expires_at'=>'2026-11-14T22:00:00Z'],
             ['organization_ref'=>'org-another-001'],
             ['crm_review_mac'=>str_repeat('a',64)],
+            ['minimum_management_fee_cents'=>0],
+            ['postpaid_policy_version'=>'outdated-policy'],
         ] as $delta) {
             $wire=$this->issue();
             $wire['payload']=array_replace($wire['payload'],$delta);

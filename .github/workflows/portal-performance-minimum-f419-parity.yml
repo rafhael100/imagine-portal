@@ -1,0 +1,62 @@
+name: Portal F419 Performance R$170 per-channel minimum parity
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/**'
+      - 'apps/portal/tests/Unit/ActivationPostpaidPreviewTest.php'
+      - 'apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php'
+      - 'apps/portal/tests/Unit/PerformanceChannelReviewEnvelopeTest.php'
+      - 'apps/portal/tools/test_performance_postpaid_offline.php'
+      - 'apps/portal/tools/test_performance_approved_checkout_parity.php'
+      - 'apps/portal/tools/test_performance_activation_crm_routing_offline.php'
+      - 'apps/portal/labs/performance-checkout-selector/**'
+      - '.github/workflows/portal-performance-minimum-f419-parity.yml'
+permissions:
+  contents: read
+jobs:
+  approved-pricing-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      NODE_OPTIONS: '--no-warnings'
+    steps:
+      - name: Checkout exact review commit without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout pinned approved sandbox implementation F757
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: b3fb66e512c1a26b32fc7cc42220377c72d1fde0
+          path: .qa/portal-f757-approved-checkout
+          persist-credentials: false
+      - name: PHP syntax and approved 170/channel standalone proof
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php
+          php -l apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php
+          php -l apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php
+          php -l apps/portal/tests/Unit/ActivationPostpaidPreviewTest.php
+          php -l apps/portal/tests/Unit/ActivationGatewayReviewLabTest.php
+          php -l apps/portal/tests/Unit/PerformanceChannelReviewEnvelopeTest.php
+          php apps/portal/tools/test_performance_postpaid_offline.php
+          php -l apps/portal/tools/test_performance_approved_checkout_parity.php
+          php apps/portal/tools/test_performance_approved_checkout_parity.php .qa/portal-f757-approved-checkout/apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php
+          php apps/portal/tools/test_performance_activation_crm_routing_offline.php
+          php apps/portal/tools/test_performance_channel_envelope_offline.php
+      - name: Node pricing and channel floor tests, no API
+        working-directory: apps/portal/labs/performance-checkout-selector
+        run: |
+          set -euo pipefail
+          node --check calculator.mjs
+          node --check ui.mjs
+          node --test test.mjs
+      - name: Preserve no billing activation
+        if: success()
+        run: |
+          echo 'F419: approved R$170/channel full-month pricing parity checked offline.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO: no real invoices, first partial-month treatment or PSP charges authorized.' >> "$GITHUB_STEP_SUMMARY"

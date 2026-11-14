@@ -28,7 +28,8 @@ if ($quote['activation_cents']!==98000
     || $quote['gateway_quote']['gateway']!=='asaas'
     || $quote['can_charge']!==false
     || $quote['can_activate']!==false
-    || $quote['minimum_management_fee_cents']!==null) {
+    || $quote['minimum_management_fee_cents']!==17000
+    || $quote['postpaid_policy_version']!=='performance-postpaid-170-per-channel-2026-11-14') {
     throw new RuntimeException('F413 activation routing contract mismatch');
 }
 try {

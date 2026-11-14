@@ -32,7 +32,7 @@ function update(){
     summaries.count.textContent=String(quote.rows.length);
     summaries.activation.textContent=formatBRL(quote.activation_now_cents);
     summaries.media.textContent=formatBRL(quote.media_total_cents);
-    summaries.management.textContent=formatBRL(quote.illustrative_twenty_percent_cents);
+    summaries.management.textContent=formatBRL(quote.illustrative_full_month_management_cents);
     summaries.error.textContent='';
   } catch (e) {
     summaries.count.textContent=String(selected.length);

@@ -34,9 +34,7 @@ real, é necessário IAM/MFA/consentimento, registro único de uso por pedido,
 idempotência, transação RLS e travas de execução/PSP, aceite assinado,
 rollback, auditoria, validade de tarifas e confirmação do orçamento.
 
-O mínimo mensal de gestão segue **não definido neste contrato**. Os 20%
-sobre mídia real são pós-pagos somente após apuração auditada; nenhum
-valor ilustrativo autoriza uma fatura.
+O mínimo mensal de gestão **já foi aprovado em R$170 por canal para um mês completo**. F419 inclui esse valor e sua versão na assinatura HMAC do contrato de revisão. Os 20% sobre mídia real são pós-pagos somente após apuração auditada; o primeiro mês parcial exige análise contratual. Nenhum valor ilustrativo autoriza uma fatura.
 
 Testes: `php apps/portal/tools/test_performance_channel_envelope_offline.php`
 e `cd apps/portal && php artisan test --filter=PerformanceChannelReviewEnvelopeTest`.

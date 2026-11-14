@@ -12,13 +12,16 @@ use InvalidArgumentException;
  * It is deliberately not wired into the v4 legacy catalog, checkout, PSP,
  * customers, invoice generation, monthly jobs or any controller.
  *
- * Real media spend and a management minimum need independently verified,
- * versioned source evidence and business approval before any real invoice.
+ * The full-month R$170 minimum per contracted channel is approved, but
+ * real media spend and first partial-month rules still require evidenced
+ * finance review before any operational invoice.
  */
 final class ActivationPostpaidPreview
 {
     public const ACTIVATION_PER_CHANNEL_CENTS = 49_000;
     public const MANAGEMENT_BASIS_POINTS = 2_000;
+    public const MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS = 17_000;
+    public const POLICY_VERSION = 'performance-postpaid-170-per-channel-2026-11-14';
 
     private const MIN_MEDIA = [
         'meta_ads' => 70_000,
@@ -46,6 +49,7 @@ final class ActivationPostpaidPreview
             $rows[] = [
                 'channel' => $channel,
                 'activation_cents' => self::ACTIVATION_PER_CHANNEL_CENTS,
+                'minimum_management_fee_cents' => self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
                 'minimum_media_cents' => self::MIN_MEDIA[$channel],
                 'recommended_media_cents' => self::RECOMMENDED_MEDIA[$channel],
             ];
@@ -57,9 +61,11 @@ final class ActivationPostpaidPreview
             'items' => $rows,
             'activation_due_now_cents' => self::ACTIVATION_PER_CHANNEL_CENTS * count($selected),
             'management_basis_points' => self::MANAGEMENT_BASIS_POINTS,
+            'postpaid_policy_version' => self::POLICY_VERSION,
             'management_postpaid_on_verified_actual' => true,
             'media_paid_directly_to_platforms' => true,
-            'minimum_management_fee_cents' => null, // Not yet quantified/approved.
+            'minimum_management_fee_cents' => self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
+            'minimum_management_scope' => 'per_active_channel_full_month',
             'checkout_enabled' => false,
             'asaas_write_enabled' => false,
             'ads_write_enabled' => false,
@@ -69,8 +75,10 @@ final class ActivationPostpaidPreview
 
     /**
      * First period begins on the activation day; later periods are calendar
-     * months in Sao Paulo time. Amount is an informational 20% estimate
-     * from supplied synthetic actuals, NEVER the amount of an invoice.
+     * months in Sao Paulo time. Full-month fee candidates apply the higher
+     * of 20% of media or R$170 PER CHANNEL, not the maximum on the sum.
+     * The first partial month requires explicit contract/finance review.
+     * All values remain informational: NEVER actual invoice amounts.
      *
      * @param list<string> $channels
      * @param array<string,int> $actualMediaCents
@@ -103,6 +111,8 @@ final class ActivationPostpaidPreview
             throw new InvalidArgumentException('Media actuals must match every selected channel');
         }
         $sum = 0;
+        $sumPercentage = 0;
+        $sumFullMonthFee = 0;
         $rows = [];
         foreach ($selected as $channel) {
             $cents = $actualMediaCents[$channel];
@@ -110,9 +120,22 @@ final class ActivationPostpaidPreview
                 throw new InvalidArgumentException('Invalid measured media amount');
             }
             $sum += $cents;
-            $rows[] = ['channel' => $channel, 'synthetic_actual_media_cents' => $cents];
+            $percentage = intdiv($cents * self::MANAGEMENT_BASIS_POINTS + 5_000, 10_000);
+            $fee = max(self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS, $percentage);
+            $sumPercentage += $percentage;
+            $sumFullMonthFee += $fee;
+            $rows[] = [
+                'channel' => $channel,
+                'synthetic_actual_media_cents' => $cents,
+                'informational_twenty_percent_cents' => $percentage,
+                'minimum_management_fee_cents' => self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
+                'informational_full_month_management_fee_cents' => $fee,
+                'minimum_applied' => $percentage < self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
+            ];
         }
         $endOfMonth = $firstOfMonth->modify('last day of this month')->format('Y-m-d');
+        $partialFirstMonth = $firstOfMonth->format('Y-m') === $activation->format('Y-m')
+            && $activation->format('d') !== '01';
         return [
             'schema' => 'imagine.portal.performance.postpaid-review-offline-v1',
             'period' => $period,
@@ -122,10 +145,14 @@ final class ActivationPostpaidPreview
             'currency' => 'BRL',
             'channels' => $rows,
             'synthetic_evidence_ref' => $syntheticEvidence,
+            'postpaid_policy_version' => self::POLICY_VERSION,
             'synthetic_actual_media_total_cents' => $sum,
-            'informational_management_20pct_cents' => intdiv($sum * self::MANAGEMENT_BASIS_POINTS + 5000, 10000),
-            'minimum_management_fee_cents' => null,
-            'needs_minimum_policy_and_verified_platform_statements' => true,
+            'informational_management_20pct_cents' => $sumPercentage,
+            'minimum_management_fee_cents' => self::MANAGEMENT_MINIMUM_PER_CHANNEL_CENTS,
+            'minimum_management_scope' => 'per_active_channel_full_month',
+            'informational_full_month_management_fee_cents' => $sumFullMonthFee,
+            'first_month_partial_contract_review_required' => $partialFirstMonth,
+            'verified_platform_statements_required' => true,
             'finance_review_required' => true,
             'real_invoice_authorized' => false,
             'checkout_enabled' => false,

@@ -64,7 +64,8 @@ final class ActivationGatewayReviewLabTest extends TestCase
         self::assertFalse($v['can_charge']);
         self::assertFalse($v['can_activate']);
         self::assertTrue($v['media_paid_to_platforms_not_this_gateway']);
-        self::assertNull($v['minimum_management_fee_cents']);
+        self::assertSame(17_000,$v['minimum_management_fee_cents']);
+        self::assertSame('performance-postpaid-170-per-channel-2026-11-14',$v['postpaid_policy_version']);
     }
 
     public function test_two_channels_activation_not_the_planned_media_amount(): void
