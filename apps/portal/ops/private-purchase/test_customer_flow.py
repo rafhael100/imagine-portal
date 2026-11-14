@@ -38,6 +38,13 @@ with sync_playwright() as p:
         assert page.url.endswith('/shop?product=onepage'),page.url
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         token=csrf(); key=page.locator('[name=request_key]').input_value()
+        # Tampering with the chosen SKU after a Comercial onepage handoff
+        # cannot silently create a different service contract.
+        forged=page.request.post(BASE+'/shop/orders',form={
+            '_token':token,'request_key':key,'product':'performance',
+        })
+        assert forged.status==422, ('POST may not change the chosen offer',forged.status)
+        assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         page.get_by_role('button',name='Criar pedido de teste').click()
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
         duplicate=page.request.post(BASE+'/shop/orders',form={'_token':token,'request_key':key,'product':'onepage'})
