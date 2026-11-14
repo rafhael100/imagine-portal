@@ -19,7 +19,7 @@
       "id": "portal",
       "repo": "rafhael100/imagine-portal",
       "pr": 725,
-      "head": "e07c0f8948c788bd923f4d4673a73f7cd1b56a1f",
+      "head": "7b99e2d8b0006d1fa422c89b4da6d36b223a7ab5",
       "compare_base": "dev/fast-track-portal-2026-11-05",
       "required_workflows": [
         "Portal isolated persistent private preview",
