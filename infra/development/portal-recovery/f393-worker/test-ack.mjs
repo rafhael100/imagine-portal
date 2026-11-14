@@ -113,6 +113,9 @@ assert.equal((await send(ackReq())).status,409); // no intent can be acknowledge
 assert.equal((await send(lookup())).status,404);
 assert.equal((await send(ackReq(ack,intentKey))).status,403);
 assert.equal((await send(ackReq(ack,readKey))).status,403);
+assert.equal((await send(ackReq(ack,Buffer.alloc(32,1)))).status,403);
+assert.equal((await send(ackReq(ack,ackKey))).status,409); // valid HMAC alone does not create absent intent
+
 assert.equal((await send(ackReq({...ack,local_status:'revoked'}))).status,422);
 assert.equal((await send(ackReq({...ack,extra:'unsafe'}))).status,422);
 assert.equal((await send(ackReq({...ack,organization:'other_tenant'}))).status,422);
@@ -153,6 +156,9 @@ assert.deepEqual(Object.keys(receipt),[
   'claimed_at','issued_at','expires_at','nonce','status','signature',
 ]);
 assert.equal(receipt.status,'ack_recorded_local_claim_unverified');
+assert.ok(!JSON.stringify(receipt).includes('session_reference'));
+assert.ok(!JSON.stringify(receipt).includes('canAuthorizeHttp'));
+
 assert.equal(receipt.session_sha256,hash);
 assert.equal(receipt.intent_id,id);
 assert.equal(receipt.intent_sequence,13);
