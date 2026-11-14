@@ -130,10 +130,49 @@ jobs:
           GITHUB_ACTIONS: 'true'
           PORTAL_CUSTOMER_COMMERCIAL_E2E: '1'
           IMAGINE_COMERCIAL_CUSTOMER_PREVIEW_ROOT: ${{ runner.temp }}/comercial-customer-prepared
+          IMAGINE_CUSTOMER_VISUAL_REVIEW: ${{ runner.temp }}/p0-customer-visual-review
         run: |
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_handoff.py
           echo 'PASS Comercial-built links to Laravel demo account, Postgres order and fake briefing; CI ONLY' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify seven browser screenshots and strict NO-GO manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json,os
+          root=Path(os.environ['RUNNER_TEMP'])/'p0-customer-visual-review'
+          expected=['01-comercial-desktop.png','02-comercial-mobile.png',
+                    '03-portal-login.png','04-customer-offer.png',
+                    '05-customer-order-pending.png','06-customer-briefing-durable.png',
+                    '07-customer-my-services.png']
+          m=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+          assert m['schema']=='imagine.portal-p0.customer-auth-browser.visual-only.v1'
+          assert m['release_gate']=='NO_GO' and m['production_release'] is False
+          assert m['customer_data_included'] is False
+          assert m['real_payment'] is False
+          assert m['customer_credentials_exported'] is False
+          assert [r['name'] for r in m['screenshots']]==expected
+          assert sorted(p.name for p in root.iterdir())==sorted(expected+['manifest.json'])
+          for entry in m['screenshots']:
+              file=root/entry['name']
+              assert not file.is_symlink()
+              content=file.read_bytes()
+              assert content.startswith(bytes.fromhex('89504e470d0a1a0a'))
+              assert 2000<=len(content)<=2500000
+              assert len(content)==entry['bytes']
+              assert sha256(content).hexdigest()==entry['sha256']
+          assert (root/'manifest.json').stat().st_size<4000
+          print('PASS: 7 customer Portal Chromium captures, hashes and NO-GO flags.')
+          PY
+      - name: Retain private synthetic customer-review images for seven days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-portal-auth-customer-commerce-visual-review
+          path: ${{ runner.temp }}/p0-customer-visual-review
+          if-no-files-found: error
+          retention-days: 7
       - name: Diagnose failed synthetic browser flow
         if: failure()
         working-directory: apps/portal/ops/private-purchase

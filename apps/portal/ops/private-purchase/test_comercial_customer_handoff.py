@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 import json
 import os
 import re
+from hashlib import sha256
 import shutil
 import uuid
 
@@ -30,6 +31,35 @@ assert manifest["publicReleaseAuthorized"] is False
 assert manifest["paymentEnabled"] is False
 assert manifest["unservedCopyOnly"] is True
 assert manifest["buttons"] == 4
+
+review_path_raw = os.environ.get("IMAGINE_CUSTOMER_VISUAL_REVIEW")
+review_path = Path(review_path_raw).resolve() if review_path_raw else None
+shots = {
+    "01-comercial-desktop.png", "02-comercial-mobile.png",
+    "03-portal-login.png", "04-customer-offer.png",
+    "05-customer-order-pending.png", "06-customer-briefing-durable.png",
+    "07-customer-my-services.png",
+}
+if review_path is not None:
+    assert review_path.is_absolute() and not review_path.exists()
+    review_path.mkdir(parents=True,mode=0o700)
+
+def capture(page,filename: str) -> None:
+    if review_path is None:
+        return
+    assert filename in shots
+    options = {"path": str(review_path / filename), "animations": "disabled"}
+    # Mask synthetic individual identifiers; the screenshots are UI evidence,
+    # never an export of customer/order identities or credentials.
+    options["mask"] = [
+        page.locator('input[name="username"]'),
+        page.locator('input[name="password"]'),
+        page.locator('input[name="password_confirmation"]'),
+        page.locator('code'),
+        page.locator('td[data-customer-order-id]'),
+    ]
+    page.screenshot(**options)
+
 
 remote = "https://portal-dev.imaginecomunica.com.br/_preview/portal/shop?product="
 local = "http://127.0.0.1:18083/_preview/portal/shop?product="
@@ -127,6 +157,12 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                             f"http://127.0.0.1:{port}/", wait_until="domcontentloaded"
                         )
                         assert landing is not None and landing.status == 200
+                        if slug == "onepage" and review_path is not None:
+                            capture(page, "01-comercial-desktop.png")
+                            page.set_viewport_size({"width":390,"height":844})
+                            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                            capture(page, "02-comercial-mobile.png")
+                            page.set_viewport_size({"width":1280,"height":900})
                         link = page.locator(
                             f'article[data-quick-hire="{slug}"] a[data-quick-hire-action]'
                         )
@@ -137,6 +173,8 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         assert page.get_by_role(
                             "heading", name="Bem-vindo ao seu Portal"
                         ).count() == 1, ("Real Portal guest login not reached", slug)
+                        if slug == "onepage":
+                            capture(page, "03-portal-login.png")
                         # The guest is not authenticated; offer intent stays
                         # in its server-side synthetic session through signup.
                         # End-to-end ownership and PG18 persistence for EACH
@@ -164,6 +202,8 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         assert page.locator('input[name="product"]').get_attribute(
                             "value"
                         ) == offer
+                        if slug == "onepage":
+                            capture(page, "04-customer-offer.png")
                         page.get_by_role(
                             "button", name="Criar pedido de teste"
                         ).click()
@@ -173,6 +213,8 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         order_url = page.url
                         assert "/shop/orders/TEST-" in order_url
                         assert page.get_by_text("Pendente", exact=True).count() >= 1
+                        if slug == "onepage":
+                            capture(page, "05-customer-order-pending.png")
                         page.get_by_role("checkbox").check()
                         page.locator('[name="outcome"]').select_option("approved")
                         page.get_by_role(
@@ -188,6 +230,8 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         page.get_by_role(
                             "heading", name="Briefing salvo no Portal de teste"
                         ).wait_for()
+                        if slug == "onepage":
+                            capture(page, "06-customer-briefing-durable.png")
                         page.reload()
                         page.get_by_role(
                             "heading", name="Briefing salvo no Portal de teste"
@@ -198,6 +242,8 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
                         assert page.get_by_text(
                             "Aguardar análise do briefing", exact=True
                         ).count() == 1
+                        if slug == "onepage":
+                            capture(page, "07-customer-my-services.png")
                         # New browser without the customer's signed session
                         # must not read a saved private order.
                         outside = browser.new_context()
@@ -218,4 +264,28 @@ with TemporaryDirectory(prefix="imagine-commercial-portal-customer-", dir=os.env
         finally:
             server.shutdown()
             thread.join(timeout=5)
+if review_path is not None:
+    assert {p.name for p in review_path.iterdir()} == shots
+    pngs=[]
+    for name in sorted(shots):
+        path=review_path/name
+        assert not path.is_symlink()
+        raw=path.read_bytes()
+        assert raw.startswith(bytes.fromhex("89504e470d0a1a0a"))
+        assert 2_000 <= len(raw) <= 2_500_000
+        pngs.append({"name":name,"bytes":len(raw),"sha256":sha256(raw).hexdigest()})
+    report={
+        "schema":"imagine.portal-p0.customer-auth-browser.visual-only.v1",
+        "scope":"synthetic-privately-authenticated-preview",
+        "screenshots":pngs,
+        "customer_data_included":False,
+        "real_payment":False,
+        "customer_credentials_exported":False,
+        "production_release":False,
+        "release_gate":"NO_GO",
+    }
+    (review_path/"manifest.json").write_text(
+        json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8"
+    )
+    print("PASS 7 screenshots: Comercial and authenticated customer checkout, NO-GO")
 print("PASS all four Comercial CTAs reach private Portal, four independent synthetic accounts; zero real clients/payments/deploy")
