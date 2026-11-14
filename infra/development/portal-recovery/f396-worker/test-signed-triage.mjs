@@ -25,7 +25,17 @@ for(const file of [
 ]){
     db.exec(readFileSync(new URL(file,import.meta.url),'utf8'));
 }
-const org='org_f396',instance='instance_f396',base=Math.floor(Date.now()/1000);
+const pgSeedPath=process.env.F397_PG_SEED||null;
+const pgSeed=pgSeedPath?JSON.parse(readFileSync(pgSeedPath,'utf8')):null;
+if(pgSeed){
+    assert.match(pgSeed.organization,/^[a-f0-9-]{36}$/);
+    assert.match(pgSeed.session_sha256,/^[a-f0-9]{64}$/);
+    assert.equal(pgSeed.instance,'f390_ci');
+    assert.equal(Object.hasOwn(pgSeed,'session_reference'),false);
+}
+const org=pgSeed?.organization??'org_f396';
+const instance=pgSeed?.instance??'instance_f396';
+const base=Math.floor(Date.now()/1000);
 db.prepare('INSERT INTO witness_epochs(organization,instance,generation_floor,session_floor,membership_floor,sequence,updated_at) VALUES(?,?,?,?,?,?,?)')
     .run(org,instance,5,4,7,12,base);
 const adapter={
@@ -61,7 +71,7 @@ const paths={
     ack:'/v1/portal/revocation-acks',
 };
 const id=randomBytes(16).toString('hex');
-const digest=createHash('sha256').update(randomBytes(32)).digest('hex');
+const digest=pgSeed?.session_sha256??createHash('sha256').update(randomBytes(32)).digest('hex');
 const intent={organization:org,instance,intent_id:id,session_sha256:digest,
     from_sequence:12,generation_floor:5,session_floor:5,membership_floor:7};
 function mac(rawKey,items){
@@ -166,4 +176,4 @@ for(const [name,obj] of Object.entries({
     writeFileSync(folder+'/'+name,JSON.stringify(obj),{mode:0o600});
 }
 db.close();
-console.log('PASS F396 Worker fixture: real signed cursor + active/expired/exhausted lease + deliberately untrusted forged ACK, no serving.');
+console.log(pgSeed?'PASS F397 Worker fixture: actual signed independent cursor/lease/forged ACK scoped to real PG18 synthetic session.':'PASS F396 Worker fixture: real signed cursor + active/expired/exhausted lease + deliberately untrusted forged ACK, no serving.');
