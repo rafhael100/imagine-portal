@@ -147,7 +147,9 @@ FOR EACH ROW EXECUTE FUNCTION public.portal_f397_force_revoke_failure();
 SQL);
     try{
         try{$auth->revokeSessionDigest($digest);$assert(false);}
-        catch(PDOException){$assert(true);}
+        catch(RuntimeException $e){
+            $assert($e->getMessage()==='Portal authentication database unavailable.');
+        }
         $assert($dbState($digest)==='active');
         $status($evaluate($first,true),'ACK_CLAIM_CONTRADICTS_ACTIVE_POSTGRES');
     }finally{
