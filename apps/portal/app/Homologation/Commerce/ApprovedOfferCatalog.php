@@ -3,6 +3,9 @@ declare(strict_types=1);
 namespace App\Homologation\Commerce;
 
 use InvalidArgumentException;
+use App\Domain\Performance\ActivationPostpaidPreview;
+require_once __DIR__.'/PerformancePostpaidPolicy.php';
+require_once __DIR__.'/../../Domain/Performance/ActivationPostpaidPreview.php';
 
 /** Server-owned approved commercial terms. No PSP or financial side effects. */
 final class ApprovedOfferCatalog
@@ -26,15 +29,47 @@ final class ApprovedOfferCatalog
             if ($media!==[]) throw new InvalidArgumentException('Unexpected media');
             return $base+['setup_total_cents'=>$offer['setup_total_cents'],'setup_charges'=>$offer['setup_charges'],'monthly'=>$offer['monthly'],'amount_now_cents'=>$offer['setup_charges'][0]['amount_cents']];
         }
-        if ($media===[]||array_diff(array_keys($media),$offer['channels'])!==[]) throw new InvalidArgumentException('Choose a supported channel');
-        $total=0;
-        foreach ($media as $cents) {
-            if (!is_int($cents)||$cents<$offer['minimum_media_investment_per_channel_cents']||$cents>100000000) throw new InvalidArgumentException('Minimum R700 per channel');
-            $total+=$cents;
+        if ($media === [] || !array_is_list($offer['channels']) ||
+            array_diff(array_keys($media),$offer['channels']) !== [] ||
+            count($media) > count($offer['channels'])) {
+            throw new InvalidArgumentException('Choose supported, unique channels');
         }
-        // Integer arithmetic; round half up only once, at final cent.
-        $fee=intdiv($total*$offer['management_fee_basis_points']+5000,10000);
-        return $base+['media_by_channel_cents'=>$media,'media_paid_directly_to_platforms'=>true,'management_fee_basis_points'=>2000,'estimated_management_fee_cents'=>$fee,'reference_period'=>$offer['reference_period'],'amount_now_cents'=>$fee,'settlement_policy'=>$offer['operational_settlement_policy']];
+        // Never trust browser-selected prices, channel eligibility or fees.
+        // Use the same server-side approved floor as the isolated F419 HMAC
+        // and calculator. A media budget is paid to the ad provider, NOT PSP.
+        $eligibility=array_fill_keys($offer['channels'],true);
+        $activation=ActivationPostpaidPreview::activationQuote(array_keys($media),$eligibility);
+        foreach ($activation['items'] as $item) {
+            $channel=$item['channel'];
+            $budget=$media[$channel]??null;
+            if (!is_int($budget) || $budget<$item['minimum_media_cents'] ||
+                $budget>100000000) {
+                throw new InvalidArgumentException('Media budget below channel-specific minimum');
+            }
+        }
+        $estimate=PerformancePostpaidPolicy::fullMonth(array_keys($media),$media);
+        if ($estimate['policy_version']!==ActivationPostpaidPreview::POLICY_VERSION ||
+            $estimate['activation_total_cents']!==$activation['activation_due_now_cents'] ||
+            $estimate['automatic_charge_enabled']!==false ||
+            ($offer['pricing_policy']??null)!==PerformancePostpaidPolicy::VERSION ||
+            ($offer['minimum_management_fee_per_channel_cents']??null)!==17000 ||
+            ($offer['activation_per_channel_cents']??null)!==49000) {
+            throw new InvalidArgumentException('Approved Performance pricing version mismatch');
+        }
+        return $base+[
+            'pricing_policy'=>PerformancePostpaidPolicy::VERSION,
+            'minimum_management_fee_per_channel_cents'=>PerformancePostpaidPolicy::MONTHLY_MINIMUM_CENTS,
+            'activation_per_channel_cents'=>PerformancePostpaidPolicy::ACTIVATION_CENTS,
+            'activation_total_cents'=>$estimate['activation_total_cents'],
+            'media_by_channel_cents'=>$media,
+            'media_paid_directly_to_platforms'=>true,
+            'management_fee_basis_points'=>2000,
+            'estimated_management_fee_cents'=>$estimate['management_fee_cents'],
+            'reference_period'=>$offer['reference_period'],
+            'amount_now_cents'=>$estimate['activation_total_cents'],
+            'settlement_policy'=>$offer['operational_settlement_policy'],
+            'real_postpaid_invoice_authorized'=>false,
+        ];
     }
     public static function money(string $text): int
     {
@@ -45,6 +80,7 @@ final class ApprovedOfferCatalog
     /** Mathematical reconciliation only; actual spend must come from trusted evidence. */
     public static function reconcilePerformance(array $quote,array $actualMedia): array
     {
+        if (isset($quote['pricing_policy'])) throw new InvalidArgumentException('Postpaid contract cannot use legacy advance reconciliation');
         if (($quote['product']??null)!=='performance'||($quote['management_fee_basis_points']??null)!==2000||!is_int($quote['estimated_management_fee_cents']??null)) throw new InvalidArgumentException('Invalid Performance quote');
         $expected=array_keys($quote['media_by_channel_cents']); $actual=array_keys($actualMedia); sort($expected); sort($actual);
         if ($actual!==$expected) throw new InvalidArgumentException('Channel scope mismatch');
