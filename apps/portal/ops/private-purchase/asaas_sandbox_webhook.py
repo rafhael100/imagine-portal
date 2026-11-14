@@ -27,9 +27,20 @@ class Inbox:
         def lit(v):return 'NULL' if v is None else "'"+v.replace("'","''")+"'"
         values=','.join(lit(event[k]) for k in ['event_hash','event_type','resource_ref','subscription_ref','external_ref'])
         # Payload is deliberately not retained: only routing IDs, no personal/financial data.
-        sql="BEGIN; SET LOCAL ROLE purchase_rehearsal_hook; SELECT pg_advisory_xact_lock(724116); INSERT INTO purchase_rehearsal.sandbox_webhook_inbox(event_hash,event_type,resource_ref,subscription_ref,external_ref) SELECT "+values+" WHERE (SELECT count(*) FROM purchase_rehearsal.sandbox_webhook_inbox)<10000 ON CONFLICT DO NOTHING; SELECT EXISTS(SELECT FROM purchase_rehearsal.sandbox_webhook_inbox WHERE event_hash="+lit(event['event_hash'])+"); COMMIT;"
-        p=subprocess.run(['docker','compose','exec','-T','database','psql','-X','-q','-tA','-v','ON_ERROR_STOP=1','-U','postgres','-d','portal_purchase_rehearsal'],input=sql,cwd=ROOT,capture_output=True,text=True,timeout=10)
-        if p.returncode or p.stdout.strip().splitlines()[-1:]!=['t']:raise RuntimeError('Inbox unavailable')
+        sql="BEGIN; SELECT pg_advisory_xact_lock(724116); INSERT INTO purchase_rehearsal.sandbox_webhook_inbox(event_hash,event_type,resource_ref,subscription_ref,external_ref) SELECT "+values+" WHERE (SELECT count(*) FROM purchase_rehearsal.sandbox_webhook_inbox)<10000 ON CONFLICT DO NOTHING; SELECT EXISTS(SELECT FROM purchase_rehearsal.sandbox_webhook_inbox WHERE event_hash="+lit(event['event_hash'])+"); COMMIT;"
+        # Do not authenticate as postgres even briefly. A one-shot psql client
+        # has its own LOGIN, read-only pgpass mount and RLS-scoped grants.
+        command=['docker','compose','run','--rm','-T','--no-deps',
+                 'webhook-broker','-X','-q','-tA','-v','ON_ERROR_STOP=1',
+                 '-h','database','-p','5432','-U','purchase_rehearsal_hook',
+                 '-d','portal_purchase_rehearsal']
+        try:
+            p=subprocess.run(command,input=sql,cwd=ROOT,capture_output=True,
+                             text=True,timeout=25,check=False)
+        except (OSError,subprocess.TimeoutExpired):
+            raise RuntimeError('Inbox unavailable') from None
+        if p.returncode or p.stdout.strip().splitlines()[-1:]!=['t']:
+            raise RuntimeError('Inbox unavailable')
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self,*args):pass # Never log headers, token or provider payload.
@@ -57,9 +68,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.reply(200)
 
 if __name__=='__main__':
-    if os.environ.get('APP_ENV')=='production':raise SystemExit('Sandbox only')
+    # The receiver is an explicit operator-only staging process, not a general
+    # entrypoint. Do not let CI, an unconfigured shell or production start it.
+    if (os.environ.get('APP_ENV')!='staging' or
+        os.environ.get('ASAAS_SANDBOX_WEBHOOK_ENABLED')!='1' or
+        os.environ.get('GITHUB_ACTIONS')=='true'):
+        raise SystemExit('NO-GO: explicit staging-only webhook opt-in required')
     config=ROOT/'.private/asaas-webhook.json'
-    if stat.S_IMODE(config.stat().st_mode)!=0o600:raise SystemExit('Private mode must be 600')
-    cfg=json.loads(config.read_text());token=cfg.get('auth_token','')
-    if cfg.get('environment')!='sandbox' or not re.fullmatch(r'[A-Za-z0-9_-]{43,255}',token):raise SystemExit('Private sandbox token required')
-    server=http.server.HTTPServer(('127.0.0.1',18084),Handler);server.token=token;server.expected_host='portal-dev.imaginecomunica.com.br';server.inbox=Inbox();server.serve_forever()
+    try:
+        info=config.lstat()
+        if (not stat.S_ISREG(info.st_mode) or
+            stat.S_IMODE(info.st_mode)!=0o600 or
+            info.st_uid!=os.geteuid() or
+            not 64<=info.st_size<=8192):
+            raise ValueError('unsafe')
+        cfg=json.loads(config.read_text())
+    except (OSError,ValueError,TypeError):
+        raise SystemExit('NO-GO: private webhook configuration unavailable') from None
+    token=cfg.get('auth_token','')
+    if (cfg.get('environment')!='sandbox' or
+        not isinstance(token,str) or
+        not re.fullmatch(r'[A-Za-z0-9_-]{43,255}',token)):
+        raise SystemExit('NO-GO: private Sandbox webhook token is invalid')
+    server=http.server.HTTPServer(('127.0.0.1',18084),Handler)
+    server.token=token
+    server.expected_host='portal-dev.imaginecomunica.com.br'
+    server.inbox=Inbox()
+    server.serve_forever()
