@@ -4,6 +4,9 @@ on:
     paths:
       - 'apps/portal/ops/private-purchase/**'
       - 'apps/portal/app/Homologation/**'
+      - 'apps/portal/app/Domain/SitesIntegration/**'
+      - 'apps/portal/ops/psp/**'
+      - 'docs/PORTAL-P0-ASAAS-CHECKOUT-COMBINED-REVIEW.md'
       - 'apps/portal/app/Http/Controllers/PurchaseRehearsalController.php'
       - 'apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php'
       - 'apps/portal/app/Providers/FullPortalPreviewServiceProvider.php'

@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\SitesIntegration;
+
+use DomainException;
+use Throwable;
+
+/**
+ * Portal F1-13: bind the candidate v2 envelope's synthetic secret and
+ * generation to an independent default-deny source rather than request
+ * parameters. No HTTP, IAM, queue, operational key storage or deploy.
+ */
+final class LabPortalSitesVersionedIssuer
+{
+    public function __construct(
+        private readonly SitesCreateProjectEncoder $encoder =
+            new SitesCreateProjectEncoder(),
+        private readonly PortalSitesSigningMaterialSource $materialSource =
+            new DenyingPortalSitesSigningMaterialSource(),
+        private readonly PortalSiteCommercialEpochSource $commercialEpochs =
+            new DenyingPortalSiteCommercialEpochSource(),
+    ) {}
+
+    /** @return array<string,mixed> */
+    public function issue(
+        string $orderRef,
+        string $operationId,
+        string $idempotencyKey,
+        string $nonce,
+        int $issuedAt,
+        int $expiresAt,
+    ): array {
+        return $this->issueInternal(
+            $orderRef,$operationId,$idempotencyKey,$nonce,
+            $issuedAt,$expiresAt,false
+        );
+    }
+
+    /** v3: includes the independent commercial authorization generation. */
+    public function issueCommercialEpochSigned(
+        string $orderRef,
+        string $operationId,
+        string $idempotencyKey,
+        string $nonce,
+        int $issuedAt,
+        int $expiresAt,
+    ): array {
+        return $this->issueInternal(
+            $orderRef,$operationId,$idempotencyKey,$nonce,
+            $issuedAt,$expiresAt,true
+        );
+    }
+
+    /** @return array<string,mixed> */
+    private function issueInternal(
+        string $orderRef,
+        string $operationId,
+        string $idempotencyKey,
+        string $nonce,
+        int $issuedAt,
+        int $expiresAt,
+        bool $includeCommercialEpoch,
+    ): array {
+        // Source of the commercial order is separately default-deny.
+        // A caller cannot provide its own eligible tenant or signer key.
+        $command=$this->encoder->build($orderRef,$operationId,$idempotencyKey);
+        // F1-15: the contract snapshot itself may return A->B->A.
+        // Pin an independent authorization generation BEFORE signing.
+        $commercialEpoch=$this->readCommercialEpoch($orderRef);
+        $original=$this->readMaterial();
+        $signed=$includeCommercialEpoch
+            ? SyntheticSitesCommercialEpochSignedEnvelopeSigner::sign(
+                $command,$original->secret,$nonce,$issuedAt,$expiresAt,
+                $original->keyEpoch,$commercialEpoch
+            )
+            : SyntheticSitesVersionedEnvelopeSigner::sign(
+                $command,$original->secret,$nonce,$issuedAt,$expiresAt,$original->keyEpoch
+            );
+        // A changed key or epoch mid-emission must not produce an outgoing
+        // envelope. This is a cooperative lab check, not atomic issuance.
+        $current=$this->readMaterial();
+        if ($original->keyEpoch!==$current->keyEpoch ||
+            !hash_equals(
+                hash('sha256',$original->secret),
+                hash('sha256',$current->secret)
+            )) {
+            throw new DomainException('candidate_portal_signing_material_changed');
+        }
+
+        // F1-14: the order/contract can be cancelled or revised AFTER the
+        // initial eligible read and HMAC computation. Rebuild it against
+        // the independent commercial source before returning a signed
+        // command. A revoked or changed scope MUST not escape.
+        $latest=$this->encoder->build($orderRef,$operationId,$idempotencyKey);
+        if ($latest !== $command) {
+            throw new DomainException('candidate_portal_commercial_authority_changed');
+        }
+        if ($this->readCommercialEpoch($orderRef) !== $commercialEpoch) {
+            throw new DomainException('candidate_portal_commercial_epoch_changed');
+        }
+        return $signed;
+    }
+
+    private function readCommercialEpoch(string $orderRef): int
+    {
+        try {
+            $epoch=$this->commercialEpochs->currentEpochFor($orderRef);
+        } catch (Throwable $e) {
+            throw new DomainException('candidate_portal_commercial_epoch_unavailable',0,$e);
+        }
+        if (!is_int($epoch) || $epoch < 1) {
+            throw new DomainException('candidate_portal_commercial_epoch_unavailable');
+        }
+        return $epoch;
+    }
+
+    private function readMaterial(): CandidatePortalSitesSigningMaterial
+    {
+        try {
+            $material=$this->materialSource->currentFor('imagine-portal','imagine-sites');
+        } catch (Throwable $e) {
+            throw new DomainException('candidate_portal_signing_material_unavailable',0,$e);
+        }
+        if (!$material instanceof CandidatePortalSitesSigningMaterial ||
+            $material->issuer!=='imagine-portal' ||
+            $material->audience!=='imagine-sites' ||
+            strlen($material->secret)<32 || $material->keyEpoch<1) {
+            throw new DomainException('candidate_portal_signing_material_unavailable');
+        }
+        return $material;
+    }
+}
