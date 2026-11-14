@@ -82,7 +82,7 @@ final class GatewayRoutingPreviewTest extends TestCase
         $p = $this->policy();
         $p['providers']['asaas']['methods']['pix']['fixed_cents'] = 0;
         $p['providers']['asaas']['methods']['pix']['variable_bps'] = 1;
-        self::assertSame(1, GatewayRoutingPreview::quote($p, 'pix', 1)['estimated_fee_cents']);
+        self::assertSame(1, GatewayRoutingPreview::quote($p, 'pix', 10_000)['estimated_fee_cents']);
     }
 
     public function test_unknown_method_and_currency_rejected(): void
