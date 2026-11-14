@@ -123,6 +123,7 @@ jobs:
         working-directory: external/comercial
         env:
           IMAGINE_PORTAL_CUSTOMER_PREVIEW: '1'
+          PUBLIC_PORTAL_LOGIN_URL: 'https://portal.imaginecomunicacao.com.br/login'
           GITHUB_ACTIONS: 'true'
         run: |
           set -euo pipefail
@@ -142,6 +143,16 @@ jobs:
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_customer_handoff.py
           echo 'PASS Comercial-built links to Laravel demo account, Postgres order and fake briefing; CI ONLY' >> "$GITHUB_STEP_SUMMARY"
+      - name: Click Portal do Cliente desktop and mobile from compiled Comercial into Laravel login
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_CUSTOMER_COMMERCIAL_E2E: '1'
+          PORTAL_COMERCIAL_MENU_E2E: '1'
+          IMAGINE_COMERCIAL_CUSTOMER_PREVIEW_ROOT: ${{ runner.temp }}/comercial-customer-prepared
+        run: |
+          set -euo pipefail
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_comercial_portal_menu.py
+          echo 'PASS Portal do Cliente desktop/mobile -> Laravel customer/admin real synthetic login and role boundaries' >> "$GITHUB_STEP_SUMMARY"
       - name: Prove forced per-customer SQL isolation under raw company login
         working-directory: apps/portal/ops/private-purchase
         run: |
