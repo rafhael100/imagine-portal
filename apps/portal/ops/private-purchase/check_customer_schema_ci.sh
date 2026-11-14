@@ -26,6 +26,8 @@ docker exec -i "$name" psql -X -v ON_ERROR_STOP=1 \
 CREATE SCHEMA purchase_rehearsal;
 CREATE ROLE purchase_rehearsal_a LOGIN PASSWORD 'ci-preflight-only'
  NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE purchase_rehearsal_psp LOGIN PASSWORD 'ci-psp-preflight-only'
+ NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT CONNECT ON DATABASE portal_purchase_rehearsal TO purchase_rehearsal_a;
 GRANT USAGE ON SCHEMA purchase_rehearsal TO purchase_rehearsal_a;
 CREATE TABLE purchase_rehearsal.preview_scope_secret (
@@ -90,18 +92,22 @@ UPDATE purchase_rehearsal.customer_orders SET payment_source='asaas_sandbox'
  WHERE id='TEST-'||repeat('a',32);
 INSERT INTO purchase_rehearsal.sandbox_payment_intents(order_id,amount_cents,due_date)
  VALUES ('TEST-'||repeat('a',32),33000,'2026-11-14');
-SET ROLE purchase_rehearsal_psp;
-DO $recon$
-DECLARE n bigint;
-BEGIN
- SELECT count(*) INTO n FROM purchase_rehearsal.sandbox_payment_intents
-  WHERE sync_requested;
- IF n<>1 THEN RAISE EXCEPTION 'PSP role cannot read its own payment intent'; END IF;
- SELECT count(*) INTO n FROM purchase_rehearsal.customer_orders
-  WHERE payment_source='asaas_sandbox';
- IF n<>1 THEN RAISE EXCEPTION 'PSP role cannot read payment status'; END IF;
-END $recon$;
-RESET ROLE;
 SQL
+# Separate SQL login, over TCP with SCRAM authentication, not SET ROLE as
+# the superuser. The password is a disposable, public CI fixture only.
+psp_sql() {
+  docker exec -e PGPASSWORD=ci-psp-preflight-only "$name" \
+    psql -X -At -v ON_ERROR_STOP=1 -h 127.0.0.1 \
+    -U purchase_rehearsal_psp -d portal_purchase_rehearsal -c "$1"
+}
+assert_eq "$(psp_sql 'SELECT current_user')" purchase_rehearsal_psp 'dedicated PSP login'
+assert_eq "$(psp_sql 'SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents')" 1 'broker ledger read'
+assert_eq "$(psp_sql "SELECT count(*) FROM purchase_rehearsal.customer_orders WHERE payment_source='asaas_sandbox'")" 1 'broker narrow order status read'
+if psp_sql 'SELECT customer_id FROM purchase_rehearsal.customer_orders LIMIT 1' >/dev/null 2>&1; then
+  echo 'NO-GO: broker can extract customer identity' >&2; exit 1
+fi
+if psp_sql 'SELECT key FROM purchase_rehearsal.preview_scope_secret' >/dev/null 2>&1; then
+  echo 'NO-GO: broker can read HMAC verifier' >&2; exit 1
+fi
 assert_eq "$(sql 'SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents')" 0 'unsigned customer must not enumerate Sandbox intents'
 echo 'PASS SQL preflight: signed customer owner + disjoint PSP role, PG18 FORCE RLS, raw-read refusal, verifier isolation'
