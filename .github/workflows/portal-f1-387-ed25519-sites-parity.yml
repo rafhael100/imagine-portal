@@ -1,0 +1,69 @@
+name: Portal F1-387 signed entitlement to pinned Sites F1-386 parity (CI only)
+on:
+  push:
+    branches:
+      - feature/portal-f1-387-ed25519-entitlement-issuer-2026-11-14
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php'
+      - 'tests/f387-portal-to-sites-ed25519-parity.php'
+      - '.github/workflows/portal-f1-387-ed25519-sites-parity.yml'
+      - 'docs/PORTAL-F1-387-ED25519-ENTITLEMENT-PROOF.md'
+permissions:
+  contents: read
+jobs:
+  canonical-portal-sites:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F387_ED25519_CI: '1'
+      F387_SITES_CHECKOUT: ${{ github.workspace }}/sites-candidate
+    steps:
+      - name: Checkout Portal signed issuer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Pin source of independently maintained Sites verifier
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 4a2b7e4503cfb0b8d7bfb9d0d4bb7ea43c4198d5
+          path: sites-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium
+          coverage: none
+      - name: PHP syntax and pinned source identity
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-candidate rev-parse HEAD)" = 4a2b7e4503cfb0b8d7bfb9d0d4bb7ea43c4198d5
+          php -l apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php
+          php -l apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php
+          php -l apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php
+          php -l apps/portal/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php
+          php -l tests/f387-portal-to-sites-ed25519-parity.php
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+      - name: Exact Portal wire accepted only by independently witnessed Sites verifier
+        run: |
+          set -euo pipefail
+          if PORTAL_F387_ED25519_CI=0 php tests/f387-portal-to-sites-ed25519-parity.php; then
+            echo 'Unsafe: synthetic Portal issuer CI ran without explicit opt-in'
+            exit 1
+          fi
+          php tests/f387-portal-to-sites-ed25519-parity.php
+      - name: Confirm no live key, payment adapter or route was accidentally configured
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalEd25519EntitlementIssuer' apps/portal/app/Providers apps/portal/routes
+          ! grep -R -n 'PortalCurrentSettlementSource' apps/portal/app/Providers apps/portal/routes
+          echo 'F1-387: exact cross-repository Ed25519 protocol validated, official PSP and IAM remain NO-GO.'
