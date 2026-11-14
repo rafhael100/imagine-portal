@@ -1,0 +1,20 @@
+name: Portal synthetic purchase ownership
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/SyntheticPurchaseOwnership.php'
+      - 'apps/portal/tools/test_synthetic_purchase_ownership.php'
+      - '.github/workflows/portal-synthetic-purchase-ownership.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ownership:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: php apps/portal/tools/test_synthetic_purchase_ownership.php
