@@ -26,7 +26,7 @@ CREATE TABLE public.portal_memberships (
  id uuid PRIMARY KEY,
  identity_id uuid NOT NULL, organization_id uuid NOT NULL,
  status text NOT NULL, membership_revision bigint NOT NULL,
- PRIMARY KEY(identity_id,organization_id)
+ UNIQUE(identity_id,organization_id)
 );
 CREATE TABLE public.portal_auth_sessions (
  session_sha256 text PRIMARY KEY,
