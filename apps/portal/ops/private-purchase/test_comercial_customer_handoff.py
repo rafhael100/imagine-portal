@@ -285,7 +285,7 @@ if review_path is not None:
         "release_gate":"NO_GO",
     }
     (review_path/"manifest.json").write_text(
-        json.dumps(report,indent=2,ensure_ascii=False)+"\\n",encoding="utf-8"
+        json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8"
     )
     print("PASS 7 screenshots: Comercial and authenticated customer checkout, NO-GO")
 print("PASS all four Comercial CTAs reach private Portal, four independent synthetic accounts; zero real clients/payments/deploy")
