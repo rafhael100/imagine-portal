@@ -133,7 +133,8 @@ export async function readAckClaim(request,env,org,instance,now){
     ).bind(org,instance).first();
     if(claim.organization!==org||claim.instance!==instance||claim.intent_id!==id
       ||!isHex(claim.session_sha256,64)||!positive(claim.intent_sequence)
-      ||!positive(claim.claimed_at)
+      ||!Number.isSafeInteger(claim.claimed_at)
+      ||claim.claimed_at<1||claim.claimed_at>9999999999
       ||claim.local_status!=='revoked_claimed'
       ||!epoch||!positive(epoch.sequence)||!positive(epoch.session_floor)
       ||epoch.sequence<claim.intent_sequence)return refuse(503);
