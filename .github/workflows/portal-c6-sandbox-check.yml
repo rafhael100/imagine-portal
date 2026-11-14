@@ -1,0 +1,40 @@
+name: C6 sandbox offline credentials check
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php'
+      - 'apps/portal/tests/Unit/C6SandboxCredentialPreflightTest.php'
+      - 'apps/portal/ops/c6-sandbox/**'
+      - '.github/workflows/portal-c6-sandbox-check.yml'
+permissions:
+  contents: read
+jobs:
+  offline-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: openssl,mbstring,dom,xml
+          coverage: none
+      - name: Verify source syntax
+        run: |
+          bash -n apps/portal/ops/c6-sandbox/install-sandbox-secrets.sh
+          bash -n apps/portal/ops/c6-sandbox/install-sandbox-p12.sh
+          php -l apps/portal/ops/c6-sandbox/check-sandbox.php
+          php -l apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php
+          php -l apps/portal/ops/c6-sandbox/check-sandbox.php
+      - name: Install Laravel
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-scripts --no-plugins --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Test synthetic PEM security
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter=C6SandboxCredentialPreflightTest
