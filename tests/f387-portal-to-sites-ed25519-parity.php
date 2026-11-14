@@ -160,6 +160,12 @@ check($wire['operationFingerprint']===$command->semanticFingerprint() &&
     $wire['expiresAt']===F387_NOW+60 &&
     strlen($wire['signature'])===128,
     'real Portal command fingerprint and detached Ed25519 proof bytes match Sites');
+$beforeSettlementReads=$settlement->reads;
+$beforeRevocationReads=$epoch->reads;
+$issuer->issue('order-f387','operation-f387-fresh','idem-f387-fresh',F387_NOW,$secret);
+check($settlement->reads===$beforeSettlementReads+1 &&
+    $epoch->reads===$beforeRevocationReads+1,
+    'successful second issue re-fetches both independent authorities rather than trusting cached paid=true');
 $proof=new F387SitesProof();
 $proof->proof=$wire;
 $psp=new F387SitesPSP();
@@ -227,8 +233,7 @@ check(refused(static fn()=>$issuer->issue(
 check(refused(static fn()=>$issuer->issue(
     'order-f387','operation-f387-two','idem-f387-two',F387_NOW,$secret,121
 )),'issuer rejects excessive TTL');
-check($settlement->reads>=5 && $epoch->reads>=4,
-    'issuer rechecks independent sources for each request, no cached paid status');
+
 
 echo "$checks F1-387 exact Portal Ed25519 -> pinned Sites F1-386 parity and independent witness cases passed.\n";
 echo "NO-GO: data and keys synthetic; no provider bound, no PSP/Portal IAM, no customer approval or deploy.\n";
