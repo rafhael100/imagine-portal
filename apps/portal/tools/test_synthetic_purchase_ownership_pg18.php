@@ -51,6 +51,10 @@ CREATE TABLE portal_ownership_lab.orders (
     request_key text NOT NULL,
     product text NOT NULL CHECK (product IN ('onepage','landing-pages','performance')),
     state text NOT NULL DEFAULT 'pending' CHECK (state IN ('pending','approved')),
+    payment text NOT NULL DEFAULT 'pending' CHECK (payment IN ('pending','approved','declined')),
+    revision integer NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    briefing jsonb,
+    CHECK (briefing IS NULL OR payment='approved'),
     UNIQUE (organization_id, customer_id, request_key),
     CHECK (id ~ '^TEST-[a-zA-Z0-9-]{8,64}$')
 );
@@ -60,7 +64,7 @@ CREATE ROLE owner_ci_c LOGIN PASSWORD 'ci-owner-c-only' NOSUPERUSER NOBYPASSRLS 
 GRANT CONNECT ON DATABASE portal_ownership_ci TO owner_ci_a,owner_ci_b,owner_ci_c;
 GRANT USAGE ON SCHEMA portal_ownership_lab TO owner_ci_a,owner_ci_b,owner_ci_c;
 GRANT SELECT,INSERT ON portal_ownership_lab.orders TO owner_ci_a,owner_ci_b,owner_ci_c;
-GRANT UPDATE (state) ON portal_ownership_lab.orders TO owner_ci_a,owner_ci_b,owner_ci_c;
+GRANT UPDATE (state,payment,revision,briefing) ON portal_ownership_lab.orders TO owner_ci_a,owner_ci_b,owner_ci_c;
 ALTER TABLE portal_ownership_lab.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portal_ownership_lab.orders FORCE ROW LEVEL SECURITY;
 CREATE POLICY per_authenticated_db_owner ON portal_ownership_lab.orders
@@ -122,7 +126,7 @@ $legacy->execute(['TEST-legacy-unknown','test-org-a',null,'legacy-key','onepage'
 $legacy->execute(['TEST-legacy-b-unknown','test-org-b',null,'legacy-key','onepage']);
 
 function listOrders(PDO $pdo): array {
-    return $pdo->query('SELECT id,organization_id,customer_id,request_key,product,state
+    return $pdo->query('SELECT id,organization_id,customer_id,request_key,product,state,payment,revision,briefing
                         FROM portal_ownership_lab.orders ORDER BY id')
                ->fetchAll();
 }
@@ -137,7 +141,7 @@ function createOwnerOrder(PDO $pdo, string $id, string $org, string $customer, s
             (id,organization_id,customer_id,request_key,product)
             VALUES (?,?,?,?,?) ON CONFLICT (organization_id,customer_id,request_key) DO NOTHING');
         $insert->execute([$id,$org,$customer,$key,$product]);
-        $query=$pdo->prepare('SELECT id,organization_id,customer_id,request_key,product,state
+        $query=$pdo->prepare('SELECT id,organization_id,customer_id,request_key,product,state,payment,revision,briefing
             FROM portal_ownership_lab.orders
             WHERE organization_id=? AND customer_id=? AND request_key=?');
         $query->execute([$org,$customer,$key]);
@@ -209,9 +213,75 @@ $neighborMutation->execute([$cOrder['id']]);
 checkOwner($neighborMutation->rowCount()===0, 'Cannot update another organization.');
 $neighborMutation->execute([$aOrder['id']]);
 checkOwner($neighborMutation->rowCount()===1, 'Own order may advance in this simulated DB rehearsal.');
+// Complete the synthetic payment/briefing lifecycle under the SAME enforced
+// per-customer RLS policies as the original insertion. Never widen ownership
+// by accepting a caller-supplied customer or organization during mutations.
+function payOwner(PDO $pdo,string $id,int $revision,string $outcome): int {
+    $q=$pdo->prepare(
+        "UPDATE portal_ownership_lab.orders
+         SET payment=?,revision=revision+1
+         WHERE id=? AND revision=? AND briefing IS NULL"
+    );
+    $q->execute([$outcome,$id,$revision]);
+    return $q->rowCount();
+}
+function briefOwner(PDO $pdo,string $id,int $revision,array $brief): int {
+    $q=$pdo->prepare(
+        "UPDATE portal_ownership_lab.orders
+         SET briefing=?::jsonb,revision=revision+1
+         WHERE id=? AND revision=? AND payment='approved' AND briefing IS NULL"
+    );
+    $q->execute([json_encode($brief,JSON_THROW_ON_ERROR),$id,$revision]);
+    return $q->rowCount();
+}
+$sampleBrief=['business'=>'Empresa fictícia A','goal'=>'Objetivo de teste',
+              'audience'=>'Público sintético','materials'=>'Exemplos sem dados pessoais'];
+checkOwner(payOwner($b,$aOrder['id'],0,'approved')===0,
+    'Same-organization neighbor must not approve another customer payment.');
+checkOwner(payOwner($c,$aOrder['id'],0,'approved')===0,
+    'Cross-organization customer must not approve a foreign payment.');
+checkOwner(briefOwner($b,$aOrder['id'],0,$sampleBrief)===0,
+    'Same-organization neighbor must not save foreign briefing.');
+checkOwner(briefOwner($a,$aOrder['id'],0,$sampleBrief)===0,
+    'Pending payment must not permit briefing.');
+checkOwner(payOwner($a,$aOrder['id'],0,'declined')===1,
+    'Owner must be able to record fake declined payment.');
+checkOwner(briefOwner($a,$aOrder['id'],1,$sampleBrief)===0,
+    'Declined payment must not permit briefing.');
+checkOwner(payOwner($a,$aOrder['id'],0,'approved')===0,
+    'Stale payment revision must never overwrite newer state.');
+checkOwner(payOwner($a,$aOrder['id'],1,'approved')===1,
+    'Owner can mark fake payment approved with fresh revision.');
+checkOwner(briefOwner($a,$aOrder['id'],1,$sampleBrief)===0,
+    'Stale briefing revision must not pass.');
+checkOwner(briefOwner($b,$aOrder['id'],2,$sampleBrief)===0,
+    'Foreign customer can never use the valid owner revision.');
+checkOwner(briefOwner($a,$aOrder['id'],2,$sampleBrief)===1,
+    'Only owner can save briefing after approved payment.');
+checkOwner(briefOwner($a,$aOrder['id'],3,$sampleBrief)===0,
+    'Briefing must not be overwritten after submission.');
+checkOwner(payOwner($a,$aOrder['id'],3,'declined')===0,
+    'Payment must not be changed after briefing completion.');
+checkOwner(payOwner($b,$bOrder['id'],0,'approved')===1,
+    'Second customer still has its own payment lifecycle.');
+checkOwner(count(listOrders($b))===1 && count(listOrders($c))===1,
+    'Payment transitions must not change owner visibility.');
+$rowsAfter=listOrders($a);
+checkOwner(count($rowsAfter)===1 && $rowsAfter[0]['payment']==='approved'
+    && (int)$rowsAfter[0]['revision']===3,
+    'Only the owner sees the final approved and revisioned row.');
+checkOwner(json_decode((string)$rowsAfter[0]['briefing'],true,512,JSON_THROW_ON_ERROR)==$sampleBrief,
+    'Owner must recover the durable JSONB briefing (order-independent keys).');
+checkOwner(count(listOrders($b))===1 && listOrders($b)[0]['briefing']===null,
+    'Neighbor briefing must remain untouched by the other owner.');
+
 $aAfterRestart = new PDO($dsn,'owner_ci_a','ci-owner-a-only',$options);
-checkOwner(listOrders($aAfterRestart)[0]['state']==='approved', 'Order must survive new PostgreSQL login.');
+checkOwner(listOrders($aAfterRestart)[0]['state']==='approved'
+    && listOrders($aAfterRestart)[0]['payment']==='approved'
+    && (int)listOrders($aAfterRestart)[0]['revision']===3
+    && listOrders($aAfterRestart)[0]['briefing']!==null,
+    'Paid order and submitted briefing must survive a new PostgreSQL login.');
 checkOwner(count(listOrders($aAfterRestart))===1, 'No legacy/other customer data can appear after reconnect.');
 checkOwner((int)$db->query('SELECT count(*) FROM portal_ownership_lab.orders')->fetchColumn()===5,
     'Exactly three new owned orders and two ownerless legacy records expected.');
-echo "PASS {$checks} PostgreSQL 18 ownership checks: 2 same-org customers, other org, atomic per-owner replay, 2 invisible legacy rows, DB FORCE RLS; NO HTTP/DEPLOY\n";
+echo "PASS {$checks} PostgreSQL 18 ownership checks: 2 same-org customers, fake payment/briefing revision and denial, legacy NULL owner, DB FORCE RLS; NO HTTP/DEPLOY\n";
