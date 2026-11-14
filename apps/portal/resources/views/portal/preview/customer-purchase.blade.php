@@ -80,12 +80,16 @@
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
 @endif
 <section><h2>Cobrança no Asaas sandbox</h2>
-<p>Somente homologação: pagador fictício, sem e-mail/telefone, notificações desativadas e chave fora do servidor web.</p>
+@if($order['product'] === 'onepage')
+<p>Somente homologação Onepage: pagador fictício, sem e-mail/telefone, notificações desativadas e chave fora do servidor web.</p>
+@else
+<p data-direct-checkout-gate="closed">A contratação direta de {{ $order['product'] === 'performance' ? 'Performance' : 'Landing Page' }} ainda não está liberada. O orçamento acima é uma simulação. Nenhuma cobrança poderá ser solicitada neste pedido.</p>
+@endif
 @if(($order['sandbox']??null)!==null)
 <p>Etapa: <strong>{{ $order['sandbox']['state'] }}</strong>. Situação Asaas: {{ $order['sandbox']['provider_status']??'aguardando processamento' }}.</p>
 @if(!empty($order['sandbox']['invoice_url']) && empty($order['payment_hold']))<p><a href="{{ $order['sandbox']['invoice_url'] }}" rel="noopener noreferrer" target="_blank">Abrir cobrança de teste no Asaas</a></p>@endif
 @endif
-@if($order['payment']!=='approved' && empty($order['payment_hold']))
+@if($order['product'] === 'onepage' && $order['payment']!=='approved' && empty($order['payment_hold']))
 <form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf
 <input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito um teste no Asaas Sandbox com dados fictícios.</label>
 <button type="submit">{{ $order['payment_source']==='manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>
