@@ -1,0 +1,70 @@
+name: Portal F1-395 cross-bound commercial and client release evidence (synthetic)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PortalSitesReleaseAssignment.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentSiteReleaseAssignmentSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteReleaseAssignmentSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalSitesReleaseProofBundleBuilder.php'
+      - 'tests/f395-portal-sites-cross-proof-release.php'
+      - '.github/workflows/portal-f1-395-cross-bound-release-proofs.yml'
+      - 'docs/PORTAL-P0-CROSS-BOUND-PUBLISH-RELEASE-GATES.md'
+permissions:
+  contents: read
+jobs:
+  verify-independent-proofs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F395_RELEASE_CI: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+      F395_SITES_CHECKOUT: ./sites-candidate
+    steps:
+      - name: Checkout exact Portal candidate without persisted secrets
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout ORIGINAL Sites commercial and approval gates at reviewed SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 1bb80823a112cd935f4498e36ad9e0da853f851f
+          path: sites-candidate
+          persist-credentials: false
+      - name: PHP native cryptographic verification
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Lint real Portal and Sites sources and require original pin
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-candidate rev-parse HEAD)" = 1bb80823a112cd935f4498e36ad9e0da853f851f
+          for file in apps/portal/app/Domain/SitesIntegration/*Release*php apps/portal/app/Domain/SitesIntegration/*Acceptance*php; do php -l "$file"; done
+          php -l sites-candidate/src/Integration/IndependentPortalCommercialGateway.php
+          php -l sites-candidate/src/Publication/SignedPortalClientApprovalGate.php
+          php -l tests/f395-portal-sites-cross-proof-release.php
+      - name: Prove both independent verifiers and no cross-order release substitution
+        run: |
+          set -euo pipefail
+          if PORTAL_F395_RELEASE_CI=0 php tests/f395-portal-sites-cross-proof-release.php; then
+            echo 'Unsafe: F395 proof test ran without disposable CI flag' >&2
+            exit 1
+          fi
+          php tests/f395-portal-sites-cross-proof-release.php
+          echo 'PASS cross-order/tenant/release/revision/digest binding and separate Sites PSP + consent witnesses, CI-only NO-GO' >> "$GITHUB_STEP_SUMMARY"
+      - name: Assert no public route, key manager or live issuer wired
+        run: |
+          set -euo pipefail
+          if grep -R -n -E 'PortalSitesReleaseProofBundleBuilder|PortalCurrentSiteReleaseAssignmentSource' apps/portal/routes apps/portal/app/Providers; then
+            echo 'NO-GO: release proof builder unexpectedly registered in production application' >&2
+            exit 1
+          fi
+          echo 'PASS default-deny standalone code with no endpoint, publisher or credentials' >> "$GITHUB_STEP_SUMMARY"
