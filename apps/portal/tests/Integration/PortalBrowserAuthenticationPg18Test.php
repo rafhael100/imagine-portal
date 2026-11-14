@@ -403,9 +403,9 @@ final class PortalBrowserAuthenticationPg18Test extends TestCase
         $this->admin->exec("UPDATE public.portal_organizations
             SET status='suspended'");
         self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
-        $this->admin->exec("UPDATE public.portal_organizations
-            SET status='active'");
-        // Security-revision triggers prevent restoring old session authority.
+        // The Portal's security trigger deliberately forbids silently
+        // reactivating suspended organizations. Never undo a suspension in
+        // a test: revocation must remain denied while the org is suspended.
         self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
         self::assertTrue($this->adapter->revoke($active));
         self::assertFalse($candidate->hasCandidateGrant($active,self::ORG,'seo.gsc.view'));
