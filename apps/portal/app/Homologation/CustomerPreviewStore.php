@@ -61,6 +61,7 @@ final class CustomerPreviewStore
     private function result(array $row): array
     {
         $row['revision']=(int)$row['revision'];
+        $row['payment_hold']=in_array($row['payment_hold']??null,[true,'t',1,'1'],true);
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $row['offer_snapshot']=$row['offer_snapshot']===null?null:json_decode($row['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
         unset($row['customer_id'],$row['request_key']); return $row;
