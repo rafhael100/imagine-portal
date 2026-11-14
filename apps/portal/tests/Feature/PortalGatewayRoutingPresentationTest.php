@@ -37,9 +37,9 @@ final class PortalGatewayRoutingPresentationTest extends TestCase
 
     public function test_rendering_gateway_preview_creates_no_payment_routes_or_session(): void
     {
-        $routes = static fn(): array => array_map(
+        $routes = fn(): array => array_map(
             static fn($r) => [$r->methods(), $r->uri(), $r->getActionName()],
-            iterator_to_array($this->app['router']->getRoutes()),
+            $this->app['router']->getRoutes(),
         );
         $before = $routes();
         view('portal.demo.gateway-routing')->render();
