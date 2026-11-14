@@ -5,6 +5,8 @@ on:
       - feature/portal-f1-387-ed25519-entitlement-issuer-2026-11-14
   pull_request:
     paths:
+      - 'apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php'
+      - 'apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php'
@@ -29,6 +31,7 @@ jobs:
       - name: Checkout Portal signed issuer
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Pin source of independently maintained Sites verifier
         uses: actions/checkout@v4

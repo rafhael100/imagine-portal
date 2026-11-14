@@ -5,6 +5,8 @@ on:
       - feature/portal-f1-389-private-sites-entitlement-resolver-2026-11-14
   pull_request:
     paths:
+      - 'apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php'
+      - 'apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalSitesEntitlementResolver.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalVerifiedSitesServiceIdentity.php'
       - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalVerifiedSitesService.php'
@@ -26,6 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/checkout@v4
         with:

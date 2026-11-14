@@ -2,6 +2,9 @@ name: Portal F1-392 Asaas webhook reconciliation lease PG18 (synthetic)
 on:
   pull_request:
     paths:
+      - 'apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php'
+      - 'apps/portal/app/Http/Controllers/CustomerPreviewController.php'
+      - 'apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php'
       - 'apps/portal/app/Domain/SitesIntegration/AsaasWebhookReconciliationWorker.php'
       - 'apps/portal/app/Domain/SitesIntegration/AsaasTrustedEventPaymentSource.php'
       - 'apps/portal/app/Domain/SitesIntegration/DenyingAsaasEventPaymentSource.php'
