@@ -39,6 +39,13 @@ final readonly class SandboxCheckoutIntent
                 in_array($o['payment_hold']??null,[true,'t',1,'1'],true)) {
                 throw new RuntimeException('Order unavailable');
             }
+            // Only Onepage participates in the first CI-only Sandbox billing
+            // rehearsal. Landing Page and Performance catalog entries expressly
+            // disable direct checkout. Never turn a media *estimate* into a PSP
+            // intent or bypass commercial approval with a crafted POST.
+            if ($o['product']!=='onepage') {
+                throw new RuntimeException('Sandbox rehearsal is not enabled for this offer');
+            }
             $q=$this->db->prepare(
                 'SELECT order_id FROM purchase_rehearsal.sandbox_payment_intents
                   WHERE order_id=?'
