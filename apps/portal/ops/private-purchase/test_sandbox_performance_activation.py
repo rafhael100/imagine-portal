@@ -70,7 +70,7 @@ with sync_playwright() as playwright:
     assert len(payment_requests)==1
     payment = payment_requests[0]
     assert payment['value']==980.0
-    assert '1700' not in str(payment) and '370' not in str(payment), 'No media or management invoicing'
+    assert not ({'media_budget','management_fee','planned_spend','ads_spend'} & set(payment)), 'No media or management fields sent to PSP'
     assert payment['externalReference']=='imagine:'+oid+':initial'
     assert api.posts[0][1]['notificationDisabled'] is True
     assert not ({'email','mobilePhone','phone'} & set(api.posts[0][1]))
