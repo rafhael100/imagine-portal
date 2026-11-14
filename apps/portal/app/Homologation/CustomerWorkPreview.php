@@ -31,6 +31,9 @@ final class CustomerWorkPreview
             if (!$financialAllowed) {
                 $f=$this->db->prepare("SELECT state FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=?");$f->execute([$id]);$financialAllowed=$f->fetchColumn()==='approved';
             }
+            // A refund, chargeback or deletion halts fulfilment even if an old
+            // paid flag and accepted briefing are preserved for audit.
+            if ($row['payment_hold'] && $action!=='message') throw new RuntimeException('Financial hold');
             $state=$row['work_status']; $target=$state; $delivery=$row['delivery_note'];
             if ($action==='message') {
                 if (trim($note)==='') throw new RuntimeException('Message required');
