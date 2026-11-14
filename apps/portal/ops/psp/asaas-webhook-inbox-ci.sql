@@ -25,5 +25,5 @@ GRANT SELECT, INSERT ON portal_psp.asaas_inbox TO asaas_webhook_runtime;
 CREATE POLICY asaas_inbox_ci_scope ON portal_psp.asaas_inbox
     FOR ALL TO asaas_webhook_runtime
     USING (account_ref='1fcc491f-96d9-4efe-8ec5-b8b09de750dd'::uuid AND current_user='asaas_webhook_runtime')
-    WITH CHECK (account_ref='ci-asaas-sandbox' AND current_user='asaas_webhook_runtime');
+    WITH CHECK (account_ref='1fcc491f-96d9-4efe-8ec5-b8b09de750dd'::uuid AND current_user='asaas_webhook_runtime');
 COMMIT;
