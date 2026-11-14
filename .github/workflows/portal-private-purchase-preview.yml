@@ -40,6 +40,10 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+          python3 check_compose_isolation.py --self-test
+          docker compose -f compose.yaml -f compose.ci.yaml config --format json > "$RUNNER_TEMP/p0-compose-normalized.json"
+          python3 check_compose_isolation.py --config-json "$RUNNER_TEMP/p0-compose-normalized.json"
+          rm -f "$RUNNER_TEMP/p0-compose-normalized.json"
           # The customer policy must exist before the fail-closed Portal app starts.
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
@@ -219,6 +223,48 @@ jobs:
         with:
           name: imagine-portal-auth-customer-commerce-visual-review
           path: ${{ runner.temp }}/p0-customer-visual-review
+          if-no-files-found: error
+          retention-days: 7
+      - name: Checkout exact Sites SQL admission and outbox candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 3d20d83d544577a70c091ca1725c084ab6824d2a
+          path: _sites_pg_candidate
+          persist-credentials: false
+      - name: Checkout exact Sites signed authority verifier candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 21732e9558b730e38a6845adb593d29f309ff6a9
+          path: _sites_signed_candidate
+          persist-credentials: false
+      - name: Checkout exact original Portal Sites signer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: _portal_sites_signer_candidate
+          persist-credentials: false
+      - name: Use PHP8.4 with PostgreSQL PDO for isolated second database
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring
+          coverage: none
+          tools: none
+      - name: Four individually owned Portal orders to Sites PG18 and outbox worker
+        env:
+          P0_OWNED_TO_SITES_CI: '1'
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/private-purchase/run_owned_to_sites_ci.sh
+          bash apps/portal/ops/private-purchase/run_owned_to_sites_ci.sh
+      - name: Retain redacted individually owned Portal to Sites PG18 evidence for 7 days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-owned-customer-to-sites-pg18-no-go
+          path: ${{ runner.temp }}/p0-owned-customer-to-sites-evidence.json
           if-no-files-found: error
           retention-days: 7
       - name: Diagnose failed synthetic browser flow
