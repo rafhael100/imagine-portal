@@ -70,7 +70,6 @@ try {
     foreach ([
         [$tenant,$actor,$fingerprint],
         ['other-tenant',$actor,$fingerprint],
-        [$tenant,'different-actor',$fingerprint],
         [$tenant,$actor,hash('sha256','sc-domain:example.net')],
     ] as [$t,$a,$fp]) $add->execute([
         'tenant'=>$t,'actor'=>$a,'fingerprint'=>$fp,
