@@ -48,11 +48,14 @@ check($admin->query(
 )->fetchColumn()!==false,'RLS metadata present');
 
 $token=str_repeat('T',48);
-$inbox=new AsaasWebhookPgInbox($pdo,'ci-asaas-sandbox',$token);
+$account='1fcc491f-96d9-4efe-8ec5-b8b09de750dd';
+$otherAccount='2fcc491f-96d9-4efe-8ec5-b8b09de750dd';
+$inbox=new AsaasWebhookPgInbox($pdo,$account,$token);
 $event=[
     'id'=>'evt_12345678abcdef0099',
     'event'=>'PAYMENT_RECEIVED',
     'dateCreated'=>'2026-11-14 07:00:00',
+    'account'=>['id'=>$account,'ownerId'=>null],
     'payment'=>[
         'id'=>'pay_123456789000','value'=>69.90,
         'customer'=>'cus_123456789000',
@@ -71,9 +74,9 @@ check(refused(static fn()=>$inbox->capture('POST','application/json',$token,'{')
     'malformed JSON denied');
 check(refused(static fn()=>$inbox->capture('POST','application/json',$token,str_repeat('A',32769))),
     'oversized body denied');
-check(refused(static fn()=>new AsaasWebhookPgInbox($pdo,'ci-asaas-sandbox','short')),
+check(refused(static fn()=>new AsaasWebhookPgInbox($pdo,$account,'short')),
     'short secret refused');
-check(refused(static fn()=>new AsaasWebhookPgInbox($admin,'ci-asaas-sandbox',$token)),
+check(refused(static fn()=>new AsaasWebhookPgInbox($admin,$account,$token)),
     'superuser/owner connection refused for ingestion');
 
 $stored=$inbox->capture('POST','application/json; charset=utf-8',$token,$raw);
@@ -120,15 +123,26 @@ foreach(['DELETE FROM portal_psp.asaas_inbox',
     check(refused(static fn()=>$pdo->exec($sql)),
         'ingress SQL login must not mutate state, delete or escalate');
 }
-$other=new AsaasWebhookPgInbox($pdo,'ci-other-account',$token);
+$other=new AsaasWebhookPgInbox($pdo,$otherAccount,$token);
 $outside=$event;
 $outside['id']='evt_12345678abcdef0111';
+$outside['account']['id']=$otherAccount;
 check(refused(static fn()=>$other->capture(
     'POST','application/json',$token,json_encode($outside,JSON_THROW_ON_ERROR)
 )), 'DB RLS refuses forged provider account from same login');
 check((int)$admin->query('SELECT count(*) FROM portal_psp.asaas_inbox')->fetchColumn()===2,
     'no cross-account row may be added');
 
+$wrongAccount=$event;
+$wrongAccount['account']['id']=$otherAccount;
+check(refused(static fn()=>$inbox->capture(
+    'POST','application/json',$token,json_encode($wrongAccount,JSON_THROW_ON_ERROR)
+)), 'Asaas V3 account.id mismatch must fail even with correct webhook token');
+$missingAccount=$event;
+unset($missingAccount['account']);
+check(refused(static fn()=>$inbox->capture(
+    'POST','application/json',$token,json_encode($missingAccount,JSON_THROW_ON_ERROR)
+)), 'Asaas V3 event without account.id must fail closed');
 $invalid=$event;
 $invalid['id']='evt_12345678abcdef0112';
 unset($invalid['payment']['id']);
