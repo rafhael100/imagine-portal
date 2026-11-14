@@ -100,6 +100,18 @@ with sync_playwright() as p:
         logout(); login('administrador.teste','ci-admin-only-2026')
         page.goto(BASE+'/admin/orders')
         assert order_id in page.locator('body').inner_text()
+        # Preserve the synthetic admin's existing browser session for later
+        # CI-only workflows. This avoids exhausting the real per-account login
+        # throttle; NEVER relax the Laravel authentication controls.
+        if os.getenv('GITHUB_ACTIONS')=='true':
+            admin_state=pathlib.Path(os.environ['RUNNER_TEMP'])/'portal-ci-admin-storage-state.json'
+            old_umask=os.umask(0o077)
+            try:
+                page.context.storage_state(path=str(admin_state))
+                admin_state.chmod(0o600)
+            finally:
+                os.umask(old_umask)
+            assert admin_state.stat().st_mode&0o077==0
         capture('05-admin-owned-order.png')
         if shots:
             expected=['01-registration-blank.png','02-selected-onepage-offer.png',
