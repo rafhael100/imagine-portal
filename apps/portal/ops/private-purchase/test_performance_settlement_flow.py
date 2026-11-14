@@ -1,5 +1,5 @@
 """Owned/admin report review with no PSP side effects, real HTTP and PostgreSQL."""
-import json,os,pathlib,shutil
+import json,os,pathlib,shutil,uuid
 from playwright.sync_api import sync_playwright,expect
 from asaas_sandbox_worker import Database,Unconfirmed
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
@@ -11,11 +11,16 @@ with sync_playwright() as p:
   global page
   if user in pages:page=pages[user];return
   page=b.new_page();pages[user]=page
-  page.goto(BASE);page.locator('[name=username]').fill(user);page.locator('[name=password]').fill('ci-admin-only-2026' if user=='administrador.teste' else 'ci-owned-customer-only-2026');page.get_by_role('button',name='Entrar',exact=True).click()
+  page.goto(BASE);page.locator('[name=username]').fill(user);page.locator('[name=password]').fill('ci-admin-only-2026' if user=='administrador.teste' else 'ci-owned-customer-only-2026');page.get_by_role('button',name='Entrar',exact=True).click();assert '/client/' in page.url or '/admin/' in page.url, page.locator('body').inner_text()[:300]
  def token():return page.locator('[name=_token]').first.input_value()
  def revision():return page.locator('[name=revision]').first.input_value()
- login(saved['user'])
+ def signup(user):
+  global page
+  page=b.new_page();pages[user]=page;page.goto(BASE+'/register')
+  for name,value in [('name','Cliente ficticio Performance'),('company','Empresa demonstracao'),('username',user),('password','ci-owned-customer-only-2026'),('password_confirmation','ci-owned-customer-only-2026')]:page.locator('[name='+name+']').fill(value)
+  page.get_by_role('button',name='Criar conta e continuar',exact=True).click();assert '/client/' in page.url,page.locator('body').inner_text()[:300]
  if os.getenv('PERFORMANCE_REPORT_REOPEN')=='1':
+  saved['user']=json.loads(fixture.read_text())['user'];login(saved['user'])
   work=json.loads(fixture.read_text())['work'];assert page.goto(work).status==200
   expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False)).to_be_visible()
   assert page.locator('input[name=version]').count()==0
@@ -23,6 +28,7 @@ with sync_playwright() as p:
   login('administrador.teste');assert page.goto(work).status==200;assert page.locator('form[action$="/performance-report"]').count()==0
   print('PASS Performance report history and customer review survived database/application restart')
  else:
+  suffix=uuid.uuid4().hex[:10];saved['user']='demo-perf-'+suffix;outsider='demo-out-'+suffix;signup(outsider);signup(saved['user'])
   psp_count=Database().sql('SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;')
   page.goto(BASE+'/shop?product=performance');page.locator('[name=google_media]').fill('700,00');page.locator('[name=offer_ack]').check();page.get_by_role('button',name='Criar pedido de teste',exact=True).click()
   page.locator('[name=sample_ack]').check();page.get_by_role('button',name='Aplicar resultado de teste',exact=True).click()
@@ -42,7 +48,7 @@ with sync_playwright() as p:
   try:Database().sql("UPDATE purchase_rehearsal.performance_settlement_reports SET report='{}'::jsonb WHERE order_id='"+oid+"';")
   except Unconfirmed:pass
   else:raise AssertionError('PSP must not overwrite report amounts')
-  login(saved['user'].replace('demo-a-','demo-b-'));assert page.request.get(work).status==404
+  login(outsider);assert page.request.get(work).status==404
   assert page.request.post(work+'/performance-response',form={'_token':token(),'revision':'0','version':'1','decision':'acknowledged','report_ack':'1'}).status==404
   login(saved['user']);page.goto(work)
   response={'_token':token(),'revision':revision(),'version':'1','decision':'disputed','note':'Conferir gasto ficticio','report_ack':'1'}
@@ -64,6 +70,6 @@ with sync_playwright() as p:
   assert page.locator('form[action$="/performance-report"]').count()==0
   assert page.request.post(work+'/performance-report',form=corrected|{'_token':token(),'revision':revision(),'period':'2026-12'}).status==409
   assert Database().sql('SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;')==psp_count # Only prior Asaas fixture; report review creates no charge.
-  fixture.write_text(json.dumps({'work':work}))
+  fixture.write_text(json.dumps({'work':work,'user':saved['user']}))
   print('PASS Performance advance -> report -> customer dispute -> immutable correction -> customer review; role/ownership/price tampering denied; no extra PSP charge')
  b.close()
