@@ -1,6 +1,6 @@
 {
   "schema_version": "performance_channel_minima_proposal_v1",
-  "status": "proposal_requires_owner_confirmation_no_active_catalog_change",
+  "status": "owner_approved_values_2026_11_14_pending_technical_catalog_migration",
   "currency": "BRL",
   "base_commercial_catalog_version": 4,
   "base_contract_repository": "rafhael100/imagine-portal",
@@ -22,12 +22,12 @@
     "chatgpt_ads": 180000
   },
   "chatgpt_platform_daily_minimum_brl_cents": 4000,
-  "note": "ChatGPT BRL 40/dia é mínimo de campanha com orçamento diário; R$1200 equivale a 30 dias, não mínimo mensal universal. Estes pisos são recomendações Imagine ainda não aprovadas.",
+  "note": "Os pisos comerciais foram expressamente aprovados para novos serviços. ChatGPT R$40/dia é regra de orçamento diário em BRL; R$1200 é piso Imagine, não mensalidade universal da OpenAI. Sem ativação técnica ou financeira nesta PR.",
   "blocked_until": [
-    "owner_confirms_exact_per_channel_floor",
     "portal_signed_contract_v5",
     "performance_real_ads_api_credentials",
     "ads_readonly_provider_verification",
     "security_lgpd_finance_homologation"
-  ]
+  ],
+  "commercial_minima_approved": true
 }
