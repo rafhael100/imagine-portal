@@ -34,25 +34,7 @@ jobs:
         run: |
           sudo --preserve-env=GITHUB_ACTIONS python3 prepare.py
           docker compose -f compose.yaml -f compose.ci.yaml config --quiet
-          docker compose -f compose.yaml -f compose.ci.yaml up -d
-          python3 - <<'PY'
-          import time, urllib.request
-          for attempt in range(60):
-              try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
-                  break
-              except Exception:
-                  time.sleep(1)
-          else:
-              raise SystemExit('Private preview readiness failed')
-          PY
-          test "$(docker inspect imagine-purchase-preview-database-1 --format '{{len .HostConfig.PortBindings}}')" = 0
-          test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
-          test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
-          test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
-      - name: Install isolated customer commerce schema
-        working-directory: apps/portal/ops/private-purchase
-        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
@@ -81,6 +63,29 @@ jobs:
             exit 1
           fi
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < performance-settlement-schema.sql
+          # Install all HMAC/FORCE RLS policies and independent broker roles
+          # before Laravel or gateway receive their first request.
+          docker compose run --rm -T --no-deps broker -X -q -tA \
+            -v ON_ERROR_STOP=1 -h database -U purchase_rehearsal_psp \
+            -d portal_purchase_rehearsal \
+            -c 'SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user' \
+            | grep -Fx 'purchase_rehearsal_psp|f|f'
+          docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
+          python3 - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Private preview readiness failed')
+          PY
+          test "$(docker inspect imagine-purchase-preview-database-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          test "$(docker inspect imagine-purchase-preview-application-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          test "$(docker network inspect imagine-purchase-preview_private --format '{{.Internal}}')" = true
+          test "$(docker inspect imagine-purchase-preview-gateway-1 --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostIp}}')" = 127.0.0.1
       - name: Reject legacy shared synthetic checkout on VPS while retaining CI-only tests
         working-directory: apps/portal/ops/private-purchase
         run: |
