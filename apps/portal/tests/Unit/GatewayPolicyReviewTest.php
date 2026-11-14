@@ -109,4 +109,14 @@ final class GatewayPolicyReviewTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         GatewayPolicyReview::validate($p);
     }
+
+    public function test_revision_only_without_effective_change_is_rejected(): void
+    {
+        $this->expectException(LogicException::class);
+        GatewayPolicyReview::review(
+            $this->policy(1), $this->policy(2), 1, 'reviewer-01',
+            '2026-11-14T19:00:00Z',
+        );
+    }
+
 }

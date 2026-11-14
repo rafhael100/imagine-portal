@@ -1,0 +1,35 @@
+name: Portal F411 gateway financial review integrity
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/PaymentRouting/GatewayPolicyReview.php'
+      - 'apps/portal/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php'
+      - 'apps/portal/tests/Unit/GatewayPolicyReviewTest.php'
+      - 'apps/portal/tests/Unit/PortalGatewayReviewExporterTest.php'
+      - 'apps/portal/tools/test_gateway_review_integrity_offline.php'
+      - '.github/workflows/portal-gateway-integrity-f411.yml'
+permissions:
+  contents: read
+jobs:
+  f411-policy-finance-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed SHA, never persist credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP syntax and HMAC cross-project offline proof
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/PaymentRouting/GatewayPolicyReview.php
+          php -l apps/portal/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php
+          php -l apps/portal/tests/Unit/GatewayPolicyReviewTest.php
+          php -l apps/portal/tests/Unit/PortalGatewayReviewExporterTest.php
+          php apps/portal/tools/test_gateway_review_integrity_offline.php
+      - name: Persist negative release assertion
+        if: success()
+        run: |
+          echo 'F411 standalone integrity checks passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No production gateway policy, C6 enablement, CRM delivery or payment has been authorized.' >> "$GITHUB_STEP_SUMMARY"

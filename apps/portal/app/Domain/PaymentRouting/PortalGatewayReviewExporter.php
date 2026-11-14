@@ -29,7 +29,12 @@ final class PortalGatewayReviewExporter
             || !is_int($quote['gross_cents'] ?? null) || $quote['gross_cents'] < 1
             || $quote['gross_cents'] > 100_000_000
             || !is_int($quote['estimated_fee_cents'] ?? null) || $quote['estimated_fee_cents'] < 0
-            || $quote['estimated_fee_cents'] > 100_000_000
+            || $quote['estimated_fee_cents'] >= $quote['gross_cents']
+            || !is_int($quote['estimated_net_cents'] ?? null)
+            || $quote['estimated_net_cents'] !== $quote['gross_cents'] - $quote['estimated_fee_cents']
+            || !in_array($quote['mode'] ?? null, ['manual', 'lowest_cost'], true)
+            || !is_int($quote['settlement_days'] ?? null)
+            || $quote['settlement_days'] < 0 || $quote['settlement_days'] > 90
             || !self::token($quote['fee_version'] ?? null)) {
             throw new InvalidArgumentException('Invalid offline routing quotation');
         }

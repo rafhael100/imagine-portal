@@ -43,8 +43,14 @@ final class GatewayPolicyReview
             || $when->format('U') === false) {
             throw new InvalidArgumentException('RFC3339 review timestamp required');
         }
-        if (self::digest($previous) === self::digest($candidate)) {
-            throw new LogicException('No change to review');
+        // The revision is *required* to increment; including it in a no-op
+        // comparison would make the check unreachable. Compare the effective
+        // policy, while retaining revision in the signed audit hashes below.
+        $previousTerms = $previous;
+        $candidateTerms = $candidate;
+        unset($previousTerms['revision'], $candidateTerms['revision']);
+        if (self::digest($previousTerms) === self::digest($candidateTerms)) {
+            throw new LogicException('No effective policy change to review');
         }
         if ($candidate['providers']['c6']['enabled']) {
             foreach (self::PROOFS as $proof) {
