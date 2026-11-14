@@ -53,6 +53,14 @@ jobs:
       - name: Install isolated customer commerce schema
         working-directory: apps/portal/ops/private-purchase
         run: docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-schema.sql
+      - name: Lint every compiled private preview Blade template
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          docker compose exec -T application sh -eu -c '
+            php artisan view:cache
+            find storage/framework/views -type f -name "*.php" -exec php -l {} \;
+          '
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
