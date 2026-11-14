@@ -68,7 +68,8 @@ def run() -> None:
 
             page.locator("#meta-budget").fill("700")
             assert_contains(page.locator("#media"), "2.200,00")
-            assert_contains(page.locator("#management"), "440,00")
+            assert_contains(page.locator("#management"), "470,00")
+            assert_contains(page.locator("#management"), "470,00")  # Meta 170 + Google 300
             page.locator("#meta-budget").fill("600")
             assert_contains(page.locator("#error"), "abaixo do mínimo")
             assert "—" in page.locator("#activation").inner_text()
