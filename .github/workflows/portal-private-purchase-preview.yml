@@ -49,6 +49,15 @@ jobs:
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
           docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-payment-schema.sql
+          # Catch SQL role authorization regressions before browser checkout.
+          # Provider is NEVER called. The worker exercises its actual SET ROLE.
+          docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal <<'SQL'
+          SET ROLE purchase_rehearsal_psp;
+          SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;
+          SELECT count(*) FROM purchase_rehearsal.customer_orders WHERE payment_source='asaas_sandbox';
+          RESET ROLE;
+          SQL
+
           docker compose -f compose.yaml -f compose.ci.yaml up -d application gateway
           python3 - <<'PY'
           import time, urllib.request
