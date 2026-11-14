@@ -48,18 +48,49 @@ DROP POLICY IF EXISTS sandbox_owner_intent_scope ON purchase_rehearsal.sandbox_p
 DROP POLICY IF EXISTS sandbox_worker_intent_scope ON purchase_rehearsal.sandbox_payment_intents;
 -- The shared SQL app login can only access intentions under a transaction-local
 -- HMAC principal verified by the DB, not arbitrary customer_id in HTTP input.
+-- F423 permits only NEW versioned R$490/channel Performance activation:
+-- the stored offer must match the immutable sandbox intent amount.
+-- No legacy Performance, media spend, monthly management or PSP migration.
 CREATE POLICY sandbox_owner_intent_scope ON purchase_rehearsal.sandbox_payment_intents
  FOR ALL TO purchase_rehearsal_a
  USING(EXISTS(
   SELECT 1 FROM purchase_rehearsal.customer_orders o
   WHERE o.id=order_id AND o.tenant='test-org-a'
-    AND o.product='onepage'
+    AND (
+      o.product='onepage'
+      OR (
+        o.product='performance'
+        AND o.offer_snapshot->>'pricing_policy'='performance-postpaid-170-per-channel-2026-11-14'
+        AND o.offer_snapshot->>'activation_per_channel_cents'='49000'
+        AND o.offer_snapshot->>'minimum_management_fee_per_channel_cents'='17000'
+        AND o.offer_snapshot->>'real_charge_enabled'='false'
+        AND o.offer_snapshot->>'real_postpaid_invoice_authorized'='false'
+        AND o.offer_snapshot->>'gateway'='asaas'
+      )
+    )
+    AND jsonb_typeof(o.offer_snapshot->'amount_now_cents')='number'
+    AND (o.offer_snapshot->>'amount_now_cents')::bigint=
+        purchase_rehearsal.sandbox_payment_intents.amount_cents
     AND purchase_rehearsal.preview_order_allowed(o.customer_id)
  ))
  WITH CHECK(EXISTS(
   SELECT 1 FROM purchase_rehearsal.customer_orders o
   WHERE o.id=order_id AND o.tenant='test-org-a'
-    AND o.product='onepage'
+    AND (
+      o.product='onepage'
+      OR (
+        o.product='performance'
+        AND o.offer_snapshot->>'pricing_policy'='performance-postpaid-170-per-channel-2026-11-14'
+        AND o.offer_snapshot->>'activation_per_channel_cents'='49000'
+        AND o.offer_snapshot->>'minimum_management_fee_per_channel_cents'='17000'
+        AND o.offer_snapshot->>'real_charge_enabled'='false'
+        AND o.offer_snapshot->>'real_postpaid_invoice_authorized'='false'
+        AND o.offer_snapshot->>'gateway'='asaas'
+      )
+    )
+    AND jsonb_typeof(o.offer_snapshot->'amount_now_cents')='number'
+    AND (o.offer_snapshot->>'amount_now_cents')::bigint=
+        purchase_rehearsal.sandbox_payment_intents.amount_cents
     AND purchase_rehearsal.preview_order_allowed(o.customer_id)
  ));
 -- Host worker can reconcile all queued Sandbox intents using a distinct
