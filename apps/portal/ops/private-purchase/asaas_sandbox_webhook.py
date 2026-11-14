@@ -18,7 +18,7 @@ def parse_event(raw):
         sub=obj.get('subscription')
         if sub is not None and (not isinstance(sub,str) or not re.fullmatch(r'sub_[A-Za-z0-9_]{1,100}',sub)):raise ValueError()
         external=obj.get('externalReference')
-        if not isinstance(external,str) or not re.fullmatch(r'imagine:TEST-[a-f0-9]{32}:(initial|setup-2|setup-3|monthly)',external):external=None
+        if not isinstance(external,str) or not re.fullmatch(r'imagine:TEST-[a-f0-9]{32}:(initial|setup-2|setup-3|monthly|performance-20[0-9]{2}-(0[1-9]|1[0-2]))',external):external=None
         return {'event_hash':hashlib.sha256(eid.encode()).hexdigest(),'event_type':kind,'resource_ref':resource,'subscription_ref':sub,'external_ref':external}
     except Exception:raise InvalidEvent('Invalid event') from None
 

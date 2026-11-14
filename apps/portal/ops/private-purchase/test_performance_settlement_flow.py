@@ -56,6 +56,7 @@ with sync_playwright() as p:
   initial=InitialAPI();original=initial.call
   def initial_call(method,path,body=None):
    obj=original(method,path,body)
+   if method=='POST' and path=='/customers':obj['id']='cus_performancefixture';initial.customer=obj.copy()
    if method=='POST' and path=='/payments':obj['id']='pay_performance_activation';initial.payment=obj.copy()
    return obj
   initial.call=initial_call;Worker(db,initial).process(row);initial.payment['status']='RECEIVED'

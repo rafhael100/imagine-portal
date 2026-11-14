@@ -21,6 +21,12 @@ class Tests(unittest.TestCase):
   self.assertEqual(self.send(token='wrong'),401);self.assertEqual(self.server.inbox.events,{})
   self.assertEqual(self.send(),200);saved=next(iter(self.server.inbox.events.values()))
   self.assertNotIn('customer',saved);self.assertNotIn('value',saved);self.assertEqual(len(saved['event_hash']),64)
+ def test_postpaid_reference_preserved_before_provider_id_is_persisted(self):
+  reference='imagine:TEST-'+'a'*32+':performance-2026-11'
+  event=EVENT|{'payment':EVENT['payment']|{'externalReference':reference}}
+  self.assertEqual(parse_event(json.dumps(event).encode())['external_ref'],reference)
+  event['payment']['externalReference']=reference.replace('2026-11','2026-13')
+  self.assertIsNone(parse_event(json.dumps(event).encode())['external_ref'])
  def test_duplicate_delivery_and_new_fields(self):
   self.assertEqual(self.send(),200);self.assertEqual(self.send(EVENT|{'newProviderField':True}),200);self.assertEqual(len(self.server.inbox.events),1)
  def test_unknown_event_is_ignored_without_breaking_delivery(self):
