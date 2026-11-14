@@ -10,6 +10,7 @@
  */
 import { recordRevocationIntent } from '../../f386-worker/intent.mjs';
 import { readbackRevocationIntent } from '../../f387-worker/readback.mjs';
+import { nextRevocationIntent } from '../../f392-worker/cursor.mjs';
 
 const INTENT_PATH = '/v1/portal/revocation-intents';
 const GET_PATH = '/v1/portal/recovery-witness';
@@ -264,6 +265,10 @@ export default {
       }
       if (request.method === 'GET' && url.pathname === GET_PATH) {
         return await getSigned(env, env.WITNESS_ORGANIZATION, env.WITNESS_INSTANCE, now);
+      }
+      if (request.method === 'GET' && url.pathname === INTENT_PATH+'/next') {
+        return await nextRevocationIntent(request,env,
+          env.WITNESS_ORGANIZATION,env.WITNESS_INSTANCE,now);
       }
       if (request.method === 'GET' && url.pathname.startsWith(INTENT_PATH+'/')) {
         return await readbackRevocationIntent(request, env,
