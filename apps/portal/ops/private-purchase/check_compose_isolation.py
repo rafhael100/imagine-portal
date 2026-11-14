@@ -29,8 +29,17 @@ def check(config: dict) -> list[str]:
             errors.append(f"{name} must connect only to private network")
         if svc.get("privileged") is True or svc.get("network_mode") == "host":
             errors.append(f"{name} cannot be privileged or use host networking")
-        if "ALL" not in svc.get("cap_drop", []):
-            errors.append(f"{name} must drop Linux capabilities")
+        if svc.get("cap_add"):
+            errors.append(f"{name} must not add Linux capabilities")
+        # postgres:18-alpine bootstraps its mounted data directory before it
+        # drops privileges internally. Unlike the Laravel app, it cannot use
+        # cap_drop: [ALL] without first verifying database initialization.
+        # Keep database non-privileged, isolated and no-new-privileges instead.
+        security = svc.get("security_opt", [])
+        if not any(str(option).startswith("no-new-privileges") for option in security):
+            errors.append(f"{name} must set no-new-privileges")
+        if name == "application" and "ALL" not in svc.get("cap_drop", []):
+            errors.append("application must drop all Linux capabilities")
     app = services["application"]
     env = app.get("environment", {})
     if isinstance(env, list):
@@ -75,7 +84,7 @@ def self_test() -> None:
         return {"networks": {"private": None}, "cap_drop": ["ALL"], **kwargs}
     sample = {
         "services": {
-            "database": service(),
+            "database": service(cap_drop=[], security_opt=["no-new-privileges:true"]),
             "application": service(read_only=True, environment={
                 "APP_DEBUG": "false", "APP_ENV": "staging",
                 "PORTAL_DEVELOPMENT_AUTH_ENABLED": "false",
@@ -94,6 +103,8 @@ def self_test() -> None:
         lambda c: c["services"]["database"].update(ports=[{"published": "5432"}]),
         lambda c: c["networks"]["private"].update(internal=False),
         lambda c: c["services"]["application"].update(network_mode="host"),
+        lambda c: c["services"]["database"].update(cap_add=["SYS_ADMIN"]),
+        lambda c: c["services"]["database"].update(security_opt=[]),
     ):
         clone = json.loads(json.dumps(sample))
         mutation(clone)
