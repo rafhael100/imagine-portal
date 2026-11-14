@@ -38,21 +38,40 @@ with sync_playwright() as p:
         page.get_by_role('heading',name='Seu pedido de teste',exact=True).wait_for()
         order_url = page.url
         assert '/orders/TEST-' in order_url
+        # Confirm live next-step guidance is derived from the SAME PG order.
+        def assert_next_step(payment, next_step, brief):
+            if not PREVIEW_LOGIN_REQUIRED:
+                return
+            order_id=order_url.rsplit('/',1)[-1]
+            page.goto(PREVIEW_LOGIN+'/client/services')
+            row=page.locator('tr[data-order-reference="'+order_id+'"]')
+            assert row.count()==1, ('Order missing from client SQL list',order_id)
+            fields=[value.strip() for value in row.locator('td').all_text_contents()]
+            assert fields[0]==order_id
+            assert fields[2:5]==[payment,brief,next_step], (fields,payment,brief,next_step)
+            page.goto(PREVIEW_LOGIN+'/client/finance')
+            assert page.locator('tr[data-order-reference="'+order_id+'"]').count()==1
+            page.goto(order_url)
+        assert_next_step('Pendente no teste','Resolver pagamento de teste','Não enviado')
         page.get_by_role('checkbox').check()
         page.locator('select[name=outcome]').select_option('declined')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.get_by_role('button',name='Salvar briefing de teste').count() == 0
+        assert_next_step('Recusado no teste','Resolver pagamento de teste','Não enviado')
         page.get_by_role('checkbox').check()
         page.locator('select[name=outcome]').select_option('pending')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.get_by_role('button',name='Salvar briefing de teste').count() == 0
+        assert_next_step('Pendente no teste','Resolver pagamento de teste','Não enviado')
         page.get_by_role('checkbox').check()
         page.locator('select[name=outcome]').select_option('approved')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
+        assert_next_step('Aprovado no teste','Enviar briefing na simulação','Não enviado')
         for field,value in {'business':'Empresa fictícia','goal':'<script>alert(1)</script>','audience':'Público de exemplo','materials':'Amostras fictícias'}.items():
             page.locator(f'textarea[name={field}]').fill(value)
         page.get_by_role('button',name='Salvar briefing de teste').click()
         page.get_by_role('heading',name='Briefing salvo no Portal de teste').wait_for()
+        assert_next_step('Aprovado no teste','Aguardar análise do briefing','Recebido no teste')
         page.reload()
         assert page.get_by_text('<script>alert(1)</script>',exact=True).count() == 1
         assert page.locator('script').count() == 0
