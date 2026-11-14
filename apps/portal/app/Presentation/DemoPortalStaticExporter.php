@@ -234,7 +234,7 @@ final class DemoPortalStaticExporter
      */
     private function withEmbeddedApprovedLogo(string $html): string
     {
-        $needle='src="/_development/branding/logo-imagine.png"';
+        $needle="url('/_development/branding/logo-imagine.png')";
         if (substr_count($html,$needle)!==1) {
             throw new LogicException('Approved Imagine logo missing or repeated.');
         }
@@ -264,7 +264,7 @@ final class DemoPortalStaticExporter
             throw new RuntimeException('Approved Imagine logo is unavailable to offline exporter.');
         }
         $html=str_replace($needle,
-            'src="data:image/png;base64,'.base64_encode($image).'"',$html);
+            "url('data:image/png;base64,".base64_encode($image)."')",$html);
         // Online Blade can load same-origin assets, but exported offline
         // pages must remain self-contained under data-only image CSP.
         $live="img-src 'self' data:";
