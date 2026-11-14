@@ -82,8 +82,10 @@ final readonly class OfflinePortalGscOAuthStateStartReview
                   rolinherit,rolreplication
                 FROM pg_roles WHERE rolname=current_user'
             )->fetch(PDO::FETCH_ASSOC);
+            $expectedLab=getenv('PORTAL_GSC_F115_CALLBACK_LAB')==='1'
+                ? 'portal_gsc_f115_lab' : 'portal_gsc_f114_lab';
             if(!is_array($role) ||
-                $role['db']!=='portal_gsc_f114_lab' ||
+                $role['db']!==$expectedLab ||
                 $role['actor']!=='portal_gsc_f114_runtime' ||
                 !self::pgTrue($role['direct_login']))return null;
             foreach (['rolsuper','rolbypassrls','rolcreaterole',
