@@ -45,6 +45,31 @@
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
+    @if($billingCalendar !== [])
+    <section data-billing-calendar="reference-only" aria-label="Calendário indicativo de cobrança" style="border-color:#e1e5e9;background:#fafbfc">
+        <h2>Calendário ilustrativo do pedido</h2>
+        <p>Projeção baseada nas condições salvas e na data de confirmação desta <strong>simulação</strong>. Não representa contrato assinado, conta a pagar, boleto emitido ou cobrança agendada.</p>
+        <ul style="padding-left:20px">
+        @foreach($billingCalendar as $event)
+            <li data-billing-kind="{{ $event['kind'] }}" style="margin:10px 0">
+                <strong>{{ $event['label'] }}</strong>
+                @if($event['due_label'] !== null)
+                    — {{ $event['due_label'] }} (data indicativa)
+                @else
+                    — data a definir após verificação contratual e comprovantes de mídia
+                @endif
+                — {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($event['amount_cents']) }}
+                <small>Somente referência; nenhuma cobrança automática.</small>
+            </li>
+        @endforeach
+        </ul>
+        @if($order['product'] === 'performance')
+        <p>Os honorários estimados são 20% da verba de anúncios informada. A mídia é paga diretamente aos canais. O acerto mensal exige investimento efetivo comprovado, sem cobrança automática por esta prévia.</p>
+        @else
+        <p>Para referência: implantação em D0, D30 e D60; primeira mensalidade prevista em D90 do <em>aceite contratual real</em>, que ainda não existe neste ambiente. As demais mensalidades são exemplos mensais, sem boletos ou assinaturas emitidas.</p>
+        @endif
+    </section>
+    @endif
 @else
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
