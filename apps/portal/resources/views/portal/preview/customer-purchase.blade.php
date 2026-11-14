@@ -40,6 +40,16 @@
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
+    @if(in_array($order['product'], ['onepage','landing-pages'], true))
+    <details><summary>Ver parcelas e mensalidades previstas</summary>
+    <p>Previsão baseada nas condições deste pedido. As cobranças futuras abaixo ainda não foram emitidas no Asaas. A mensalidade começa em D90, independentemente da publicação.</p>
+    <table><thead><tr><th>Etapa</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
+    @foreach(\App\Homologation\Commerce\BillingSchedule::project($order['offer_snapshot'], $order['offer_accepted_at']) as $item)
+    <tr><td>{{ $item['kind'] === 'setup' ? 'Implantação' : 'Mensalidade' }}</td><td>{{ \DateTimeImmutable::createFromFormat('!Y-m-d', $item['due_date'])->format('d/m/Y') }}</td><td>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($item['amount_cents']) }}</td></tr>
+    @endforeach
+    </tbody></table><p>Exibição das primeiras 12 mensalidades; não representa prazo de encerramento do serviço.</p></details>
+    @endif
+
 @else
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
