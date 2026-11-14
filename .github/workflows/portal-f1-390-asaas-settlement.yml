@@ -50,7 +50,17 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           files=list(Path('apps/portal/app/Domain/SitesIntegration').glob('Asaas*.php'))
-          assert len(files)==7, 'Only the seven reviewed classes/interfaces expected'
+          expected = {
+              'AsaasTrustedPaymentBinding.php',
+              'AsaasTrustedPaymentBindingSource.php',
+              'AsaasOfficialPaymentReader.php',
+              'AsaasDenyingBindingSource.php',
+              'AsaasDenyingPaymentReader.php',
+              'AsaasReadOnlyPaymentClient.php',
+              'AsaasVerifiedSettlementSource.php',
+              'AsaasWebhookPgInbox.php',
+          }
+          assert {f.name for f in files}==expected, 'An unreviewed Asaas class is present'
           for f in files:
               s=f.read_text()
               assert 'CURLOPT_POST=>true' not in s and 'CURLOPT_POSTFIELDS' not in s
