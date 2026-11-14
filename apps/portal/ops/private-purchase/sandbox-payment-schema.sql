@@ -53,11 +53,13 @@ CREATE POLICY sandbox_owner_intent_scope ON purchase_rehearsal.sandbox_payment_i
  USING(EXISTS(
   SELECT 1 FROM purchase_rehearsal.customer_orders o
   WHERE o.id=order_id AND o.tenant='test-org-a'
+    AND o.product='onepage'
     AND purchase_rehearsal.preview_order_allowed(o.customer_id)
  ))
  WITH CHECK(EXISTS(
   SELECT 1 FROM purchase_rehearsal.customer_orders o
   WHERE o.id=order_id AND o.tenant='test-org-a'
+    AND o.product='onepage'
     AND purchase_rehearsal.preview_order_allowed(o.customer_id)
  ));
 -- Host worker can reconcile all queued Sandbox intents using a distinct

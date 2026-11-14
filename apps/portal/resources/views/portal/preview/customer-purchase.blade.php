@@ -45,6 +45,31 @@
 @if($order['offer_snapshot'] !== null)
     @include('portal.preview.offer-summary',['quote'=>$order['offer_snapshot']])
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
+    @if($billingCalendar !== [])
+    <section data-billing-calendar="reference-only" aria-label="Calendário indicativo de cobrança" style="border-color:#e1e5e9;background:#fafbfc">
+        <h2>Calendário ilustrativo do pedido</h2>
+        <p>Projeção baseada nas condições salvas e na data de confirmação desta <strong>simulação</strong>. Não representa contrato assinado, conta a pagar, boleto emitido ou cobrança agendada.</p>
+        <ul style="padding-left:20px">
+        @foreach($billingCalendar as $event)
+            <li data-billing-kind="{{ $event['kind'] }}" style="margin:10px 0">
+                <strong>{{ $event['label'] }}</strong>
+                @if($event['due_label'] !== null)
+                    — {{ $event['due_label'] }} (data indicativa)
+                @else
+                    — data a definir após verificação contratual e comprovantes de mídia
+                @endif
+                — {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($event['amount_cents']) }}
+                <small>Somente referência; nenhuma cobrança automática.</small>
+            </li>
+        @endforeach
+        </ul>
+        @if($order['product'] === 'performance')
+        <p>Os honorários estimados são 20% da verba de anúncios informada. A mídia é paga diretamente aos canais. O acerto mensal exige investimento efetivo comprovado, sem cobrança automática por esta prévia.</p>
+        @else
+        <p>Para referência: implantação em D0, D30 e D60; primeira mensalidade prevista em D90 do <em>aceite contratual real</em>, que ainda não existe neste ambiente. As demais mensalidades são exemplos mensais, sem boletos ou assinaturas emitidas.</p>
+        @endif
+    </section>
+    @endif
 @else
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
@@ -55,12 +80,16 @@
 <section><h2>2. Testar o resultado do pagamento</h2><p>Escolha um cenário. Pendente e recusado impedem o envio do briefing.</p><form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/payment') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input name="sample_ack" type="checkbox" value="1" required> Entendi que este é um teste, sem contrato ou cobrança real.</label><label>Resultado fictício<select name="outcome"><option value="approved">Aprovado</option><option value="pending">Pendente</option><option value="declined">Recusado</option></select></label><button type="submit">Aplicar resultado de teste</button></form></section>
 @endif
 <section><h2>Cobrança no Asaas sandbox</h2>
-<p>Somente homologação: pagador fictício, sem e-mail/telefone, notificações desativadas e chave fora do servidor web.</p>
+@if($order['product'] === 'onepage')
+<p>Somente homologação Onepage: pagador fictício, sem e-mail/telefone, notificações desativadas e chave fora do servidor web.</p>
+@else
+<p data-direct-checkout-gate="closed">A contratação direta de {{ $order['product'] === 'performance' ? 'Performance' : 'Landing Page' }} ainda não está liberada. O orçamento acima é uma simulação. Nenhuma cobrança poderá ser solicitada neste pedido.</p>
+@endif
 @if(($order['sandbox']??null)!==null)
 <p>Etapa: <strong>{{ $order['sandbox']['state'] }}</strong>. Situação Asaas: {{ $order['sandbox']['provider_status']??'aguardando processamento' }}.</p>
 @if(!empty($order['sandbox']['invoice_url']) && empty($order['payment_hold']))<p><a href="{{ $order['sandbox']['invoice_url'] }}" rel="noopener noreferrer" target="_blank">Abrir cobrança de teste no Asaas</a></p>@endif
 @endif
-@if($order['payment']!=='approved' && empty($order['payment_hold']))
+@if($order['product'] === 'onepage' && $order['payment']!=='approved' && empty($order['payment_hold']))
 <form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/sandbox') }}">@csrf
 <input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Solicito um teste no Asaas Sandbox com dados fictícios.</label>
 <button type="submit">{{ $order['payment_source']==='manual_test' ? 'Gerar cobrança no Asaas sandbox' : 'Solicitar atualização do Asaas' }}</button></form>

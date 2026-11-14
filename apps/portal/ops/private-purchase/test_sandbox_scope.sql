@@ -6,7 +6,9 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_policies WHERE schemaname='purchase_rehearsal'
   AND tablename='sandbox_payment_intents' AND policyname='sandbox_owner_intent_scope'
   AND qual LIKE '%preview_order_allowed%'
-  AND with_check LIKE '%preview_order_allowed%') THEN
+  AND with_check LIKE '%preview_order_allowed%'
+  AND qual LIKE '%onepage%'
+  AND with_check LIKE '%onepage%') THEN
    RAISE EXCEPTION 'Signed HMAC intent policy missing';
  END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_class WHERE oid='purchase_rehearsal.sandbox_payment_intents'::regclass

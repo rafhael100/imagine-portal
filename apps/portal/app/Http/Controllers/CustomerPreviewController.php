@@ -111,6 +111,12 @@ final class CustomerPreviewController
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
         $catalog=new ApprovedOfferCatalog();
-        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'selectedChannel'=>$channel,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version()]);
+        $calendar=$order===null ? [] :
+            \App\Homologation\Commerce\PreviewBillingCalendar::forOrder(
+                $order['offer_snapshot']??null,
+                $order['offer_accepted_at']??null,
+                $order['product']
+            );
+        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'selectedChannel'=>$channel,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version(),'billingCalendar'=>$calendar]);
     }
 }

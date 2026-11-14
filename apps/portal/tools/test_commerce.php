@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/../app/Homologation/Commerce/ApprovedOfferCatalog.php';
+require __DIR__.'/../app/Homologation/Commerce/PreviewBillingCalendar.php';
 require __DIR__.'/../app/Homologation/Commerce/CustomerPreviewHandoff.php';
 require __DIR__.'/../app/Homologation/Commerce/AsaasSandboxGateway.php';
 use App\Homologation\Commerce\ApprovedOfferCatalog as Catalog;
@@ -102,4 +103,60 @@ foreach (['google_ads','meta_ads'] as $channel) {
 check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl('performance')==='/_preview/portal/shop?product=performance');
 foreach (['google','meta','facebook','../../admin','',1,[],['google_ads']] as $bad) denied(fn()=>\App\Homologation\Commerce\CustomerPreviewHandoff::channel('performance',$bad));
 check(\App\Homologation\Commerce\CustomerPreviewHandoff::shopUrl('unknown')===null);
+// F1-400: a frozen offer generates INFORMATION only, never a PSP event.
+$cal=\App\Homologation\Commerce\PreviewBillingCalendar::class;
+foreach (['onepage'=>33000,'landing-pages'=>43000] as $product=>$setup) {
+    $entries=$cal::forOrder($c->quote($product),'2026-11-14T14:00:00-03:00',$product);
+    check(count($entries)===6);
+    check(array_column($entries,'due_iso')===[
+      '2026-11-14','2026-12-14','2027-01-13',
+      '2027-02-12','2027-03-12','2027-04-12'
+    ]);
+    check(array_column($entries,'kind')===['setup','setup','setup','monthly','monthly','monthly']);
+    check(array_slice(array_column($entries,'amount_cents'),0,3)===[$setup,$setup,$setup]);
+    check(array_slice(array_column($entries,'amount_cents'),3)===[7990,7990,7990]);
+    foreach ($entries as $event) {
+        check($event['automated_charge_enabled']===false);
+        check($event['reference_only']===true);
+    }
+}
+// Clamp the reference calendar date at month-end, including February.
+$jan31=$cal::forOrder($c->quote('onepage'),'2026-11-02T12:00:00-03:00','onepage');
+check(array_slice(array_column($jan31,'due_iso'),3)===[
+    '2027-01-31','2027-02-28','2027-03-31'
+]);
+$leap=$cal::forOrder($c->quote('onepage'),'2023-11-02T12:00:00-03:00','onepage');
+check(array_slice(array_column($leap,'due_iso'),3)===[
+    '2024-01-31','2024-02-29','2024-03-31'
+]);
+// Date anchor is São Paulo local, not silently a UTC calendar date.
+$midnight=$cal::forOrder($c->quote('onepage'),'2026-12-01T00:30:00+00:00','onepage');
+check($midnight[0]['due_iso']==='2026-11-30');
+// Performance must NOT inherit Sites monthly installments or invent spend.
+$perf=$cal::forOrder($c->quote('performance',['google_ads'=>70000,'meta_ads'=>70000]),
+    '2026-11-14T10:00:00-03:00','performance');
+check(count($perf)===1);
+check($perf[0]['amount_cents']===28000);
+check($perf[0]['kind']==='performance_estimate');
+check($perf[0]['due_iso']===null && $perf[0]['due_label']===null);
+check($perf[0]['automated_charge_enabled']===false);
+check($cal::forOrder(null,null,'onepage')===[]);
+$bad=$c->quote('onepage');
+$bad['setup_total_cents']=1;
+denied(fn()=>$cal::forOrder($bad,'2026-11-14T10:00:00-03:00','onepage'));
+$bad=$c->quote('landing-pages');
+$bad['monthly']['first_due_offset_days']=60;
+denied(fn()=>$cal::forOrder($bad,'2026-11-14T10:00:00-03:00','landing-pages'));
+$bad=$c->quote('onepage');
+$bad['real_charge_enabled']=true;
+denied(fn()=>$cal::forOrder($bad,'2026-11-14T10:00:00-03:00','onepage'));
+$bad=$c->quote('onepage');
+$bad['setup_charges'][1]['amount_cents']=1;
+denied(fn()=>$cal::forOrder($bad,'2026-11-14T10:00:00-03:00','onepage'));
+denied(fn()=>$cal::forOrder($c->quote('onepage'),'not-a-date','onepage'));
+denied(fn()=>$cal::forOrder($c->quote('onepage'),'2026-11-14T10:00:00-03:00','performance'));
+$bad=$c->quote('performance',['google_ads'=>70000]);
+$bad['media_by_channel_cents']=['fake_channel'=>70000];
+denied(fn()=>$cal::forOrder($bad,'2026-11-14T10:00:00-03:00','performance'));
+
 echo 'PASS '.$checks." commerce, channel handoff and sandbox tests (injected transport; no live PSP)\n";

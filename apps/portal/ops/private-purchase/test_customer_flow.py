@@ -60,6 +60,11 @@ with sync_playwright() as p:
         assert duplicate.status==200 and duplicate.url==order_url
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','customer_id':'forged'}).status==422
         assert 'R$ 330,00' in page.locator('body').inner_text()
+        assert page.locator('[data-billing-calendar="reference-only"]').count()==1
+        assert page.locator('[data-billing-kind="setup"]').count()==3
+        assert page.locator('[data-billing-kind="monthly"]').count()==3
+        assert 'nenhuma cobrança automática' in page.locator('[data-billing-calendar]').inner_text()
+        assert 'Mensalidade de referência 1' in page.locator('[data-billing-calendar]').inner_text()
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':version,'offer_ack':'1','price_cents':'1'}).status==422
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','offer_version':'0'*64,'offer_ack':'1'}).status==409
         page.locator('[name=sample_ack]').check()
