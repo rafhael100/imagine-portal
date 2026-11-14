@@ -128,8 +128,9 @@ const first=leaseHash();
 const initial=post(paths.intent,intent,'INTENT_PUBLISHER_HMAC_B64',
     'imagine.portal.witness.revocation-intent.v1',base,false);
 assert.equal((await worker.fetch(initial,env)).status,204);
-assert.equal((await worker.fetch(post(paths.lease,leaseBody(first),
-    'LEASE_WORKER_HMAC_B64','imagine.portal.f395.retry-lease-claim.v1',base),env)).status,204);
+assert.equal((await acquireRetryLease(post(paths.lease,leaseBody(first),
+    'LEASE_WORKER_HMAC_B64','imagine.portal.f395.retry-lease-claim.v1',base),
+    env,org,instance,base)).status,204);
 // Intentionally publish an ACK even though no PostgreSQL was consulted:
 const forgedAck={organization:org,instance,intent_id:id,
     session_sha256:digest,intent_sequence:13,local_status:'revoked_claimed'};
