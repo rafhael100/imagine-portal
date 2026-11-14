@@ -22,7 +22,7 @@ class Tests(unittest.TestCase):
  def test_sql_broker_never_uses_postgres_or_set_role(self):
   event=parse_event(json.dumps(EVENT).encode())
   with patch('asaas_sandbox_webhook.subprocess.run',
-             return_value=SimpleNamespace(returncode=0,stdout='t\\n',stderr='')) as call:
+             return_value=SimpleNamespace(returncode=0,stdout='t\n',stderr='')) as call:
    SqlInbox().save(event)
   args,opts=call.call_args
   argv=args[0]
