@@ -19,7 +19,7 @@
       "id": "portal",
       "repo": "rafhael100/imagine-portal",
       "pr": 725,
-      "head": "e07c0f8948c788bd923f4d4673a73f7cd1b56a1f",
+      "head": "7b99e2d8b0006d1fa422c89b4da6d36b223a7ab5",
       "compare_base": "dev/fast-track-portal-2026-11-05",
       "required_workflows": [
         "Portal isolated persistent private preview",
@@ -32,11 +32,16 @@
     {
       "id": "sites",
       "repo": "rafhael100/imagine-sites",
-      "pr": 466,
-      "head": "138609aa2c8d14e4bd6bff452f0b523de2a3f15e",
+      "pr": 470,
+      "head": "001f8fc3248e35d8a3c757ba00edbd72b63f78a1",
       "compare_base": "dev",
       "required_workflows": [
+        "Sites F1-381 Portal PG18 purchase to Sites HTTP and verified TLS (CI only)",
+        "Sites F1-386 Portal Ed25519 proof + independent PSP settlement/revocation gate",
         "Sites F1-383 versioned operational PG18 schema - safe default-deny only",
+        "Sites F1-377 CI signed HTTP ingress through Laravel/Nginx to private PG18",
+        "Sites F1-376 Laravel container and private PostgreSQL18 CI-only network",
+        "Sites F1-373 Laravel staging containers - localhost CI only",
         "F1-03 Laravel isolado - sintético sem deploy",
         "Sites Engine - testes sinteticos (sem deploy)",
         "F1-21 CI-only operational safety guard"
@@ -47,8 +52,8 @@
     {
       "repo": "rafhael100/imagine-sites",
       "left": "feature/sites-f1-381-portal-purchase-http-pg18-2026-11-13",
-      "right": "feature/sites-f1-383-versioned-pg-operational-schema-2026-11-13",
-      "reason": "Branches diverge; real Portal->Sites signed HTTP+TLS tests cannot be assumed included in operational schema branch."
+      "right": "review/sites-p0-http-pg18-commercial-gateway-reconcile-2026-11-14",
+      "reason": "Functional CI parity with F1-381 HTTP/TLS and F1-386 independent Ed25519 on PR #470 is GREEN; original branch still has 8 commits absent by ancestry until independently reviewed historical merge; cannot infer historical inclusion solely from copied fixtures."
     }
   ],
   "operational_gates": {
