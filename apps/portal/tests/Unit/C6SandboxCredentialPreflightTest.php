@@ -75,6 +75,17 @@ final class C6SandboxCredentialPreflightTest extends TestCase
         $this->expectException(RuntimeException::class);
         C6SandboxCredentialPreflight::inspect($this->dir);
     }
+    public function test_unexpected_hidden_backup_is_rejected(): void
+    {
+        file_put_contents($this->dir.'/.old-client-secret', 'synthetic-backup');
+        try {
+            $this->expectException(RuntimeException::class);
+            C6SandboxCredentialPreflight::inspect($this->dir);
+        } finally {
+            unlink($this->dir.'/.old-client-secret');
+        }
+    }
+
     private function convertFixtureToP12(): void
     {
         $cert = openssl_x509_read(file_get_contents($this->dir.'/client.crt'));
