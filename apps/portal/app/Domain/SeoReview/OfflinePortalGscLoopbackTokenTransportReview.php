@@ -126,8 +126,9 @@ final class OfflinePortalGscLoopbackTokenTransportReview
                 $options[CURLOPT_PROTOCOLS_STR]='http';
             else
                 $options[CURLOPT_PROTOCOLS]=CURLPROTO_HTTP;
-            if (defined('CURLOPT_REDIR_PROTOCOLS_STR'))
-                $options[CURLOPT_REDIR_PROTOCOLS_STR]='';
+            // Redirects are categorically disabled above. Passing the
+            // empty CURLOPT_REDIR_PROTOCOLS_STR is rejected by some curl
+            // builds even though no redirects can ever be followed.
             if(!curl_setopt_array($handle,$options))return null;
             if(curl_exec($handle)!==true || $tooLarge)return null;
             $status=curl_getinfo($handle,CURLINFO_RESPONSE_CODE);
