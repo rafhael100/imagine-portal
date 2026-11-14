@@ -25,7 +25,8 @@ final class PortalPerformanceQuoteLabIssuer
         string $nonce,
         int $issued,
         int $expires,
-        #[\SensitiveParameter] string $key
+        #[\SensitiveParameter] string $key,
+        ?string $billingPeriod = null
     ): array {
         if (getenv('APP_ENV') !== 'testing' || getenv('PORTAL_PERF_SIGN_LAB') !== '1') {
             throw new RuntimeException('Portal Performance signing lab disabled.');
@@ -34,7 +35,8 @@ final class PortalPerformanceQuoteLabIssuer
             !preg_match('/\Ak_[A-Za-z0-9_-]{4,64}\z/D', $keyId) ||
             !preg_match('/\A[A-Za-z0-9_-]{16,96}\z/D', $nonce) ||
             $issued < 1 || $expires <= $issued || $expires - $issued > 300 ||
-            strlen($key) < 32) {
+            strlen($key) < 32 ||
+            ($billingPeriod !== null && !preg_match('/\A[0-9]{4}-(0[1-9]|1[0-2])\z/D', $billingPeriod))) {
             throw new InvalidArgumentException('Invalid synthetic issuer scope.');
         }
         // Produce a server-owned quote, not a caller-provided amount/fee.
@@ -54,7 +56,12 @@ final class PortalPerformanceQuoteLabIssuer
             'quote' => $quote,
             'tenant_id' => $tenant,
         ];
-        $bytes = "imagine:portal:performance:quote:v1\n" .
+        if ($billingPeriod !== null) {
+            $envelope['billing_period'] = $billingPeriod;
+        }
+        // Domain-separated signature: legacy v1 has no month, v2 binds the exact YYYY-MM.
+        $prefix = $billingPeriod === null ? 'v1' : 'v2';
+        $bytes = "imagine:portal:performance:quote:{$prefix}\n" .
             json_encode(self::canonicalMap($envelope), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (strlen($bytes) > 8250) {
             throw new InvalidArgumentException('Synthetic signed envelope exceeds allowed size.');
