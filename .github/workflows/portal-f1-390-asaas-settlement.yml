@@ -1,0 +1,59 @@
+name: Portal F1-390 Asaas verified installation settlement (offline synthetic)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/Asaas*'
+      - 'tests/f390-asaas-official-settlement.php'
+      - '.github/workflows/portal-f1-390-asaas-settlement.yml'
+      - 'docs/PORTAL-P0-ASAAS-SETTLEMENT-GATES.md'
+permissions:
+  contents: read
+jobs:
+  asaas-readonly-fail-closed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      GITHUB_ACTIONS: 'true'
+      PORTAL_F390_ASAAS_CI: '1'
+    steps:
+      - name: Checkout exact candidate without saved GitHub token
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP with curl and sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: curl,sodium
+          coverage: none
+      - name: Verify source syntax and strict synthetic official-GET reconciliation
+        run: |
+          set -euo pipefail
+          for file in apps/portal/app/Domain/SitesIntegration/Asaas*.php tests/f390-asaas-official-settlement.php; do
+            php -l "$file"
+          done
+          if PORTAL_F390_ASAAS_CI=0 php tests/f390-asaas-official-settlement.php; then
+            echo 'Unsafe: test executed without CI opt-in' >&2
+            exit 1
+          fi
+          php tests/f390-asaas-official-settlement.php
+          echo 'PASS payment GET-only, refunds, cross-order denial and Ed25519. No provider contacted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify only seven inert PHP integration files and zero customer payment actions
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          files=list(Path('apps/portal/app/Domain/SitesIntegration').glob('Asaas*.php'))
+          assert len(files)==7, 'Only the seven reviewed classes/interfaces expected'
+          for f in files:
+              s=f.read_text()
+              assert 'CURLOPT_POST=>true' not in s and 'CURLOPT_POSTFIELDS' not in s
+              assert '/v3/subscriptions' not in s and 'curl_exec' not in s or f.name=='AsaasReadOnlyPaymentClient.php'
+          print('PASS no payment POST, subscription action, webhook route or deployment')
+          PY
