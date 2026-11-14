@@ -220,7 +220,10 @@ SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
    JOIN public.portal_membership_grants g ON g.membership_id=m.id
    WHERE p_digest ~ '^[a-f0-9]{64}$' AND s.session_sha256=p_digest
      AND p_organization IS NOT NULL AND s.organization_id=p_organization
-     AND p_permission IN ('services.view','services.manage','billing.view','members.manage')
+     -- Explicitly named grants only. A connected GSC property does not
+     -- authorize its metrics; CONNECT and VIEW are independent candidates.
+     AND p_permission IN ('services.view','services.manage','billing.view',
+                         'members.manage','seo.gsc.connect','seo.gsc.view')
      AND g.permission_code=p_permission
      AND s.status='active' AND s.session_purpose='business' AND s.revoked_at IS NULL
      AND s.issued_at<=clock_timestamp() AND s.expires_at>clock_timestamp()
