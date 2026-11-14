@@ -160,6 +160,11 @@ jobs:
         if: failure()
         working-directory: apps/portal/ops/private-purchase
         run: docker compose logs --tail 100 application gateway
+      - name: Remove synthetic short-lived admin browser session artifact
+        if: always()
+        run: |
+          rm -f -- "$RUNNER_TEMP/portal-ci-admin-storage-state.json"
+          test ! -e "$RUNNER_TEMP/portal-ci-admin-storage-state.json"
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase
