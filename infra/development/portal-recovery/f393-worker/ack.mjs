@@ -131,13 +131,22 @@ export async function readAckClaim(request,env,org,instance,now){
       'SELECT sequence,session_floor FROM witness_epochs '
       +'WHERE organization=? AND instance=?',
     ).bind(org,instance).first();
+    const original=await env.DB.prepare(
+      'SELECT to_sequence,session_floor,session_sha256 FROM revocation_intents '
+      +'WHERE organization=? AND instance=? AND intent_id=?',
+    ).bind(org,instance,id).first();
     if(claim.organization!==org||claim.instance!==instance||claim.intent_id!==id
       ||!isHex(claim.session_sha256,64)||!positive(claim.intent_sequence)
       ||!Number.isSafeInteger(claim.claimed_at)
       ||claim.claimed_at<1||claim.claimed_at>9999999999
       ||claim.local_status!=='revoked_claimed'
+      ||!original||!positive(original.to_sequence)
+      ||!positive(original.session_floor)
+      ||original.to_sequence!==claim.intent_sequence
+      ||original.session_sha256!==claim.session_sha256
       ||!epoch||!positive(epoch.sequence)||!positive(epoch.session_floor)
-      ||epoch.sequence<claim.intent_sequence)return refuse(503);
+      ||epoch.sequence<claim.intent_sequence
+      ||epoch.session_floor<original.session_floor)return refuse(503);
     const receipt={
       schema:SCHEMA,organization:org,instance,intent_id:id,
       session_sha256:claim.session_sha256,
