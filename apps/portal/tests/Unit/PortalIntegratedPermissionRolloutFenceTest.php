@@ -43,15 +43,16 @@ final class PortalIntegratedPermissionRolloutFenceTest extends TestCase
             'billing.view',
             'members.manage',
             'seo.gsc.connect',
+            'seo.gsc.view',
         ], $known);
         self::assertCount(count(array_unique($known)), $known);
 
-        // The only NEW permission permitted by the incremental GSC SQL
-        // CHECK constraint is seo.gsc.connect. Commercial review is pending
+        // The incremental GSC migrations allow explicit connect AND view
+        // independently. Commercial review is pending
         // a separate AppSec/DBA decision, NOT eligible for a real DB grant.
         $schemaEligible = [
             'services.view', 'services.manage', 'billing.view',
-            'members.manage', 'seo.gsc.connect',
+            'members.manage', 'seo.gsc.connect', 'seo.gsc.view',
         ];
         self::assertSame(
             ['commercial.delivery-review.view'],
@@ -79,6 +80,12 @@ final class PortalIntegratedPermissionRolloutFenceTest extends TestCase
             $seo,
         );
         self::assertStringContainsString("'seo.gsc.connect'))", $seo);
+        $view = $this->migration(
+            '2026_11_14_000019_allow_seo_gsc_view_grant.php',
+        );
+        self::assertStringContainsString("'seo.gsc.view'", $view);
+        self::assertStringContainsString('rollback refused', $view);
+        self::assertStringNotContainsString("'commercial.delivery-review.view'", $view);
         self::assertStringNotContainsString(
             "'commercial.delivery-review.view'", $initial,
         );
