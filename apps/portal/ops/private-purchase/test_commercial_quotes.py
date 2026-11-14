@@ -53,6 +53,10 @@ with sync_playwright() as p:
     owned_url=page.url
     body=page.locator('body').inner_text()
     assert 'R$ 280,00' in body and body.count('R$ 700,00')==2
+    assert page.locator('[data-billing-kind="performance_estimate"]').count()==1
+    assert page.locator('[data-billing-kind="setup"]').count()==0
+    assert page.locator('[data-billing-kind="monthly"]').count()==0
+    assert 'data a definir após verificação' in page.locator('[data-billing-calendar]').inner_text()
     assert 'R$ 1.680,00' not in body
     page.reload()
     assert 'R$ 280,00' in page.locator('body').inner_text()
