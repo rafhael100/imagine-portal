@@ -50,7 +50,7 @@ final class DemoPortalStaticExporterTest extends TestCase
         self::assertSame("\x89PNG\r\n\x1a\n",substr($bytes,0,8));
 
         (new DemoPortalStaticExporter())->export($this->temporaryDirectory);
-        $expected='src="data:image/png;base64,'.base64_encode($bytes).'"';
+        $expected="url('data:image/png;base64,".base64_encode($bytes)."')";
 
         foreach(['overview','services','available','contracts','modules',
             'journey','requests','delivery-review','help','notices']as$slug){
@@ -62,7 +62,7 @@ final class DemoPortalStaticExporterTest extends TestCase
                 DemoPortalNavigationAudit::OFFLINE_CSP,$html
             );
             self::assertStringNotContainsString(
-                'src="/_development/branding/logo-imagine.png"',$html
+                "url('/_development/branding/logo-imagine.png')",$html
             );
             self::assertStringNotContainsString("img-src 'self' data:",$html);
         }
