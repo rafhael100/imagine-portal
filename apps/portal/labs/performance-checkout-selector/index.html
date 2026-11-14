@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>Imagine Performance AI — Simulador de canais (DEMO)</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#24272d;background:#f6f7fa;font-size:16px}
+    *{box-sizing:border-box}body{margin:0}.shell{max-width:1080px;margin:auto;padding:28px 20px 55px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:30px}
+    .brand{font-weight:800;font-size:1.4rem;letter-spacing:-.03em}.brand span{color:#eb8310}
+    .tag{border:1px solid #e2a452;color:#69400d;background:#fff8e9;border-radius:22px;padding:7px 13px;font-size:.76rem;font-weight:700}
+    h1{font-size:clamp(1.6rem,3.5vw,2.6rem);letter-spacing:-.04em;line-height:1.13;margin:0 0 9px}
+    p{line-height:1.55;color:#575d69}.lead{margin:0 0 24px}
+    .layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);gap:22px}
+    .panel{background:white;border:1px solid #e8e9ec;border-radius:17px;padding:23px;box-shadow:0 7px 20px rgba(23,30,43,.035)}
+    h2{font-size:1.12rem;margin:0 0 16px}.cards{display:grid;gap:11px}
+    .channel{border:1.5px solid #e5e6e9;border-radius:13px;padding:17px;display:grid;gap:12px;transition:border-color .16s}
+    .channel:has(input[type=checkbox]:checked){border-color:#f9941d;background:#fffaf3}
+    .channel.is-disabled{background:#f6f6f8;opacity:.72}
+    .pick{display:flex;align-items:center;gap:11px;cursor:pointer;line-height:1.4;font-weight:700}
+    .pick input{width:20px;height:20px;accent-color:#ef8916;flex:none}
+    .description{font-size:.8rem;color:#626a76;margin:0}.amount{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    .amount label{font-size:.83rem;color:#343c4a}.amount input{width:125px;min-width:0;border:1px solid #cdd2dc;border-radius:9px;padding:10px;font-size:.95rem;background:#fff;text-align:right}
+    .hint{font-size:.75rem;color:#747a85;margin:0}.budget[hidden]{display:none}
+    .summary{align-self:start}.line{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid #eceef1}
+    .line strong{white-space:nowrap}.headline{font-size:1.2rem;color:#aa5d06}
+    .notice{margin-top:20px;background:#f8f9fb;padding:14px;border-radius:10px;border-left:3px solid #f9941d}
+    .notice p{margin:0;font-size:.83rem}.fine{font-size:.74rem;color:#707783;margin-top:18px}
+    #error{font-size:.86rem;color:#9b1c1c;margin:15px 0 0;min-height:1rem}
+    :focus-visible{outline:3px solid #d98a24;outline-offset:3px}
+    @media(max-width:750px){.layout{grid-template-columns:1fr}.panel{padding:18px}.shell{padding:20px 14px 40px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header><div class="brand">imagine<span>.</span> <span style="color:#343942">Performance AI</span></div>
+      <div class="tag">DEMONSTRAÇÃO OFFLINE · SEM PAGAMENTOS</div></header>
+    <h1>Escolha os canais da sua estratégia</h1>
+    <p class="lead">Simule a ativação inicial e o planejamento de mídia. As plataformas recebem a verba diretamente. Honorários de 20% são apurados depois, sobre a mídia efetivamente investida — nunca antecipados por esta simulação.</p>
+    <div class="layout">
+      <section class="panel" aria-labelledby="channel-title">
+        <h2 id="channel-title">Canais disponíveis no exemplo</h2>
+        <div class="cards">
+          <article class="channel">
+            <label class="pick" for="meta"><input type="checkbox" id="meta" data-channel="meta_ads" checked> Meta Ads — Facebook + Instagram</label>
+            <p class="description">Um único canal, sem cobrar duas ativações por Facebook e Instagram.</p>
+            <div class="budget" data-budget="meta_ads"><div class="amount"><label for="meta-budget">Mídia mensal planejada (R$)</label><input id="meta-budget" type="number" min="700" max="1000000" step="1" value="1000"></div><p class="hint">Mínimo R$700 · Recomendado R$1.000</p></div>
+          </article>
+          <article class="channel">
+            <label class="pick" for="google"><input type="checkbox" id="google" data-channel="google_ads"> Google Ads</label>
+            <p class="description">Busca, campanhas e mensuração elegíveis quando habilitados.</p>
+            <div class="budget" data-budget="google_ads" hidden><div class="amount"><label for="google-budget">Mídia mensal planejada (R$)</label><input id="google-budget" type="number" min="1000" max="1000000" step="1" value="1500" disabled></div><p class="hint">Mínimo R$1.000 · Recomendado R$1.500</p></div>
+          </article>
+          <article class="channel is-disabled">
+            <label class="pick" for="chatgpt"><input type="checkbox" id="chatgpt" data-channel="chatgpt_ads" disabled> ChatGPT Ads — candidato</label>
+            <p class="description">Ainda não habilitado. Mínimo de mídia proposto R$1.200, recomendado R$1.800; não incluído em contratação.</p>
+          </article>
+        </div>
+        <p id="error" role="alert"></p>
+      </section>
+      <aside class="panel summary" aria-labelledby="summary-title">
+        <h2 id="summary-title">Resumo ilustrativo</h2>
+        <div aria-live="polite" aria-atomic="true" id="live-summary">
+          <div class="line"><span>Quantidade de canais</span><strong id="channel-count">1</strong></div>
+          <div class="line"><span>Ativação (única vez)</span><strong class="headline" id="activation">R$ 490,00</strong></div>
+          <div class="line"><span>Mídia planejada/mês, paga às plataformas</span><strong id="media">R$ 1.000,00</strong></div>
+          <div class="line"><span>Honorários ilustrativos (20% do plano)</span><strong id="management">R$ 200,00</strong></div>
+        </div>
+        <div class="notice"><p>O valor mensal definitivo depende da mídia realmente executada, dos comprovantes oficiais e da política contratual de mínimo de gestão, ainda não definida neste simulador.</p></div>
+        <p class="fine">Esta página não envia dados, não captura leads, não cria pedidos, não autoriza campanhas e não se conecta ao Asaas ou C6. Os totais não constituem oferta contratual ou boleto.</p>
+      </aside>
+    </div>
+  </main>
+  <script type="module" src="./ui.mjs"></script>
+</body>
+</html>
