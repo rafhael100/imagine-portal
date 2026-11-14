@@ -1,7 +1,7 @@
 """Host-side sandbox broker. No production endpoint, real identity or notifications.
 Run --once for operator-requested reconciliation. No background polling by default.
 """
-import argparse,datetime,decimal,fcntl,json,os,pathlib,re,stat,subprocess,urllib.request,urllib.parse,urllib.error
+import argparse,calendar,datetime,decimal,fcntl,json,os,pathlib,re,stat,subprocess,urllib.request,urllib.parse,urllib.error
 ROOT=pathlib.Path(__file__).resolve().parent
 BASE='https://api-sandbox.asaas.com/v3'
 FIXTURE_DOCUMENT='24971563792' # Official API example: docs.asaas.com/reference/criar-novo-cliente
@@ -138,7 +138,18 @@ class FutureWorker:
                 if obj.get('customer')!=row['customer_ref'] or obj.get('externalReference')!=reference or not re.fullmatch(r'sub_[A-Za-z0-9_]{1,100}',obj.get('id','')) or (row.get('provider_ref') and obj['id']!=row['provider_ref']):raise ValueError()
                 if decimal.Decimal(str(obj['value']))*100!=row['amount_cents'] or obj.get('cycle')!='MONTHLY' or obj.get('status') not in ('ACTIVE','INACTIVE','EXPIRED'):raise ValueError()
                 # Before the first due date the provider must preserve the accepted D90 anchor.
-                if datetime.date.today()<datetime.date.fromisoformat(due) and obj.get('nextDueDate')!=due:raise ValueError()
+                if datetime.date.today()<datetime.date.fromisoformat(due) and obj.get('nextDueDate')!=due:
+                    first=datetime.date.fromisoformat(due);year=first.year+(first.month==12);month=first.month%12+1
+                    next_due=first.replace(year=year,month=month,day=min(first.day,calendar.monthrange(year,month)[1])).isoformat()
+                    if obj.get('nextDueDate')!=next_due:raise ValueError()
+                    # Asaas advances nextDueDate when it generates the first invoice.
+                    # Confirm D90 on that actual invoice rather than changing the contract.
+                    invoices=self.api.call('GET','/subscriptions/'+obj['id']+'/payments?limit=100')
+                    if invoices.get('hasMore') or not isinstance(invoices.get('data'),list):raise ValueError()
+                    initial=[p for p in invoices['data'] if p.get('dueDate')==due and p.get('deleted') is not True]
+                    if len(initial)!=1:raise ValueError()
+                    invoice=initial[0]
+                    if invoice.get('subscription')!=obj['id'] or invoice.get('customer')!=row['customer_ref'] or decimal.Decimal(str(invoice['value']))*100!=row['amount_cents']:raise ValueError()
             except Exception:raise Unconfirmed('Subscription terms mismatch') from None
             state='active' if obj['status']=='ACTIVE' else 'inactive'
         else:

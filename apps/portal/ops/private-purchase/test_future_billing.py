@@ -31,6 +31,15 @@ class Tests(unittest.TestCase):
   self.w.process(self.db.row);self.assertEqual(len(self.api.posts),1)
  def test_uncertain_missing_never_repeated(self):
   self.db.row['state']='payment_creating';self.w.process(self.db.row);self.assertEqual(self.api.posts,[])
+ def test_provider_advances_next_due_only_with_original_invoice(self):
+  self.db.row.update(charge_key='monthly',kind='monthly',amount_cents=7990,due_date='2099-01-31')
+  self.w.process(self.db.row);self.api.obj['nextDueDate']='2099-02-28'
+  original=self.api.call
+  invoice={'dueDate':'2099-01-31','value':79.9,'customer':'cus_fixture','subscription':'sub_0_fixture'}
+  self.api.call=lambda method,path,body=None: {'data':[invoice],'hasMore':False} if '/payments?' in path else original(method,path,body)
+  self.w.process(self.db.row);self.assertEqual(len(self.api.posts),1)
+  invoice['value']=1
+  with self.assertRaises(Unconfirmed):self.w.process(self.db.row)
  def test_terms_mismatch_rejected(self):
   self.w.process(self.db.row)
   for changes in [{'value':1},{'dueDate':'2027-01-15'},{'customer':'cus_wrong'},{'externalReference':'forged'},{'id':'pay_other'}]:
