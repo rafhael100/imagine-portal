@@ -14,6 +14,12 @@ O SQL registra somente hash do ID do evento, tipo e referências técnicas. O ca
 
 O processo listener exige `APP_ENV=staging`, `ASAAS_SANDBOX_WEBHOOK_ENABLED=1`, ausência de `GITHUB_ACTIONS=true` e arquivo `.private/asaas-webhook.json` regular (sem symlink), próprio do usuário, modo 0600 e tamanho limitado. **Nenhuma flag é ativada automaticamente** por este recorte.
 
+## Portão de navegação da homologação privada
+
+Foi incorporado o portão `PrivatePreviewRouteGate`, já ensaiado na PR #768: no servidor privado somente `/_preview/portal` e seus caminhos canônicos de cliente/admin podem ser roteados. As rotas compartilhadas `/_rehearsal/purchase` continuam disponíveis exclusivamente dentro do CI sintético para manter regressão dos fluxos antigos; em staging de VPS retornam 404 antes de inicializar Laravel. Caminhos com barra dupla, barra invertida, percent-encoding ambíguo ou segmentos `..` são recusados em ambos os ambientes. O teste PHPUnit/PHP independente de rotas roda com Chromium no CI.
+
+Isso não substitui HTTPS de borda, Basic Auth, IAM/MFA, segregação real por tenant ou a migração de `FORCE RLS` individual que ainda falta integrar desde a PR #768.
+
 ## Critérios de homologação
 
 O CI valida a autenticação real do usuário SQL separado no PG18 descartável, a proibição de ler `customer_id` e a fila de intenções financeiras, o recebimento HTTP autenticado, duplicatas e indisponibilidade, além da navegação Chromium e reinício do banco. O receiver não é autorizado a fazer pagamentos, emitir notas, atualizar contratos ou publicar Sites.
