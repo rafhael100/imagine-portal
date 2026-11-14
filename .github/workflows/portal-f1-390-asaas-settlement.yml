@@ -4,6 +4,7 @@ on:
     paths:
       - 'apps/portal/app/Domain/SitesIntegration/Asaas*'
       - 'tests/f390-asaas-official-settlement.php'
+      - 'tests/p0-checkout-asaas-proof-parity.php'
       - '.github/workflows/portal-f1-390-asaas-settlement.yml'
       - 'docs/PORTAL-P0-ASAAS-SETTLEMENT-GATES.md'
 permissions:
@@ -43,7 +44,9 @@ jobs:
             exit 1
           fi
           php tests/f390-asaas-official-settlement.php
-          echo 'PASS payment GET-only, refunds, cross-order denial and Ed25519. No provider contacted.' >> "$GITHUB_STEP_SUMMARY"
+          php -l tests/p0-checkout-asaas-proof-parity.php
+          PORTAL_P0_CHECKOUT_ASAAS_PARITY_CI=1 php tests/p0-checkout-asaas-proof-parity.php
+          echo 'PASS quote/catalog vs Asaas sandbox preview and independent PSP/Sites denial, no provider contacted.' >> "$GITHUB_STEP_SUMMARY"
       - name: Verify reviewed Asaas modules and zero customer payment actions
         run: |
           set -euo pipefail
