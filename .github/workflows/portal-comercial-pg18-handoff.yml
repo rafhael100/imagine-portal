@@ -9,6 +9,7 @@ on:
       - 'apps/portal/tools/test_comercial_php_handoff_browser.py'
       - 'apps/portal/tools/test_portal_sites_after_purchase_pg18.php'
       - 'apps/portal/tools/test_sites_crm_after_purchase_pg18.php'
+      - 'apps/portal/tools/test_four_project_fake_consented_crm_pg18.php'
       - '.github/workflows/portal-comercial-pg18-handoff.yml'
   push:
     branches:
@@ -311,6 +312,79 @@ jobs:
           path: ${{ runner.temp }}/p0-sites-crm-deny-evidence.json
           if-no-files-found: error
           retention-days: 7
+      - name: Checkout pinned green CRM P0 fake-consented PG18 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 50c1eb574aa0ed81055dc256e77302acd1781d71
+          path: _crm_fake_consent_candidate
+          persist-credentials: false
+      - name: Verify independently tested CRM source and PHP syntax
+        run: |
+          set -euo pipefail
+          test "$(git -C _crm_fake_consent_candidate rev-parse HEAD)" = 50c1eb574aa0ed81055dc256e77302acd1781d71
+          test -f _crm_fake_consent_candidate/tests/Labs/P0_LeadIngest/synthetic-consented-leads-pg18.sql
+          php -l apps/portal/tools/test_four_project_fake_consented_crm_pg18.php
+      - name: Create THIRD disposable CRM PostgreSQL18 database only after Site ACK
+        run: |
+          set -euo pipefail
+          php -r '
+          $pdo=new PDO("pgsql:host=127.0.0.1;port=5432;dbname=postgres",
+            "postgres","f360-fictional-admin-disposable-only",
+            [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+          if ($pdo->query("SELECT current_database()")->fetchColumn()!=="postgres") exit(2);
+          $pdo->exec("CREATE DATABASE crm_p0_consent_lab");
+          $pdo->exec("ALTER ROLE postgres PASSWORD '\''ci-fake-admin-intake-only'\''");
+          '
+      - name: Install exact CRM fixture with independent fake binding/consent authority
+        env:
+          PGPASSWORD: ci-fake-admin-intake-only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -U postgres \
+            -d crm_p0_consent_lab \
+            -f _crm_fake_consent_candidate/tests/Labs/P0_LeadIngest/synthetic-consented-leads-pg18.sql
+      - name: Prove actual Portal→Sites ACK then fake-consent CRM durable receipt, deny real contact
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_P0_FOUR_PROJECT_CONSENT_LAB: '1'
+          SITES_F360_PG_LAB: '1'
+          DB_HOST: 127.0.0.1
+          CRM_LAB_DB: crm_p0_consent_lab
+        run: |
+          set -euo pipefail
+          php apps/portal/tools/test_four_project_fake_consented_crm_pg18.php
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json,os
+          file=Path(os.environ['RUNNER_TEMP'])/'p0-four-project-fake-consent-evidence.json'
+          content=file.read_bytes()
+          assert len(content)<3000
+          for marker in (b'@',b'TEST-',b'password',b'Bearer ',b'Cookie:'):
+              assert marker not in content
+          report=json.loads(content)
+          c=report['claims']
+          assert report['sha256_integrity_only']==sha256(json.dumps(c,separators=(',',':')).encode()).hexdigest()
+          assert c['release_gate']=='NO_GO'
+          assert c['portal_purchases_persisted_fake']==4
+          assert c['sites_projects_admitted_fake']==2
+          assert c['sites_outbox_events_acknowledged_fake']==2
+          assert c['crm_leads_persisted_fake']==2
+          for k in ('crm_consent_authority_real','crm_service_auth_real',
+                    'crm_lgpd_purpose_evidence_real','crm_visitor_payload_real',
+                    'crm_public_endpoint_enabled','external_network_or_vps_used'):
+              assert c[k] is False,k
+          print('PASS: 4-project PG18 synthetic durable lead receipt and NO-GO evidence.')
+          PY
+      - name: Retain third-database four-project NO-GO synthetic evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-p0-four-project-fake-consented-crm-pg18
+          path: ${{ runner.temp }}/p0-four-project-fake-consent-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Retain redacted homologation evidence without deployment
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
