@@ -44,7 +44,8 @@ test "$ready" = 1 || { echo 'NO-GO: Site PG18 not ready' >&2; exit 1; }
  docker compose exec -T database psql -X -v ON_ERROR_STOP=1 \
    -U postgres -d portal_purchase_rehearsal -At -F $'\t' -c "
      SELECT o.id,o.product,o.payment,
-            CASE WHEN o.briefing IS NOT NULL THEN '1' ELSE '0' END
+            CASE WHEN o.briefing IS NOT NULL THEN '1' ELSE '0' END,
+            o.customer_id,o.tenant,c.tenant,c.enabled
        FROM purchase_rehearsal.customer_orders o
        JOIN purchase_rehearsal.customers c ON c.id=o.customer_id
       WHERE c.username LIKE 'demo-comercial-%'
