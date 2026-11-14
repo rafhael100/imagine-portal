@@ -30,6 +30,9 @@ final class C6SandboxCredentialPreflight
             throw new RuntimeException('Unexpected C6 sandbox bundle files');
         }
         $dirOwner = fileowner($dir);
+        if (!is_int($dirOwner)) {
+            throw new RuntimeException('C6 sandbox owner unavailable');
+        }
         $files = [];
         foreach ($names as $name) {
             $path = rtrim($dir,'/').'/'.$name;
