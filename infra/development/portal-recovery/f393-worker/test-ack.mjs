@@ -187,6 +187,9 @@ assert.equal(rows().length,1);
 // Simulate DBA rollback after dropping the witness monotonicity guard. A
 // signed readback MUST NOT accept an ACK ahead of its observed witness.
 db.exec('DROP TRIGGER witness_epoch_monotonic');
+db.prepare('UPDATE witness_epochs SET session_floor=4').run();
+assert.equal((await send(lookup(id,newNonce))).status,503); // same sequence, floor rollback
+db.prepare('UPDATE witness_epochs SET session_floor=5').run();
 db.prepare('UPDATE witness_epochs SET sequence=12,session_floor=4').run();
 assert.equal((await send(lookup(id,newNonce))).status,503);
 db.prepare('UPDATE witness_epochs SET sequence=13,session_floor=5').run();
