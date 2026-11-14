@@ -7,9 +7,10 @@ use RuntimeException;
 /** Persistent operations for synthetic customer orders, never production fulfilment. */
 final class CustomerWorkPreview
 {
-    public function __construct(private PDO $db) { new RoleBoundTestPurchase($db); }
+    public function __construct(private PDO $db, private CustomerPreviewStore $owners) { new RoleBoundTestPurchase($db); }
     public function read(?string $owner,string $id): ?array
     {
+        return $this->owners->withVerifiedScope($owner, function () use ($owner,$id): ?array {
         $q=$this->db->prepare('SELECT o.*,c.name AS customer_name,c.company FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id WHERE o.id=?'.($owner===null?'':' AND o.customer_id=?'));
         $q->execute($owner===null?[$id]:[$id,$owner]);
         $row=$q->fetch(PDO::FETCH_ASSOC);
@@ -18,22 +19,31 @@ final class CustomerWorkPreview
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $q=$this->db->prepare('SELECT actor_kind,action,note,created_at FROM purchase_rehearsal.customer_order_events WHERE order_id=? ORDER BY revision LIMIT 200');
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);
-        // Only after the order ownership/admin scope has been established above.
+        // All supplemental billing/report SELECTs execute inside the SAME
+        // DB-signed owner claim as the parent order and event history.
         $q=$this->db->prepare("SELECT 'initial' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? UNION ALL SELECT charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_future_billing WHERE order_id=? UNION ALL SELECT 'monthly-invoice' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_subscription_invoices WHERE order_id=? ORDER BY due_date,charge_key");
-        $q->execute([$id,$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
-        $row['performance_reports']=$row['product']==='performance'?(new \App\Homologation\Commerce\PerformanceSettlement($this->db))->reports($id):[];
+        $q->execute([$id,$id,$id]); $row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
+        $row['performance_reports']=$row['product']==='performance'
+            ? (new \App\Homologation\Commerce\PerformanceSettlement($this->db))->reports($id):[];
         unset($row['customer_id'],$row['request_key']); return $row;
+        });
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool
     {
-        $this->db->beginTransaction();
         try {
+            return $this->owners->withVerifiedScope($owner, function () use ($owner,$id,$revision,$action,$note): bool {
             $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customer_orders WHERE id=?'.($owner===null?'':' AND customer_id=?').' FOR UPDATE');
             $q->execute($owner===null?[$id]:[$id,$owner]); $row=$q->fetch(PDO::FETCH_ASSOC);
             if (!$row||(int)$row['revision']!==$revision) throw new RuntimeException('Unavailable or stale order');
+            $hold=in_array($row['payment_hold']??null,[true,'t',1,'1'],true);
+            if ($hold && $action!=='message') throw new RuntimeException('Financial hold');
             $financialAllowed=$row['payment_source']==='manual_test';
             if (!$financialAllowed) {
-                $f=$this->db->prepare("SELECT state FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=?");$f->execute([$id]);$financialAllowed=$f->fetchColumn()==='approved';
+                $check=$this->db->prepare(
+                    'SELECT state FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=?'
+                );
+                $check->execute([$id]);
+                $financialAllowed=$check->fetchColumn()==='approved';
             }
             $state=$row['work_status']; $target=$state; $delivery=$row['delivery_note'];
             if ($action==='message') {
@@ -53,7 +63,8 @@ final class CustomerWorkPreview
             if ($q->rowCount()!==1) throw new RuntimeException('Stale order');
             $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customer_order_events(order_id,revision,actor_kind,action,note) VALUES (?,?,?,?,?)');
             $q->execute([$id,$revision+1,$owner===null?'admin':'client',$action,trim($note)]);
-            $this->db->commit(); return true;
-        } catch (\Throwable) { if ($this->db->inTransaction()) $this->db->rollBack(); return false; }
+            return true;
+            });
+        } catch (\Throwable) { return false; }
     }
 }
