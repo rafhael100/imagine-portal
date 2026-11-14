@@ -24,7 +24,11 @@ use App\Domain\SeoReview\GoogleSearchConsoleOAuthPreflight as Preflight;
 use App\Domain\SeoReview\OfflinePortalGscLoopbackTokenTransportReview as TestTransport;
 
 function f116Check(bool $ok):void{
-    if(!$ok)throw new RuntimeException('F116 local OAuth contract failed');
+    if(!$ok){
+        $trace=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,1);
+        throw new RuntimeException('F116 assertion failed on test line '.
+            (string)($trace[0]['line']??'unknown'));
+    }
 }
 function syntheticRequest(string $code): TokenPost {
     return new TokenPost([
@@ -151,6 +155,8 @@ try{
         "{$denied} rejected attacks/retries; no Google HTTP, no vault, ".
         "no customer display authorization\n";
 }catch(Throwable $e){
-    fwrite(STDERR,"F116 synthetic local token transport failed\n");
+    // Report only the assertion LOCATION. Never log response/request body.
+    fwrite(STDERR,"F116 synthetic local token transport failed: ".
+        $e->getMessage()."\n");
     exit(1);
 }
