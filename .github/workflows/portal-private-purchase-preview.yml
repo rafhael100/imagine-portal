@@ -16,6 +16,7 @@ on:
     branches:
       - review/portal-owned-four-project-crm-pg18-2026-11-14
       - review/portal-owned-customer-revocation-fence-2026-11-14
+      - review/portal-preview-rehearsal-ci-only-2026-11-14
 permissions:
   contents: read
 jobs:
@@ -34,6 +35,10 @@ jobs:
           bash -n apps/portal/ops/private-purchase/check_customer_schema_ci.sh
           bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
           python3 -B apps/portal/ops/private-purchase/check_public_boundary.py --self-test
+          php -l apps/portal/ops/private-purchase/private-preview-route-gate.php
+          php -l apps/portal/ops/private-purchase/router.php
+          php apps/portal/ops/private-purchase/test_route_gate.php
+          python3 -B apps/portal/ops/private-purchase/smoke.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
