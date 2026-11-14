@@ -61,6 +61,10 @@ CREATE TABLE portal_ownership_lab.orders (
 CREATE ROLE owner_ci_a LOGIN PASSWORD 'ci-owner-a-only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 CREATE ROLE owner_ci_b LOGIN PASSWORD 'ci-owner-b-only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 CREATE ROLE owner_ci_c LOGIN PASSWORD 'ci-owner-c-only' NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
+-- Privilege-less eligibility marker; WITH SET FALSE denies elevation via
+-- SET ROLE. A live REVOKE must immediately cut off read/insert/update RLS.
+CREATE ROLE owner_ci_enabled NOLOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT owner_ci_enabled TO owner_ci_a,owner_ci_b,owner_ci_c WITH INHERIT FALSE, SET FALSE;
 GRANT CONNECT ON DATABASE portal_ownership_ci TO owner_ci_a,owner_ci_b,owner_ci_c;
 GRANT USAGE ON SCHEMA portal_ownership_lab TO owner_ci_a,owner_ci_b,owner_ci_c;
 GRANT SELECT,INSERT ON portal_ownership_lab.orders TO owner_ci_a,owner_ci_b,owner_ci_c;
@@ -70,7 +74,8 @@ ALTER TABLE portal_ownership_lab.orders FORCE ROW LEVEL SECURITY;
 CREATE POLICY per_authenticated_db_owner ON portal_ownership_lab.orders
     FOR ALL
     USING (
-        organization_id = CASE current_user
+        pg_has_role(current_user,'owner_ci_enabled','MEMBER')
+        AND organization_id = CASE current_user
             WHEN 'owner_ci_a' THEN 'test-org-a'
             WHEN 'owner_ci_b' THEN 'test-org-a'
             WHEN 'owner_ci_c' THEN 'test-org-b'
@@ -82,7 +87,8 @@ CREATE POLICY per_authenticated_db_owner ON portal_ownership_lab.orders
             ELSE NULL END
     )
     WITH CHECK (
-        organization_id = CASE current_user
+        pg_has_role(current_user,'owner_ci_enabled','MEMBER')
+        AND organization_id = CASE current_user
             WHEN 'owner_ci_a' THEN 'test-org-a'
             WHEN 'owner_ci_b' THEN 'test-org-a'
             WHEN 'owner_ci_c' THEN 'test-org-b'
@@ -284,4 +290,31 @@ checkOwner(listOrders($aAfterRestart)[0]['state']==='approved'
 checkOwner(count(listOrders($aAfterRestart))===1, 'No legacy/other customer data can appear after reconnect.');
 checkOwner((int)$db->query('SELECT count(*) FROM portal_ownership_lab.orders')->fetchColumn()===5,
     'Exactly three new owned orders and two ownerless legacy records expected.');
-echo "PASS {$checks} PostgreSQL 18 ownership checks: 2 same-org customers, fake payment/briefing revision and denial, legacy NULL owner, DB FORCE RLS; NO HTTP/DEPLOY\n";
+// A distinct eligibility role is revocable without terminating the SQL
+// connection: the next statement must fail closed in real PostgreSQL RLS.
+// This is only a CI model; role grants restored with an old DB snapshot are
+// NOT protected against anti-rollback (#64).
+$pendingAfter = createOwnerOrder($a,'TEST-before-revoke-12345678',
+    'test-org-a','test-customer-a','revoke-pending-key','onepage');
+checkOwner(count(listOrders($a))===2, 'Owner A should see two pre-revocation orders.');
+$hasFlag=$a->query("SELECT pg_has_role(current_user,'owner_ci_enabled','MEMBER')")->fetchColumn();
+checkOwner((bool)$hasFlag, 'Active synthetic customer must hold eligibility membership.');
+$db->exec('REVOKE owner_ci_enabled FROM owner_ci_a');
+checkOwner(!(bool)$a->query("SELECT pg_has_role(current_user,'owner_ci_enabled','MEMBER')")->fetchColumn(),
+    'Active SQL connection must immediately observe membership revocation.');
+checkOwner(listOrders($a)===[], 'Revoked customer must lose ALL reads on existing live connection.');
+checkOwner(payOwner($a,$pendingAfter['id'],0,'approved')===0,
+    'Revoked customer must lose pending-payment write access.');
+checkOwner(briefOwner($a,$pendingAfter['id'],0,$sampleBrief)===0,
+    'Revoked customer must lose briefing write access.');
+rejectedOwner(static fn()=>createOwnerOrder($a,'TEST-after-revoke-12345678',
+    'test-org-a','test-customer-a','revoked-key','onepage'),
+    'Revoked customer cannot create new orders even if holding SQL login.');
+$revokedFresh = new PDO($dsn,'owner_ci_a','ci-owner-a-only',$options);
+checkOwner(listOrders($revokedFresh)===[],
+    'Revoked customer cannot resurrect orders with a fresh SQL connection.');
+checkOwner(count(listOrders($b))===1 && count(listOrders($c))===1,
+    'Revoking A must not disable unrelated customers or organizations.');
+checkOwner((int)$db->query('SELECT count(*) FROM portal_ownership_lab.orders')->fetchColumn()===6,
+    'Revoked customer cannot insert additional rows after membership loss.');
+echo "PASS {$checks} PostgreSQL 18 ownership checks: per-customer FORCE RLS, lifecycle revision, live revocation on open and new SQL sessions, legacy NULL owner; NO HTTP/DEPLOY\n";
