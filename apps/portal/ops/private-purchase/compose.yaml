@@ -52,6 +52,26 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     cpus: 0.5
+  # Explicitly invoked by the host-only webhook receiver; never started by
+  # normal 'docker compose up'. No superuser, socket, or network exposure.
+  webhook-broker:
+    profiles: [on-demand]
+    image: postgres:18-alpine
+    entrypoint: [psql]
+    user: '70:70'
+    environment:
+      PGPASSFILE: /run/secrets/webhook-pgpass
+      PGCONNECT_TIMEOUT: '5'
+    volumes:
+      - ./.private/hook.pgpass:/run/secrets/webhook-pgpass:ro
+    networks: [private]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=4m']
+    restart: 'no'
+    mem_limit: 64m
+    cpus: 0.25
   gateway:
     image: nginxinc/nginx-unprivileged:stable-alpine
     user: '101:101'
