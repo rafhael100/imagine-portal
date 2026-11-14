@@ -221,7 +221,10 @@ final readonly class OfflinePortalGscOAuthStateStartReview
         #[SensitiveParameter] mixed $callback,
         mixed $trustedNow,
         ?Closure $onLockedRows=null,
+        ?Closure $offlineTrustedTransport=null,
     ): ?array {
+        if ($offlineTrustedTransport!==null &&
+            getenv('PORTAL_GSC_F118_PROVENANCE_LAB')!=='1') return null;
         if (PHP_SAPI!=='cli' || getenv('APP_ENV')!=='testing' ||
             getenv('PORTAL_GSC_F115_CALLBACK_LAB')!=='1' ||
             !is_string($firstPartySessionReference) ||
@@ -330,6 +333,38 @@ final readonly class OfflinePortalGscOAuthStateStartReview
             if(!$this->db->commit())
                 throw new \RuntimeException('F115: callback not committed');
 
+            // F118: NO PRODUCTION TOKEN EXCHANGE. Test-only provenance
+            // proof from the exact F115 state CAS to the F116 loopback
+            // transport. Caller may not supply code or verifier here:
+            // both values were validated by the internal F115 policy.
+            // The callback is invoked ONCE, AFTER commit; an error
+            // never reopens the consumed state.
+            $localTransportReviewed=null;
+            if ($offlineTrustedTransport!==null){
+                if(getenv('PORTAL_GSC_F118_PROVENANCE_LAB')!=='1' ||
+                    !class_exists(GoogleSearchConsoleOAuthTokenPostRequest::class))
+                    return null;
+                $form=[
+                    'client_id'=>'1234567890-f116syntheticonly.apps.googleusercontent.com',
+                    'client_secret'=>'synthetic-secret-f116-private-only',
+                    'code'=>$callback['code'],
+                    'code_verifier'=>$verifier,
+                    'redirect_uri'=>
+                      'https://portal.example.test/integrations/google/search-console/callback',
+                    'grant_type'=>'authorization_code',
+                ];
+                $envelope=new GoogleSearchConsoleOAuthTokenPostRequest($form);
+                $localResponse=$offlineTrustedTransport($envelope,$trustedNow);
+                $localTransportReviewed=is_array($localResponse) &&
+                    ($localResponse['contractVersion']??null)===
+                       'portal-gsc-f116-local-token-transport-lab-v1' &&
+                    ($localResponse['loopbackOnly']??null)===true &&
+                    ($localResponse['tokenResponseStructureVerified']??null)===true &&
+                    ($localResponse['networkToGooglePerformed']??null)===false &&
+                    ($localResponse['customerDisplayAuthorized']??null)===false;
+                if(!$localTransportReviewed)return null;
+            }
+
             return [
                 'contractVersion'=>'portal-gsc-f115-session-bound-callback-lab-v1',
                 'decision'=>'STATE_CONSUMED_AFTER_ORIGINAL_MFA_RECHECK',
@@ -338,6 +373,7 @@ final readonly class OfflinePortalGscOAuthStateStartReview
                 'explicitConnectGrantVerifiedAtConsumption'=>true,
                 'stateConsumedOnce'=>true,
                 'callbackCodeHandledOnlyInServerMemory'=>true,
+                'syntheticF118TransportReviewed'=>$localTransportReviewed,
                 'googleOAuthVerified'=>false,
                 'tokenExchangeAuthorized'=>false,
                 'googleHttpPerformed'=>false,
