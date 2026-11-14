@@ -13,7 +13,7 @@ function fixtureCandidate(id='portal'){
     head:{sha:c.head,repo:{full_name:c.repo}},
   };
   const runs=c.required_workflows.map((name,i)=>({
-    name,id:100+i,head_sha:c.head,status:'completed',conclusion:'success',
+    name,id:100+i,head_sha:c.head,event:'pull_request',status:'completed',conclusion:'success',
   }));
   return {c,pr,runs,compare:{status:'ahead',ahead_by:150,behind_by:0}};
 }
@@ -43,6 +43,13 @@ test('newest run overrides stale success on same SHA',()=>{
   const r=assessCandidate(c,pr,[...runs,failed],compare);
   assert.equal(r.checks[0].status,'FAIL');
   assert.equal(r.ci_status,'REVIEW_REQUIRED');
+});
+test('cancelled push cannot override successful PR review of same head',()=>{
+  const {c,pr,runs,compare}=fixtureCandidate();
+  const cancelled={...runs[0],id:999,event:'push',conclusion:'cancelled'};
+  const report=assessCandidate(c,pr,[...runs,cancelled],compare);
+  assert.equal(report.ci_status,'PINNED_CI_PASS');
+  assert.equal(report.checks[0].status,'PASS');
 });
 test('parallel Sites line must be reconciled instead of presented as included',()=>{
   const line=manifest.parallel_lines[0];
