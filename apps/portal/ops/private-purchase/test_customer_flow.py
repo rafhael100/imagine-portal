@@ -22,7 +22,6 @@ with sync_playwright() as p:
         login(saved['user'],'ci-owned-customer-only-2026')
         assert page.goto(saved['order']).status==200
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
-        check_next_step('Aguardar análise do briefing')
         assert 'Aurora ficticia' in page.locator('body').inner_text()
         print('PASS owned purchase, account and briefing recovered after database/application restart')
     else:
@@ -78,6 +77,7 @@ with sync_playwright() as p:
         page.get_by_role('button',name='Salvar briefing de teste').click()
         page.reload()
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
+        check_next_step('Aguardar análise do briefing')
         page.goto(BASE+'/client/services')
         assert page.locator('tr[data-customer-order]').count()==1
         page.goto(BASE+'/client/account')
