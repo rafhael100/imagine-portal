@@ -127,7 +127,36 @@ DECLARE v_actor uuid;v_org uuid;v_rev bigint;
 BEGIN
  IF p_session_digest !~ '^[a-f0-9]{64}$'
  OR p_state_hash !~ '^[a-f0-9]{64}$'
- OR p_sealed_verifier !~ '^v1\.[A-Za-z0-9+/=]{50,2048}$'
+ OR p_sealed_verifier !~ '^v1\.[A-Za-z0-9+/=]{50,255}
+ OR p_expires-p_issued<>600
+ OR p_issued<1600000000 OR p_issued>2200000000
+ OR abs(p_issued-floor(extract(epoch FROM clock_timestamp()))::bigint)>5
+ THEN RETURN;END IF;
+
+ SELECT p.identity_uuid,p.organization_uuid,p.membership_revision
+ INTO v_actor,v_org,v_rev
+ FROM public.portal_gsc_f114_connect_principal(p_session_digest,p_org) p;
+ IF NOT FOUND OR v_rev<1 THEN RETURN;END IF;
+ tenant_ref:='porg-'||replace(v_org::text,'-','');
+ actor_ref:='pusr-'||replace(v_actor::text,'-','');
+ INSERT INTO public.portal_gsc_oauth_states(
+   state_hash,tenant_ref,actor_ref,sealed_verifier,issued_at,expires_at)
+ VALUES(p_state_hash,tenant_ref,actor_ref,p_sealed_verifier,
+        p_issued,p_expires)
+ ON CONFLICT(state_hash) DO NOTHING;
+ IF NOT FOUND THEN RETURN;END IF;
+ RETURN NEXT;
+END;
+$f114$;
+ALTER FUNCTION public.portal_gsc_f114_store_state(
+ text,uuid,text,text,bigint,bigint) OWNER TO portal_gsc_f114_owner;
+REVOKE ALL ON FUNCTION public.portal_gsc_f114_store_state(
+ text,uuid,text,text,bigint,bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.portal_gsc_f114_store_state(
+ text,uuid,text,text,bigint,bigint) TO portal_gsc_f114_runtime;
+REVOKE CREATE ON SCHEMA public FROM portal_gsc_f114_owner;
+COMMIT;
+
  OR p_expires-p_issued<>600
  OR p_issued<1600000000 OR p_issued>2200000000
  OR abs(p_issued-floor(extract(epoch FROM clock_timestamp()))::bigint)>5
