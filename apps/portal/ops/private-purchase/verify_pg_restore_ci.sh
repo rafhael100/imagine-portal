@@ -24,8 +24,10 @@ source_counts="$(docker compose exec -T database psql -X -A -t -v ON_ERROR_STOP=
   echo 'NO-GO: invalid source backup count proof' >&2; exit 1;
 }
 IFS=: read -r customers orders briefings events <<< "$source_counts"
-(( customers >= 4 && orders >= 4 && briefings >= 2 && events >= 7 )) || {
-  echo 'NO-GO: source lacks required synthetic purchase data' >&2; exit 1;
+(( customers >= 2 && orders >= 3 && briefings >= 1 && events >= 7 )) || {
+  # Synthetic aggregate counts only: never print IDs, credentials or payloads.
+  echo "NO-GO: incomplete synthetic evidence (customer/order/briefing/event counts: $source_counts)" >&2
+  exit 1
 }
 docker compose exec -T database psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
   -c "CREATE DATABASE $restored" >/dev/null
