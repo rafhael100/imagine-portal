@@ -1,0 +1,38 @@
+name: Portal V6 signed agreement candidate offline lab
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/PortalPerformanceV6AgreementLabIssuer.php'
+      - 'apps/portal/tools/test_performance_v6_signed_agreement_lab.php'
+      - '.github/workflows/portal-perf-v6-agreement-lab.yml'
+      - 'docs/decisions/2026-11-14-performance-v6-agreement-hmac-candidate.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v6-agreement-signed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      APP_ENV: testing
+      PORTAL_PERF_V6_AGREEMENT_LAB: '1'
+      PORTAL_PERF_TRICHANNEL_V5_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: Validate PHP syntax
+        run: |
+          php -l apps/portal/app/Homologation/Commerce/PerformanceTriChannelV5CandidateCatalog.php
+          php -l apps/portal/app/Homologation/Commerce/PortalPerformanceV6AgreementLabIssuer.php
+          php -l apps/portal/tools/test_performance_v6_signed_agreement_lab.php
+      - name: Verify version separation and agreement-bound owner-approved quote
+        run: php apps/portal/tools/test_performance_v6_signed_agreement_lab.php
