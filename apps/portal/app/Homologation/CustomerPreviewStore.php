@@ -97,6 +97,12 @@ final class CustomerPreviewStore
         }
     }
 
+    /** A scope is valid only for the verified server-side customer/admin principal. */
+    public function withVerifiedScope(?string $owner, callable $operation): mixed
+    {
+        return $this->scoped($owner, $operation);
+    }
+
     /** Synthetic signup only; identity and customer hashes still require separate IAM hardening. */
     public function register(string $username, #[\SensitiveParameter] string $password, string $name, string $company): array
     {
@@ -169,7 +175,7 @@ final class CustomerPreviewStore
     public function orders(?string $owner): array
     {
         return $this->scoped($owner, function () use ($owner): array {
-            $sql='SELECT o.id,o.product,o.payment,o.revision,(o.briefing IS NOT NULL) AS briefing_saved,c.name AS customer_name,c.username FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id';
+            $sql='SELECT o.id,o.product,o.payment,o.revision,o.work_status,(o.briefing IS NOT NULL) AS briefing_saved,c.name AS customer_name,c.username FROM purchase_rehearsal.customer_orders o JOIN purchase_rehearsal.customers c ON c.id=o.customer_id';
             $q=$this->db->prepare($sql.($owner===null?'':' WHERE o.customer_id=?').' ORDER BY o.created_at DESC,o.id LIMIT 100');
             $q->execute($owner===null?[]:[$owner]);
             return $q->fetchAll(PDO::FETCH_ASSOC);
