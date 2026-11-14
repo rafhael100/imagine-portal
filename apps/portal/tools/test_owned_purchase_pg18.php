@@ -304,7 +304,8 @@ $briefing = [
     'materials'=>'Material não real',
 ];
 $complete = $a1->briefing($first['id'], $approved['revision'], $briefing);
-$check($complete['briefing'] === $briefing, 'Owned briefing saved');
+// PostgreSQL jsonb canonicalizes object key order; compare field values, not array insertion order.
+$check($complete['briefing'] == $briefing, 'Owned briefing saved');
 $denied(static fn() => $a1->payment($first['id'], $complete['revision'], 'declined'));
 $denied(static fn() => $a1->briefing($first['id'], $complete['revision'], $briefing));
 $again = new OwnedPurchasePg18Laboratory(
