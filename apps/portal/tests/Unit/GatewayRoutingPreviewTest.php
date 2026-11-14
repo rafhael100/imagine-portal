@@ -97,4 +97,40 @@ final class GatewayRoutingPreviewTest extends TestCase
         $this->expectException(LogicException::class);
         GatewayRoutingPreview::enforcePinnedGateway('asaas', 'c6');
     }
+
+    public function test_fees_at_or_above_gross_cannot_be_selected(): void
+    {
+        $p = $this->policy();
+        $p['providers']['asaas']['methods']['pix']['fixed_cents'] = 100;
+        $this->expectException(RuntimeException::class);
+        GatewayRoutingPreview::quote($p, 'pix', 50);
+    }
+
+    public function test_lowest_cost_skips_provider_with_nonpositive_net(): void
+    {
+        $p = $this->policy('lowest_cost');
+        $p['providers']['asaas']['methods']['pix']['fixed_cents'] = 999;
+        $p['providers']['c6']['enabled'] = true;
+        $p['providers']['c6']['approved'] = true;
+        $p['providers']['c6']['healthy'] = true;
+        self::assertSame('c6', GatewayRoutingPreview::quote($p, 'pix', 100)['gateway']);
+    }
+
+    public function test_unapproved_c6_cannot_be_selected_even_if_cheaper(): void
+    {
+        $p = $this->policy('lowest_cost');
+        $p['providers']['c6']['enabled'] = true;
+        $p['providers']['c6']['healthy'] = true;
+        self::assertSame('asaas', GatewayRoutingPreview::quote($p, 'pix', 100_00)['gateway']);
+    }
+
+    public function test_lowest_cost_tie_prefers_configured_gateway(): void
+    {
+        $p = $this->policy('lowest_cost');
+        $p['providers']['c6']['enabled'] = true;
+        $p['providers']['c6']['approved'] = true;
+        $p['providers']['c6']['healthy'] = true;
+        $p['providers']['c6']['methods']['pix'] = $p['providers']['asaas']['methods']['pix'];
+        self::assertSame('asaas', GatewayRoutingPreview::quote($p, 'pix', 100_00)['gateway']);
+    }
 }
