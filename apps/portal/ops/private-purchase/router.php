@@ -11,7 +11,11 @@ $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH);
 if ($path==='/up') { header('Content-Type: application/json'); echo '{"synthetic_preview":true}'; exit; }
 if (!is_string($path)) { http_response_code(404); exit; }
 require __DIR__.'/private-preview-route-gate.php';
-if (!PrivatePreviewRouteGate::allows($path,$ci)) { http_response_code(404); exit; }
+if (!PrivatePreviewRouteGate::allows($path,$ci)) {
+ header('Cache-Control: no-store, private');
+ header('X-Robots-Tag: noindex, nofollow');
+ http_response_code(404); exit;
+}
 $handle=fopen('/run/secrets/preview-runtime.json','rb');
 $stat=$handle===false?false:fstat($handle);
 if (!$stat||($stat['mode']&077)!==0||$stat['uid']!==82||$stat['size']>2048) { http_response_code(503); exit; }
