@@ -103,6 +103,10 @@ jobs:
         run: |
           set -euo pipefail
           php artisan migrate --path=database/migrations/2026_11_09_000002_create_portal_identity_foundation.php --force --no-interaction
+          # F111: additive permission vocabulary only; no membership is
+          # granted by migration and default-deny runtime bindings remain.
+          php artisan migrate --path=database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php --force --no-interaction
+          php artisan migrate --path=database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php --force --no-interaction
           php artisan migrate --path=database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php --force --no-interaction
