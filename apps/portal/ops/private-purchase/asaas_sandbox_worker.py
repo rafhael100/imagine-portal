@@ -45,9 +45,20 @@ def verify_payment(p,row):
         if row.get('payment_ref') and p['id']!=row['payment_ref']:raise ValueError()
         if not isinstance(p.get('status'),str) or not re.fullmatch('[A-Z_]{1,64}',p['status']):raise ValueError()
     except Exception: raise Unconfirmed('Payment financial mismatch') from None
-    paid=p['status']=='RECEIVED' or (p['status']=='CONFIRMED' and p.get('billingType')=='CREDIT_CARD')
-    reversed_status=p['status'] in ('REFUNDED','CHARGEBACK_REQUESTED','CHARGEBACK_DISPUTE','AWAITING_CHARGEBACK_REVERSAL') or p.get('deleted') is True
-    return 'reversed' if reversed_status else 'approved' if paid else 'pending'
+    # Match the independent PSP settlement boundary (F390): CONFIRMED is
+    # authorization/confirmation, not a RECEIVED, non-reversed settlement.
+    reversed_status=(
+        p['status'] in ('REFUNDED','REFUND_REQUESTED','REFUND_IN_PROGRESS',
+                        'CHARGEBACK_REQUESTED','CHARGEBACK_DISPUTE',
+                        'AWAITING_CHARGEBACK_REVERSAL','DELETED')
+        or p.get('deleted') is True
+        or p.get('refundedDate') is not None
+        or bool(p.get('refunds'))
+        or p.get('chargeback') not in (None,False)
+    )
+    if p.get('subscription') is not None or p.get('installment') is not None or p.get('currency','BRL')!='BRL':
+        raise Unconfirmed('Payment cannot fund a one-off installation')
+    return 'reversed' if reversed_status else 'approved' if p['status']=='RECEIVED' else 'pending'
 
 class Worker:
     def __init__(self,db,api):self.db=db;self.api=api
@@ -92,8 +103,16 @@ class Database:
         fields=','.join(k+'='+lit(v) for k,v in changes.items())
         self.sql('UPDATE purchase_rehearsal.sandbox_payment_intents SET '+fields+",updated_at=now() WHERE order_id='"+oid+"';")
     def settle(self,oid,state):
+        if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid):raise Unconfirmed('Invalid order')
         if state=='approved':
-            self.sql("UPDATE purchase_rehearsal.customer_orders o SET payment='approved',revision=revision+1 WHERE id='"+oid+"' AND payment_source='asaas_sandbox' AND payment<>'approved' AND EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=o.id AND i.state='approved');")
+            # A prior refund/chargeback hold must never be cleared by a later
+            # stale RECEIVED response. A human/ledger gate owns resolution.
+            self.sql("UPDATE purchase_rehearsal.customer_orders o SET payment='approved',revision=revision+1 WHERE id='"+oid+"' AND payment_source='asaas_sandbox' AND NOT payment_hold AND payment<>'approved' AND EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=o.id AND i.state='approved');")
+        elif state=='reversed':
+            # Preserve the existing briefing and foreign-key history; moving
+            # payment to declined would violate the historical briefing CHECK.
+            # A persistent financial hold blocks further fulfilment instead.
+            self.sql("UPDATE purchase_rehearsal.customer_orders o SET payment_hold=true,revision=revision+1 WHERE id='"+oid+"' AND payment_source='asaas_sandbox' AND NOT payment_hold AND EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=o.id AND i.state='reversed');")
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--once',action='store_true',required=True);args=parser.parse_args()
