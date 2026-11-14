@@ -88,11 +88,6 @@ foreach ($lines as $line) {
     $orders[$id]=['product'=>$product,'payment'=>$payment,'briefing'=>$briefing==='1'];
     $products[$product] = ($products[$product] ?? 0)+1;
 }
-if ($products !== ['landing-pages'=>1,'onepage'=>1,'performance'=>2]
-    && ($products['landing-pages']??0)!==1) {
-    // Full distribution checked below without relying on SQL row order.
-    throw new RuntimeException('Unexpected product distribution.');
-}
 ksort($products);
 if ($products !== ['landing-pages'=>1,'onepage'=>1,'performance'=>2]) {
     throw new RuntimeException('Four Comercial CTA products do not match.');
