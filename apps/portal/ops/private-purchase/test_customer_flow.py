@@ -48,6 +48,8 @@ with sync_playwright() as p:
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
         check_private_headers(page.goto(BASE+'/shop?product=onepage'),'selected offer')
+        for price in ('R$ 990,00','R$ 330,00','R$ 79,90'):
+            assert price in page.locator('body').inner_text(), ('approved onepage offer missing',price)
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         # Tampering with the chosen SKU after a Comercial onepage handoff
@@ -92,6 +94,11 @@ with sync_playwright() as p:
         check_private_headers(page.reload(),'completed briefing view')
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
         check_next_step('Aguardar análise do briefing')
+        # Display-only approved catalog: no payment creation or signed contract.
+        page.goto(BASE+'/shop')
+        prices=page.locator('body').inner_text()
+        for required in ('R$ 1.290,00','R$ 430,00','20%','R$ 700,00','R$ 140,00'):
+            assert required in prices,('approved landing/performance display missing',required)
         page.goto(BASE+'/client/services')
         assert page.locator('tr[data-customer-order]').count()==1
         page.goto(BASE+'/client/account')

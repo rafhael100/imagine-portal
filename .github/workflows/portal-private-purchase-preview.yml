@@ -41,6 +41,18 @@ jobs:
           php apps/portal/ops/private-purchase/test_route_gate.php
           python3 -B apps/portal/ops/private-purchase/smoke.py --self-test
           python3 -B apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
+      - name: Pin PHP8.4 for approved commercial offer catalog regression
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Fail closed on approved Onepage, Landing and Performance catalog drift
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/PreviewCommercialCatalog.php
+          php -l apps/portal/ops/private-purchase/test_approved_preview_catalog.php
+          php apps/portal/ops/private-purchase/test_approved_preview_catalog.php
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files

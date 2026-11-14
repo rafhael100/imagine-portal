@@ -95,6 +95,7 @@ final class CustomerPreviewController
     private function page(?array $order,?string $product=null)
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
-        return $this->protectedView('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product]);
+        $offers=(new \App\Homologation\PreviewCommercialCatalog(resource_path('portal/catalog/approved-commercial-catalog.json')))->offers();
+        return $this->protectedView('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'commercialOffers'=>$offers]);
     }
 }
