@@ -17,7 +17,7 @@ class Asaas:
         if not path.startswith('/') or '://' in path: raise Unconfirmed('Invalid resource')
         req=urllib.request.Request(BASE+path,data=None if body is None else json.dumps(body).encode(),method=method,headers={'access_token':self.key,'Content-Type':'application/json','User-Agent':'ImaginePortal-Sandbox/1.0'})
         try:
-            with urllib.request.build_opener(NoRedirect).open(req,timeout=20) as r:
+            with urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect).open(req,timeout=20) as r:
                 raw=r.read(1048577)
                 if len(raw)>1048576 or r.status not in (200,201): raise Unconfirmed('Response unavailable')
                 return json.loads(raw)
@@ -41,7 +41,7 @@ def verify_payment(p,row):
     try:
         cents=decimal.Decimal(str(p['value']))*100
         if not cents.is_finite() or cents!=row['amount_cents']: raise ValueError()
-        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':initial' or not re.fullmatch(r'pay_[A-Za-z0-9]+',p.get('id','')): raise ValueError()
+        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':initial' or not re.fullmatch(r'pay_[A-Za-z0-9_]{6,64}',p.get('id','')): raise ValueError()
         if row.get('payment_ref') and p['id']!=row['payment_ref']:raise ValueError()
         if not isinstance(p.get('status'),str) or not re.fullmatch('[A-Z_]{1,64}',p['status']):raise ValueError()
     except Exception: raise Unconfirmed('Payment financial mismatch') from None
