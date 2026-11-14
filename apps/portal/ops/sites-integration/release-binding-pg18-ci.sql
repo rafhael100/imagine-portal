@@ -44,8 +44,10 @@ RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path=pg_catalog
 AS $sql$
+ -- SECURITY DEFINER changes current_user to its owner. Check the
+ -- authenticated session_user here; the PHP reader constructor separately
+ -- enforces current_user=session_user before any query.
  SELECT session_user='portal_release_reader'
-    AND current_user='portal_release_reader'
     AND current_setting('imagine.release_tenant',true)=row_tenant
     AND EXISTS (
        SELECT 1 FROM portal_release.tenant_hmac_keys k
