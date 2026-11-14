@@ -42,7 +42,7 @@
     <small>Condições registradas neste pedido em {{ $order['offer_accepted_at'] }}. A simulação não constitui assinatura de contrato.</small>
     @if(in_array($order['product'], ['onepage','landing-pages'], true))
     <details><summary>Ver parcelas e mensalidades previstas</summary>
-    <p>Previsão baseada nas condições deste pedido. As cobranças futuras abaixo ainda não foram emitidas no Asaas. A mensalidade começa em D90, independentemente da publicação.</p>
+    <p>Previsão baseada nas condições deste pedido. Consulte a seção de parcelas e assinatura para saber quais já foram emitidas no Asaas. A mensalidade começa em D90, independentemente da publicação.</p>
     <table><thead><tr><th>Etapa</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>
     @foreach(\App\Homologation\Commerce\BillingSchedule::project($order['offer_snapshot'], $order['offer_accepted_at']) as $item)
     <tr><td>{{ $item['kind'] === 'setup' ? 'Implantação' : 'Mensalidade' }}</td><td>{{ \DateTimeImmutable::createFromFormat('!Y-m-d', $item['due_date'])->format('d/m/Y') }}</td><td>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($item['amount_cents']) }}</td></tr>
@@ -54,6 +54,19 @@
     <p>Pedido anterior à inclusão do catálogo. Nenhum preço foi atribuído retroativamente.</p>
 @endif
 </section>
+@if(in_array($order['product'], ['onepage','landing-pages'], true) && ($order['sandbox']['state'] ?? null) === 'approved')
+<section><h2>Parcelas e assinatura no Asaas sandbox</h2>
+<p>Depois da confirmação inicial, você pode testar as parcelas D30 e D60 e a assinatura mensal a partir de D90. A assinatura ativa gera cobranças; não significa pagamento aprovado nem débito automático em cartão.</p>
+<form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/future-billing') }}">@csrf<input type="hidden" name="revision" value="{{ $order['revision'] }}"><label><input type="checkbox" name="sandbox_ack" value="1" required> Autorizo somente a simulação das parcelas e da assinatura, sem dinheiro real.</label><button type="submit">{{ empty($order['future_billing']) ? 'Gerar parcelas e assinatura de teste' : 'Atualizar parcelas e assinatura' }}</button></form>
+@if(!empty($order['future_billing']))
+<table><thead><tr><th>Etapa</th><th>Primeiro vencimento</th><th>Valor</th><th>Situação</th></tr></thead><tbody>
+@foreach($order['future_billing'] as $bill)
+<tr><td>{{ $bill['charge_key']==='monthly' ? 'Assinatura mensal' : ($bill['charge_key']==='setup-2' ? 'Implantação 2/3' : 'Implantação 3/3') }}</td><td>{{ $bill['due_date'] }}</td><td>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl((int)$bill['amount_cents']) }}</td><td>{{ $bill['provider_status'] ?? 'Aguardando processamento' }} @if($bill['invoice_url'])<a href="{{ $bill['invoice_url'] }}" target="_blank" rel="noopener noreferrer">Abrir cobrança</a>@endif</td></tr>
+@endforeach
+</tbody></table>
+@endif
+</section>
+@endif
 @if(($order['sandbox']['state'] ?? null) === 'reversed')<p role="alert">A cobrança foi estornada ou contestada. Aguarde a revisão financeira antes de nova execução.</p>@endif
 @if($order['briefing'] === null)
 @if($order['payment_source'] === 'manual_test')

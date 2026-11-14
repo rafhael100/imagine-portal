@@ -44,11 +44,12 @@ def invoice_url(value):
     except ValueError: pass
     return None
 
-def verify_payment(p,row):
+def verify_payment(p,row,reference_key='initial'):
     try:
+        if reference_key not in ('initial','setup-2','setup-3'):raise ValueError()
         cents=decimal.Decimal(str(p['value']))*100
         if not cents.is_finite() or cents!=row['amount_cents']: raise ValueError()
-        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':initial' or not re.fullmatch(r'pay_[A-Za-z0-9_]{1,100}',p.get('id','')): raise ValueError()
+        if p.get('customer')!=row['customer_ref'] or p.get('externalReference')!='imagine:'+row['order_id']+':'+reference_key or not re.fullmatch(r'pay_[A-Za-z0-9_]{1,100}',p.get('id','')): raise ValueError()
         if row.get('payment_ref') and p['id']!=row['payment_ref']:raise ValueError()
         if not isinstance(p.get('status'),str) or not re.fullmatch('[A-Z_]{1,64}',p['status']):raise ValueError()
     except Exception: raise Unconfirmed('Payment financial mismatch') from None
@@ -104,6 +105,47 @@ class Database:
         if state=='approved':
             self.sql("UPDATE purchase_rehearsal.customer_orders o SET payment='approved',revision=revision+1 WHERE id='"+oid+"' AND payment_source='asaas_sandbox' AND payment<>'approved' AND EXISTS(SELECT FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=o.id AND i.state='approved');")
 
+class FutureDatabase(Database):
+    def rows(self):
+        return json.loads(self.sql("SELECT COALESCE(json_agg(t),'[]'::json) FROM (SELECT f.*,i.customer_ref FROM purchase_rehearsal.sandbox_future_billing f JOIN purchase_rehearsal.sandbox_payment_intents i ON i.order_id=f.order_id WHERE f.sync_requested AND i.state='approved' ORDER BY f.updated_at LIMIT 10) t;"))
+    def patch_future(self,oid,key,changes):
+        allowed={'state','provider_ref','invoice_url','provider_status','sync_requested'}
+        if set(changes)-allowed or not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('setup-2','setup-3','monthly'):raise Unconfirmed('Invalid future ledger update')
+        def lit(v):
+            if v is None:return 'NULL'
+            if isinstance(v,bool):return 'true' if v else 'false'
+            return "'"+str(v).replace("'","''")+"'"
+        fields=','.join(k+'='+lit(v) for k,v in changes.items())
+        self.sql('UPDATE purchase_rehearsal.sandbox_future_billing SET '+fields+",updated_at=now() WHERE order_id='"+oid+"' AND charge_key='"+key+"';")
+
+class FutureWorker:
+    def __init__(self,db,api):self.db=db;self.api=api
+    def process(self,row):
+        oid=row['order_id'];key=row['charge_key'];monthly=key=='monthly'
+        if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid) or key not in ('setup-2','setup-3','monthly') or type(row['amount_cents']) is not int or not 1<=row['amount_cents']<=100000000 or not re.fullmatch(r'cus_[A-Za-z0-9_]{1,100}',row.get('customer_ref','')):raise Unconfirmed('Invalid future intent')
+        due=str(row['due_date']);datetime.date.fromisoformat(due)
+        reference='imagine:'+oid+':'+key;kind='subscriptions' if monthly else 'payments'
+        obj=self.api.call('GET','/'+kind+'/'+row['provider_ref']) if row.get('provider_ref') else self.api.find(kind,reference)
+        if obj is None:
+            if row['state']!='queued':
+                self.db.patch_future(oid,key,{'sync_requested':False});return
+            self.db.patch_future(oid,key,{'state':'payment_creating'})
+            payload={'customer':row['customer_ref'],'billingType':'UNDEFINED','value':row['amount_cents']/100,'description':'Imagine - homologacao sem dinheiro real','externalReference':reference}
+            payload.update({'cycle':'MONTHLY','nextDueDate':due} if monthly else {'dueDate':due})
+            obj=self.api.call('POST','/'+kind,payload)
+        if monthly:
+            try:
+                if obj.get('customer')!=row['customer_ref'] or obj.get('externalReference')!=reference or not re.fullmatch(r'sub_[A-Za-z0-9_]{1,100}',obj.get('id','')) or (row.get('provider_ref') and obj['id']!=row['provider_ref']):raise ValueError()
+                if decimal.Decimal(str(obj['value']))*100!=row['amount_cents'] or obj.get('cycle')!='MONTHLY' or obj.get('status') not in ('ACTIVE','INACTIVE','EXPIRED'):raise ValueError()
+                # Before the first due date the provider must preserve the accepted D90 anchor.
+                if datetime.date.today()<datetime.date.fromisoformat(due) and obj.get('nextDueDate')!=due:raise ValueError()
+            except Exception:raise Unconfirmed('Subscription terms mismatch') from None
+            state='active' if obj['status']=='ACTIVE' else 'inactive'
+        else:
+            if obj.get('dueDate')!=due:raise Unconfirmed('Future due date mismatch')
+            state=verify_payment(obj,row|{'payment_ref':row.get('provider_ref')},key)
+        self.db.patch_future(oid,key,{'provider_ref':obj['id'],'provider_status':obj['status'],'invoice_url':None if monthly else invoice_url(obj.get('invoiceUrl')),'state':state,'sync_requested':False})
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--once',action='store_true',required=True);args=parser.parse_args()
     if os.environ.get('APP_ENV')=='production':raise SystemExit('Production is not supported')
@@ -119,3 +161,10 @@ if __name__=='__main__':
             except Unconfirmed as e:
                 db.patch(row['order_id'],{'sync_requested':False})
                 print('Sandbox intent requires reconciliation; no blind retry: '+str(e))
+
+        future_db=FutureDatabase();future_worker=FutureWorker(future_db,Asaas(cfg['api_key']))
+        for row in future_db.rows():
+            try:future_worker.process(row);print('Sandbox future billing reconciled')
+            except (Unconfirmed,ValueError) as e:
+                future_db.patch_future(row['order_id'],row['charge_key'],{'sync_requested':False})
+                print('Sandbox future billing requires reconciliation; no blind retry')

@@ -29,6 +29,7 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::post('shop/orders',[\App\Http\Controllers\CustomerPreviewController::class,'create']);
             Route::get('shop/orders/{id}',[\App\Http\Controllers\CustomerPreviewController::class,'show']);
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
+            Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
             Route::post('shop/orders/{id}/sandbox',[\App\Http\Controllers\CustomerPreviewController::class,'sandbox'])->middleware('throttle:preview-sandbox');
             Route::post('shop/orders/{id}/briefing',[\App\Http\Controllers\CustomerPreviewController::class,'briefing']);
             Route::get('work/{id}',[\App\Http\Controllers\CustomerWorkPreviewController::class,'show']);

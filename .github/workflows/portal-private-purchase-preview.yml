@@ -57,6 +57,7 @@ jobs:
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-work-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < customer-offer-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-payment-schema.sql
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
         run: |
@@ -79,6 +80,7 @@ jobs:
           docker compose exec -T application php tools/test_commerce.php
           docker compose exec -T application php tools/test_billing_schedule.php
           python3 test_asaas_sandbox_worker.py
+          python3 test_future_billing.py
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase

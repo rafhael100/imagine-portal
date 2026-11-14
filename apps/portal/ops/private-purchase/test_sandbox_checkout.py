@@ -1,7 +1,7 @@
 """Real HTTP/PG ledger, injected provider only in CI. No keys or external API."""
 import json,pathlib,shutil,os
 from playwright.sync_api import sync_playwright
-from asaas_sandbox_worker import Database,Worker,Unconfirmed
+from asaas_sandbox_worker import Database,Worker,Unconfirmed,FutureDatabase,FutureWorker
 from test_asaas_sandbox_worker import API
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
 saved=json.loads(pathlib.Path('/tmp/portal-customer-ci.json').read_text())
@@ -33,6 +33,29 @@ with sync_playwright() as p:
     row=next(x for x in db.rows() if x['order_id']==oid)
     api.payment['status']='RECEIVED';w.process(row)
     page.reload();assert page.locator('[name=business]').count()==1;assert len(api.posts)==2
+    # Future charges are explicitly requested after provider-confirmed initial payment.
+    assert page.request.post(url+'/future-billing',form={'_token':token(),'revision':revision(),'sandbox_ack':'1','amount_cents':'1'}).status==422
+    page.get_by_role('button',name='Gerar parcelas e assinatura de teste').locator('..').locator('[name=sandbox_ack]').check()
+    page.get_by_role('button',name='Gerar parcelas e assinatura de teste').click()
+    fdb=FutureDatabase();future=[x for x in fdb.rows() if x['order_id']==oid]
+    assert len(future)==3 and sorted(x['amount_cents'] for x in future)==[7990,33000,33000]
+    from test_future_billing import API as FutureAPI
+    for item in future:
+        provider=FutureAPI()
+        original=provider.call
+        def call(method,path,body=None,original=original,provider=provider,item=item):
+            obj=original(method,path,body)
+            if method=='POST':
+                obj['id']=('sub_' if item['kind']=='monthly' else 'pay_')+item['charge_key'].replace('-','_')
+                provider.obj=obj.copy()
+            return obj
+        provider.call=call
+        worker=FutureWorker(fdb,provider);worker.process(item)
+        # Re-read persisted row before reconciling; no repeat POST.
+        persisted=json.loads(fdb.sql("SELECT row_to_json(t) FROM (SELECT f.*,i.customer_ref FROM purchase_rehearsal.sandbox_future_billing f JOIN purchase_rehearsal.sandbox_payment_intents i ON i.order_id=f.order_id WHERE f.order_id='"+oid+"' AND charge_key='"+item['charge_key']+"') t;"))
+        worker.process(persisted);assert len(provider.posts)==1
+    page.reload();assert page.get_by_role('button',name='Atualizar parcelas e assinatura',exact=True).count()==1
+    assert 'ACTIVE' in page.content()
     for name in ['business','goal','audience','materials']:page.locator('[name='+name+']').fill('Exemplo sandbox ficticio')
     page.get_by_role('button',name='Salvar briefing de teste').click()
     assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
