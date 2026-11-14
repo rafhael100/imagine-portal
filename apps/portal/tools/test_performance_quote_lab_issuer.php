@@ -47,8 +47,8 @@ rejectedLab(fn() => Issuer::issue($catalog, ['google_ads' => 70000], $tenant, $k
 
 // A receipt/consumer must verify the month, time, tenant, key identity and
 // the full current server catalog, not simply observe an issuer signature.
-$verify = static fn(array $envelope,string $period='2026-11',int $now=$issued+30) =>
-    Issuer::verifyBillingPeriod($catalog,$envelope,$tenant,$key,$period,$now,$secret);
+$verify = static fn(array $envelope,string $period='2026-11',?int $now=null) =>
+    Issuer::verifyBillingPeriod($catalog,$envelope,$tenant,$key,$period,$now??($issued+30),$secret);
 sameLab($v2['quote'],$verify($v2),'v2 verified server-originated quote');
 rejectedLab(fn()=>$verify($one),'v1 lacks billing month and cannot fund a period');
 rejectedLab(fn()=>$verify($v2,'2026-12'),'cannot replay prior month');
