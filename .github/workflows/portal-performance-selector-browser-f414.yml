@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 15
     env:
       PYTHONDONTWRITEBYTECODE: '1'
-      PORTAL_F414_SCREENSHOTS: ${{ runner.temp }}/portal-f414-synthetic-shots
+      PORTAL_F414_SCREENSHOTS: /tmp/portal-f414-synthetic-shots
     steps:
       - name: Exact candidate checkout without stored credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
