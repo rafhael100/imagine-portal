@@ -1,0 +1,173 @@
+name: Portal GSC F107 - first-party session SQL plus GSC RLS (offline)
+
+on:
+  pull_request:
+    branches:
+      - release/portal-gsc-rc-f104-f106-2026-11-14
+    paths:
+      - '.github/workflows/portal-gsc-f107-session-candidate-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflinePortalGscSessionCandidateReview.php'
+      - 'apps/portal/labs/gsc-f107-session-bridge/**'
+
+permissions:
+  contents: read
+
+jobs:
+  firstparty-session-candidate-pg:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: imagine_gsc_ci_test
+          POSTGRES_USER: imagine_ci
+          POSTGRES_PASSWORD: local_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U imagine_ci -d imagine_gsc_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact F107 review SHA without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable Portal identity reader and SQL
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 563e281c0e789e6bcd772aa1095a7ec33490b544
+          path: .qa/portal-identity
+          persist-credentials: false
+      - name: Checkout immutable SEO F104 Node code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: ec1739621b20860f729c59d9863ba1b341da43e8
+          path: .qa/seo-f104
+          persist-credentials: false
+      - name: Install immutable PHP 8.4/PDO PostgreSQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer
+      - name: Install immutable Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Verify exact source SHA and change isolation
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/portal-identity rev-parse HEAD)" = 563e281c0e789e6bcd772aa1095a7ec33490b544
+          test "$(git -C .qa/seo-f104 rev-parse HEAD)" = ec1739621b20860f729c59d9863ba1b341da43e8
+          test -z "$(git -C .qa/portal-identity status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/f107-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const actual=readFileSync(process.env.RUNNER_TEMP+"/f107-paths","utf8").split("\0").filter(Boolean);
+            const exact=new Set([
+              ".github/workflows/portal-gsc-f107-session-candidate-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflinePortalGscSessionCandidateReview.php",
+              "apps/portal/labs/gsc-f107-session-bridge/portal-identity-fixture.sql",
+              "apps/portal/labs/gsc-f107-session-bridge/test-postgres.php",
+              "apps/portal/labs/gsc-f107-session-bridge/README.md"
+            ]);
+            if(actual.length!==exact.size||actual.some(p=>!exact.has(p)))
+              throw Error("F107: unexpected path in isolated review");
+            console.log("F107: 5 authorized paths");
+          '
+      - name: PHP syntax checks and locked composer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscSessionCandidateReview.php
+          php -l apps/portal/labs/gsc-f107-session-bridge/test-postgres.php
+          php -l .qa/portal-identity/apps/portal/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php
+          node --check apps/portal/labs/gsc-f104-bridge/emit-node.mjs
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress
+      - name: Install SQL reader from EXACT first-party Portal identity source
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: imagine_gsc_ci_test
+          PGUSER: imagine_ci
+          PGPASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-f107-session-bridge/portal-identity-fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f .qa/portal-identity/apps/portal/database/security/portal_browser_principal_candidate.sql
+          # PostgreSQL application runtime cannot inspect session tables.
+          psql -X -v ON_ERROR_STOP=1 -c "SELECT has_table_privilege('portal_browser_runtime','portal_auth_sessions','SELECT') IS FALSE AS no_direct_session_read;"
+      - name: Migrate synthetic GSC RLS and prove three SQL-backed scenarios
+        shell: bash
+        env:
+          APP_ENV: testing
+          APP_DEBUG: 'false'
+          DB_CONNECTION: pgsql
+          DB_HOST: '127.0.0.1'
+          DB_PORT: '5432'
+          DB_DATABASE: imagine_gsc_ci_test
+          DB_USERNAME: imagine_ci
+          DB_PASSWORD: local_test_only
+          PORTAL_GSC_F107_SESSION_LAB: '1'
+          PORTAL_GSC_F106_BINDING_LAB: '1'
+          PORTAL_OPENSEO_DAILY_LAB: '1'
+          PORTAL_GSC_LEDGER_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=imagine_gsc_ci_test'
+          PORTAL_GSC_LEDGER_USER: imagine_ci
+          PORTAL_GSC_LEDGER_PASSWORD: local_test_only
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          pushd apps/portal
+          for file in \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php; do
+            php artisan migrate --force --path="database/migrations/$file"
+          done
+          popd
+          for scenario in complete partial empty; do
+            node apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f107-session-bridge/test-postgres.php \
+              "$fixture" \
+              ".qa/portal-identity/apps/portal/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php"
+          done
+          pushd apps/portal
+          for file in \
+            2026_11_14_000006_create_portal_gsc_identity_scope_links.php \
+            2026_11_12_000005_enable_portal_gsc_tenant_rls.php \
+            2026_11_12_000004_create_portal_gsc_oauth_token_candidates.php \
+            2026_11_12_000003_create_portal_gsc_security_events.php \
+            2026_11_12_000002_create_portal_gsc_property_grants.php \
+            2026_11_12_000001_create_portal_gsc_oauth_states.php; do
+            php artisan migrate:rollback --force --path="database/migrations/$file"
+          done
+          popd
+      - name: Verify repo sources remain unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/portal-identity status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
