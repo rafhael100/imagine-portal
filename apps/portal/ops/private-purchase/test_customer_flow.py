@@ -84,7 +84,13 @@ with sync_playwright() as p:
         capture('04-customer-service-list.png')
         page.goto(BASE+'/client/account')
         assert user in page.locator('body').inner_text()
-        logout(); signup('demo-b-'+suffix)
+        logout()
+        page.goto(BASE+'/shop?product=performance&channel=google_ads')
+        assert page.url.rstrip('/')==BASE
+        signup('demo-b-'+suffix)
+        assert page.url.endswith('/shop?product=performance&channel=google_ads'),page.url
+        assert page.locator('[data-channel-origin="google_ads"]').count()==1
+        assert page.locator('[name=google_media]').input_value()==''
         page.goto(BASE+'/client/services')
         assert page.locator('tr[data-customer-order]').count()==0
         assert page.request.get(order_url).status==404
