@@ -45,7 +45,9 @@ jobs:
           # Inspect the real NON-CI Compose, including the one-shot broker,
           # against file metadata. No secret bytes are loaded or printed.
           docker compose -f compose.yaml config --format json > "$RUNNER_TEMP/portal-runtime-compose.json"
-          python3 preflight_private_runtime.py --inspect \
+          # .private is intentionally root-only; inspect stat metadata as
+          # root and never read key bytes. Runtime broker remains UID 70.
+          sudo python3 preflight_private_runtime.py --inspect \
             --compose-json "$RUNNER_TEMP/portal-runtime-compose.json" \
             --private-dir .private
           docker compose -f compose.yaml -f compose.ci.yaml up -d --wait database
