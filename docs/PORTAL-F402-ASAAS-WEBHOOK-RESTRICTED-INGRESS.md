@@ -12,7 +12,7 @@ O comando de gravação chama `docker compose run --rm -T --no-deps webhook-brok
 
 O SQL registra somente hash do ID do evento, tipo e referências técnicas. O campo `payment.status` ou `value` recebido no webhook não autoriza um pedido; o reconciliador financeiro deve consultar o Asaas independentemente. Eventos duplicados são idempotentes, e persistência indisponível retorna 503 para permitir entrega posterior.
 
-O processo listener exige `APP_ENV=staging`, `ASAAS_SANDBOX_WEBHOOK_ENABLED=1`, ausência de `GITHUB_ACTIONS=true` e arquivo `.private/asaas-webhook.json` regular (sem symlink), próprio do usuário, modo 0600 e tamanho limitado. **Nenhuma flag é ativada automaticamente** por este recorte.
+A configuração privada é aberta por um único descritor com `O_NOFOLLOW` e `O_NONBLOCK`, validada por `fstat` do próprio arquivo aberto (owner, modo, tipo, tamanho) e lida com limite máximo. Isto elimina a janela de troca entre `lstat` e `read_text`; testes rejeitam symlink, FIFO, permissões abertas, tamanho excessivo e JSON não-objeto.\n\nO processo listener exige `APP_ENV=staging`, `ASAAS_SANDBOX_WEBHOOK_ENABLED=1`, ausência de `GITHUB_ACTIONS=true` e arquivo `.private/asaas-webhook.json` regular (sem symlink), próprio do usuário, modo 0600 e tamanho limitado. **Nenhuma flag é ativada automaticamente** por este recorte.
 
 ## Portão de navegação da homologação privada
 
