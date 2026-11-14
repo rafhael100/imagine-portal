@@ -58,6 +58,10 @@ final readonly class AsaasWebhookReconciliationWorker
     /** @return array{processed:bool,outcome:string} Safe status only */
     public function processOne(): array
     {
+        // An eighth attempt can lose its HTTP response/ACK before commit.
+        // Expired last-chance leases must enter manual review, not remain
+        // unclaimable forever under the attempts<8 admission bound.
+        $this->reapExhaustedLeases();
         $lease=$this->claimNext();
         if ($lease===null) {
             return ['processed'=>false,'outcome'=>'empty'];
@@ -109,6 +113,27 @@ final readonly class AsaasWebhookReconciliationWorker
         }
         $this->finishWithLease($lease,$outcome);
         return ['processed'=>true,'outcome'=>$outcome];
+    }
+
+    private function reapExhaustedLeases(): void
+    {
+        if ($this->db->inTransaction()) {
+            throw new RuntimeException('Reconciler cleanup must use its own SQL transaction.');
+        }
+        try {
+            $q=$this->db->prepare(
+                "UPDATE portal_psp.asaas_inbox
+                    SET state='manual_review',
+                        lease_token=NULL, lease_expires_at=NULL,
+                        retry_after=NULL, last_checked_at=clock_timestamp()
+                  WHERE account_ref=CAST(? AS uuid)
+                    AND state='claimed' AND attempts>=8
+                    AND lease_expires_at<clock_timestamp()"
+            );
+            $q->execute([$this->accountRef]);
+        } catch (Throwable) {
+            throw new RuntimeException('Expired last-attempt lease cleanup unavailable.');
+        }
     }
 
     /** @return array{event_id:string,event_type:string,payment_id:string,attempts:int,lease_token:string}|null */
