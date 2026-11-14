@@ -76,8 +76,8 @@ try {
         (id,status,security_revision) VALUES (?,'active',5)")
         ->execute([$org]);
     $owner->prepare("INSERT INTO portal_memberships
-        (identity_id,organization_id,status,membership_revision)
-        VALUES (?,?,'active',7)")->execute([$actor,$org]);
+        (id,identity_id,organization_id,status,membership_revision)
+        VALUES (?,?,?,'active',7)")->execute([$member,$actor,$org]);
     $owner->prepare("INSERT INTO portal_auth_sessions
         (session_sha256,identity_id,organization_id,status,session_purpose,
         issued_at,expires_at,mfa_verified_at,identity_revision,
