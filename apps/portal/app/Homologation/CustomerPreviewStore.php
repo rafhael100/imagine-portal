@@ -158,7 +158,7 @@ final class CustomerPreviewStore
     public function payment(string $owner,string $id,int $revision,string $outcome): bool
     {
         return $this->scoped($owner, function () use ($owner,$id,$revision,$outcome): bool {
-            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL');
+            $q=$this->db->prepare('UPDATE purchase_rehearsal.customer_orders SET payment=?,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND briefing IS NULL AND payment_source='manual_test' AND NOT payment_hold');
             $q->execute([$outcome,$owner,$id,$revision]);
             return $q->rowCount()===1;
         });
@@ -167,10 +167,19 @@ final class CustomerPreviewStore
     public function briefing(string $owner,string $id,int $revision,array $briefing): bool
     {
         return $this->scoped($owner, function () use ($owner,$id,$revision,$briefing): bool {
-            $q=$this->db->prepare("UPDATE purchase_rehearsal.customer_orders SET briefing=?::jsonb,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND payment='approved' AND briefing IS NULL");
+            $q=$this->db->prepare("UPDATE purchase_rehearsal.customer_orders SET briefing=?::jsonb,revision=revision+1 WHERE customer_id=? AND id=? AND revision=? AND payment='approved' AND NOT payment_hold AND briefing IS NULL AND (payment_source='manual_test' OR EXISTS (SELECT 1 FROM purchase_rehearsal.sandbox_payment_intents i WHERE i.order_id=customer_orders.id AND i.state='approved'))");
             $q->execute([json_encode($briefing,JSON_THROW_ON_ERROR),$owner,$id,$revision]);
             return $q->rowCount()===1;
         });
+    }
+
+    public function sandboxRequest(string $owner,string $id,int $revision): void
+    {
+        (new \App\Homologation\Commerce\SandboxCheckoutIntent($this->db,$this))->request($owner,$id,$revision);
+    }
+    public function sandboxStatus(string $owner,string $id): ?array
+    {
+        return (new \App\Homologation\Commerce\SandboxCheckoutIntent($this->db,$this))->read($owner,$id);
     }
 
     public function orders(?string $owner): array
@@ -193,6 +202,7 @@ final class CustomerPreviewStore
     private function result(array $row): array
     {
         $row['revision']=(int)$row['revision'];
+        $row['payment_hold']=in_array($row['payment_hold']??null,[true,'t',1,'1'],true);
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $row['offer_snapshot']=$row['offer_snapshot']===null?null:json_decode($row['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
         unset($row['customer_id'],$row['request_key']);
