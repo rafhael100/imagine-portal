@@ -1,0 +1,54 @@
+name: Portal F398 - Conservative signed cursor replay without checkpoint (NO SERVING)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Infrastructure/Recovery/ConservativeSignedRevocationScanCandidate.php'
+      - 'infra/development/portal-recovery/f398-test-conservative-replay.php'
+      - '.github/workflows/portal-f398-conservative-replay-ci.yml'
+permissions:
+  contents: read
+jobs:
+  volatile-replay-no-unresolved-skips:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F396_CI: DISPOSABLE_ONLY
+      PORTAL_F398_CI: DISPOSABLE_ONLY
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: none
+      - name: Verify real signed Worker proof replay never skips unresolved SQL
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F398_CI" = DISPOSABLE_ONLY
+          php -l apps/portal/app/Infrastructure/Recovery/ConservativeSignedRevocationScanCandidate.php
+          php -l infra/development/portal-recovery/f398-test-conservative-replay.php
+          node --check infra/development/portal-recovery/f396-worker/test-signed-triage.mjs
+          if grep -R -E '(ConservativeSignedRevocationScanCandidate|f398-test)' \
+              apps/portal/routes apps/portal/bootstrap apps/portal/app/Providers; then
+            echo 'F398 must not bind to Laravel HTTP'
+            exit 1
+          fi
+          scratch="$(mktemp -d)"
+          chmod 700 "$scratch"
+          trap 'rm -rf -- "$scratch"' EXIT
+          export F396_SIGNED_FIXTURE_DIR="$scratch"
+          node infra/development/portal-recovery/f396-worker/test-signed-triage.mjs
+          php infra/development/portal-recovery/f398-test-conservative-replay.php "$scratch"
+          node --test infra/development/portal-recovery/f376-worker/test/witness.test.mjs
