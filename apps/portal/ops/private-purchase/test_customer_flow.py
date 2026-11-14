@@ -58,8 +58,9 @@ with sync_playwright() as p:
         assert forged.status==422, ('POST may not change the chosen offer',forged.status)
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         page.get_by_role('button',name='Criar pedido de teste').click()
-        check_private_headers(page.reload(),'owned order details')
+        page.wait_for_url('**/shop/orders/TEST-*',timeout=15000)
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
+        check_private_headers(page.goto(order_url),'owned order details')
         def check_next_step(expected):
             # Two independent Portal views must show the persisted order state.
             for section in ('services','finance'):
