@@ -76,7 +76,7 @@ final readonly class AsaasWebhookPgInbox
                 !is_array($event['payment']??null) ||
                 array_is_list($event['payment']) ||
                 !is_string($event['payment']['id']??null) ||
-                preg_match('/\Apay_[A-Za-z0-9]{6,64}\z/D',$event['payment']['id'])!==1) {
+                preg_match('/\Apay_[A-Za-z0-9_]{6,64}\z/D',$event['payment']['id'])!==1) {
                 throw new DomainException('Webhook event shape not accepted.');
             }
             // Asaas V3 includes account.id in the event root. Never accept

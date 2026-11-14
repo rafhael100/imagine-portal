@@ -47,7 +47,7 @@ final class AsaasSandboxGateway
     }
     public function payment(string $id,string $customer,string $reference,int $cents): array
     {
-        if (!preg_match('/\Apay_[a-zA-Z0-9]+\z/D',$id)) throw new InvalidArgumentException('Invalid payment id');
+        if (!preg_match('/\Apay_[A-Za-z0-9_]{6,64}\z/D',$id)) throw new InvalidArgumentException('Invalid payment id');
         $this->customer($customer); $this->reference($reference);
         $p=$this->call('GET','/payments/'.$id);
         if (($p['id']??null)!==$id) throw new RuntimeException('Payment mismatch');
@@ -58,7 +58,7 @@ final class AsaasSandboxGateway
         $value=$p['value']??null;
         if ((!is_int($value)&&!is_float($value))||!is_finite((float)$value)||abs($value*100-round($value*100))>0.00001||
             (int)round($value*100)!==$cents||($p['customer']??null)!==$customer||($p['externalReference']??null)!==$reference||
-            !preg_match('/\Apay_[a-zA-Z0-9]+\z/D',$p['id']??'')||!is_string($p['status']??null)) throw new RuntimeException('Payment financial mismatch');
+            !preg_match('/\Apay_[A-Za-z0-9_]{6,64}\z/D',$p['id']??'')||!is_string($p['status']??null)) throw new RuntimeException('Payment financial mismatch');
     }
     public static function settled(array $verifiedPayment): bool
     {

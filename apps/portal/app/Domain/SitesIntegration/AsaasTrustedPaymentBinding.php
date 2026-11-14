@@ -36,7 +36,7 @@ final readonly class AsaasTrustedPaymentBinding
         }
         if ($contractRevision<1 ||
             !in_array($productCode,['onepage','landing_page'],true) ||
-            preg_match('/\Apay_[A-Za-z0-9]{6,64}\z/D',$paymentId)!==1 ||
+            preg_match('/\Apay_[A-Za-z0-9_]{6,64}\z/D',$paymentId)!==1 ||
             preg_match('/\Acus_[A-Za-z0-9]{6,64}\z/D',$customerId)!==1 ||
             $amountCents<1 || $amountCents>999999999 ||
             !in_array($billingType,['PIX','CREDIT_CARD','BOLETO'],true) ||

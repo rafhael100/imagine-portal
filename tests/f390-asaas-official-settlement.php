@@ -116,6 +116,27 @@ $reader->payment['value']='69.90';
 testOk($source->findCurrentSettledOrder($order)?->settlementSha256===$hash,
     'cents normalized deterministically across decimal JSON representations');
 
+// Asaas 05/11/2026 public changelog: Sandbox payment identifiers can be
+// pay_<digit>_<opaque>. Do not infer the identifier from positions or reject
+// the underscore when binding to the complete official GET response.
+$newPaymentId='pay_1_a1B2c3D4e5F6g7';
+$local->binding=new AsaasTrustedPaymentBinding(
+    'tenant-asaas-ci',$order,'contract-asaas-ci',2,'onepage',
+    $newPaymentId,'cus_123456789000','IMAGINE-CI-ORDER-001',6990,'PIX'
+);
+$reader->payment=array_replace($paid,['id'=>$newPaymentId]);
+testOk($source->findCurrentSettledOrder($order)?->settlementRef===$newPaymentId &&
+    $reader->lastId===$newPaymentId,
+    'official read and trusted contract accept new opaque underscore payment ID');
+testOk(denied(static fn()=>new AsaasTrustedPaymentBinding(
+    'tenant-asaas-ci',$order,'contract-asaas-ci',2,'onepage',
+    'pay_1_a1B2c3D4e5F6g7/../admin','cus_123456789000',
+    'IMAGINE-CI-ORDER-001',6990,'PIX'
+)), 'unsafe payment IDs with path separators remain rejected');
+$local->binding=$bind;
+$reader->payment=$paid;
+
+
 $reject=[
     ['status'=>'PENDING'],
     ['status'=>'CONFIRMED'],
