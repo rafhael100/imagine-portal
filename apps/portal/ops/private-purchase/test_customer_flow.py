@@ -1,11 +1,22 @@
 """Two independent synthetic accounts, owned checkout and administrator visibility."""
-import os, json, pathlib, shutil, uuid
+import os, json, pathlib, shutil, uuid, hashlib
 from playwright.sync_api import sync_playwright
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
 fixture=pathlib.Path('/tmp/portal-customer-ci.json')
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
-    page=browser.new_page()
+    page=browser.new_page(viewport={'width':1280,'height':900})
+    evidence_dir=os.getenv('PORTAL_OWNED_PREVIEW_SHOTS_DIR') if os.getenv('GITHUB_ACTIONS')=='true' else None
+    shots=pathlib.Path(evidence_dir) if evidence_dir else None
+    evidence=[]
+    if shots: shots.mkdir(parents=True,exist_ok=True)
+    def capture(name):
+        if shots is None: return
+        assert name.endswith('.png') and '/' not in name
+        target=shots/name
+        assert not target.exists(), 'Never overwrite screenshot evidence'
+        page.screenshot(path=str(target),full_page=True)
+        evidence.append({'name':name,'sha256':hashlib.sha256(target.read_bytes()).hexdigest()})
     def login(user,password):
         page.goto(BASE)
         page.locator('[name=username]').fill(user)
@@ -28,6 +39,7 @@ with sync_playwright() as p:
         suffix=uuid.uuid4().hex[:10]
         def signup(user):
             page.goto(BASE+'/register')
+            if not evidence: capture('01-registration-blank.png')
             for name,value in [('name','Cliente ficticio '+user),('company','Aurora ficticia'),('username',user),('password','ci-owned-customer-only-2026'),('password_confirmation','ci-owned-customer-only-2026')]:
                 page.locator('[name='+name+']').fill(value)
             page.get_by_role('button',name='Criar conta e continuar').click()
@@ -37,6 +49,7 @@ with sync_playwright() as p:
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
+        capture('02-selected-onepage-offer.png')
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         page.get_by_role('button',name='Criar pedido de teste').click()
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
@@ -59,8 +72,10 @@ with sync_playwright() as p:
         page.get_by_role('button',name='Salvar briefing de teste').click()
         page.reload()
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
+        capture('03-owned-purchase-complete.png')
         page.goto(BASE+'/client/services')
         assert page.locator('tr[data-customer-order]').count()==1
+        capture('04-customer-service-list.png')
         page.goto(BASE+'/client/account')
         assert user in page.locator('body').inner_text()
         logout(); signup('demo-b-'+suffix)
@@ -79,6 +94,19 @@ with sync_playwright() as p:
         logout(); login('administrador.teste','ci-admin-only-2026')
         page.goto(BASE+'/admin/orders')
         assert order_id in page.locator('body').inner_text()
+        capture('05-admin-owned-order.png')
+        if shots:
+            expected=['01-registration-blank.png','02-selected-onepage-offer.png',
+                      '03-owned-purchase-complete.png','04-customer-service-list.png',
+                      '05-admin-owned-order.png']
+            assert [f['name'] for f in evidence]==expected, evidence
+            (shots/'manifest.json').write_text(json.dumps({
+                'source':'CI synthetic individual checkout only',
+                'files':evidence,
+                'no_real_customer_data':True,
+                'no_public_deploy':True,
+                'credentials_captured':False,
+            },sort_keys=True,indent=2)+'\n',encoding='utf-8')
         fixture.write_text(json.dumps({'user':user,'order':order_url}))
         print('PASS offer preserved through signup, owned idempotent purchase, fake payment, briefing, relogin, two-customer isolation, forged-owner rejection and administrator listing')
     browser.close()
