@@ -42,6 +42,23 @@ final class CustomerPreviewStore
         if ($policy === false) {
             throw new RuntimeException('Customer-scoped signed SQL policy is required.');
         }
+        $identityGuard = $db->query(
+            "SELECT relrowsecurity, relforcerowsecurity
+             FROM pg_class WHERE oid='purchase_rehearsal.customers'::regclass"
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($identityGuard)
+            || !in_array($identityGuard['relrowsecurity'] ?? null, [true, 't', 1, '1'], true)
+            || !in_array($identityGuard['relforcerowsecurity'] ?? null, [true, 't', 1, '1'], true)) {
+            throw new RuntimeException('Synthetic identity rows require forced row-level security.');
+        }
+        $identityPolicy = $db->query(
+            "SELECT 1 FROM pg_policies
+             WHERE schemaname='purchase_rehearsal'
+               AND tablename='customers'
+               AND policyname='customer_preview_read_scope'
+               AND qual LIKE '%preview_order_allowed%'"
+        )->fetchColumn();
+        if ($identityPolicy === false) throw new RuntimeException('Signed customer identity policy required.');
         $canReadSecret = $db->query(
             "SELECT has_table_privilege(current_user,'purchase_rehearsal.preview_scope_secret','SELECT')"
         )->fetchColumn();
@@ -86,14 +103,15 @@ final class CustomerPreviewStore
         $this->db->beginTransaction();
         try {
             $this->db->query("SELECT pg_advisory_xact_lock(724113)");
-            if ((int)$this->db->query('SELECT count(*) FROM purchase_rehearsal.customers')->fetchColumn()>=100) {
+            if ((int)$this->db->query('SELECT purchase_rehearsal.preview_customer_count()')->fetchColumn()>=100) {
                 throw new RuntimeException('Limite de contas de teste atingido.');
             }
-            $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customers(id,username,password_hash,name,company) VALUES (?,?,?,?,?) RETURNING *');
-            $q->execute(['demo-'.bin2hex(random_bytes(16)),$username,password_hash($password,PASSWORD_DEFAULT),$name,$company]);
-            $row=$q->fetch(PDO::FETCH_ASSOC);
+            $id='demo-'.bin2hex(random_bytes(16));
+            $q=$this->db->prepare('INSERT INTO purchase_rehearsal.customers(id,username,password_hash,name,company) VALUES (?,?,?,?,?)');
+            $q->execute([$id,$username,password_hash($password,PASSWORD_DEFAULT),$name,$company]);
             $this->db->commit();
-            return $row;
+            // No RETURNING: an unauthenticated new account cannot SELECT identity rows.
+            return ['id'=>$id,'username'=>$username,'name'=>$name,'company'=>$company];
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             throw $e;
@@ -102,7 +120,7 @@ final class CustomerPreviewStore
 
     public function account(string $username): ?array
     {
-        $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.customers WHERE username=? AND enabled=true');
+        $q=$this->db->prepare('SELECT * FROM purchase_rehearsal.preview_lookup_account(?)');
         $q->execute([$username]);
         return $q->fetch(PDO::FETCH_ASSOC)?:null;
     }
