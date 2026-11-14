@@ -57,11 +57,11 @@ GRANT SELECT(state_hash,tenant_ref,actor_ref,sealed_verifier,issued_at,
       UPDATE(consumed_at) ON public.portal_gsc_oauth_states
       TO portal_gsc_f114_state_reader;
 CREATE POLICY portal_f114_state_read ON public.portal_gsc_oauth_states
- FOR SELECT TO portal_gsc_f114_state_reader USING(
+ AS RESTRICTIVE FOR SELECT TO portal_gsc_f114_state_reader USING(
    tenant_ref=current_setting('app.tenant_ref',true) AND
    actor_ref=current_setting('app.actor_ref',true));
 CREATE POLICY portal_f114_state_consume ON public.portal_gsc_oauth_states
- FOR UPDATE TO portal_gsc_f114_state_reader USING(
+ AS RESTRICTIVE FOR UPDATE TO portal_gsc_f114_state_reader USING(
    tenant_ref=current_setting('app.tenant_ref',true) AND
    actor_ref=current_setting('app.actor_ref',true))
  WITH CHECK(
