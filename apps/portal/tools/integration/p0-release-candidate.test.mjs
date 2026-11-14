@@ -26,6 +26,19 @@ test('all three pin declarations and operational NO-GO fields are strict',()=>{
   }}));
   assert.throws(()=>assertManifest({...manifest,candidates:manifest.candidates.slice(0,2)}));
 });
+test('Sites release candidate requires all nine suites on SAME head, not isolated old PR successes',()=>{
+  const {c,pr,runs,compare}=fixtureCandidate('sites');
+  assert.equal(c.pr,470);
+  assert.equal(c.required_workflows.length,9);
+  assert.ok(c.required_workflows.some(n=>n.includes('F1-381 Portal PG18')));
+  assert.ok(c.required_workflows.some(n=>n.includes('F1-386 Portal Ed25519')));
+  assert.ok(c.required_workflows.some(n=>n.includes('F1-383 versioned operational')));
+  assert.equal(assessCandidate(c,pr,runs,compare).ci_status,'PINNED_CI_PASS');
+  const withoutTls=runs.filter(x=>!x.name.includes('F1-381 Portal PG18'));
+  assert.equal(assessCandidate(c,pr,withoutTls,compare).ci_status,'REVIEW_REQUIRED');
+  const fromOldBranch=runs.map(x=>({...x,head_sha:'9'.repeat(40)}));
+  assert.equal(assessCandidate(c,pr,fromOldBranch,compare).ci_status,'REVIEW_REQUIRED');
+});
 test('only same-SHA completed successful checks count',()=>{
   const {c,pr,runs,compare}=fixtureCandidate();
   const done=assessCandidate(c,pr,runs,compare);
