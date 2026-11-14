@@ -49,9 +49,10 @@ CREATE FUNCTION portal_capability_lab.assert_capability(
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp
 AS $$
-DECLARE secret text;
-DECLARE expected text;
-DECLARE payload text;
+DECLARE
+ secret text;
+ expected text;
+ payload text;
 BEGIN
  IF p_action NOT IN ('create','list','approve') OR
     p_organization NOT IN ('test-org-a','test-org-b') OR
