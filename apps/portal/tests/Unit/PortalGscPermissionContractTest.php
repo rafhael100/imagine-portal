@@ -66,7 +66,7 @@ final class PortalGscPermissionContractTest extends TestCase
         $actual = array_map(static fn (Permission $p): string => $p->value, Permission::cases());
         $required = [
             'services.view', 'services.manage', 'billing.view',
-            'members.manage', 'seo.gsc.connect',
+            'members.manage', 'seo.gsc.connect', 'seo.gsc.view',
         ];
         $optionalCrossStack = 'commercial.delivery-review.view';
         foreach ($required as $code) {
@@ -86,6 +86,11 @@ final class PortalGscPermissionContractTest extends TestCase
         self::assertIsString($migration);
         self::assertStringContainsString("'seo.gsc.connect'", $migration);
         self::assertStringNotContainsString("'seo.gsc.manage'", $migration);
+        $viewMigration = file_get_contents(__DIR__
+            .'/../../database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php');
+        self::assertIsString($viewMigration);
+        self::assertStringContainsString("'seo.gsc.view'", $viewMigration);
+        self::assertStringNotContainsString('portal_membership_grants VALUES', $viewMigration);
     }
 
     public function test_owner_does_not_implicitly_receive_search_console_connection(): void
@@ -133,6 +138,7 @@ final class PortalGscPermissionContractTest extends TestCase
         foreach ([
             'seo.gsc.manage',
             'seo.gsc.connect ',
+            'seo.gsc.view', // A connection grant NEVER implies a metrics-view grant.
             'seo.gsc.*',
             'webmasters',
             '*',
