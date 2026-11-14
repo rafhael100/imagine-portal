@@ -5,12 +5,23 @@ import argparse,http.cookiejar,json,os,pathlib,re,secrets,urllib.parse,urllib.re
 ROOT=pathlib.Path(__file__).resolve().parent
 BASE='http://127.0.0.1:18083/_preview/portal'
 STATE=ROOT/'.private/sandbox-smoke.json'
+class LocalRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self,req,fp,code,msg,headers,newurl):
+        if not newurl.startswith(BASE+'/'):raise RuntimeError('Unexpected redirect outside private loopback preview')
+        return super().redirect_request(req,fp,code,msg,headers,newurl)
 class Browser:
-    def __init__(self):self.http=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    def __init__(self):
+        self.cookies=http.cookiejar.CookieJar()
+        self.http=urllib.request.build_opener(LocalRedirect,urllib.request.HTTPCookieProcessor(self.cookies))
+    def request(self,path,data=None):
+        # The app correctly sets Secure cookies for public HTTPS. This operator-only
+        # smoke connects to its private loopback upstream; keep server flags intact.
+        req=urllib.request.Request(BASE+path,data=data,headers={'Cookie':'; '.join(c.name+'='+c.value for c in self.cookies),'Origin':'http://127.0.0.1:18083'})
+        return self.http.open(req,timeout=20)
     def get(self,path):
-        with self.http.open(BASE+path,timeout=20) as r:return r.geturl(),r.read().decode()
+        with self.request(path) as r:return r.geturl(),r.read().decode()
     def post(self,path,data):
-        with self.http.open(BASE+path,urllib.parse.urlencode(data).encode(),timeout=20) as r:return r.geturl(),r.read().decode()
+        with self.request(path,urllib.parse.urlencode(data).encode()) as r:return r.geturl(),r.read().decode()
     @staticmethod
     def field(html,name):
         m=re.search(r'name="'+re.escape(name)+r'"[^>]*value="([^"]*)"',html)
