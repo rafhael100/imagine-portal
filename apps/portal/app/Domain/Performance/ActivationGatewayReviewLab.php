@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Domain\Performance;
 
 use App\Domain\PaymentRouting\GatewayRoutingPreview;
+use App\Domain\PaymentRouting\GatewayPolicyReview;
 use App\Domain\PaymentRouting\PortalGatewayReviewExporter;
 use LogicException;
 
@@ -44,6 +45,13 @@ final class ActivationGatewayReviewLab
             || $activation['media_paid_directly_to_platforms'] !== true
             || $activation['management_postpaid_on_verified_actual'] !== true) {
             throw new LogicException('Activation review must be closed');
+        }
+
+        // A caller cannot pair a versioned CRM envelope with different
+        // gateway commercial terms. The candidate policy itself is read-only.
+        GatewayPolicyReview::validate($paymentPolicy);
+        if ($paymentPolicy['revision'] !== $policyRevision) {
+            throw new LogicException('Gateway policy revision mismatch');
         }
 
         // Bank fees belong only to the one-time Imagine activation amount.
