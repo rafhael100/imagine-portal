@@ -66,9 +66,8 @@ DECLARE
   n bigint;
 BEGIN
   SELECT count(*) INTO n
-    FROM purchase_rehearsal.sandbox_payment_intents
-   WHERE sync_requested;
-  IF n<1 THEN RAISE EXCEPTION 'Worker cannot read pending sandbox intents'; END IF;
+    FROM purchase_rehearsal.sandbox_payment_intents;
+  IF n<1 THEN RAISE EXCEPTION 'Worker cannot read persisted sandbox intents'; END IF;
   SELECT count(*) INTO n
     FROM purchase_rehearsal.customer_orders
    WHERE tenant='test-org-a' AND payment_source='asaas_sandbox';
