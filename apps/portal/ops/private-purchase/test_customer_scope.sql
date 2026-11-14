@@ -16,10 +16,14 @@ DECLARE n bigint;
 BEGIN
  SELECT count(*) INTO n FROM purchase_rehearsal.customer_orders;
  IF n <> 0 THEN RAISE EXCEPTION 'CRITICAL: shared SQL login sees customer orders with no claim'; END IF;
+ SELECT count(*) INTO n FROM purchase_rehearsal.customers;
+ IF n <> 0 THEN RAISE EXCEPTION 'CRITICAL: raw SQL can enumerate customer identities'; END IF;
  PERFORM set_config('imagine.preview_principal','admin',false);
  PERFORM set_config('imagine.preview_mac',repeat('0',64),false);
  SELECT count(*) INTO n FROM purchase_rehearsal.customer_orders;
  IF n <> 0 THEN RAISE EXCEPTION 'CRITICAL: forged admin claim permitted'; END IF;
+ SELECT count(*) INTO n FROM purchase_rehearsal.customers;
+ IF n <> 0 THEN RAISE EXCEPTION 'CRITICAL: forged admin can enumerate identities'; END IF;
  PERFORM set_config('imagine.preview_principal','demo-00000000000000000000000000000000',false);
  SELECT count(*) INTO n FROM purchase_rehearsal.customer_orders;
  IF n <> 0 THEN RAISE EXCEPTION 'CRITICAL: forged customer principal permitted'; END IF;
