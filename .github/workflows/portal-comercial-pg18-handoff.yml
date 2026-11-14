@@ -8,6 +8,7 @@ on:
       - 'apps/portal/tools/prepare_comercial_php_handoff_lab.py'
       - 'apps/portal/tools/test_comercial_php_handoff_browser.py'
       - 'apps/portal/tools/test_portal_sites_after_purchase_pg18.php'
+      - 'apps/portal/tools/test_sites_crm_after_purchase_pg18.php'
       - '.github/workflows/portal-comercial-pg18-handoff.yml'
   push:
     branches:
@@ -138,6 +139,29 @@ jobs:
           ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           path: _portal_sites_signer_candidate
           persist-credentials: false
+      - name: Checkout exact metadata-only Sites lead envelope library
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 057b6f859df5050c842a86d18676e6332a79d1f9
+          path: _sites_lead_candidate
+          persist-credentials: false
+      - name: Checkout exact metadata-only CRM lead envelope inspector
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 58ac8ee32483c9f6b70af95eac7207a7a9163200
+          path: _crm_metadata_candidate
+          persist-credentials: false
+      - name: Refuse unpinned CRM and Sites source or PHP syntax drift
+        run: |
+          set -euo pipefail
+          test "$(git -C _sites_lead_candidate rev-parse HEAD)" = 057b6f859df5050c842a86d18676e6332a79d1f9
+          test "$(git -C _crm_metadata_candidate rev-parse HEAD)" = 58ac8ee32483c9f6b70af95eac7207a7a9163200
+          php -l apps/portal/tools/test_sites_crm_after_purchase_pg18.php
+          php -l _sites_lead_candidate/src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php
+          php -l _sites_lead_candidate/src/Integration/SyntheticLeadBindingAuthorityPreflight.php
+          php -l _crm_metadata_candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Inspector.php
       - name: Check exact Portal/Sites signing and storage candidate pins
         run: |
           set -euo pipefail
@@ -180,6 +204,7 @@ jobs:
           php _sites_pg_candidate/tests/f363-pg-durable-nonce.php
           php _sites_pg_candidate/tests/f364-transactional-signed-ingress-adapter.php
           php apps/portal/tools/test_portal_sites_after_purchase_pg18.php
+          CRM_P0_AFTER_SITES_LAB=1 php apps/portal/tools/test_sites_crm_after_purchase_pg18.php
           echo 'NO-GO: two disposable PG18 databases, fake grants/keys, no real authorization, Sites publishing or VPS.'
       - name: Verify redacted CI evidence counts and NO-GO flags before archiving
         run: |
@@ -213,6 +238,41 @@ jobs:
               assert marker not in data, marker
           print('PASS: redacted evidence hash, counts, NO-GO and no customer/sample payload.')
           PY
+      - name: Verify CRM diagnostic evidence is redacted and NOT an authorization
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          path=Path(os.environ['RUNNER_TEMP'])/'p0-sites-crm-deny-evidence.json'
+          report=json.loads(path.read_text(encoding='utf-8'))
+          claims=report['claims']
+          canonical=json.dumps(claims,ensure_ascii=False,separators=(',',':'))
+          assert report['sha256']==hashlib.sha256(canonical.encode()).hexdigest()
+          assert report['signed'] is False
+          assert claims['release_gate']=='NO_GO'
+          assert claims['portal_originated_site_outbox_events_delivered']==2
+          assert claims['sites_crm_metadata_drafts_checked']==2
+          assert claims['crm_submissions_persisted']==0
+          assert claims['crm_leads_created']==0
+          assert claims['synthetic_only'] is True
+          assert claims['production_ready'] is False
+          for key in ('crm_delivery_authorized','visitor_payload_inspected',
+                      'external_authority_verified','real_customer_session_verified'):
+              assert claims[key] is False,key
+          raw=path.read_bytes()
+          assert len(raw)<3000
+          for token in (b'@',b'TEST-',b'Empresa',b'password',b'Bearer ',b'Cookie:'):
+              assert token not in raw
+          print('PASS: zero CRM delivery, exact pins, only diagnostic metadata and NO-GO evidence.')
+          PY
+      - name: Retain Sites-to-CRM NO-GO evidence for independent review
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-p0-sites-crm-deny-diagnostic
+          path: ${{ runner.temp }}/p0-sites-crm-deny-evidence.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain redacted homologation evidence without deployment
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
