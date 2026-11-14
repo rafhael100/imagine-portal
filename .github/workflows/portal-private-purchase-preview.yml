@@ -32,6 +32,12 @@ jobs:
           set -euo pipefail
           bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
           python3 apps/portal/ops/private-purchase/preflight_private_runtime.py --self-test
+          python3 apps/portal/ops/private-purchase/check_staging_runtime_readonly.py --self-test
+          if APP_ENV=staging PORTAL_STAGING_READONLY_CHECK=1 \
+            python3 apps/portal/ops/private-purchase/check_staging_runtime_readonly.py --check; then
+            echo 'CRITICAL: operator-only staging verifier ran in GitHub CI' >&2
+            exit 1
+          fi
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
