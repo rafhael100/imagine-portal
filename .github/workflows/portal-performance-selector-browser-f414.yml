@@ -1,0 +1,51 @@
+name: Portal F414 Performance selector Chromium synthetic browser proof
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/performance-checkout-selector/**'
+      - '.github/workflows/portal-performance-selector-browser-f414.yml'
+permissions:
+  contents: read
+jobs:
+  desktop-mobile-real-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PORTAL_F414_SCREENSHOTS: ${{ runner.temp }}/portal-f414-synthetic-shots
+    steps:
+      - name: Exact candidate checkout without stored credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Node 22 offline calculation tests
+        working-directory: apps/portal/labs/performance-checkout-selector
+        run: |
+          set -euo pipefail
+          node --check calculator.mjs
+          node --check ui.mjs
+          node --test test.mjs
+      - name: Install disposable Chromium browser-test runtime
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/portal-f414-browser
+          /tmp/portal-f414-browser/bin/pip install --disable-pip-version-check --no-cache-dir playwright==1.56.0
+          /tmp/portal-f414-browser/bin/python -m playwright install chromium
+      - name: Test desktop/mobile and block external requests
+        run: |
+          set -euo pipefail
+          /tmp/portal-f414-browser/bin/python apps/portal/labs/performance-checkout-selector/test_browser.py
+      - name: Preserve only fictitious screenshots for design review
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: portal-performance-f414-synthetic-browser-${{ github.run_id }}
+          path: ${{ env.PORTAL_F414_SCREENSHOTS }}/*.png
+          if-no-files-found: error
+          retention-days: 7
+      - name: Confirm no operational authorization
+        if: success()
+        run: |
+          echo 'F414 synthetic browser tests passed. Screenshots have no client data.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO real leads, PSP payments, Ads spend, production deploy or customer access.' >> "$GITHUB_STEP_SUMMARY"
