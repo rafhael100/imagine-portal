@@ -5,6 +5,9 @@ on:
       - feature/portal-f1-387-ed25519-entitlement-issuer-2026-11-14
   pull_request:
     paths:
+      - 'apps/portal/ops/private-purchase/customer-schema.sql'
+      - 'apps/portal/app/Homologation/CustomerPreviewStore.php'
+      - 'docs/PORTAL-P0-SIGNED-SQL-CHECKOUT-CONSOLIDATION.md'
       - 'apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php'

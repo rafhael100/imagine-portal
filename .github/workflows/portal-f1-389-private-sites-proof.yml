@@ -5,6 +5,9 @@ on:
       - feature/portal-f1-389-private-sites-entitlement-resolver-2026-11-14
   pull_request:
     paths:
+      - 'apps/portal/ops/private-purchase/customer-schema.sql'
+      - 'apps/portal/app/Homologation/CustomerPreviewStore.php'
+      - 'docs/PORTAL-P0-SIGNED-SQL-CHECKOUT-CONSOLIDATION.md'
       - 'apps/portal/app/Domain/SitesIntegration/PortalSitesEntitlementResolver.php'
       - 'apps/portal/app/Domain/SitesIntegration/PortalVerifiedSitesServiceIdentity.php'
       - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalVerifiedSitesService.php'

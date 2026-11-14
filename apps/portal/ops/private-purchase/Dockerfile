@@ -17,6 +17,7 @@ COPY apps/portal/app/Http/Controllers/PurchaseRehearsalController.php ./app/Http
 COPY apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php ./app/Providers/
 COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehearsal
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
+COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --no-interaction --no-scripts --no-plugins --classmap-authoritative
 USER 82:82
 ENTRYPOINT ["/bin/sh", "-ec"]
