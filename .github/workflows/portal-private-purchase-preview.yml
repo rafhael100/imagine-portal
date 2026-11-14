@@ -24,6 +24,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Offline fail-closed perimeter check (never probes external host in CI)
+        run: |
+          python3 -B apps/portal/ops/private-purchase/check_public_boundary.py --self-test
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -39,7 +42,7 @@ jobs:
           import time, urllib.request
           for attempt in range(60):
               try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_preview/portal').status==200
                   break
               except Exception:
                   time.sleep(1)
@@ -53,6 +56,7 @@ jobs:
       - name: Real Chromium and persistent restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_PREVIEW_LOGIN_REQUIRED: '1'
           PORTAL_PREVIEW_SCREENSHOTS_DIR: ${{ runner.temp }}/portal-review-shots
         run: |
           python3 -m venv /tmp/private-purchase-browser
@@ -66,7 +70,7 @@ jobs:
           import time, urllib.request
           for attempt in range(60):
               try:
-                  assert urllib.request.urlopen('http://127.0.0.1:18083/_rehearsal/purchase').status==200
+                  assert urllib.request.urlopen('http://127.0.0.1:18083/_preview/portal').status==200
                   break
               except Exception:
                   time.sleep(1)
@@ -78,6 +82,7 @@ jobs:
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
+          PORTAL_PREVIEW_SKIP_BAD_LOGIN: '1'
         run: |
           set -euo pipefail
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py

@@ -3,6 +3,19 @@ import shutil, os
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18776/_rehearsal/purchase')
+
+# Standalone purchase CI uses its isolated synthetic fixture by design.
+# Only the private Docker Portal preview requires the synthetic CLIENT login.
+PREVIEW_LOGIN_REQUIRED = os.environ.get('PORTAL_PREVIEW_LOGIN_REQUIRED') == '1'
+PREVIEW_LOGIN = BASE.split('/_rehearsal/')[0] + '/_preview/portal'
+
+def login_preview_client(page):
+    page.goto(PREVIEW_LOGIN)
+    page.locator('input[name=username]').fill('cliente.teste')
+    page.locator('input[name=password]').fill('ci-client-only-2026')
+    page.get_by_role('button',name='Entrar',exact=True).click()
+    assert page.url.endswith('/client/overview'), 'Synthetic preview client login required'
+
 with sync_playwright() as p:
     chrome = shutil.which('google-chrome') or shutil.which('chromium')
     assert chrome, 'CI Chromium executable is required'
@@ -10,6 +23,12 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width':1280,'height':900})
     failures = []
     page.on('pageerror', lambda e: failures.append(str(e)))
+    if PREVIEW_LOGIN_REQUIRED:
+        assert os.environ.get('GITHUB_ACTIONS') == 'true'
+        assert BASE == 'http://127.0.0.1:18083/_rehearsal/purchase'
+        guest = page.goto(BASE)
+        assert guest.status == 403, 'Purchase must deny unauthenticated preview visitors'
+        login_preview_client(page)
     for product, position in [('onepage',0),('landing-pages',1),('performance',2)]:
         page.goto(BASE)
         # A cross-site/absent-CSRF write must not reach the purchase store.
@@ -37,9 +56,15 @@ with sync_playwright() as p:
         page.reload()
         assert page.get_by_text('<script>alert(1)</script>',exact=True).count() == 1
         assert page.locator('script').count() == 0
-        # A fresh browser context has no old page memory/cookies; CI server's fixed
-        # synthetic actor still owns the persisted row. This is not a login test.
+        # A separate browser context starts as a guest and cannot read even
+        # synthetic orders. Reuse only the CLIENT's authenticated session
+        # cookie to test durable readback without exhausting the 6/minute
+        # login limiter across the private preview and restart suite.
         other = browser.new_page()
+        if PREVIEW_LOGIN_REQUIRED:
+            denied = other.goto(order_url)
+            assert denied.status == 403
+            other.context.add_cookies(page.context.cookies())
         other.goto(order_url)
         other.get_by_role('heading',name='Briefing salvo no Portal de teste').wait_for()
         other.close()
