@@ -1,0 +1,60 @@
+name: Portal F1-389 private Sites entitlement resolver parity
+on:
+  push:
+    branches:
+      - feature/portal-f1-389-private-sites-entitlement-resolver-2026-11-14
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PortalSitesEntitlementResolver.php'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalVerifiedSitesServiceIdentity.php'
+      - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalVerifiedSitesService.php'
+      - 'tests/f389-private-sites-proof-resolver.php'
+      - '.github/workflows/portal-f1-389-private-sites-proof.yml'
+permissions:
+  contents: read
+jobs:
+  private-proof-resolver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      PORTAL_F389_RESOLVER_CI: '1'
+      F389_SITES_CHECKOUT: ./sites-candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 4a2b7e4503cfb0b8d7bfb9d0d4bb7ea43c4198d5
+          path: sites-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium
+          coverage: none
+      - name: Validate cross-repository source and strict proof request contract
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-candidate rev-parse HEAD)" = 4a2b7e4503cfb0b8d7bfb9d0d4bb7ea43c4198d5
+          php -l apps/portal/app/Domain/SitesIntegration/PortalSitesEntitlementResolver.php
+          php -l apps/portal/app/Domain/SitesIntegration/PortalVerifiedSitesServiceIdentity.php
+          php -l apps/portal/app/Domain/SitesIntegration/DenyingPortalVerifiedSitesService.php
+          php -l tests/f389-private-sites-proof-resolver.php
+          if PORTAL_F389_RESOLVER_CI=0 php tests/f389-private-sites-proof-resolver.php; then
+            echo 'Synthetic S2S identity guard missing'
+            exit 1
+          fi
+          php tests/f389-private-sites-proof-resolver.php
+      - name: Prove no operational HTTP route or IAM source exists
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalSitesEntitlementResolver' apps/portal/app/Providers apps/portal/routes
+          ! grep -R -n 'PortalVerifiedSitesServiceIdentity' apps/portal/app/Providers apps/portal/routes
+          echo 'F1-389 is a deny-by-default internal resolver; no real PSP, mTLS principal or payment is connected.'
