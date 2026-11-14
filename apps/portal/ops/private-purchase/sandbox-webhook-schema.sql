@@ -1,7 +1,9 @@
 BEGIN;
 DO $$ BEGIN IF current_database()<>'portal_purchase_rehearsal' THEN RAISE EXCEPTION 'Wrong database'; END IF;
-IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='purchase_rehearsal_hook') THEN
- CREATE ROLE purchase_rehearsal_hook NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='purchase_rehearsal_hook'
+  AND rolcanlogin AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreatedb
+  AND NOT rolcreaterole AND NOT rolinherit AND NOT rolreplication) THEN
+ RAISE EXCEPTION 'NO-GO: webhook must have its own restricted SQL LOGIN, not superuser SET ROLE';
 END IF; END $$;
 CREATE TABLE IF NOT EXISTS purchase_rehearsal.sandbox_webhook_inbox (
  event_hash text PRIMARY KEY CHECK(event_hash~'^[a-f0-9]{64}$'),
