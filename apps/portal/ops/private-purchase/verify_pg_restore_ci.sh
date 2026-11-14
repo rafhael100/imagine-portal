@@ -66,8 +66,11 @@ test "$rls" = "t" || {
 # A company-level SQL login must still see zero customers' orders without a
 # signed, transaction-local principal, even AFTER restoring the archive.
 unscoped="$(docker compose exec -T database psql -X -A -t -v ON_ERROR_STOP=1 \
-  -U postgres -d "$restored" -c   "SET ROLE purchase_rehearsal_a; SELECT count(*) FROM purchase_rehearsal.customer_orders;")"
-[[ "$(printf '%s\n' "$unscoped" | tail -n 1)" == "0" ]] || {
-  echo 'NO-GO: restored database allowed an unscoped customer order read' >&2; exit 1;
+  -U purchase_rehearsal_a -d "$restored" -c \
+  "SELECT (SELECT count(*) FROM purchase_rehearsal.customer_orders)::text || ':' ||
+          (SELECT count(*) FROM purchase_rehearsal.customers)::text || ':' ||
+          (SELECT count(*) FROM purchase_rehearsal.customer_order_events)::text")"
+[[ "$unscoped" == "0:0:0" ]] || {
+  echo 'NO-GO: restored database allowed unscoped customer, order or event reads' >&2; exit 1;
 }
 echo 'PASS synthetic PG18 backup streamed into independent database, counts/RLS/role verified; VPS/DR still NO-GO'
