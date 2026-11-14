@@ -132,6 +132,12 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
           cd apps/portal/ops/private-purchase
+          # Prove the shared application SQL login cannot enumerate another
+          # customer's identity, orders, events, invoices or financial reports.
+          for sql in test_customer_scope.sql test_customer_work_scope.sql test_sandbox_scope.sql test_signed_financial_scope.sql; do
+            docker compose exec -T database psql -X -v ON_ERROR_STOP=1 \
+              -U postgres -d portal_purchase_rehearsal < "$sql"
+          done
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-before
           docker compose restart database application
           python3 - <<'PY'
