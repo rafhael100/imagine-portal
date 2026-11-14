@@ -26,7 +26,7 @@ foreach ([[],['google_ads'=>69999],['google_ads'=>140000,'meta_ads'=>0],['facebo
 denied(fn()=>$c->quote('forged')); check(strlen($c->version())===64);
 foreach (['700'=>70000,'700,01'=>70001,'700.1'=>70010,'0'=>0] as $s=>$cents) check(Catalog::money((string)$s)===$cents);
 foreach (['-700','7e2','NaN','700.001','1.000,00',' 700','700foo'] as $s) denied(fn()=>Catalog::money($s));
-$payment=['id'=>'pay_test1','customer'=>'cus_test1','value'=>330,'externalReference'=>'imagine:TEST:setup:1','status'=>'PENDING','billingType'=>'UNDEFINED'];
+$payment=['id'=>'pay_test01','customer'=>'cus_test1','value'=>330,'externalReference'=>'imagine:TEST:setup:1','status'=>'PENDING','billingType'=>'UNDEFINED'];
 $calls=[];
 $g=new Gateway('synthetic-test-only',function($method,$url,$headers,$body) use (&$calls,$payment) {
     $calls[]=[$method,$url,$body]; check(str_starts_with($url,'https://api-sandbox.asaas.com/v3/'));
@@ -34,11 +34,26 @@ $g=new Gateway('synthetic-test-only',function($method,$url,$headers,$body) use (
 });
 check($g->createPayment('cus_test1','imagine:TEST:setup:1',33000,'2026-11-14')['status']==='PENDING');
 check(count($calls)===1); check($calls[0][2]['value']===330); check(!isset($calls[0][2]['installmentCount']));
-check(!Gateway::settled($g->payment('pay_test1','cus_test1','imagine:TEST:setup:1',33000)));
-denied(fn()=>$g->payment('pay_test1','cus_other','imagine:TEST:setup:1',33000));
-denied(fn()=>$g->payment('pay_test1','cus_test1','imagine:OTHER:setup:1',33000));
-denied(fn()=>$g->payment('pay_test1','cus_test1','imagine:TEST:setup:1',1));
+check(!Gateway::settled($g->payment('pay_test01','cus_test1','imagine:TEST:setup:1',33000)));
+denied(fn()=>$g->payment('pay_test01','cus_other','imagine:TEST:setup:1',33000));
+denied(fn()=>$g->payment('pay_test01','cus_test1','imagine:OTHER:setup:1',33000));
+denied(fn()=>$g->payment('pay_test01','cus_test1','imagine:TEST:setup:1',1));
 denied(fn()=>$g->payment('../credentials','cus_test1','imagine:TEST:setup:1',33000));
+
+// Asaas official changelog (05/11/2026): new IDs can include a numeric
+// segment separated by underscore. Treat the whole payment ID as opaque.
+$newId='pay_1_a1B2c3D4e5F6g7';
+$newRecord=array_replace($payment,['id'=>$newId]);
+$newReader=new Gateway('synthetic-test-only',
+    static fn($method,$url,$headers,$body)=>['status'=>200,'body'=>$newRecord]
+);
+check($newReader->payment($newId,'cus_test1','imagine:TEST:setup:1',33000)['id']===$newId);
+foreach (['pay_1_a1B2c3D4e5F6g7/../customers',
+          'pay_1_a1B2c3D4e5F6g7%2Fadmin',
+          'pay_1_a1B2c3D4e5F6g7?test=1'] as $badId) {
+    denied(fn()=>$newReader->payment($badId,'cus_test1','imagine:TEST:setup:1',33000));
+}
+
 denied(fn()=>$g->createPayment('cus_test1','imagine:TEST:setup:1',33000,'2026-02-30'));
 denied(fn()=>new Gateway('')); denied(fn()=>new Gateway("test\r\nHeader: forged"));
 foreach (['PENDING','OVERDUE','REFUNDED','DELETED','CHARGEBACK_REQUESTED'] as $status) check(!Gateway::settled(array_replace($payment,['status'=>$status])));
