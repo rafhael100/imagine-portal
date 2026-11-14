@@ -206,6 +206,29 @@ assertF392($worker->processOne()===['processed'=>true,'outcome'=>'retry_wait'],
     'official PSP outage fails closed without acknowledging payment received');
 $reader->outage=false;
 
+// If the eighth attempted reconciliation loses its ACK or worker dies,
+// expiry MUST trigger terminal manual review, never a permanently orphaned
+// row with attempts=8 and an expired lease.
+emitF392($inbox,$token,$account,'evt_0000000000000007','PAYMENT_RECEIVED',$bind->paymentId);
+$admin->exec(
+    "UPDATE portal_psp.asaas_inbox
+        SET state='claimed', attempts=8,
+            lease_token='aaaa1111-bbbb-4222-8333-cccc44444444',
+            lease_expires_at=clock_timestamp()-INTERVAL '2 seconds',
+            retry_after=NULL
+      WHERE event_id='evt_0000000000000007'"
+);
+assertF392($worker->processOne()===['processed'=>false,'outcome'=>'empty'],
+    'reap expired final lease without issuing another PSP read');
+$state7=$admin->query(
+    "SELECT state, lease_token IS NULL AS cleared
+       FROM portal_psp.asaas_inbox
+      WHERE event_id='evt_0000000000000007'"
+)->fetch(PDO::FETCH_ASSOC);
+assertF392($state7['state']==='manual_review' &&
+    in_array($state7['cleared'],[true,'t','1'],true),
+    'crashed eighth attempt is durably escalated with no stale lease');
+
 foreach ([
     "UPDATE portal_psp.asaas_inbox SET payment_id='pay_77777777777'",
     'DELETE FROM portal_psp.asaas_inbox',
