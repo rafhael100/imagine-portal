@@ -7,6 +7,9 @@ DO $$ BEGIN
  END IF;
 END $$;
 ALTER TABLE purchase_rehearsal.customer_orders ADD COLUMN IF NOT EXISTS payment_source text NOT NULL DEFAULT 'manual_test' CHECK(payment_source IN ('manual_test','asaas_sandbox'));
+-- Reversal/chargeback never erases an accepted briefing, but must freeze
+-- follow-up and provisioning after independent PSP re-verification.
+ALTER TABLE purchase_rehearsal.customer_orders ADD COLUMN IF NOT EXISTS payment_hold boolean NOT NULL DEFAULT false;
 CREATE TABLE IF NOT EXISTS purchase_rehearsal.sandbox_payment_intents (
  order_id text PRIMARY KEY REFERENCES purchase_rehearsal.customer_orders(id),
  state text NOT NULL DEFAULT 'queued' CHECK(state IN ('queued','customer_creating','customer_ready','payment_creating','pending','approved','reversed','failed')),
@@ -30,6 +33,6 @@ GRANT SELECT ON purchase_rehearsal.sandbox_payment_intents TO purchase_rehearsal
 GRANT INSERT(order_id,amount_cents,due_date) ON purchase_rehearsal.sandbox_payment_intents TO purchase_rehearsal_a;
 GRANT UPDATE(sync_requested) ON purchase_rehearsal.sandbox_payment_intents TO purchase_rehearsal_a;
 GRANT UPDATE(state,customer_ref,payment_ref,invoice_url,provider_status,sync_requested,updated_at) ON purchase_rehearsal.sandbox_payment_intents TO purchase_rehearsal_psp;
-GRANT SELECT(id,tenant,payment_source,payment,revision) ON purchase_rehearsal.customer_orders TO purchase_rehearsal_psp;
-GRANT UPDATE(payment,revision) ON purchase_rehearsal.customer_orders TO purchase_rehearsal_psp;
+GRANT SELECT(id,tenant,payment_source,payment,payment_hold,revision) ON purchase_rehearsal.customer_orders TO purchase_rehearsal_psp;
+GRANT UPDATE(payment,payment_hold,revision) ON purchase_rehearsal.customer_orders TO purchase_rehearsal_psp;
 COMMIT;
