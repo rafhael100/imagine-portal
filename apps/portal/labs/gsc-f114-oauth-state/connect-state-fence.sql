@@ -142,8 +142,9 @@ BEGIN
  INSERT INTO public.portal_gsc_oauth_states(
    state_hash,tenant_ref,actor_ref,sealed_verifier,issued_at,expires_at)
  VALUES(p_state_hash,tenant_ref,actor_ref,p_sealed_verifier,
-        p_issued,p_expires)
- ON CONFLICT(state_hash) DO NOTHING;
+        p_issued,p_expires);
+ -- PRIMARY KEY(state_hash) itself rejects duplicates. Do not ask the
+ -- NOLOGIN owner for SELECT privilege merely for ON CONFLICT inference.
  IF NOT FOUND THEN RETURN;END IF;
  RETURN NEXT;
 END;
