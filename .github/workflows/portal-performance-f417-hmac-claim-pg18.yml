@@ -1,0 +1,47 @@
+name: Portal F417 signed HMAC claim end-to-end offline
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/performance-claim-f417/**'
+      - '.github/workflows/portal-performance-f417-hmac-claim-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  signed-claim:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate SHA without stored credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Compile and generate fake PHP channel HMAC claim
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/performance-claim-f417/generate-fixture.php
+          php apps/portal/labs/performance-claim-f417/generate-fixture.php > /tmp/f417-synthetic-claim.sql
+          test -s /tmp/f417-synthetic-claim.sql
+      - name: Validate signed PHP -> PostgreSQL18 one-time use without network
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f portal-f417-pg >/dev/null 2>&1 || true; rm -f /tmp/f417-synthetic-claim.sql' EXIT
+          docker run -d --name portal-f417-pg --network none \
+            -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18
+          for attempt in $(seq 1 45); do
+            if docker exec portal-f417-pg pg_isready -q -U postgres; then break; fi
+            sleep 1
+          done
+          docker exec portal-f417-pg pg_isready -U postgres
+          docker exec portal-f417-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c 'CREATE DATABASE portal_purchase_rehearsal'
+          docker exec -i portal-f417-pg psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal \
+            < apps/portal/labs/performance-claim-f416/schema.sql
+          docker exec -i portal-f417-pg psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal \
+            < apps/portal/labs/performance-claim-f416/test-claims.sql
+          docker exec -i portal-f417-pg psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal < /tmp/f417-synthetic-claim.sql
+          echo 'F417: PHP HMAC-bound channel review -> one-use SQL claim verified, no PSP.' >> "$GITHUB_STEP_SUMMARY"
