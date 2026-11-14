@@ -17,7 +17,14 @@ for entry in \
 done
 php -l apps/portal/tools/test_owned_customer_to_sites_pg18.php >/dev/null
 container="imagine-ownedp0-sites-db"
-cleanup() { docker rm -f "$container" >/dev/null 2>&1 || :; }
+cleanup() {
+  # The browser-to-Sites intermediate extract must never survive a failed test.
+  # This runs on success, errors and interrupted CI executions.
+  if [[ -n "${RUNNER_TEMP:-}" ]]; then
+    rm -f -- "$RUNNER_TEMP/p0-owned-commercial-orders.tsv"
+  fi
+  docker rm -f "$container" >/dev/null 2>&1 || :
+}
 trap cleanup EXIT
 docker run --rm -d --name "$container" \
   -e POSTGRES_DB=sites_f360_lab \
