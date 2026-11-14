@@ -6,6 +6,17 @@ fixture=pathlib.Path('/tmp/portal-customer-ci.json')
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page()
+    def check_private_headers(response,where):
+        assert response.status==200,(where,response.status)
+        headers=response.headers
+        assert 'no-store' in headers.get('cache-control','').lower(),(where,'cache')
+        assert headers.get('x-robots-tag','').lower()=='noindex, nofollow',(where,'robots')
+        assert headers.get('referrer-policy','').lower()=='no-referrer',(where,'referrer')
+        assert headers.get('x-content-type-options','').lower()=='nosniff',(where,'sniff')
+        assert headers.get('x-frame-options','').lower()=='deny',(where,'frames')
+        csp=headers.get('content-security-policy','')
+        for directive in ["default-src 'none'","form-action 'self'","frame-ancestors 'none'","base-uri 'none'"]:
+            assert directive in csp,(where,'CSP',directive,csp)
     def login(user,password):
         page.goto(BASE)
         page.locator('[name=username]').fill(user)
@@ -20,14 +31,14 @@ with sync_playwright() as p:
     if os.environ.get('CUSTOMER_REOPEN')=='1':
         saved=json.loads(fixture.read_text())
         login(saved['user'],'ci-owned-customer-only-2026')
-        assert page.goto(saved['order']).status==200
+        check_private_headers(page.goto(saved['order']),'reopened order after restart')
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
         assert 'Aurora ficticia' in page.locator('body').inner_text()
         print('PASS owned purchase, account and briefing recovered after database/application restart')
     else:
         suffix=uuid.uuid4().hex[:10]
         def signup(user):
-            page.goto(BASE+'/register')
+            check_private_headers(page.goto(BASE+'/register'),'registration before signup')
             for name,value in [('name','Cliente ficticio '+user),('company','Aurora ficticia'),('username',user),('password','ci-owned-customer-only-2026'),('password_confirmation','ci-owned-customer-only-2026')]:
                 page.locator('[name='+name+']').fill(value)
             page.get_by_role('button',name='Criar conta e continuar').click()
@@ -36,6 +47,7 @@ with sync_playwright() as p:
         assert page.url.rstrip('/')==BASE
         signup(user)
         assert page.url.endswith('/shop?product=onepage'),page.url
+        check_private_headers(page.goto(BASE+'/shop?product=onepage'),'selected offer')
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         token=csrf(); key=page.locator('[name=request_key]').input_value()
         # Tampering with the chosen SKU after a Comercial onepage handoff
@@ -46,6 +58,7 @@ with sync_playwright() as p:
         assert forged.status==422, ('POST may not change the chosen offer',forged.status)
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         page.get_by_role('button',name='Criar pedido de teste').click()
+        check_private_headers(page.reload(),'owned order details')
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
         def check_next_step(expected):
             # Two independent Portal views must show the persisted order state.
@@ -75,7 +88,7 @@ with sync_playwright() as p:
         for name in ['business','goal','audience','materials']:
             page.locator('[name='+name+']').fill('Aurora ficticia')
         page.get_by_role('button',name='Salvar briefing de teste').click()
-        page.reload()
+        check_private_headers(page.reload(),'completed briefing view')
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
         check_next_step('Aguardar análise do briefing')
         page.goto(BASE+'/client/services')
