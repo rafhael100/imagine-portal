@@ -1,0 +1,72 @@
+name: Imagine P0 consolidated candidate - read-only GitHub CI evidence and NO-GO
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/integration/p0-release-candidate*'
+      - '.github/workflows/portal-p0-candidate-readiness.yml'
+      - 'docs/PORTAL-P0-CONSOLIDATION-RELEASE-GATES.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: portal-p0-candidate-readiness-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  three-repo-exact-head-gate:
+    name: Validate three pinned candidate SHAs, latest workflows and branch divergence (NO-GO)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate revision without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Node 24 for source-verified cross-repository read-only audit
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Unit tests against fake SHAs, stale checks and forged release approvals
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/integration/p0-release-candidate.mjs
+          node --test apps/portal/tools/integration/p0-release-candidate.test.mjs
+          node --test apps/portal/tools/integration/inventory.test.mjs
+      - name: Read three CURRENT GitHub PR heads and their exact-SHA CI status
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          P0_RELEASE_INVENTORY: '1'
+        run: |
+          set -euo pipefail
+          node apps/portal/tools/integration/p0-release-candidate.mjs
+      - name: Validate sanitizer and NO-GO before publishing diagnostic artifact
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'imagine-p0-release-audit.json'
+          raw=p.read_bytes()
+          assert len(raw)<50000
+          for token in (b'Bearer ',b'Cookie:',b'password_hash',b'private_key',b'ACCESS_TOKEN'):
+              assert token not in raw
+          r=json.loads(raw)
+          assert r['schema']=='imagine.p0.release-candidate-audit.v1'
+          assert r['decision']=={
+            'release_gate':'NO_GO','may_merge':False,'may_deploy':False,
+            'may_bill':False,'may_publish':False,'may_use_real_customer_data':False
+          }
+          assert len(r['candidates'])==3
+          assert r['ci_pins_verified'] is True
+          print('PASS three exact GitHub SHAs audited; release always NO-GO')
+          PY
+      - name: Retain metadata-only risk record for 7 days (no credentials or deploy)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: imagine-p0-three-repository-readiness-no-go
+          path: ${{ runner.temp }}/imagine-p0-release-audit.json
+          retention-days: 7
+          if-no-files-found: error
