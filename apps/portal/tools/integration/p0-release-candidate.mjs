@@ -156,7 +156,7 @@ export function formatSummary(report) {
 }
 async function github(path,token){
   if(typeof path!=='string' || !/^\/repos\/rafhael100\/imagine-(?:portal|comercial|sites)\//.test(path) ||
-     path.includes('..') || path.includes('#'))throw new Error('Unapproved GitHub API path');
+     /(?:^|\/)\.\.(?:\/|$)/.test(path) || path.includes('#'))throw new Error('Unapproved GitHub API path');
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),20000);
   try {
