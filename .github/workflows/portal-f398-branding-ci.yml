@@ -28,7 +28,8 @@ jobs:
           test "$(head -c 8 assets/logo-imagine.png | od -An -tx1 | tr -d '[:space:]')" = "89504e470d0a1a0a"
           grep -Fq -- '--pi-accent:#f9941d' apps/portal/resources/views/components/portal/styles.blade.php
           grep -Fq -- '--pi-ink:#171b19' apps/portal/resources/views/components/portal/styles.blade.php
-          grep -Fq 'src="/_development/branding/logo-imagine.png"' apps/portal/resources/views/components/portal/brand.blade.php
+          grep -Fq 'role="img" aria-label="Imagine Comunicação Digital"' apps/portal/resources/views/components/portal/brand.blade.php
+          grep -Fq "background-image:url('/_development/branding/logo-imagine.png')" apps/portal/resources/views/components/portal/styles.blade.php
           grep -Fq "img-src 'self' data:" apps/portal/resources/views/components/portal/layout.blade.php
           grep -Fq 'COPY assets/logo-imagine.png ./public/_development/branding/logo-imagine.png' infra/development/portal-db/Dockerfile
           grep -Fxq '!assets/logo-imagine.png' infra/development/portal-db/Dockerfile.dockerignore
