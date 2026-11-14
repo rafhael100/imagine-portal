@@ -12,7 +12,8 @@ docker run -d --rm --name "$name" --network none \
   -e POSTGRES_PASSWORD=ci-synthetic-preflight-only postgres:18-alpine >/dev/null
 ready=0
 for i in $(seq 1 40); do
-  if docker exec "$name" pg_isready -U postgres -d portal_purchase_rehearsal >/dev/null 2>&1; then
+  # pg_isready can succeed before the requested POSTGRES_DB has finished initdb.
+  if docker exec "$name" psql -X -At -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal -c 'SELECT 1' >/dev/null 2>&1; then
     ready=1; break
   fi
   sleep 1
