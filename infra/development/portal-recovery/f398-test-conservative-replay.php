@@ -10,7 +10,7 @@ if(PHP_SAPI!=='cli'||$argc!==2
     ||getenv('RUNNER_ENVIRONMENT')!=='github-hosted'
     ||getenv('PORTAL_F398_CI')!=='DISPOSABLE_ONLY')exit(64);
 
-$root=dirname(__DIR__,4).'/apps/portal/app/Infrastructure/Recovery/';
+$root=dirname(__DIR__,3).'/apps/portal/app/Infrastructure/Recovery/';
 foreach([
     'PortalHashedSessionStatusCandidate.php',
     'SignedRevocationCursorCandidateVerifier.php',
