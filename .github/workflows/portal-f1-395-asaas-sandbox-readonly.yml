@@ -1,0 +1,57 @@
+name: Portal F1-395 Asaas Sandbox read-only preflight (offline)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/AsaasSandboxReadinessProbe.php'
+      - 'apps/portal/app/Homologation/Commerce/AsaasSandboxGateway.php'
+      - 'apps/portal/ops/psp/asaas-sandbox-readonly-preflight.php'
+      - 'apps/portal/tools/test_asaas_sandbox_readonly_probe.php'
+      - 'apps/portal/tools/test_commerce.php'
+      - '.github/workflows/portal-f1-395-asaas-sandbox-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  sandbox-readonly-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - name: Checkout exact candidate without saved credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install PHP for isolated offline tests
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring
+          coverage: none
+          tools: none
+      - name: Check PHP syntax
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/AsaasSandboxReadinessProbe.php
+          php -l apps/portal/app/Homologation/Commerce/AsaasSandboxGateway.php
+          php -l apps/portal/ops/psp/asaas-sandbox-readonly-preflight.php
+          php -l apps/portal/tools/test_asaas_sandbox_readonly_probe.php
+      - name: Verify pinned GET-only endpoint and production credential rejection
+        run: |
+          set -euo pipefail
+          php apps/portal/tools/test_asaas_sandbox_readonly_probe.php
+          php apps/portal/tools/test_commerce.php
+      - name: Live probe cannot run inside GitHub Actions even with an explicit opt-in
+        env:
+          APP_ENV: staging
+          ASAAS_SANDBOX_READONLY_PROBE: '1'
+        run: |
+          set -euo pipefail
+          if php apps/portal/ops/psp/asaas-sandbox-readonly-preflight.php \
+              --probe --credential-file=/tmp/imaginary-file; then
+            echo 'CRITICAL: live probe allowed within CI' >&2
+            exit 1
+          fi
+          echo 'PASS no live PSP access; NO-GO until explicit operator staging action' >> "$GITHUB_STEP_SUMMARY"

@@ -63,7 +63,15 @@ final class AsaasSandboxGateway
     public static function settled(array $verifiedPayment): bool
     {
         if (($verifiedPayment['deleted']??false)!==false) return false;
-        return ($verifiedPayment['status']??null)==='RECEIVED'||(($verifiedPayment['status']??null)==='CONFIRMED'&&($verifiedPayment['billingType']??null)==='CREDIT_CARD');
+        // A mere CONFIRMED card authorization is NOT settled installation
+        // evidence. Keep this display helper aligned with official F1-390:
+        // no independent Sites grant without a fresh PSP RECEIVED read.
+        return ($verifiedPayment['status']??null)==='RECEIVED'
+            && ($verifiedPayment['refundedDate']??null)===null
+            && ($verifiedPayment['refunds']??[])===[]
+            && ($verifiedPayment['chargeback']??null)===null
+            && ($verifiedPayment['subscription']??null)===null
+            && ($verifiedPayment['currency']??'BRL')==='BRL';
     }
     public static function verifyWebhookToken(#[\SensitiveParameter] string $expected,#[\SensitiveParameter] string $received): bool
     {

@@ -43,9 +43,18 @@ denied(fn()=>$g->createPayment('cus_test1','imagine:TEST:setup:1',33000,'2026-02
 denied(fn()=>new Gateway('')); denied(fn()=>new Gateway("test\r\nHeader: forged"));
 foreach (['PENDING','OVERDUE','REFUNDED','DELETED','CHARGEBACK_REQUESTED'] as $status) check(!Gateway::settled(array_replace($payment,['status'=>$status])));
 check(!Gateway::settled(array_replace($payment,['status'=>'CONFIRMED','billingType'=>'PIX'])));
-check(Gateway::settled(array_replace($payment,['status'=>'CONFIRMED','billingType'=>'CREDIT_CARD'])));
+check(!Gateway::settled(array_replace($payment,['status'=>'CONFIRMED','billingType'=>'CREDIT_CARD'])));
 check(Gateway::settled(array_replace($payment,['status'=>'RECEIVED'])));
 check(!Gateway::settled(array_replace($payment,['status'=>'RECEIVED','deleted'=>true])));
+foreach ([
+    ['status'=>'RECEIVED','refundedDate'=>'2026-11-14'],
+    ['status'=>'RECEIVED','refunds'=>[['id'=>'refund-synthetic']]],
+    ['status'=>'RECEIVED','chargeback'=>['status'=>'OPEN']],
+    ['status'=>'RECEIVED','subscription'=>'sub_fake'],
+    ['status'=>'RECEIVED','currency'=>'USD'],
+] as $unsafe) {
+    check(!Gateway::settled(array_replace($payment,$unsafe)));
+}
 foreach ([302,400,401,429,500] as $status) {
     $n=0; $bad=new Gateway('fixture',function() use (&$n,$status) {++$n;return ['status'=>$status,'body'=>[]];});
     denied(fn()=>$bad->createPayment('cus_test1','imagine:TEST:setup:1',33000,'2026-11-14')); check($n===1);
