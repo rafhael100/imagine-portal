@@ -5,7 +5,7 @@
 BEGIN;
 CREATE SCHEMA portal_psp AUTHORIZATION postgres;
 CREATE TABLE portal_psp.asaas_inbox (
-    account_ref text NOT NULL CHECK (length(account_ref) BETWEEN 3 AND 128),
+    account_ref uuid NOT NULL,
     event_id text NOT NULL CHECK (event_id ~ '^evt_[A-Za-z0-9_&-]{8,128}$'),
     event_type text NOT NULL CHECK (event_type ~ '^PAYMENT_[A-Z_]{3,64}$'),
     payment_id text NOT NULL CHECK (payment_id ~ '^pay_[A-Za-z0-9]{6,64}$'),
@@ -24,6 +24,6 @@ GRANT USAGE ON SCHEMA portal_psp TO asaas_webhook_runtime;
 GRANT SELECT, INSERT ON portal_psp.asaas_inbox TO asaas_webhook_runtime;
 CREATE POLICY asaas_inbox_ci_scope ON portal_psp.asaas_inbox
     FOR ALL TO asaas_webhook_runtime
-    USING (account_ref='ci-asaas-sandbox' AND current_user='asaas_webhook_runtime')
+    USING (account_ref='1fcc491f-96d9-4efe-8ec5-b8b09de750dd'::uuid AND current_user='asaas_webhook_runtime')
     WITH CHECK (account_ref='ci-asaas-sandbox' AND current_user='asaas_webhook_runtime');
 COMMIT;
