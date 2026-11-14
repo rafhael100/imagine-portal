@@ -47,6 +47,15 @@ with sync_playwright() as p:
         assert page.get_by_role('button',name='Criar pedido de teste').count()==1
         page.get_by_role('button',name='Criar pedido de teste').click()
         order_url=page.url; order_id=order_url.rsplit('/',1)[1]
+        def check_next_step(expected):
+            # Two independent Portal views must show the persisted order state.
+            for section in ('services','finance'):
+                page.goto(BASE+'/client/'+section)
+                row=page.locator('tr[data-customer-order="'+order_id+'"]')
+                assert row.count()==1, (section,'missing customer order',order_id)
+                assert row.locator('[data-customer-next-step]').inner_text().strip()==expected, (section,expected)
+            page.goto(order_url)
+        check_next_step('Resolver pagamento de teste')
         duplicate=page.request.post(BASE+'/shop/orders',form={'_token':token,'request_key':key,'product':'onepage'})
         assert duplicate.status==200 and duplicate.url==order_url
         assert page.request.post(BASE+'/shop/orders',form={'_token':csrf(),'request_key':key,'product':'onepage','customer_id':'forged'}).status==422
@@ -54,18 +63,21 @@ with sync_playwright() as p:
         page.locator('[name=outcome]').select_option('declined')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
         assert page.locator('[name=business]').count()==0
+        check_next_step('Resolver pagamento de teste')
         rev=page.locator('[name=revision]').first.input_value()
         rejected=page.request.post(order_url+'/briefing',form={'_token':csrf(),'revision':rev,'business':'x','goal':'x','audience':'x','materials':'x'})
         assert rejected.status==409
         page.get_by_role('checkbox').check()
         page.locator('[name=outcome]').select_option('approved')
         page.get_by_role('button',name='Aplicar resultado de teste').click()
+        check_next_step('Enviar briefing de exemplo')
         assert page.request.post(order_url+'/payment',form={'_token':csrf(),'revision':rev,'outcome':'pending','sample_ack':'1'}).status==409
         for name in ['business','goal','audience','materials']:
             page.locator('[name='+name+']').fill('Aurora ficticia')
         page.get_by_role('button',name='Salvar briefing de teste').click()
         page.reload()
         assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
+        check_next_step('Aguardar análise do briefing')
         page.goto(BASE+'/client/services')
         assert page.locator('tr[data-customer-order]').count()==1
         page.goto(BASE+'/client/account')
