@@ -85,7 +85,7 @@ jobs:
         working-directory: apps/portal/ops/private-purchase
         run: |
           set -euo pipefail
-          docker compose exec -T application php private-preview-route-gate.test.php
+          docker compose exec -T application php test_route_gate.php
           echo 'PASS private route gate: CI legacy only, VPS customer/admin routes only' >> "$GITHUB_STEP_SUMMARY"
       - name: Compile and PHP-lint every Portal Blade page before browser tests
         working-directory: apps/portal/ops/private-purchase
