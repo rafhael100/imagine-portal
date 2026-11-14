@@ -24,6 +24,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Fast SQL preflight before app build — PostgreSQL 18 and signed RLS
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/private-purchase/check_customer_schema_ci.sh
+          bash apps/portal/ops/private-purchase/check_customer_schema_ci.sh
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
