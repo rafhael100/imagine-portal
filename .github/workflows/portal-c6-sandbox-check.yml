@@ -13,10 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
           extensions: openssl,mbstring,dom,xml
@@ -24,6 +25,8 @@ jobs:
       - name: Verify source syntax
         run: |
           bash -n apps/portal/ops/c6-sandbox/install-sandbox-secrets.sh
+          bash -n apps/portal/ops/c6-sandbox/install-sandbox-p12.sh
+          php -l apps/portal/ops/c6-sandbox/check-sandbox.php
           php -l apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php
           php -l apps/portal/ops/c6-sandbox/check-sandbox.php
       - name: Install Laravel
