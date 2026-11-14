@@ -18,8 +18,10 @@ final class CustomerPreviewController
         try { app(CustomerPreviewStore::class)->register($v['username'],$v['password'],$v['name'],$v['company']); }
         catch (\Throwable) { return redirect('/_preview/portal/register')->withErrors(['username'=>'Não foi possível criar a conta. Escolha outro usuário ou tente mais tarde.']); }
         $intent=$r->session()->get('preview.intent');
+        $channel=$r->session()->get('preview.channel');
+        $channelQuery=$intent==='performance'&&in_array($channel,['google_ads','meta_ads'],true)?'&channel='.$channel:'';
         abort_unless(app(PreviewProfiles::class)->login($r,$v['username'],$v['password']),503);
-        return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/client/overview');
+        return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent.$channelQuery:'/_preview/portal/client/overview');
     }
     private function owner(Request $r): array
     {

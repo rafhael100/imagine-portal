@@ -31,11 +31,14 @@ with sync_playwright() as p:
    delay(response)
  def token():return page.locator('[name=_token]').first.input_value()
  def revision():return page.locator('[name=revision]').first.input_value()
- def signup(user):
+ def signup(user,channel=None):
   global page
-  page=b.new_page();pages[user]=page;page.goto(BASE+'/register')
+  page=b.new_page();pages[user]=page
+  if channel:page.goto(BASE+'/shop?product=performance&channel='+channel)
+  page.goto(BASE+'/register')
   for name,value in [('name','Cliente ficticio Performance'),('company','Empresa demonstracao'),('username',user),('password','ci-owned-customer-only-2026'),('password_confirmation','ci-owned-customer-only-2026')]:page.locator('[name='+name+']').fill(value)
-  page.get_by_role('button',name='Criar conta e continuar',exact=True).click();assert '/client/' in page.url,page.locator('body').inner_text()[:300]
+  page.get_by_role('button',name='Criar conta e continuar',exact=True).click();assert ('/shop' if channel else '/client/') in page.url,page.locator('body').inner_text()[:300]
+  if channel:expect(page.locator('[data-channel=meta_media]')).to_be_checked()
  if os.getenv('PERFORMANCE_REPORT_REOPEN')=='1':
   saved['user']=json.loads(fixture.read_text())['user'];login(saved['user'])
   work=json.loads(fixture.read_text())['work'];assert page.goto(work).status==200
@@ -45,7 +48,7 @@ with sync_playwright() as p:
   login('administrador.teste');assert page.goto(work).status==200;assert page.locator('form[action$="/performance-report"]').count()==1
   print('PASS Performance report history and customer review survived database/application restart')
  else:
-  suffix=uuid.uuid4().hex[:10];saved['user']='demo-perf-'+suffix;outsider='demo-out-'+suffix;signup(outsider);signup(saved['user'])
+  suffix=uuid.uuid4().hex[:10];saved['user']='demo-perf-'+suffix;outsider='demo-out-'+suffix;signup(outsider);signup(saved['user'],'meta_ads')
   psp_count=Database().sql('SELECT count(*) FROM purchase_rehearsal.sandbox_payment_intents;')
   page.goto(BASE+'/shop?product=performance&channel=google_ads');
   expect(page.locator('[data-performance-summary]')).to_contain_text('490,00')
