@@ -59,5 +59,16 @@ with sync_playwright() as p:
     for name in ['business','goal','audience','materials']:page.locator('[name='+name+']').fill('Exemplo sandbox ficticio')
     page.get_by_role('button',name='Salvar briefing de teste').click()
     assert page.get_by_role('heading',name='Briefing salvo no Portal de teste').count()==1
+    work=BASE+'/work/'+oid
+    assert page.goto(work).status==200
+    assert page.get_by_role('heading',name='Financeiro no Asaas sandbox').count()==1
+    page.get_by_role('button',name='Sair',exact=True).click()
+    page.goto(BASE);page.locator('[name=username]').fill(saved['user'].replace('demo-a-','demo-b-'));page.locator('[name=password]').fill('ci-owned-customer-only-2026');page.get_by_role('button',name='Entrar',exact=True).click()
+    assert page.request.get(work).status==404
+    assert page.request.get(url).status==404
+    page.get_by_role('button',name='Sair',exact=True).click()
+    page.goto(BASE);page.locator('[name=username]').fill('administrador.teste');page.locator('[name=password]').fill('ci-admin-only-2026');page.get_by_role('button',name='Entrar',exact=True).click()
+    page.goto(work);assert page.get_by_role('heading',name='Financeiro no Asaas sandbox').count()==1
+    assert 'Assinatura mensal' in page.content() and 'ACTIVE' in page.content()
     b.close()
 print('PASS sandbox request -> immutable ledger -> provider reconciliation -> approved owned order -> briefing; browser cannot forge approval')

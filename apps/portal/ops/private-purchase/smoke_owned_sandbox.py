@@ -36,13 +36,14 @@ class Browser:
     def login(self,state):
         _,page=self.get('');self.post('/login',{'_token':self.field(page,'_token'),'username':state['username'],'password':state['password']})
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('action',choices=['prepare','verify','verify-paid','briefing','future','verify-future']);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--product',choices=['onepage','landing-pages','performance'],default='onepage');parser.add_argument('action',choices=['prepare','verify','verify-paid','briefing','future','verify-future']);args=parser.parse_args()
     os.umask(0o077);b=Browser()
+    if args.product!='onepage':STATE=ROOT/('.private/sandbox-smoke-'+args.product+'.json')
     if args.action=='prepare' and not STATE.exists():
         state={'username':'demo-sbx-'+secrets.token_hex(6),'password':secrets.token_urlsafe(24)}
         _,page=b.get('/register');b.post('/register',{'_token':b.field(page,'_token'),'username':state['username'],'password':state['password'],'password_confirmation':state['password'],'name':'Cliente ficticio sandbox','company':'Empresa demonstracao'})
-        _,page=b.get('/shop?product=onepage')
-        url,page=b.post('/shop/orders',{'_token':b.field(page,'_token'),'request_key':b.field(page,'request_key'),'product':'onepage','offer_version':b.field(page,'offer_version'),'offer_ack':'1'})
+        _,page=b.get('/shop?product='+args.product)
+        url,page=b.post('/shop/orders',{'_token':b.field(page,'_token'),'request_key':b.field(page,'request_key'),'product':args.product,'offer_version':b.field(page,'offer_version'),'offer_ack':'1',**({'google_media':'700,00'} if args.product=='performance' else {})})
         oid=url.rsplit('/',1)[1]
         if not re.fullmatch(r'TEST-[a-f0-9]{32}',oid):raise RuntimeError('Owned order not created')
         state['id']=oid

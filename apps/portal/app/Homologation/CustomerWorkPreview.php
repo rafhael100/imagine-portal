@@ -18,6 +18,9 @@ final class CustomerWorkPreview
         $row['briefing']=$row['briefing']===null?null:json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
         $q=$this->db->prepare('SELECT actor_kind,action,note,created_at FROM purchase_rehearsal.customer_order_events WHERE order_id=? ORDER BY revision LIMIT 200');
         $q->execute([$id]); $row['events']=$q->fetchAll(PDO::FETCH_ASSOC);
+        // Only after the order ownership/admin scope has been established above.
+        $q=$this->db->prepare("SELECT 'initial' AS charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_payment_intents WHERE order_id=? UNION ALL SELECT charge_key,amount_cents,due_date,state,provider_status,invoice_url FROM purchase_rehearsal.sandbox_future_billing WHERE order_id=? ORDER BY due_date,charge_key");
+        $q->execute([$id,$id]);$row['billing']=$q->fetchAll(PDO::FETCH_ASSOC);
         unset($row['customer_id'],$row['request_key']); return $row;
     }
     public function act(?string $owner,string $id,int $revision,string $action,string $note): bool

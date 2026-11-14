@@ -22,6 +22,17 @@ A execução periódica do worker e entrega por webhook ainda precisam de config
 
 ## Limites explícitos
 
-Esta etapa integra somente a primeira cobrança sandbox ao pedido de teste. Não implementa ainda D30/D60, assinatura D90, acerto financeiro executável Performance, contrato jurídico definitivo, recuperação de senha/IAM definitiva, fiscal ou provisionamento real. A UI conserva o rótulo de homologação. Não afirmar venda de produção concluída por sucesso de sandbox.
+A homologação integra a primeira cobrança, as parcelas D30/D60 e a assinatura mensal nativa com início D90 para Onepage/Landing Page. Não implementa ainda webhooks operacionais, acerto financeiro executável Performance, contrato jurídico definitivo, recuperação de senha/IAM definitiva, fiscal ou provisionamento real. A UI conserva o rótulo de homologação. Não afirmar venda de produção concluída por sucesso de sandbox.
 
 Testes locais: 110 verificações PHP, lint dos arquivos alterados e oito cenários unitários Python com subcasos de falha, duplicação, URL e divergência financeira. CI PostgreSQL/Chromium exercita intenção persistida → broker com transporte injetado → status confirmado → briefing, nega preço forjado e bloqueia aprovação manual; não utiliza chave ou dados reais.
+
+
+## Parcelas e recorrência verificadas em 14/11/2026
+
+- Aplicar também `sandbox-future-schema.sql` antes de atualizar o contêiner. Backup privado: `/root/purchase-before-future-billing-20261114.sql`; imagem de retorno: `imagine-purchase-preview:before-future-billing`.
+- `BillingSchedule` usa o snapshot aceito, horário São Paulo, D0/D30/D60 e primeira mensalidade D90; a previsão mensal preserva o dia âncora em meses curtos. Não altera contratos antigos nem aplica preços novos retroativamente.
+- Após pagamento inicial confirmado, o cliente solicita no pedido uma simulação explícita das parcelas e assinatura. Não é ativação de produção. A tabela futura usa chave composta por pedido/etapa e o worker preserva referências externas; respostas incertas não geram novo POST cego.
+- Asaas sandbox efetivamente gerou as duas parcelas futuras de R$330 e a assinatura de R$79,90 para o pedido sintético Onepage. O retorno pode avançar `nextDueDate` logo após gerar a primeira fatura; a conciliação confirma valor/cliente/assinatura e D90 nessa fatura, além do próximo ciclo. Não altera o início contratual para fazer o teste passar.
+- UI e banco distinguirão assinatura ativa de cobrança paga. O cliente pede conciliação; timer processa somente intenções solicitadas. Webhook ainda não configurado: não afirmar atualização financeira automática após eventos externos.
+- Acompanhamento do pedido exibe dados financeiros ao proprietário ou administrador após checar o escopo. Outros clientes continuam recebendo 404.
+- Perfil Performance continua cobrando antecipação estimada de 20%, sem cobrar mídia; acerto mensal exige evidência de gasto efetivo e não é executado por este worker.
