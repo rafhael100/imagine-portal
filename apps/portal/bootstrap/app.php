@@ -2,6 +2,7 @@
 
 use App\Console\Commands\BootstrapPortalAdmin;
 use App\Console\Commands\InvalidatePortalAdminSessions;
+use App\Console\Commands\PortalAdminStagingPreflight;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([BootstrapPortalAdmin::class, InvalidatePortalAdminSessions::class])
+    ->withCommands([
+        BootstrapPortalAdmin::class,
+        InvalidatePortalAdminSessions::class,
+        PortalAdminStagingPreflight::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         //
     })
