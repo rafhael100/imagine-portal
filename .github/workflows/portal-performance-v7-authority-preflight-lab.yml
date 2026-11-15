@@ -1,0 +1,41 @@
+name: Portal V7 simulated business-session MFA and services.manage preflight
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/Performance/PortalPerformanceV7AuthorityPreflightLab.php'
+      - 'apps/portal/tools/test_performance_v7_authority_preflight_offline.php'
+      - '.github/workflows/portal-performance-v7-authority-preflight-lab.yml'
+      - 'docs/PORTAL-PERFORMANCE-V7-MFA-ORGANIZATION-PREFLIGHT-NOGO-2026-11-14.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  permission-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      APP_ENV: testing
+      PORTAL_PERF_V7_PLAN_AGREEMENT_LAB: '1'
+      PORTAL_PERF_V7_AUTHORITY_PREFLIGHT_LAB: '1'
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: PHP strict syntax on Portal V7 preflight and issuer
+        run: |
+          php -l apps/portal/app/Domain/Performance/PortalPerformanceV7AuthorityPreflightLab.php
+          php -l apps/portal/app/Domain/Performance/PortalPerformanceV7AgreementPlanLabIssuer.php
+          php -l apps/portal/tools/test_performance_v7_authority_preflight_offline.php
+      - name: Verify revocation, MFA, tenant, permission and organization revision before V7 signed review
+        run: php apps/portal/tools/test_performance_v7_authority_preflight_offline.php
+      - name: Preserve V7/F419 signed plan baseline
+        run: php apps/portal/tools/test_performance_v7_signed_plan_offline.php
