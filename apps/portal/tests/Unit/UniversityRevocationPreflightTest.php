@@ -201,4 +201,65 @@ final class UniversityRevocationPreflightTest extends TestCase
         self::assertSame('source_unavailable', $res->reason);
         self::assertFalse($res->mayIssuePortalGrant());
     }
+
+    public function test_sources_are_read_once_without_requerying_contract_state(): void
+    {
+        $contract = $this->service();
+        $epochs = $this->epochs();
+
+        $contracts = new class($contract) implements UniversityContractAuthority {
+            public int $reads = 0;
+            public function __construct(private UniversityContractSnapshot $initial)
+            {
+            }
+            public function currentFor(OrganizationId $organization): ?array
+            {
+                $this->reads++;
+                return $this->reads === 1 ? [$this->initial] : null;
+            }
+        };
+        $revisions = new class($epochs) implements UniversityServiceRevisionAuthority {
+            public int $reads = 0;
+            public function __construct(private UniversityServiceRevisionSnapshot $initial)
+            {
+            }
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot
+            {
+                $this->reads++;
+                return $this->reads === 1 ? $this->initial : null;
+            }
+        };
+
+        $result = (new UniversityRevocationPreflight($contracts, $revisions))
+            ->inspect($this->org(), self::NOW);
+        self::assertSame('candidate_pending_authority', $result->reason);
+        self::assertFalse($result->mayIssuePortalGrant());
+        self::assertSame(1, $contracts->reads);
+        self::assertSame(1, $revisions->reads);
+    }
+
+    public function test_independent_revocation_source_outage_fails_closed(): void
+    {
+        $contracts = new class($this->service()) implements UniversityContractAuthority {
+            public function __construct(private UniversityContractSnapshot $record)
+            {
+            }
+            public function currentFor(OrganizationId $organization): ?array
+            {
+                return [$this->record];
+            }
+        };
+        $unavailable = new class implements UniversityServiceRevisionAuthority {
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot
+            {
+                throw new RuntimeException('Synthetic revocation provider failure.');
+            }
+        };
+        $result = (new UniversityRevocationPreflight($contracts, $unavailable))
+            ->inspect($this->org(), self::NOW);
+        self::assertSame('source_unavailable', $result->reason);
+        self::assertSame(0, $result->candidateCount);
+        self::assertFalse($result->mayIssuePortalGrant());
+    }
+
 }
