@@ -65,6 +65,7 @@ final class PortalAdminLoginController
         $request->session()->put([
             'portal_admin_pending_id'=>(int)$account->getKey(),
             'portal_admin_pending_at'=>time(),
+            'portal_admin_pending_version'=>(int)$account->session_version,
         ]);
         // Do not issue an authenticated guard session before TOTP.
         return redirect()->route('portal-admin.mfa');
@@ -114,6 +115,7 @@ final class PortalAdminLoginController
         $updated=DB::table('portal_admin_users')
             ->where('id',$admin->getKey())
             ->where('is_active',true)
+            ->where('session_version',(int)$admin->session_version)
             ->where('last_totp_counter','<',$counter)
             ->update([
                 'last_totp_counter'=>$counter,
@@ -130,11 +132,13 @@ final class PortalAdminLoginController
         Auth::guard('portal-admin')->login($admin);
         $request->session()->regenerate();
         $request->session()->forget([
-            'portal_admin_pending_id','portal_admin_pending_at'
+            'portal_admin_pending_id','portal_admin_pending_at',
+            'portal_admin_pending_version'
         ]);
         $request->session()->put([
             'portal_admin_mfa_id'=>(int)$admin->getKey(),
             'portal_admin_mfa_at'=>time(),
+            'portal_admin_session_version'=>(int)$admin->session_version,
         ]);
         return redirect()->route('portal-admin.home');
     }
@@ -157,12 +161,15 @@ final class PortalAdminLoginController
     {
         $id=$request->session()->get('portal_admin_pending_id');
         $since=$request->session()->get('portal_admin_pending_at');
+        $version=$request->session()->get('portal_admin_pending_version');
         $now=time();
         if(!is_int($id)||$id<1||
+            !is_int($version)||$version<1||
             !is_int($since)||$since>$now+30 ||
             $since<$now-(int)config('portal_admin.pending_seconds',300))
             return null;
         $admin=PortalAdminUser::query()->find($id);
-        return $admin?->is_active ? $admin : null;
+        return $admin?->is_active &&
+            (int)$admin->session_version===$version ? $admin : null;
     }
 }
