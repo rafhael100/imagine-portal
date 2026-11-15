@@ -12,7 +12,7 @@ const [reportPath,envelopePath,publicKeyPath,scenario,...extra]=process.argv.sli
 const modes=new Set([
   'valid','bad-signature','tampered-payload','other-tenant',
   'other-run','expired','other-engine','wrong-public-key',
-  'wrong-issuer','unexpected-claim'
+  'wrong-issuer','unexpected-claim','fixed-nonce'
 ]);
 if(process.env.CI!=='true'||process.env.APP_ENV!=='testing'||
    process.env.PORTAL_SEO_F122_LAB!=='1'||
@@ -40,7 +40,8 @@ const claims={
     '7847c8c66d5be228a08a94282da562c790cdd440',
   issuedAt:scenario==='expired'?now-900:now,
   expiresAt:scenario==='expired'?now-600:now+240,
-  nonce:randomBytes(24).toString('base64url'),
+  nonce:(scenario==='fixed-nonce'?Buffer.alloc(24,7):randomBytes(24))
+    .toString('base64url'),
   reportSha256:createHash('sha256').update(report).digest('hex'),
   reportBase64:report.toString('base64'),
 };
