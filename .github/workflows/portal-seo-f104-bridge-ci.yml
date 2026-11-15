@@ -1,0 +1,91 @@
+name: Portal SEO F104 - immutable Node/PHP daily-bridge proof (offline)
+
+on:
+  pull_request:
+    branches:
+      - review/portal-gsc-integration-slice-ab-2026-11-12
+    paths:
+      - '.github/workflows/portal-seo-f104-bridge-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php'
+      - 'apps/portal/labs/gsc-f104-bridge/**'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-cross-stack-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out exact Portal review SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out exact public SEO F104 SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: ec1739621b20860f729c59d9863ba1b341da43e8
+          path: .qa/seo-f104
+          persist-credentials: false
+      - name: Install pinned Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Verify exact source and review scope
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-f104 rev-parse HEAD)" = ec1739621b20860f729c59d9863ba1b341da43e8
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"
+          if [[ -n "$BASE_SHA" ]]; then
+            git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+            git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/portal-seo-f104-paths"
+            node --input-type=module -e '
+              import {readFileSync} from "node:fs";
+              const paths=readFileSync(process.env.RUNNER_TEMP+"/portal-seo-f104-paths","utf8").split("\0").filter(Boolean);
+              const exact=new Set([
+                ".github/workflows/portal-seo-f104-bridge-ci.yml",
+                "apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php",
+                "apps/portal/labs/gsc-f104-bridge/emit-node.mjs",
+                "apps/portal/labs/gsc-f104-bridge/test-php.php",
+                "apps/portal/labs/gsc-f104-bridge/README.md"
+              ]);
+              if(paths.length<3||paths.length>exact.size||paths.some(p=>!exact.has(p)))
+                throw Error("F104 Portal: altered paths outside controlled review");
+              console.log("F104 Portal: "+paths.length+" scoped files");
+            '
+          fi
+      - name: Run original SEO Engine complete offline regression tests
+        run: npm --prefix .qa/seo-f104 test
+      - name: Prove PHP consumer interoperability from Node-produced synthetic JSON
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_OPENSEO_DAILY_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          php -v
+          php -l apps/portal/app/Domain/SeoReview/OfflineOpenSeoDailyPreview.php
+          php -l apps/portal/labs/gsc-f104-bridge/test-php.php
+          node --check apps/portal/labs/gsc-f104-bridge/emit-node.mjs
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete partial empty; do
+            node apps/portal/labs/gsc-f104-bridge/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f104-bridge/test-php.php "$fixture" "$scenario"
+          done
+      - name: Ensure no tracked source was changed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f104 status --porcelain --untracked-files=no)"

@@ -1,0 +1,74 @@
+name: Portal SEO F119 - pinned Engine F114 build DTO to PHP lab
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f119-pinned-build-contract.yml'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoStaticBuildReadinessLab.php'
+      - 'apps/portal/labs/seo-f119-build/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine-to-portal:
+    name: Engine static HTML -> Portal lab / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      CI: 'true'
+      PORTAL_SEO_F118_LAB: '1'
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout exact SEO Engine RC45 reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 7847c8c66d5be228a08a94282da562c790cdd440
+          path: .qa/seo-f118
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Verify fixed source SHA and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f118 rev-parse HEAD)" = 7847c8c66d5be228a08a94282da562c790cdd440
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
+          node --check apps/portal/labs/seo-f119-build/emit-engine.mjs
+          php -l apps/portal/labs/seo-f119-build/verify-portal.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoStaticBuildReadinessLab.php
+      - name: Validate all Engine build cases through actual PHP boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          report="$(mktemp)"
+          trap 'rm -f "$report"' EXIT
+          for mode in clean missing wrong-locale private-preview; do
+            node apps/portal/labs/seo-f119-build/emit-engine.mjs "$mode" > "$report"
+            php apps/portal/labs/seo-f119-build/verify-portal.php "$report" "$mode"
+          done
+      - name: Verify no tracked repo sources were modified
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"

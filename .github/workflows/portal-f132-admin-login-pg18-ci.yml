@@ -1,0 +1,136 @@
+name: Portal F132-F134 - admin MFA, bootstrap and organization scope PG18
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-f132-admin-login-pg18-ci.yml'
+      - 'apps/portal/app/Models/PortalAdminUser.php'
+      - 'apps/portal/app/Console/Commands/BootstrapPortalAdmin.php'
+      - 'apps/portal/app/Http/Middleware/PortalAdminOrganizationSeoGate.php'
+      - 'apps/portal/app/Http/Controllers/PortalAdminSeoScopeController.php'
+      - 'apps/portal/database/migrations/2026_11_15_000012_create_portal_admin_org_grants.php'
+      - 'apps/portal/resources/views/portal-admin/seo-scope.blade.php'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php'
+      - 'apps/portal/bootstrap/app.php'
+      - 'apps/portal/.env.example'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminTotp.php'
+      - 'apps/portal/app/Http/Controllers/PortalAdminLoginController.php'
+      - 'apps/portal/app/Http/Middleware/PortalAdmin*'
+      - 'apps/portal/config/auth.php'
+      - 'apps/portal/config/portal_admin.php'
+      - 'apps/portal/routes/web.php'
+      - 'apps/portal/resources/views/portal-admin/**'
+      - 'apps/portal/tests/Feature/PortalAdmin*'
+      - 'apps/portal/tests/Unit/PortalAdminTotpTest.php'
+      - 'apps/portal/database/migrations/2026_11_15_000011_create_portal_admin_users.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-password-totp:
+    name: Portal admin password and 6-digit MFA / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f132-ci-postgres-only
+          POSTGRES_DB: portal_admin_f132_ci
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_admin_f132_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      # Dedicated CI opts in to route registration; production remains off.
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      PORTAL_ADMIN_F132_PG_CI: '1'
+      PORTAL_ADMIN_F133_PG_CI: '1'
+      PORTAL_ADMIN_F134_PG_CI: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_admin_f132_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: f132-ci-postgres-only
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up PHP ${{ matrix.php }} with PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Validate syntax of admin authentication source
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Http/Middleware/PortalAdminOrganizationSeoGate.php
+          php -l apps/portal/app/Http/Controllers/PortalAdminSeoScopeController.php
+          php -l apps/portal/database/migrations/2026_11_15_000012_create_portal_admin_org_grants.php
+          php -l apps/portal/app/Console/Commands/BootstrapPortalAdmin.php
+          php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php
+          php -l apps/portal/bootstrap/app.php
+          php -l apps/portal/app/Http/Controllers/PortalAdminLoginController.php
+          php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminTotp.php
+          php -l apps/portal/app/Http/Middleware/PortalAdminFeatureGate.php
+          php -l apps/portal/app/Http/Middleware/PortalAdminMfaGuard.php
+          php -l apps/portal/app/Models/PortalAdminUser.php
+          php -l apps/portal/database/migrations/2026_11_15_000011_create_portal_admin_users.php
+          php -l apps/portal/routes/web.php
+          php -l apps/portal/config/auth.php
+      - name: Install locked Laravel dependencies
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Generate ephemeral Laravel encryption key
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Migrate disposable PostgreSQL 18
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan migrate --force --no-interaction
+      - name: Verify admin HTTP default deny and real password plus MFA flows
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminOrganizationSeoGateTest'
+      - name: No tracked source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"

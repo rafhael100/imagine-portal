@@ -1,0 +1,35 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * The admin HTTP feature is dark by default. For any real staging/production
+ * activation, a durable server-side session store and secure TLS cookie are
+ * required. A feature toggle does not grant customer/tenant permissions.
+ */
+final class PortalAdminFeatureGate
+{
+    public function handle(Request $request,Closure $next):Response
+    {
+        if(config('portal_admin.enabled')!==true)abort(404);
+
+        if(!app()->environment('testing')){
+            if(!in_array(config('session.driver'),['database','redis'],true)||
+               config('session.secure')!==true ||
+               !str_starts_with((string)config('app.url'),'https://'))
+                abort(503);
+        }
+
+        $response=$next($request);
+        $response->headers->set('Cache-Control','private, no-store');
+        $response->headers->set('X-Robots-Tag','noindex, nofollow');
+        $response->headers->set('X-Frame-Options','DENY');
+        $response->headers->set('Referrer-Policy','no-referrer');
+        return $response;
+    }
+}
