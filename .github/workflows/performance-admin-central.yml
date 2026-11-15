@@ -26,8 +26,8 @@ jobs:
       PERFORMANCE_ADMIN_LAB_ENABLED: 'true'
       PERFORMANCE_ADMIN_PG_CI: '1'
       PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: ${{ github.workspace }}/engine
-      PERFORMANCE_ADMIN_BROWSER_VAULT: ${{ runner.temp }}/perf-admin-vault.json
-      PERFORMANCE_ADMIN_EVIDENCE: ${{ runner.temp }}/perf-admin-evidence
+      PERFORMANCE_ADMIN_BROWSER_VAULT: /tmp/perf-admin-vault.json
+      PERFORMANCE_ADMIN_EVIDENCE: /tmp/perf-admin-evidence
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -90,7 +90,7 @@ jobs:
         if: always()
         with:
           name: performance-admin-credential-free-evidence
-          path: ${{ runner.temp }}/perf-admin-evidence
+          path: /tmp/perf-admin-evidence
           retention-days: 7
       - name: Delete ephemeral authentication material
         if: always()
