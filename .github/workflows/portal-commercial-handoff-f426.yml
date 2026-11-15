@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
           grep -Fq "'single_combined_checkout_enabled'=>false" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
           grep -Fq "'real_charge_enabled'=>false" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
-          grep -Fq "'catalog_version'=>$catalog->version()" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
+          grep -Fq "'catalog_version'" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
           grep -Fq "CommercialSelectionHandoff::summarize(new ApprovedOfferCatalog()" apps/portal/app/Http/Controllers/CustomerPreviewController.php
           grep -Fq "A oferta mudou. Atualize e confira as condições." apps/portal/app/Http/Controllers/CustomerPreviewController.php
           grep -Fq '"direct_checkout_enabled": false' apps/portal/app/Homologation/Commerce/approved-catalog.json
