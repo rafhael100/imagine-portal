@@ -10,6 +10,8 @@ on:
       - 'apps/portal/labs/seo-f123-pg18/**'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgEvidenceNonceRetentionLab.php'
       - 'apps/portal/labs/seo-f124-pg18/**'
+      - 'apps/portal/labs/seo-f125-engine-signer/**'
+      - 'apps/portal/labs/seo-f126-pg18/**'
       - 'apps/portal/labs/seo-f122-signed-evidence/**'
   workflow_dispatch:
 
@@ -47,6 +49,9 @@ jobs:
       PORTAL_SEO_F122_LAB: '1'
       PORTAL_SEO_F123_PG_CI: '1'
       PORTAL_SEO_F124_PG_CI: '1'
+      PORTAL_SEO_F125_LAB: '1'
+      PORTAL_SEO_F126_PG_CI: '1'
+      SEO_F121_SIGNER_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -74,6 +79,13 @@ jobs:
           ref: 7847c8c66d5be228a08a94282da562c790cdd440
           path: .qa/seo-f118
           persist-credentials: false
+      - name: Checkout actual immutable Engine F121 signer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          path: .qa/seo-f125
+          persist-credentials: false
       - name: Node 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -93,6 +105,9 @@ jobs:
           test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
           node --check apps/portal/labs/seo-f119-build/emit-engine.mjs
           node --check apps/portal/labs/seo-f122-signed-evidence/make-envelope.mjs
+          node --check apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs
+          php -l apps/portal/labs/seo-f126-pg18/verify-engine-signer-once.php
+          test "$(git -C .qa/seo-f125 rev-parse HEAD)" = 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
           php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php
           php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php
           php -l apps/portal/database/migrations/2026_11_15_000007_create_portal_seo_build_evidence_nonces.php
@@ -135,9 +150,21 @@ jobs:
         run: |
           set -euo pipefail
           php apps/portal/labs/seo-f124-pg18/verify-nonce-retention.php
+      - name: F126 actual Engine-owned signed report -> Portal F122 -> PG18 F123
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          node apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs \
+            valid "$tempdir/source-envelope.json" "$tempdir/source-public-key" > /dev/null
+          php apps/portal/labs/seo-f126-pg18/verify-engine-signer-once.php \
+            "$tempdir/source-envelope.json" "$tempdir/source-public-key"
       - name: Ensure no tracked source modifications
         shell: bash
         run: |
           set -euo pipefail
           test -z "$(git status --porcelain --untracked-files=no)"
           test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
