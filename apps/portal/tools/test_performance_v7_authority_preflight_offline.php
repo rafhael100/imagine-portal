@@ -165,7 +165,7 @@ $run=static function(
 )use($org,$tenant,$agreement,$activation,$review,$eligible,$scope,$plan,
     $now,$nowUtc,$activationKey,$planKey):array {
     return Preflight::review(
-        $bound,$sid,$selected??$org,
+        $bound,$sid??'portal-business-lab-session',$selected??$org,
         $tenantExpected??$tenant,$agreementExpected??$agreement,
         $activationEnvelope??$activation,$review,$eligible,
         $overScope??$scope,$plan,
