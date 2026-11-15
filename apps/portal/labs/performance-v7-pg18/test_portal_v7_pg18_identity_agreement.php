@@ -145,10 +145,10 @@ $admin->prepare(
        now()+interval '25 minutes',now(),now())"
 )->execute([$sessionId,$sessionDigest,$identity,$org]);
 $admin->prepare(
-    'INSERT INTO public.portal_v7_agreement_authority_lab
+    "INSERT INTO public.portal_v7_agreement_authority_lab
       (tenant_id,agreement_id,period,organization_id,state,
        approval_revision,plan_sha256,terms_sha256,full_month_reviewed)
-     VALUES (?,?,?,?,'synthetic_accepted',?,?,?,true)'
+     VALUES (?,?,?,?,'synthetic_accepted',?,?,?,true)"
 )->execute([$tenant,$agreement,$period,$org,1,$stableHash,$terms]);
 
 $allowed=static fn(?string $opaque=null,?string $t=null,
