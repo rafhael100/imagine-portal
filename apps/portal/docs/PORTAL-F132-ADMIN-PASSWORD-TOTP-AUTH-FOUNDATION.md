@@ -9,7 +9,7 @@ Até aqui, a base Laravel do Portal não possuía conta administrativa nem login
 - Tabela `portal_admin_users`, sem criar contas automaticamente, com e-mail canônico único, senha gerada por `Hash::make()`, segredo TOTP cifrado com a chave do Laravel, conta inicialmente inativa e contador de uso único.
 - Modelo `PortalAdminUser` em guard de sessão `portal-admin`. **Credenciais do CRM não são aceitas.**
 - Rotas de login, MFA, área administrativa vazia e logout sob `/portal-admin/*`.
-- Rejeição por padrão: `PORTAL_ADMIN_AUTH_ENABLED=false`. Quando desabilitado, todas essas rotas respondem 404; não há registro público nem recuperação de conta por e-mail.
+- Rejeição por padrão: `PORTAL_ADMIN_AUTH_ENABLED=false`. **As rotas nem são registradas** no Laravel enquanto a flag estiver falsa; middleware ainda nega requisições se for desligada após criar o route cache. Não há registro público nem recuperação de conta por e-mail.
 - Antes do TOTP: senha validada, rate limit e **sessão apenas pendente**, sem login no guard; ID de sessão e token CSRF substituídos.
 - Após TOTP: código RFC6238/HMAC-SHA1 de seis dígitos com tolerância de um intervalo, segredo previamente provisionado em formato hexadecimal e cifrado; UPDATE atômico do contador `last_totp_counter` impede reaproveitar o mesmo código entre sessões concorrentes.
 - Somente após validar o segundo fator ocorre `Auth::guard('portal-admin')->login(...)` e renovação de sessão.
@@ -44,3 +44,6 @@ Até aqui, a base Laravel do Portal não possuía conta administrativa nem login
 A execução da CI usa somente credenciais sintéticas e chave de criptografia descartável. Nenhuma conta real é criada e nenhuma configuração da VPS foi modificada.
 
 **ReleaseStatus: HOLD_ACCOUNT_PROVISIONING_AUTHORIZATION_STAGING_AND_SECURITY_REVIEW.**
+
+## Ajuste de compatibilidade do framework
+A primeira CI de autenticação passou no PostgreSQL, mas o workflow geral mostrou três testes legados que exigem apenas as rotas `/up` e `storage/{path}` enquanto a funcionalidade estiver inativa. Para preservar essa garantia, o arquivo de rotas agora só registra `/portal-admin/*` se a flag estiver verdadeira **no bootstrap**. A CI específica F132 habilita a flag exclusivamente nos contêineres descartáveis; a CI geral continua sem rotas administrativas. Em uma implantação futura, habilitar exige reconstrução controlada do route cache no ambiente correto.
