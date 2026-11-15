@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 use App\Homologation\CustomerPreviewStore;
 use App\Homologation\PreviewProfiles;
 use App\Homologation\Commerce\ApprovedOfferCatalog;
+use App\Homologation\Commerce\CommercialSelectionHandoff;
+use InvalidArgumentException;
 use Illuminate\Http\Request;
 
 final class CustomerPreviewController
@@ -18,7 +20,18 @@ final class CustomerPreviewController
         try { app(CustomerPreviewStore::class)->register($v['username'],$v['password'],$v['name'],$v['company']); }
         catch (\Throwable) { return redirect('/_preview/portal/register')->withErrors(['username'=>'Não foi possível criar a conta. Escolha outro usuário ou tente mais tarde.']); }
         $intent=$r->session()->get('preview.intent');
+        $pending=$r->session()->get('preview.commercial_selection');
+        $commercial=null;
+        if ($pending!==null) {
+            try { $commercial=CommercialSelectionHandoff::parse($pending); }
+            catch (InvalidArgumentException|\TypeError) { abort(422,'Seleção comercial inválida.'); }
+        }
         abort_unless(app(PreviewProfiles::class)->login($r,$v['username'],$v['password']),503);
+        if ($commercial!==null) {
+            // PreviewProfiles::login invalidates the pre-registration session.
+            $r->session()->put('preview.commercial_selection',CommercialSelectionHandoff::sessionData($commercial));
+            return redirect('/_preview/portal/shop');
+        }
         return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/client/overview');
     }
     private function owner(Request $r): array
@@ -29,13 +42,39 @@ final class CustomerPreviewController
     }
     public function shop(Request $r)
     {
+        // Any visitor can edit the URL: take only three exact non-financial
+        // choices; recompute prices against the current approved catalog.
+        $query=$r->query();
+        $handoffKeys=array_intersect(['site','channels','tier'],array_keys($query));
+        if ($handoffKeys!==[]) {
+            try {
+                $selection=CommercialSelectionHandoff::parse($query);
+                CommercialSelectionHandoff::summarize(new ApprovedOfferCatalog(),$selection);
+            } catch (InvalidArgumentException|\TypeError) {
+                abort(422,'Seleção comercial não reconhecida.');
+            }
+            $r->session()->put('preview.commercial_selection',CommercialSelectionHandoff::sessionData($selection));
+            $r->session()->forget('preview.intent');
+        }
         $product=$r->query('product');
         abort_unless($product===null||in_array($product,self::OFFERS,true),422);
-        if ($product!==null) $r->session()->put('preview.intent',$product);
+        if ($product!==null) {
+            $r->session()->forget('preview.commercial_selection');
+            $r->session()->put('preview.intent',$product);
+        }
+        $commercial=null;
+        $stored=$r->session()->get('preview.commercial_selection');
+        if ($stored!==null) {
+            try { $commercial=CommercialSelectionHandoff::parse($stored); }
+            catch (InvalidArgumentException|\TypeError) {
+                $r->session()->forget('preview.commercial_selection');
+                abort(422,'Seleção comercial inválida.');
+            }
+        }
         $p=app(PreviewProfiles::class)->current($r);
         if (!$p) return redirect('/_preview/portal');
         if (!isset($p['customer_id'])) return response()->view('portal.preview.personal-required');
-        $this->owner($r); return $this->page(null,$product);
+        $this->owner($r); return $this->page(null,$product,$commercial);
     }
     public function create(Request $r)
     {
@@ -92,10 +131,15 @@ final class CustomerPreviewController
         return redirect('/_preview/portal/shop/orders/'.$id);
     }
     private function fields(Request $r,array $allowed): void { abort_unless(array_diff(array_keys($r->all()),[...$allowed,'_token'])===[],422); }
-    private function page(?array $order,?string $product=null)
+    private function page(?array $order,?string $product=null,?array $commercial=null)
     {
         $keys=[]; foreach(self::OFFERS as $offer) $keys[$offer]='TEST-'.bin2hex(random_bytes(16));
         $catalog=new ApprovedOfferCatalog();
-        return response()->view('portal.preview.customer-purchase',['order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version()]);
+        $summary=$commercial===null?null:CommercialSelectionHandoff::summarize($catalog,$commercial);
+        return response()->view('portal.preview.customer-purchase',[
+            'order'=>$order,'requestKeys'=>$keys,'selectedProduct'=>$product,
+            'approvedOffers'=>$catalog->offers(),'offerVersion'=>$catalog->version(),
+            'commercialSummary'=>$summary
+        ])->withHeaders(['Cache-Control'=>'private, no-store','X-Robots-Tag'=>'noindex, nofollow','Referrer-Policy'=>'no-referrer','X-Content-Type-Options'=>'nosniff']);
     }
 }

@@ -130,8 +130,20 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
+          # This isolated CI runner shares the same gateway IP across browser
+          # processes. F423 must begin in a fresh 60s request-rate window:
+          # the Onepage sandbox regression intentionally consumes five of
+          # six permitted preview-sandbox requests. Keep the real throttle
+          # ENABLED; never alter limits, middleware, or internal PSP routes.
+          python3 - <<'PY'
+          import time
+          time.sleep(65)
+          PY
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
+          # Additive F426 proof comes AFTER existing PSP and RLS regressions;
+          # never consume their account, sandbox or register throttling budgets.
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_handoff_f426.py
           cd apps/portal/ops/private-purchase
           # Prove the shared application SQL login cannot enumerate another
           # customer's identity, orders, events, invoices or financial reports.

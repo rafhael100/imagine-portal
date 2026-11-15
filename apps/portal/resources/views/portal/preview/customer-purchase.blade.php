@@ -1,14 +1,47 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Contratação de teste · Imagine Portal</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f7f8fa;color:#20262b;font:16px/1.6 system-ui,sans-serif}header,main{max-width:1000px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-size:clamp(26px,5vw,38px);line-height:1.2}h2{font-size:22px}.brand{font-size:26px;font-weight:750}.brand span{color:#f9941d}.notice{background:#fff2db;padding:16px;border-radius:12px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px}.card,section{background:white;padding:24px;border-radius:16px;border:1px solid #e1e5e9;margin:20px 0}button{background:#f9941d;border:0;border-radius:9px;padding:13px 20px;font:inherit;font-weight:650;cursor:pointer}a{color:#704000}label{display:block;margin:14px 0}input:not([type=checkbox]),textarea,select{display:block;width:100%;padding:12px;font:inherit;border:1px solid #aab4bf;border-radius:8px}textarea{min-height:85px}input[type=checkbox]{width:20px;height:20px}small{display:block}dt{font-weight:650}dd{margin:0 0 16px;overflow-wrap:anywhere}code{overflow-wrap:anywhere}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #075c9e;outline-offset:3px}.status{font-weight:700}
+*{box-sizing:border-box}body{margin:0;background:#f7f8fa;color:#20262b;font:16px/1.6 system-ui,sans-serif}header,main{max-width:1000px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-size:clamp(26px,5vw,38px);line-height:1.2}h2{font-size:22px}.brand{font-size:26px;font-weight:750}.brand span{color:#f9941d}.notice{background:#fff2db;padding:16px;border-radius:12px}.commercial-handoff-summary{background:#fffdf8;border-color:#efcfa2}.commercial-handoff-summary .card{margin:6px 0;box-shadow:none}.commercial-handoff-summary .tag{display:inline-block;color:#7d4500;background:#ffedd2;border-radius:6px;padding:5px 10px;font-size:13px;font-weight:700}.commercial-handoff-summary h1{margin:12px 0 5px}.commercial-handoff-summary p{line-height:1.6}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px}.card,section{background:white;padding:24px;border-radius:16px;border:1px solid #e1e5e9;margin:20px 0}button{background:#f9941d;border:0;border-radius:9px;padding:13px 20px;font:inherit;font-weight:650;cursor:pointer}a{color:#704000}label{display:block;margin:14px 0}input:not([type=checkbox]),textarea,select{display:block;width:100%;padding:12px;font:inherit;border:1px solid #aab4bf;border-radius:8px}textarea{min-height:85px}input[type=checkbox]{width:20px;height:20px}small{display:block}dt{font-weight:650}dd{margin:0 0 16px;overflow-wrap:anywhere}code{overflow-wrap:anywhere}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #075c9e;outline-offset:3px}.status{font-weight:700}
 </style></head><body><header><div class="brand">imagine<span>.</span> <small>Portal · contratação de teste</small></div><nav aria-label="Navegação de teste"><a href="{{ url('/_preview/portal/shop') }}">Escolher outro serviço</a> · <a href="/_preview/portal">Voltar ao Portal de teste</a></nav></header><main>
 <p class="notice"><strong>Ambiente de homologação com dados fictícios.</strong> O pedido e o briefing são gravados no banco de teste. A conta é exclusiva de teste. Não há contrato jurídico, pagamento ou execução real de serviço. Use somente informações de exemplo.</p>
 @if($errors->any())<section role="alert"><h2>Confira os campos</h2><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></section>@endif
 @if($order === null)
+@if($commercialSummary !== null)
+<section class="commercial-handoff-summary" data-commercial-handoff-review>
+  <p class="tag">Escolha vinda do Imagine Comercial · prévia privada</p>
+  <h1>Confira suas escolhas antes de criar a conta ou o pedido</h1>
+  <p>Site e anúncios continuam como <strong>pedidos separados</strong>, com aceite individual. Não existe carrinho combinado, pagamento real ou compromisso gerado por este resumo. Os valores são recalculados pelo Portal, nunca recebidos do navegador.</p>
+  <div class="cards">
+  @if($commercialSummary['site_quote'] !== null)
+    <div class="card"><h2>Site escolhido</h2>
+      <p><strong>{{ $commercialSummary['selection']['site']==='onepage'?'Onepage':'Landing Page' }}</strong></p>
+      <p>Implantação total: <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['site_quote']['setup_total_cents']) }}</strong>, em 3 parcelas (D0, D30, D60).</p>
+      <p>Primeira parcela: <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['first_site_installment_cents']) }}</strong>.</p>
+      <p>Mensalidade a partir de D+90 da contratação, independentemente da publicação: <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['site_quote']['monthly']['amount_cents']) }}</strong>.</p>
+    </div>
+  @endif
+  @if($commercialSummary['ads_quote'] !== null)
+    <div class="card"><h2>Canais de anúncios</h2>
+      @foreach($commercialSummary['media_by_channel_cents'] as $channel=>$cents)
+        <p>{{ $channel==='google_ads'?'Google Ads':'Meta Ads (Instagram e Facebook)' }}: mídia planejada <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($cents) }}/mês</strong></p>
+      @endforeach
+      <p>Ativação (R$ 490 por canal): <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['ads_activation_cents']) }}</strong>.</p>
+      <p>Gestão mensal estimada (mês completo, 20% ou R$ 170 por canal, o maior): <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['estimated_ads_management_cents']) }}</strong>.</p>
+      <p>Mídia total <strong>{{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['planned_media_total_cents']) }}</strong> paga diretamente às plataformas, fora do checkout.</p>
+    </div>
+  @endif
+  </div>
+  <p><strong>Referência: {{ \App\Homologation\Commerce\ApprovedOfferCatalog::brl($commercialSummary['sum_of_separate_first_payments_cents']) }}</strong> seria a soma das primeiras parcelas/ativações caso cada serviço seja confirmado individualmente. <strong>Não é uma cobrança única nem um pedido criado.</strong></p>
+  <p>Faixa de mídia: <strong>{{ $commercialSummary['selection']['tier']==='minimum'?'mínima':'recomendada' }}</strong>. A gestão pós-paga definitiva depende de investimento efetivamente apurado e das condições contratuais.</p>
+  <p><small>Ambiente de teste, catálogo {{ substr($commercialSummary['catalog_version'],0,12) }}. Continue somente com dados fictícios; verifique cada oferta antes do aceite de teste.</small></p>
+</section>
+@endif
 <h1>Escolha o serviço para testar a contratação</h1><p>Selecione uma oferta e acompanhe seu pedido até o briefing.</p><div class="cards">
 @foreach(['onepage'=>['Site Onepage','Apresente sua empresa em uma página.'],'landing-pages'=>['Landing Page','Uma página voltada para sua campanha.'],'performance'=>['Performance','Planeje uma campanha para seu negócio.']] as $slug=>$offer)
-    @if($selectedProduct === null || $selectedProduct === $slug)
+    @if(($selectedProduct === null || $selectedProduct === $slug) &&
+       ($commercialSummary === null ||
+         $slug === $commercialSummary['selection']['site'] ||
+         ($slug === 'performance' && $commercialSummary['ads_quote'] !== null)))
         <section class="card">
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
@@ -24,8 +57,8 @@
                 <input type="hidden" name="request_key" value="{{ $requestKeys[$slug] }}">
                 <input type="hidden" name="offer_version" value="{{ $offerVersion }}">
                 @if($slug === 'performance')
-                    <label>Investimento Google Ads (R$; mínimo 1.000,00; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="1.000,00" maxlength="12"></label>
-                    <label>Investimento Meta (R$; mínimo 700,00; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12"></label>
+                    <label>Investimento Google Ads (R$; mínimo 1.000,00; vazio se não contratar)<input name="google_media" inputmode="decimal" placeholder="1.000,00" maxlength="12" value="{{ $commercialSummary !== null && isset($commercialSummary['media_by_channel_cents']['google_ads']) ? number_format($commercialSummary['media_by_channel_cents']['google_ads']/100,2,'.','') : '' }}"></label>
+                    <label>Investimento Meta (R$; mínimo 700,00; vazio se não contratar)<input name="meta_media" inputmode="decimal" placeholder="700,00" maxlength="12" value="{{ $commercialSummary !== null && isset($commercialSummary['media_by_channel_cents']['meta_ads']) ? number_format($commercialSummary['media_by_channel_cents']['meta_ads']/100,2,'.','') : '' }}"></label>
                     <small>Instagram e Facebook pertencem ao mesmo canal Meta.</small>
                 @endif
                 <label><input type="checkbox" name="offer_ack" value="1" required> Revisei as condições para esta simulação, sem cobrança ou contrato real.</label>

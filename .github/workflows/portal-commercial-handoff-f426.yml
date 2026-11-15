@@ -1,0 +1,56 @@
+name: Portal F426 strict Comercial checkout choice handoff (NO-CHARGE)
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/**'
+      - 'apps/portal/app/Http/Controllers/CustomerPreviewController.php'
+      - 'apps/portal/app/Http/Controllers/FullPortalPreviewController.php'
+      - 'apps/portal/resources/views/portal/preview/customer-purchase.blade.php'
+      - 'apps/portal/tools/test_commercial_handoff_f426.php'
+      - 'apps/portal/ops/private-purchase/test_commercial_handoff_f426.py'
+      - '.github/workflows/portal-commercial-handoff-f426.yml'
+permissions:
+  contents: read
+jobs:
+  validate-server-owned-choice:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    timeout-minutes: 9
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact candidate without secrets
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: PHP syntax and deterministic server catalog choices
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
+          php -l apps/portal/app/Http/Controllers/CustomerPreviewController.php
+          php -l apps/portal/app/Http/Controllers/FullPortalPreviewController.php
+          php -l apps/portal/tools/test_commercial_handoff_f426.php
+          php apps/portal/tools/test_commercial_handoff_f426.php
+          php apps/portal/tools/test_commerce.php
+          echo 'F426: no user price, combined checkout or real PSP permitted' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve explicit sandbox-only contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "'single_combined_checkout_enabled'=>false" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
+          grep -Fq "'real_charge_enabled'=>false" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
+          grep -Fq "'catalog_version'" apps/portal/app/Homologation/Commerce/CommercialSelectionHandoff.php
+          grep -Fq "CommercialSelectionHandoff::summarize(new ApprovedOfferCatalog()" apps/portal/app/Http/Controllers/CustomerPreviewController.php
+          grep -Fq "A oferta mudou. Atualize e confira as condições." apps/portal/app/Http/Controllers/CustomerPreviewController.php
+          grep -Fq '"direct_checkout_enabled": false' apps/portal/app/Homologation/Commerce/approved-catalog.json
