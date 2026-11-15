@@ -74,8 +74,10 @@ final readonly class PortalSeoPgOAuthSessionBoundLab
                 $selectedTenant,$opaquePortalSession,$resourceHandle,
                 $exactSiteUrl,$fingerprint,$callback,$trustedNow
             ):?array {
-                // Locks the synthetic Portal session, membership and resource
-                // rows against concurrent revocation until callback finishes.
+                // Rechecks synthetic Portal session, membership and resource
+                // inside this transaction. With SELECT-only DB privileges,
+                // concurrent revocation still needs a separate approved
+                // locking/serialization design before production.
                 $identity=(new PortalSeoPgIdentityReviewLab(
                     $db,$this->sessionKey->getValue()
                 ))->inspectInsideActiveTenantTransaction(
@@ -96,7 +98,7 @@ final readonly class PortalSeoPgOAuthSessionBoundLab
                 $actorQuery=$db->prepare('SELECT actor_ref FROM
                     portal_seo_review_sessions
                     WHERE tenant_ref=:tenant AND session_digest=:digest
-                    FOR SHARE');
+                    ');
                 if (!$actorQuery || !$actorQuery->execute([
                     'tenant'=>$selectedTenant,'digest'=>$digest
                 ]))return null;
