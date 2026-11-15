@@ -12,7 +12,7 @@ transação tenant RLS** antes de efetuar o CAS do state PKCE:
 
 1. Validar a entrada e abrir transação com variável tenant local no PostgreSQL
 2. Verificar identidade de sessão, MFA sintético, membership e recurso
-   na mesma transação, com bloqueios FOR SHARE nas três linhas
+   na mesma transação, usando papel de leitura sem UPDATE nas três tabelas
 3. Recuperar o ator **da linha de sessão**, nunca de campos do cliente
 4. Bloquear o grant GSC readonly com FOR SHARE e conferir
    tenant/ator/fingerprint/expiração
@@ -46,10 +46,13 @@ transacional e não tem rota HTTP. Mesmo com state corretamente
 consumido, nenhuma permissão de token exchange, acesso à Google,
 exibição de dados, publicação ou acesso produtivo é concedida.
 
-A transação protege as linhas de sessão/membership/recurso e
-grant registrado contra atualização concorrente até o COMMIT,
-mas o teste não substitui uma avaliação de locks, starvation,
-timeouts, SQL injection, GUC e pool sob carga em homologação.
+A transação agrupa a revisão de sessão e o consumo do state,
+mas as leituras de sessão/membership/recurso NÃO bloqueiam
+revogação concorrente no papel de leitura usado neste teste.
+Há uma janela de corrida a endereçar com serialização/locks
+aprovados antes de produção. O grant GSC usa bloqueio distinto.
+Também permanecem pendentes avaliação de starvation, timeouts,
+SQL injection, GUC e pool sob carga em homologação.
 Uma autorização GSC armazenada não é prova de consentimento
 OAuth atual nem de posse da propriedade junto ao Google.
 
