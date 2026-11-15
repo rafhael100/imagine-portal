@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\PortalAdminLoginController;
+use App\Http\Controllers\PortalAdminSeoScopeController;
 use App\Http\Middleware\PortalAdminFeatureGate;
 use App\Http\Middleware\PortalAdminMfaGuard;
+use App\Http\Middleware\PortalAdminOrganizationSeoGate;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,5 +39,15 @@ Route::prefix('portal-admin')
         Route::get('/',[
             PortalAdminLoginController::class,'home'
         ])->middleware([PortalAdminMfaGuard::class])->name('home');
+
+        // F136: session epoch is checked by MFA guard before the
+        // organization-scoped grant lookup can take place.
+        Route::get('/seo-review/{organization}',[
+            PortalAdminSeoScopeController::class,'show'
+        ])->where('organization','[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}')
+          ->middleware([
+              PortalAdminMfaGuard::class,
+              PortalAdminOrganizationSeoGate::class
+          ])->name('seo-review');
     });
 }
