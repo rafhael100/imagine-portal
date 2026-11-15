@@ -69,15 +69,17 @@ final class PortalGscPermissionContractTest extends TestCase
             'members.manage', 'seo.gsc.connect', 'seo.gsc.view',
         ];
         $optionalCrossStack = 'commercial.delivery-review.view';
+        // Universidade: apenas vocabulário, sem grant no CHECK de banco.
+        $unissuedUniversity = ['university:view', 'university:manage'];
         foreach ($required as $code) {
             self::assertContains($code, $actual);
         }
         self::assertSame(count($actual), count(array_unique($actual)));
         self::assertSame([], array_values(array_diff(
-            $actual, [...$required, $optionalCrossStack],
+            $actual, [...$required, $optionalCrossStack, ...$unissuedUniversity],
         )));
         self::assertCount(
-            count($required) + (in_array($optionalCrossStack, $actual, true) ? 1 : 0),
+            count($required) + (in_array($optionalCrossStack, $actual, true) ? 1 : 0) + count($unissuedUniversity),
             $actual,
         );
 
