@@ -20,4 +20,7 @@ enum Permission: string
     case ConnectGoogleSearchConsole = 'seo.gsc.connect';
     // Explicit metrics-read grant; never implied by property connection.
     case ViewGoogleSearchConsoleMetrics = 'seo.gsc.view';
+    // Vocabulary-only for the client benefit. No DB CHECK/issuer/HTTP grant.
+    case ViewUniversity = 'university:view';
+    case ManageUniversity = 'university:manage';
 }
