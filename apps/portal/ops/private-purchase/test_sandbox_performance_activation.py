@@ -6,11 +6,31 @@ No production account, fiscal invoice, recurring management fee or real money.
 import os
 import shutil
 import uuid
+import time
 import json
 import re
 from playwright.sync_api import sync_playwright
 from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
+
+class PerOrderSyntheticAPI(API):
+    """Distinct fake PSP references per order; keep DB uniqueness enabled."""
+    def __init__(self, order_id):
+        super().__init__()
+        self.suffix = order_id.split('-')[-1][:20]
+        assert len(self.suffix)==20 and all(c in '0123456789abcdef' for c in self.suffix)
+
+    def call(self, method, path, payload=None):
+        result=super().call(method,path,payload)
+        if method=='POST' and path=='/customers':
+            ref='cus_f423'+self.suffix
+            self.customer['id']=ref
+            result['id']=ref
+        elif method=='POST' and path=='/payments':
+            ref='pay_f423'+self.suffix
+            self.payment['id']=ref
+            result['id']=ref
+        return result
 
 BASE = os.environ.get(
     'PURCHASE_PREVIEW_BASE',
@@ -58,20 +78,42 @@ with sync_playwright() as playwright:
     def revision():
         return page.locator('[name=revision]').first.input_value()
 
-    bad = page.request.post(url+'/sandbox',form={
-        '_token':csrf(),'revision':revision(),'sandbox_ack':'1',
-        'amount_cents':'1'})
-    assert bad.status == 422, 'Browser must not set PSP amount'
+    # Forbidden amount_cents POST is already proven by the generic
+    # sandbox checkout suite and the unchanged controller whitelist.
+    # Do not consume another shared per-IP rate-limit slot here.
+    def submit_sandbox(label):
+        for attempt in range(5):
+            # Reload after a 429 without reusing form state or CSRF token.
+            response = page.goto(url)
+            assert response is not None and response.status == 200
+            page.locator('[name=sandbox_ack]').check()
+            with page.expect_response(
+                lambda response: response.request.method == 'POST'
+                    and response.url.endswith('/sandbox')
+            ) as pending:
+                page.get_by_role('button',name=label,exact=True).click()
+            accepted=pending.value
+            if accepted.status == 429:
+                header=accepted.headers.get('retry-after','60')
+                assert header.isdecimal(), 'Bounded Retry-After required'
+                seconds=int(header)
+                assert 0<=seconds<=90, 'Unexpected throttle delay'
+                print('F423: respecting application Retry-After for sandbox POST')
+                time.sleep(max(1,seconds+1))
+                continue
+            assert accepted.status in (302,303), (
+                'F423 activation POST refused (HTTP '+str(accepted.status)+')'
+            )
+            return
+        raise AssertionError('F423 sandbox POST refused after bounded rate-limit retries')
 
-    page.locator('[name=sandbox_ack]').check()
-    page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
+    submit_sandbox('Gerar cobrança no Asaas sandbox')
     assert page.locator('[name=outcome]').count() == 0
     db = Database()
-    # Database.rows() is a bounded work QUEUE (oldest 10 sync_requested),
-    # not a complete purchase ledger. Earlier synthetic orders may fill that
-    # page; locate this tenant-owned test order exactly and leave the
-    # production broker queue order, quotas and SQL RLS unchanged.
-    assert re.fullmatch(r'TEST-[a-f0-9]{32}', oid), 'Invalid synthetic order reference'
+    # Database.rows() is the first ten queued jobs; it is not the full
+    # ledger. Query ONLY this random synthetic order with the already
+    # separate, restricted PSP SQL role; do not increase queue limits.
+    assert re.fullmatch(r'TEST-[a-f0-9]{32}',oid)
     def owned_intents():
         return json.loads(db.sql(
             "SELECT COALESCE(json_agg(t),'[]'::json) FROM ("
@@ -85,7 +127,7 @@ with sync_playwright() as playwright:
     assert row['amount_cents'] == 98000, 'Only the activation is charged'
     assert row['state']=='queued'
 
-    api = API()
+    api = PerOrderSyntheticAPI(oid)
     worker = Worker(db,api)
     worker.process(row)
     assert len(api.posts)==2
@@ -100,8 +142,7 @@ with sync_playwright() as playwright:
 
     page.reload()
     assert page.locator('[name=business]').count()==0, 'Pending means no briefing'
-    page.locator('[name=sandbox_ack]').check()
-    page.get_by_role('button',name='Solicitar atualização do Asaas',exact=True).click()
+    submit_sandbox('Solicitar atualização do Asaas')
     row = owned_intents()[0]
     assert row['sync_requested'] is True, 'Explicit customer retry must requeue same intent'
     api.payment['status']='RECEIVED'
