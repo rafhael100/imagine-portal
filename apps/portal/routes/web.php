@@ -51,3 +51,15 @@ Route::prefix('portal-admin')
           ])->name('seo-review');
     });
 }
+
+// ADMIN-P0: explicit opt-in laboratory only; existing admin guard and MFA reused.
+if(config('portal_admin.enabled')===true && config('performance_admin.enabled')===true
+    && app()->environment(['local','testing'])){
+    Route::prefix('portal-admin/performance')->name('performance-admin.')
+        ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class,\App\Http\Middleware\PerformanceAdminLabGate::class])
+        ->group(function():void{
+            Route::get('/export/{tenant}',[\App\Http\Controllers\PerformanceAdminController::class,'export'])->where('tenant','lab-alfa|lab-beta')->name('export');
+            Route::post('/command/{tenant}',[\App\Http\Controllers\PerformanceAdminController::class,'command'])->where('tenant','lab-alfa|lab-beta')->name('command');
+            Route::get('/{module?}',[\App\Http\Controllers\PerformanceAdminController::class,'index'])->name('index');
+        });
+}
