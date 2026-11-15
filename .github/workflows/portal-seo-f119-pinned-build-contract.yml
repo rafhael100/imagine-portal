@@ -30,11 +30,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Checkout exact SEO Engine RC44 reviewed commit
+      - name: Checkout exact SEO Engine RC45 reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: rafhael100/imagine-seo-engine
-          ref: 2a153cedd0b5fc8ad3d5d26ce103a2043be38a72
+          ref: 7847c8c66d5be228a08a94282da562c790cdd440
           path: .qa/seo-f118
           persist-credentials: false
       - name: Set up Node 22
@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C .qa/seo-f118 rev-parse HEAD)" = 2a153cedd0b5fc8ad3d5d26ce103a2043be38a72
+          test "$(git -C .qa/seo-f118 rev-parse HEAD)" = 7847c8c66d5be228a08a94282da562c790cdd440
           test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
           node --check apps/portal/labs/seo-f119-build/emit-engine.mjs
           php -l apps/portal/labs/seo-f119-build/verify-portal.php
