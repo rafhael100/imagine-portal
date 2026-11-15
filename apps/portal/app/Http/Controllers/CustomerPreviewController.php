@@ -20,8 +20,18 @@ final class CustomerPreviewController
         try { app(CustomerPreviewStore::class)->register($v['username'],$v['password'],$v['name'],$v['company']); }
         catch (\Throwable) { return redirect('/_preview/portal/register')->withErrors(['username'=>'Não foi possível criar a conta. Escolha outro usuário ou tente mais tarde.']); }
         $intent=$r->session()->get('preview.intent');
+        $pending=$r->session()->get('preview.commercial_selection');
+        $commercial=null;
+        if ($pending!==null) {
+            try { $commercial=CommercialSelectionHandoff::parse($pending); }
+            catch (InvalidArgumentException|\TypeError) { abort(422,'Seleção comercial inválida.'); }
+        }
         abort_unless(app(PreviewProfiles::class)->login($r,$v['username'],$v['password']),503);
-        if ($r->session()->has('preview.commercial_selection')) return redirect('/_preview/portal/shop');
+        if ($commercial!==null) {
+            // PreviewProfiles::login invalidates the pre-registration session.
+            $r->session()->put('preview.commercial_selection',CommercialSelectionHandoff::sessionData($commercial));
+            return redirect('/_preview/portal/shop');
+        }
         return redirect(in_array($intent,self::OFFERS,true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/client/overview');
     }
     private function owner(Request $r): array
