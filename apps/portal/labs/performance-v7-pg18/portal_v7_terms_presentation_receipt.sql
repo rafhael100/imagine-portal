@@ -16,7 +16,7 @@ CREATE TABLE public.portal_v7_terms_presentation_lab (
   previous_consent_revision bigint NOT NULL CHECK (previous_consent_revision>=0),
   plan_sha256 char(64) NOT NULL CHECK (plan_sha256 ~ '^[a-f0-9]{64}$'),
   terms_sha256 char(64) NOT NULL CHECK (terms_sha256 ~ '^[a-f0-9]{64}$'),
-  registered_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  registered_at timestamptz NOT NULL DEFAULT statement_timestamp(),
   expires_at timestamptz NOT NULL,
   CHECK (expires_at>registered_at AND expires_at<=registered_at+interval '3 minutes')
 );
@@ -83,7 +83,7 @@ BEGIN
  ) VALUES (
    p_session_hash,p_tenant,p_agreement,p_period,v_org,v_actor,
    p_contract_revision,p_previous_consent,p_plan,p_terms,
-   clock_timestamp()+interval '3 minutes'
+   statement_timestamp()+interval '3 minutes'
  ) RETURNING challenge INTO v_challenge;
  RETURN v_challenge;
 END;
