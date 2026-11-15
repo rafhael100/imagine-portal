@@ -71,7 +71,7 @@ jobs:
       - name: Start disposable PostgreSQL only
         run: |
           set -euo pipefail
-          docker compose --env-file .env.staging up -d db
+          docker compose --env-file .env.staging up -d --wait --wait-timeout 120 db
       - name: Migrate with owner and grant narrowly scoped runtime permissions
         run: |
           set -euo pipefail
@@ -123,6 +123,13 @@ jobs:
             http://127.0.0.1:18081/portal-admin/login)"
           test "$status" = '404'
           docker compose --env-file .env.staging exec -T web nginx -t
+      - name: Inspect disposable PostgreSQL bootstrap if tests failed
+        if: failure()
+        run: |
+          if test -s .env.staging; then
+            docker compose --env-file .env.staging ps || true
+            docker compose --env-file .env.staging logs --no-color --tail=60 db || true
+          fi
       - name: Remove all CI-only volumes, containers and secrets
         if: always()
         working-directory: .
