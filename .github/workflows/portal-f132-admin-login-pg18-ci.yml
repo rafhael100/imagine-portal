@@ -1,10 +1,14 @@
-name: Portal F132 - real admin password plus TOTP on disposable PG18
+name: Portal F132-F133 - admin password, TOTP and guarded bootstrap PG18
 
 on:
   pull_request:
     paths:
       - '.github/workflows/portal-f132-admin-login-pg18-ci.yml'
       - 'apps/portal/app/Models/PortalAdminUser.php'
+      - 'apps/portal/app/Console/Commands/BootstrapPortalAdmin.php'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php'
+      - 'apps/portal/bootstrap/app.php'
+      - 'apps/portal/.env.example'
       - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminTotp.php'
       - 'apps/portal/app/Http/Controllers/PortalAdminLoginController.php'
       - 'apps/portal/app/Http/Middleware/PortalAdmin*'
@@ -50,6 +54,7 @@ jobs:
       # Dedicated CI opts in to route registration; production remains off.
       PORTAL_ADMIN_AUTH_ENABLED: 'true'
       PORTAL_ADMIN_F132_PG_CI: '1'
+      PORTAL_ADMIN_F133_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -78,6 +83,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          php -l apps/portal/app/Console/Commands/BootstrapPortalAdmin.php
+          php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php
+          php -l apps/portal/bootstrap/app.php
           php -l apps/portal/app/Http/Controllers/PortalAdminLoginController.php
           php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminTotp.php
           php -l apps/portal/app/Http/Middleware/PortalAdminFeatureGate.php
@@ -112,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest'
+          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest'
       - name: No tracked source changes
         shell: bash
         run: |

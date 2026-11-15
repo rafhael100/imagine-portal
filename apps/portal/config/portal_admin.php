@@ -9,6 +9,7 @@ declare(strict_types=1);
  */
 return [
     'enabled'=>env('PORTAL_ADMIN_AUTH_ENABLED',false),
+    'provision_enabled'=>env('PORTAL_ADMIN_PROVISION_ENABLED',false),
     'pending_seconds'=>300,
     'mfa_verified_seconds'=>3600,
     'max_password_attempts'=>5,
