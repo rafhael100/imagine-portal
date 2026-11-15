@@ -9,6 +9,7 @@ declare(strict_types=1);
 require_once __DIR__.'/../../vendor/autoload.php';
 
 use App\Domain\SeoReview\PortalSeoPgTrustedBuildSignerLab as Trusted;
+use App\Domain\SeoReview\PortalSeoPgSigningKeyRevocationLab as Revoker;
 use App\Domain\SeoReview\GoogleSearchConsoleTenantScopedTransaction as Scope;
 
 const ENGINE_F127='3c75b8e7b64f4173a17f4daab45cea1b8bdc5554';
@@ -24,6 +25,7 @@ if(PHP_SAPI!=='cli' ||
    getenv('PORTAL_SEO_F122_LAB')!=='1' ||
    getenv('PORTAL_SEO_F123_PG_CI')!=='1' ||
    getenv('PORTAL_SEO_F127_PG_CI')!=='1' ||
+   getenv('PORTAL_SEO_F128_PG_CI')!=='1' ||
    getenv('DB_CONNECTION')!=='pgsql' ||
    getenv('DB_HOST')!=='127.0.0.1' ||
    getenv('DB_DATABASE')!=='portal_gsc_f108_ci' ||
@@ -92,15 +94,21 @@ $admin->exec("CREATE ROLE portal_f127_service LOGIN
     NOSUPERUSER NOBYPASSRLS NOINHERIT PASSWORD 'f127-ci-role-only'");
 $admin->exec("CREATE ROLE portal_f127_readonly LOGIN
     NOSUPERUSER NOBYPASSRLS NOINHERIT PASSWORD 'f127-ci-role-only'");
-foreach(['portal_f127_service','portal_f127_readonly'] as $role){
+$admin->exec("CREATE ROLE portal_f127_revoker LOGIN
+    NOSUPERUSER NOBYPASSRLS NOINHERIT PASSWORD 'f127-ci-role-only'");
+foreach(['portal_f127_service','portal_f127_readonly','portal_f127_revoker'] as $role){
     $admin->exec('GRANT USAGE ON SCHEMA public TO '.$role);
     $admin->exec('GRANT SELECT ON portal_seo_build_signing_keys TO '.$role);
     $admin->exec('GRANT SELECT ON portal_seo_build_evidence_nonces TO '.$role);
 }
 $admin->exec('GRANT INSERT ON portal_seo_build_evidence_nonces TO portal_f127_service');
+// F130 requires revocation and matching audit in one transaction.
+$admin->exec('GRANT UPDATE ON portal_seo_build_signing_keys TO portal_f127_revoker');
+$admin->exec('GRANT SELECT,INSERT ON portal_seo_build_signer_events TO portal_f127_revoker');
 $service=db127('portal_f127_service',getenv('F127_ROLE_PASSWORD'));
 $reader=db127('portal_f127_readonly',getenv('F127_ROLE_PASSWORD'));
-foreach(['portal_f127_service','portal_f127_readonly'] as $name){
+$revoker=db127('portal_f127_revoker',getenv('F127_ROLE_PASSWORD'));
+foreach(['portal_f127_service','portal_f127_readonly','portal_f127_revoker'] as $name){
     $q=$admin->prepare(
         'SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=:name'
     );
@@ -177,18 +185,16 @@ gate127(is_array($blocked)&&
     'signature elevated wrong-language build to publication');
 
 enroll127($admin,'demo-tenant',SIGNER_F127,$keyC,$now);
-// A key revoked BEFORE the report arrives must never be accepted.
-$revoke=$admin->prepare(
-    "UPDATE portal_seo_build_signing_keys
-     SET key_status='revoked',revoked_at=:now
-     WHERE tenant_ref=:tenant AND signer_ref=:signer
-       AND public_key_fingerprint=:fp AND key_status='active'"
+// F130 now correctly refuses a bare SQL UPDATE without audit.
+// Revoke through the real cooperative F128/F129 transaction, enforcing
+// tenant RLS, advisory lock and mandatory signed-key audit.
+$revoke=(new Revoker($revoker))->revoke(
+    $demo,SIGNER_F127,hash('sha256',$keyC),$now
 );
-$revoke->execute([
-    'now'=>$now,'tenant'=>'demo-tenant','signer'=>SIGNER_F127,
-    'fp'=>hash('sha256',$keyC)
-]);
-gate127($revoke->rowCount()===1,'test key revocation not recorded');
+gate127(is_array($revoke) &&
+    $revoke['oneSignerKeyRevokedInPgLab']===true &&
+    $revoke['revocationAuditPersistedInPgLab']===true,
+    'F127 key revocation must use the audited F128/F129 path');
 gate127(use127($service,$privatePreview,$demo,$now)===null,
     'revoked but otherwise valid signer accepted');
 
