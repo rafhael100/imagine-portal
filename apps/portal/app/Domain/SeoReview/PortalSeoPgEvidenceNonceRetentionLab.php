@@ -41,8 +41,9 @@ final class PortalSeoPgEvidenceNonceRetentionLab
         $scoped=new GoogleSearchConsoleTenantScopedTransaction($this->pdo);
         return $scoped->run($trustedContext,
             static function(PDO $db)use($trustedContext,$cutoff):array {
-                // SELECT FOR UPDATE SKIP LOCKED limits concurrency
-                // contention, and the DELETE/RETURNING is one transaction.
+                // DELETE itself acquires row locks atomically. Avoid SELECT
+                // FOR UPDATE: that would require an unnecessary UPDATE grant
+                // on the dedicated retention role.
                 $stmt=$db->prepare(
                     'WITH expired AS (
                         SELECT tenant_ref,nonce_digest
@@ -50,7 +51,6 @@ final class PortalSeoPgEvidenceNonceRetentionLab
                         WHERE tenant_ref=:tenant AND expires_at<:threshold
                         ORDER BY expires_at,nonce_digest
                         LIMIT 500
-                        FOR UPDATE SKIP LOCKED
                     )
                     DELETE FROM portal_seo_build_evidence_nonces AS ledger
                     USING expired
