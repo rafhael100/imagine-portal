@@ -215,6 +215,13 @@ foreach([
 ] as $flag)v7pgMust(($review[$flag]??null)===false,
     'PG fixture is not real customer authorization: '.$flag);
 
+if(getenv('PORTAL_PERF_V7_EXPRESS_CONSENT_LAB')==='1') {
+    // F830 is a separate opt-in PG18 CI workflow, not part of F829
+    // or production Portal routes. Includes further acceptance tests
+    // while the original synthetic session and agreement are current.
+    require __DIR__.'/test_portal_v7_express_consent_pg18.php';
+}
+
 // A direct database login sees no identity, agreement or consent rows.
 foreach([
     'portal_auth_sessions','portal_identities','portal_memberships',
