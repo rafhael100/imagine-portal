@@ -156,4 +156,93 @@ final class PortalAdminLoginFlowTest extends TestCase
             '/portal/google/oauth/connect','/register'] as $path)
             $this->get($path)->assertNotFound();
     }
+    public function test_session_version_rotation_rejects_existing_mfa_session():void
+    {
+        $this->post('/portal-admin/login',$this->password())
+            ->assertRedirect('/portal-admin/mfa');
+        $this->post('/portal-admin/mfa',['code'=>$this->otp()])
+            ->assertRedirect('/portal-admin');
+        $this->get('/portal-admin')->assertOk();
+
+        DB::table('portal_admin_users')->where('id',$this->adminId)
+            ->increment('session_version');
+        $this->get('/portal-admin')->assertRedirect('/portal-admin/login');
+        $this->assertGuest('portal-admin');
+    }
+
+    public function test_rotated_password_pending_session_cannot_complete_mfa():void
+    {
+        $this->post('/portal-admin/login',$this->password())
+            ->assertRedirect('/portal-admin/mfa');
+        $this->get('/portal-admin/mfa')->assertOk();
+        DB::table('portal_admin_users')->where('id',$this->adminId)
+            ->increment('session_version');
+        $this->get('/portal-admin/mfa')
+            ->assertRedirect('/portal-admin/login');
+        $this->post('/portal-admin/mfa',['code'=>$this->otp()])
+            ->assertRedirect('/portal-admin/login');
+        $this->assertGuest('portal-admin');
+    }
+
+    public function test_cli_revocation_rotates_version_and_deactivates_only_on_request():void
+    {
+        $original=getenv('PORTAL_ADMIN_F134_PG_CI');
+        putenv('PORTAL_ADMIN_F134_PG_CI=1');
+        try{
+            $this->post('/portal-admin/login',$this->password())
+                ->assertRedirect('/portal-admin/mfa');
+            $this->post('/portal-admin/mfa',['code'=>$this->otp()])
+                ->assertRedirect('/portal-admin');
+            $this->get('/portal-admin')->assertOk();
+            $before=DB::table('portal_admin_users')
+                ->where('id',$this->adminId)->first();
+            $this->artisan('portal-admin:invalidate-sessions',[
+                '--email'=>$this->email
+            ])->assertExitCode(0);
+            $after=DB::table('portal_admin_users')
+                ->where('id',$this->adminId)->first();
+            self::assertSame(
+                (int)$before->session_version+1,
+                (int)$after->session_version
+            );
+            self::assertTrue((bool)$after->is_active);
+            $this->get('/portal-admin')
+                ->assertRedirect('/portal-admin/login');
+            $this->assertGuest('portal-admin');
+
+            $this->artisan('portal-admin:invalidate-sessions',[
+                '--email'=>$this->email,'--deactivate'=>true
+            ])->assertExitCode(0);
+            $deactivated=DB::table('portal_admin_users')
+                ->where('id',$this->adminId)->first();
+            self::assertFalse((bool)$deactivated->is_active);
+            self::assertSame(
+                (int)$after->session_version+1,
+                (int)$deactivated->session_version
+            );
+            $this->post('/portal-admin/login',$this->password())
+                ->assertSessionHasErrors('credentials');
+        }finally{
+            if($original===false)putenv('PORTAL_ADMIN_F134_PG_CI');
+            else putenv('PORTAL_ADMIN_F134_PG_CI='.$original);
+        }
+    }
+
+    public function test_session_revocation_command_refuses_unknown_account():void
+    {
+        $old=getenv('PORTAL_ADMIN_F134_PG_CI');
+        putenv('PORTAL_ADMIN_F134_PG_CI=1');
+        try{
+            $this->artisan('portal-admin:invalidate-sessions',[
+                '--email'=>'unknown-admin@example.test'
+            ])->assertExitCode(1);
+            $this->artisan('portal-admin:invalidate-sessions',[
+                '--email'=>'bad-input'
+            ])->assertExitCode(1);
+        }finally{
+            if($old===false)putenv('PORTAL_ADMIN_F134_PG_CI');
+            else putenv('PORTAL_ADMIN_F134_PG_CI='.$old);
+        }
+    }
+
 }
