@@ -17,7 +17,10 @@ final class PortalAdminMfaGuard
     public function handle(Request $request,Closure $next):Response
     {
         $guard=Auth::guard('portal-admin');
-        $admin=$guard->user();
+        // Re-read active status on every request. A cached Eloquent user
+        // must not outlive an administrator deactivation in the DB.
+        $cached=$guard->user();
+        $admin=$cached?->fresh();
         $session=$request->session();
         $at=$session->get('portal_admin_mfa_at');
         $id=$session->get('portal_admin_mfa_id');
