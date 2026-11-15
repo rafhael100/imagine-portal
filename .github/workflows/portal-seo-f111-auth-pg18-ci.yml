@@ -90,7 +90,7 @@ jobs:
               "apps/portal/app/Domain/SeoReview/PortalSeoPgIdentityReviewLab.php",
               "apps/portal/database/migrations/2026_11_15_000006_create_portal_seo_review_identity_rls.php",
               "apps/portal/labs/gsc-f111-pg18/verify-identity.php",
-              "apps/portal/docs/PORTAL-SEO-F110-OAUTH-RLS-REVIEW.md"
+              "apps/portal/docs/PORTAL-SEO-F111-AUTH-REVIEW.md"
             ]);
             if(names.length<4||names.length>allowed.size||names.some(n=>!allowed.has(n)))
               throw Error("F111: unexpected changed paths");
