@@ -75,7 +75,7 @@ function seed111(
     $statement->execute([
         'tenant'=>$tenant,'actor'=>$actor,
         'digest'=>digest111('portal-session-review-v1',$tenant,$session,$pepper),
-        'issued'=>$now-300,'expires'=>$now+600,'mfa'=>$now-30
+        'issued'=>$now-900,'expires'=>$now+600,'mfa'=>$now-30
     ]);
     $member=$admin->prepare('INSERT INTO portal_seo_review_memberships
         (tenant_ref,actor_ref,status,permission,checked_at,revoked_at)
@@ -144,7 +144,13 @@ foreach([
 
 function modify111(PDO $db,string $sql,array $params=[]):void{
     $q=$db->prepare($sql);
-    ok111($q!==false && $q->execute($params),'test fixture update failed');
+    preg_match_all('/:[a-zA-Z_][a-zA-Z_0-9]*/',$sql,$matched);
+    $used=[];
+    foreach($matched[0] as $param){
+        $name=substr($param,1);
+        if(array_key_exists($name,$params))$used[$name]=$params[$name];
+    }
+    ok111($q!==false && $q->execute($used),'test fixture update failed');
 }
 $digA=digest111('portal-session-review-v1','demo-tenant',$sessionA,$pepper);
 $resDigA=digest111('portal-seo-resource-review-v1','demo-tenant',$resourceA,$pepper);
