@@ -1,0 +1,81 @@
+name: Portal F427 monthly postpaid single-use review PostgreSQL18 NO-INVOICE
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/performance-monthly-f427/**'
+      - '.github/workflows/portal-performance-monthly-f427-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-monthly-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout reviewed SHA with no persisted GitHub credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PostgreSQL18 closed-network RLS, one use, reversal and tamper suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f portal-f427-pg >/dev/null 2>&1 || true' EXIT
+          docker run -d --name portal-f427-pg --network none \
+            -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18
+          for attempt in $(seq 1 45); do
+            if docker exec portal-f427-pg pg_isready -q -U postgres; then break; fi
+            sleep 1
+          done
+          docker exec portal-f427-pg pg_isready -U postgres
+          docker exec portal-f427-pg psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c 'CREATE DATABASE portal_purchase_rehearsal'
+          docker exec -i portal-f427-pg psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal \
+            < apps/portal/labs/performance-monthly-f427/schema.sql
+          docker exec -i portal-f427-pg psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal \
+            < apps/portal/labs/performance-monthly-f427/test-reviews.sql
+          echo 'F427 SQL adverse-path tests passed in isolated PostgreSQL18.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Two competing connections consume exact same report only once
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f portal-f427-race >/dev/null 2>&1 || true' EXIT
+          docker run -d --name portal-f427-race --network none \
+            -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18
+          for attempt in $(seq 1 45); do
+            if docker exec portal-f427-race pg_isready -q -U postgres; then break; fi
+            sleep 1
+          done
+          docker exec portal-f427-race psql -v ON_ERROR_STOP=1 -U postgres \
+            -d postgres -c 'CREATE DATABASE portal_purchase_rehearsal'
+          docker exec -i portal-f427-race psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal \
+            < apps/portal/labs/performance-monthly-f427/schema.sql
+          docker exec portal-f427-race psql -v ON_ERROR_STOP=1 -U postgres \
+            -d portal_purchase_rehearsal -c "
+          SET SESSION AUTHORIZATION perf_monthly_f427_issuer;
+          INSERT INTO perf_monthly_f427.monthly_reviews(
+          envelope_hash,envelope_mac,tenant_ref,order_ref,report_version,
+          report_sha256,candidate_sha256,period_start,amount_cents,issued_at,expires_at)
+          VALUES(repeat('a',64),repeat('c',64),'org-race-001','order-race-001',1,
+          repeat('1',64),repeat('2',64),
+          (date_trunc('month',now())-interval '1 month')::date,
+          17000,now(),now()+interval '10 minutes');"
+          cmd="SET SESSION AUTHORIZATION perf_monthly_f427_worker;
+          SELECT perf_monthly_f427.consume_review(repeat('a',64),repeat('c',64),
+          'org-race-001','order-race-001',
+          (date_trunc('month',now())-interval '1 month')::date,
+          1,repeat('1',64),repeat('2',64),17000);"
+          docker exec portal-f427-race psql -v ON_ERROR_STOP=1 -At -U postgres \
+            -d portal_purchase_rehearsal -c "$cmd" > /tmp/f427-race-a.log &
+          p1=$!
+          docker exec portal-f427-race psql -v ON_ERROR_STOP=1 -At -U postgres \
+            -d portal_purchase_rehearsal -c "$cmd" > /tmp/f427-race-b.log &
+          p2=$!
+          wait "$p1"
+          wait "$p2"
+          grep -x t /tmp/f427-race-a.log /tmp/f427-race-b.log | grep -c ':t$' | grep -qx 1
+          grep -x f /tmp/f427-race-a.log /tmp/f427-race-b.log | grep -c ':f$' | grep -qx 1
+          echo 'F427 PASS: concurrent reviewers cannot consume one monthly envelope twice.' >> "$GITHUB_STEP_SUMMARY"
