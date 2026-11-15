@@ -1,5 +1,7 @@
 # Imagine Portal
 
+> **Diretriz transversal (15/11/2026):** **Visitas → Leads → Clientes** orienta o ecossistema Imagine. [Papel deste projeto na metodologia](docs/METODOLOGIA-IMAGINE-VISITAS-LEADS-CLIENTES-2026-11-15.md). A alteração é documental e não libera dados, integrações, alterações de UI ou produção.
+
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
 **Versão 0.18.2 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
