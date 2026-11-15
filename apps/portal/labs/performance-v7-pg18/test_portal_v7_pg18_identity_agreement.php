@@ -170,6 +170,37 @@ $prepare=static fn(
     $issuedAt,$expiresAt,$activationKey,$planKey
 );
 $review=$prepare();
+if(getenv('PORTAL_F829_EXPORT_SYNTHETIC')==='1') {
+    // Deliberately excludes bearer/session hash, identity, OTP, credentials,
+    // cookies, raw SQL rows and secrets. The signer uses fixed PUBLIC CI keys.
+    // Only the signed synthetic commercial contract crosses repositories.
+    $snapshot=[
+        'source'=>'portal_f829_pg18_synthetic_review',
+        'signed_plan'=>$review['signed_plan_review'],
+        'activation'=>$activation,
+        'expected'=>$scope+[
+            'gateway'=>$original['gateway_quote']['gateway'],
+            'method'=>$original['gateway_quote']['method'],
+            'crm_review_mac'=>$original['crm_review']['mac'],
+            'key_id'=>'k_f827_plan_01',
+        ],
+        'planned'=>$plan,
+        'channels'=>array_keys($plan),
+        'review_now_utc'=>$nowUtc,
+        'stable_plan_sha256'=>$stableHash,
+        'terms_sha256'=>$terms,
+        'approval_revision'=>$approvalRevision,
+        'actual_customer_acceptance'=>false,
+    ];
+    $written=file_put_contents(
+        '/tmp/portal-f829-signed-plan-ci.json',
+        json_encode($snapshot,JSON_THROW_ON_ERROR|
+            JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),
+        LOCK_EX
+    );
+    v7pgMust(is_int($written)&&$written>100,
+        'CI-only redacted signed review export written for crossrepo parity');
+}
 v7pgMust($review['stable_plan_sha256']===$stableHash &&
     $review['synthetic_pg18_session_mfa_agreement_checked']===true,
     'stable V7 plan hash matches DB-owned synthetic agreement');
