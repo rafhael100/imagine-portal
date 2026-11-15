@@ -35,6 +35,8 @@ final class PortalAdminStagingSecurityPolicy
 
         if(config('database.default')!=='pgsql')
             $issues[]='PORTAL_POSTGRES_REQUIRED';
+        if(config('cache.default')!=='database')
+            $issues[]='SHARED_RATE_LIMIT_DATABASE_CACHE_REQUIRED';
         if(config('session.driver')!=='database')
             $issues[]='PERSISTENT_DATABASE_SESSION_REQUIRED';
         if(config('session.encrypt')!==true)
