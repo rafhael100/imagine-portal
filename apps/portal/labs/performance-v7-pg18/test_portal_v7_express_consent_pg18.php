@@ -134,3 +134,7 @@ v7pgMust(!ExpressConsent::limits()['actual_customer_click_proven']
     && !ExpressConsent::limits()['billing_enabled'],
     'synthetic SQL row not operational customer contract or permission');
 echo "PASS Portal F830: latest append-only synthetic acceptance/revocation bound to SQL MFA session actor; reacceptance, permission revisions, idempotency, RLS and session logout enforced; NO real customer assent.\n";
+
+if(getenv('PORTAL_PERF_V7_TERMS_PRESENTATION_LAB')==='1') {
+    require __DIR__.'/test_portal_v7_terms_presentation_receipt.php';
+}
