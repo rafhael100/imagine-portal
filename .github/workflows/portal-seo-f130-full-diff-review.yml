@@ -16,7 +16,6 @@ jobs:
     timeout-minutes: 12
     env:
       CI: 'true'
-      F130_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       F130_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout exact unmerged candidate and entire local Git history
@@ -31,6 +30,14 @@ jobs:
           node-version: '22'
       - name: Validate bounded risk inventory helper and CI guard
         run: node --test apps/portal/labs/seo-f130-release/diff-review.test.mjs
+      - name: Resolve immutable snapshot of remote main, not the stacked PR base
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')"
+          test "${#main_sha}" -eq 40
+          echo "F130_BASE_SHA=$main_sha" >> "$GITHUB_ENV"
+          echo "Review baseline main commit: ${main_sha:0:12}"
       - name: Enumerate complete exact Git diff and write always-unapproved review checklist
         run: node apps/portal/labs/seo-f130-release/collect-real-diff.mjs
       - name: Publish path-only JSON artifact for independent review
