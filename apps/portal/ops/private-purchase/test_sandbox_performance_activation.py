@@ -6,6 +6,8 @@ No production account, fiscal invoice, recurring management fee or real money.
 import os
 import shutil
 import uuid
+import json
+import re
 from playwright.sync_api import sync_playwright
 from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
@@ -65,8 +67,20 @@ with sync_playwright() as playwright:
     page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
     assert page.locator('[name=outcome]').count() == 0
     db = Database()
-    rows = [row for row in db.rows() if row['order_id'] == oid]
-    assert len(rows) == 1, 'Exactly one owned Performance sandbox intent'
+    # Database.rows() is a bounded work QUEUE (oldest 10 sync_requested),
+    # not a complete purchase ledger. Earlier synthetic orders may fill that
+    # page; locate this tenant-owned test order exactly and leave the
+    # production broker queue order, quotas and SQL RLS unchanged.
+    assert re.fullmatch(r'TEST-[a-f0-9]{32}', oid), 'Invalid synthetic order reference'
+    def owned_intents():
+        return json.loads(db.sql(
+            "SELECT COALESCE(json_agg(t),'[]'::json) FROM ("
+            "SELECT * FROM purchase_rehearsal.sandbox_payment_intents "
+            "WHERE order_id='" + oid + "') t;"
+        ))
+    rows = owned_intents()
+    assert len(rows) == 1, 'Exactly one persisted Performance sandbox intent'
+    assert rows[0]['sync_requested'] is True, 'New activation must enter broker queue'
     row = rows[0]
     assert row['amount_cents'] == 98000, 'Only the activation is charged'
     assert row['state']=='queued'
@@ -88,7 +102,8 @@ with sync_playwright() as playwright:
     assert page.locator('[name=business]').count()==0, 'Pending means no briefing'
     page.locator('[name=sandbox_ack]').check()
     page.get_by_role('button',name='Solicitar atualização do Asaas',exact=True).click()
-    row = next(x for x in db.rows() if x['order_id']==oid)
+    row = owned_intents()[0]
+    assert row['sync_requested'] is True, 'Explicit customer retry must requeue same intent'
     api.payment['status']='RECEIVED'
     worker.process(row)
     page.reload()
