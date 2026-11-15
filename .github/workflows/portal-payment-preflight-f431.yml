@@ -1,0 +1,88 @@
+name: Portal F431 gateways adversarial sandbox-only preflight NO-CHARGE
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/tools/test_gateway_sandbox_adversarial_f431.php'
+      - '.github/workflows/portal-payment-preflight-f431.yml'
+permissions:
+  contents: read
+jobs:
+  asaas-and-routing-fail-closed:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      C6_BANK_ENABLED: 'false'
+    steps:
+      - name: Checkout exact HEAD without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup pinned PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: PHP gateway adversarial tests without real HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/tools/test_gateway_sandbox_adversarial_f431.php
+          php apps/portal/tools/test_gateway_sandbox_adversarial_f431.php
+          php apps/portal/tools/test_multigateway_offline.php
+          php apps/portal/tools/test_gateway_review_integrity_offline.php
+      - name: Python synthetic Asaas worker failure, settlement and reversal suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/portal/ops/private-purchase
+          python3 -m unittest -v test_asaas_sandbox_worker.py
+      - name: No provider credential or activation in this job
+        run: |
+          echo 'F431: all Asaas responses are injected, no real HTTP or funds.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'C6 is off; only synthetic routing, mocked worker and historical PSP pinning.' >> "$GITHUB_STEP_SUMMARY"
+  c6-certificate-and-installation-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      C6_BANK_ENABLED: 'false'
+    steps:
+      - name: Checkout exact reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup pinned PHP with OpenSSL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: openssl,mbstring,dom,xml
+          coverage: none
+      - name: Verify sandbox bootstrap scripts are parseable
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/c6-sandbox/install-sandbox-secrets.sh
+          bash -n apps/portal/ops/c6-sandbox/install-sandbox-p12.sh
+          php -l apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php
+      - name: Install Portal dependencies without scripts or plugins
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-scripts --no-plugins --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+      - name: Verify generated synthetic PEM/P12 pairs and private access gates
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter=C6SandboxCredentialPreflightTest
+      - name: C6 remains unavailable for financial operations
+        run: |
+          echo 'F431: only generated synthetic PEM/P12. No actual C6 OAuth/mTLS or payment.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real VPS certificate installation and C6 credentials still require secure staging.' >> "$GITHUB_STEP_SUMMARY"
