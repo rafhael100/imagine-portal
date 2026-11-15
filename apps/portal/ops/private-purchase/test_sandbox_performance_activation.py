@@ -62,7 +62,15 @@ with sync_playwright() as playwright:
     assert bad.status == 422, 'Browser must not set PSP amount'
 
     page.locator('[name=sandbox_ack]').check()
-    page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
+    with page.expect_response(
+        lambda response: response.request.method=='POST'
+            and response.url.endswith('/sandbox')
+    ) as pending_activation:
+        page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
+    activation_response=pending_activation.value
+    assert activation_response.status in (302,303), (
+        'F423 activation POST refused (HTTP '+str(activation_response.status)+')'
+    )
     assert page.locator('[name=outcome]').count() == 0
     db = Database()
     rows = [row for row in db.rows() if row['order_id'] == oid]
