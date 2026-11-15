@@ -1,0 +1,16 @@
+/.env
+/.env.*
+!/.env.example
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/auth.json
+/.idea/
+/.vscode/
+/node_modules/
+/public/storage
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+/storage/logs/*
+!/storage/logs/.gitignore
+*.log

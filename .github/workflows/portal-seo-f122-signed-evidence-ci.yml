@@ -1,0 +1,84 @@
+name: Portal SEO F122 - pinned Engine Ed25519 signed evidence (CI only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f122-signed-evidence-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoStaticBuildReadinessLab.php'
+      - 'apps/portal/labs/seo-f122-signed-evidence/**'
+      - 'apps/portal/labs/seo-f119-build/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-evidence:
+    name: Pinned Engine -> Ed25519 -> Portal PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      PORTAL_SEO_F118_LAB: '1'
+      PORTAL_SEO_F122_LAB: '1'
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout immutable SEO Engine RC45
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 7847c8c66d5be228a08a94282da562c790cdd440
+          path: .qa/seo-f118
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Set up PHP ${{ matrix.php }} with sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+      - name: Verify immutable Engine and PHP/Node syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f118 rev-parse HEAD)" = 7847c8c66d5be228a08a94282da562c790cdd440
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
+          node --check apps/portal/labs/seo-f119-build/emit-engine.mjs
+          node --check apps/portal/labs/seo-f122-signed-evidence/make-envelope.mjs
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoStaticBuildReadinessLab.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php
+          php -l apps/portal/labs/seo-f122-signed-evidence/verify-php.php
+      - name: Verify actual Engine report signatures under ten positive and negative scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          node apps/portal/labs/seo-f119-build/emit-engine.mjs clean > "$tempdir/engine.json"
+          for mode in valid bad-signature tampered-payload other-tenant other-run expired other-engine wrong-public-key wrong-issuer unexpected-claim; do
+            signed="$tempdir/$mode-envelope.json"
+            public="$tempdir/$mode-public-key"
+            node apps/portal/labs/seo-f122-signed-evidence/make-envelope.mjs "$tempdir/engine.json" "$signed" "$public" "$mode" > /dev/null
+            php apps/portal/labs/seo-f122-signed-evidence/verify-php.php "$signed" "$public" "$mode"
+          done
+      - name: Ensure both repositories remain unmodified
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
