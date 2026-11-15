@@ -179,7 +179,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/staging-browser"
           cd "$RUNNER_TEMP/staging-browser"
           npm init -y >/dev/null
-          npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 @axe-core/playwright@4.10.2 >/dev/null
           npx playwright install --with-deps chromium >/dev/null
           PERFORMANCE_ADMIN_BROWSER_URL=https://localhost:18088 \
           PERFORMANCE_ADMIN_BROWSER_VAULT="$RUNNER_TEMP/private-vault/reviewer.json" \

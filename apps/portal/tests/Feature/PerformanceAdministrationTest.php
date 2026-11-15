@@ -138,4 +138,16 @@ final class PerformanceAdministrationTest extends TestCase
     {
         $this->login();config()->set('performance_admin.enabled',false);$this->get('/portal-admin/performance')->assertNotFound();
     }
+    public function test_two_operators_cannot_overwrite_the_same_review_revision():void
+    {
+        $this->login();$first=$this->command();$this->post('/portal-admin/performance/command/lab-alfa',$first)->assertRedirect();
+        $oldActor=$this->actor;
+        $this->actor=(int)DB::table('portal_admin_users')->insertGetId(['email'=>'second-'.Str::uuid().'@example.test','password_hash'=>Hash::make('LabPassword#Only123'),
+            'totp_secret_ciphertext'=>Crypt::encryptString($this->secret),'is_active'=>true,'last_totp_counter'=>-1,'session_version'=>1,'created_at'=>now(),'updated_at'=>now()]);
+        $this->post('/portal-admin/logout');$this->grant('operations');$this->login();
+        $this->post('/portal-admin/performance/command/lab-alfa',$this->command('agent.pause','strategy',1))->assertConflict();
+        self::assertSame(2,$this->state()['revision']);self::assertSame(1,DB::table('performance_admin_lab_events')->count());
+        self::assertSame($oldActor,(int)DB::table('performance_admin_lab_events')->value('admin_user_id'));
+    }
+
 }
