@@ -49,9 +49,10 @@ final class InvalidatePortalAdminSessions extends Command
             return self::FAILURE;
         }
 
+        $deactivate=(bool)$this->option('deactivate');
         try{
             $updated=DB::transaction(static function()use(
-                $email
+                $email,$deactivate
             ):int {
                 $admin=DB::table('portal_admin_users')
                     ->where('email',$email)
@@ -65,7 +66,7 @@ final class InvalidatePortalAdminSessions extends Command
                     'session_version'=>DB::raw('session_version + 1'),
                     'updated_at'=>now(),
                 ];
-                if((bool)$this->option('deactivate'))
+                if($deactivate)
                     $values['is_active']=false;
 
                 return DB::table('portal_admin_users')
