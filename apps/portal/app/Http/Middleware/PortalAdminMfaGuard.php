@@ -24,9 +24,12 @@ final class PortalAdminMfaGuard
         $session=$request->session();
         $at=$session->get('portal_admin_mfa_at');
         $id=$session->get('portal_admin_mfa_id');
+        $sessionVersion=$session->get('portal_admin_session_version');
         if($admin===null || !$admin->is_active ||
            !is_int($at)||$at<=0||
            !is_int($id)||$id!==(int)$admin->getAuthIdentifier()||
+           !is_int($sessionVersion)||$sessionVersion<1||
+           $sessionVersion!==(int)$admin->session_version||
            $at>time()+30||
            $at<time()-(int)config('portal_admin.mfa_verified_seconds',3600)){
             if($admin!==null){
