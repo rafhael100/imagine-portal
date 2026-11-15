@@ -1,5 +1,8 @@
 # Imagine Portal
 
+> **Auditoria de 15/11/2026 — Comercial → Laravel Portal:** [regras, telas, testes, parcelamento e pendências da integração F426–F431](docs/PORTAL-AUDITORIA-COMERCIAL-F426-F431-2026-11-15.md).
+> **Atenção às duas bases:** os comandos Node abaixo descrevem a aplicação **legada**. A trilha Laravel em `apps/portal/` tem prévias de desenvolvimento e PRs em revisão, sem autorização de produção. A proposta comercial de 3x para **implantação + ativações** ainda diverge do catálogo financeiro V5, que exige ativação separada no primeiro pedido; não usar a simulação como recibo ou cobrança aprovada.
+
 Site institucional, portal de clientes e administração da Imagine Comunicação Digital.
 
 **Versão 0.18.2 — em homologação.** Ainda não implantado e ainda não homologado na conta Asaas. Os testes financeiros usam um provedor simulado; não geram cobranças reais.
