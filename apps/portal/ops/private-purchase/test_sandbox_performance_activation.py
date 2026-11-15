@@ -8,6 +8,7 @@ import shutil
 import uuid
 import json
 import re
+import hashlib
 from playwright.sync_api import sync_playwright
 from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
@@ -85,7 +86,26 @@ with sync_playwright() as playwright:
     assert row['amount_cents'] == 98000, 'Only the activation is charged'
     assert row['state']=='queued'
 
-    api = API()
+    # The previous Onepage scenario created a different provider customer
+    # using API's reusable fixture ID ('cus_fixture'). SQL correctly enforces
+    # UNIQUE customer_ref across every order. Give this standalone F423
+    # synthetic provider fixture an order-specific ID; do not weaken SQL,
+    # provider validation, application billing or row-level security.
+    class UniqueSyntheticAPI(API):
+        def __init__(self, order_id):
+            super().__init__()
+            self.fixture_suffix = hashlib.sha256(order_id.encode('ascii')).hexdigest()[:20]
+        def call(self, method, path, payload=None):
+            result=super().call(method,path,payload)
+            if method=='POST' and path=='/customers':
+                result['id']='cus_f423'+self.fixture_suffix
+                self.customer['id']=result['id']
+            elif method=='POST' and path=='/payments':
+                result['id']='pay_f423_'+self.fixture_suffix
+                self.payment['id']=result['id']
+            return result
+
+    api = UniqueSyntheticAPI(oid)
     worker = Worker(db,api)
     worker.process(row)
     assert len(api.posts)==2
