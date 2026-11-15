@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 238bcb026aca0a02d90c0ebff38fb2d4f35d8e1f
+          ref: 434f231471a1bfcab5af26d38005c4a59253b0de
           path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -70,7 +70,7 @@ jobs:
           for f in storage/framework/views/*.php; do php -l "$f" || exit 1; done
       - name: Tenant, role, revision, replay, approval and incident flows
         working-directory: apps/portal
-        run: php artisan test --no-ansi --filter=PerformanceAdministrationTest
+        run: php artisan test --no-ansi --filter='PerformanceAdministrationTest|AdministrativeActionAvailabilityTest'
       - name: Seed unique CI-only reviewer without credential output
         run: |
           mkdir -p "$PERFORMANCE_ADMIN_EVIDENCE"

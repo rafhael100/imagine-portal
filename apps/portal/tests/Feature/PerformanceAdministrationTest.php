@@ -51,7 +51,8 @@ final class PerformanceAdministrationTest extends TestCase
         $this->get('/portal-admin/performance/campaigns?channel=meta_ads')->assertOk()->assertDontSee('Campanha de laboratório 01');
         $this->get('/portal-admin/performance/campaigns?resource=unknown')->assertNotFound();
         $this->get('/portal-admin/performance/campaigns?page=-1')->assertSessionHasErrors('page');
-        foreach(['overview','campaigns','channels','agents','finance','approvals','reports','history'] as $tab)$this->get('/portal-admin/performance/clients?tab='.$tab)->assertOk();
+        foreach(['overview','history'] as $tab)$this->get('/portal-admin/performance/clients?tab='.$tab)->assertOk();
+        foreach(['campaigns','channels','agents','finance','approvals','reports'] as $tab)$this->get('/portal-admin/performance/clients?tab='.$tab)->assertRedirect();
         $this->get('/portal-admin/performance/export/lab-alfa')->assertOk()->assertHeader('Content-Type','text/csv; charset=UTF-8')->assertSee('synthetic');
     }
     public function test_login_mfa_membership_expiry_and_revocation_are_rechecked():void
@@ -112,6 +113,26 @@ final class PerformanceAdministrationTest extends TestCase
         self::assertSame('partial_policy_pending',$engine->finance($state)['state']);
         DB::table('performance_admin_lab_states')->where('tenant','lab-alfa')->update(['payload'=>json_encode($state,JSON_THROW_ON_ERROR)]);
         $this->get('/portal-admin/performance/finance')->assertOk()->assertSee('Nenhum piso ou cobrança foi aplicado');
+    }
+    public function test_ui_hides_ineligible_operations_and_preserves_client_context():void
+    {
+        $this->login();$s=$this->state();
+        foreach(['budget','payment','review'] as $id){$s['approvals'][$id]['status']='approved';$s['approvals'][$id]['approved_by']=$this->actor+1;}
+        $s['incidents']['sync']['status']='acknowledged';
+        DB::table('performance_admin_lab_states')->where('tenant','lab-alfa')->update(['payload'=>json_encode($s,JSON_THROW_ON_ERROR)]);
+        foreach(['budget','payment'] as $id)$this->get('/portal-admin/performance/approvals?resource='.$id)->assertOk()->assertDontSee('value="approval.consume"',false);
+        $this->get('/portal-admin/performance/approvals?resource=review')->assertOk()->assertSee('value="approval.consume"',false);
+        $this->get('/portal-admin/performance/incidents?resource=sync')->assertOk()->assertDontSee('value="incident.resolve"',false);
+        $this->get('/portal-admin/performance/campaigns?tenant=lab-alfa&context=client&client_q=Alfa&client_status=active&client_page=2')->assertOk()->assertSee('client_q')->assertSee('Voltar aos clientes com os filtros anteriores');
+        $s['approvals']['review']['expires_at']=time()-1;
+        DB::table('performance_admin_lab_states')->where('tenant','lab-alfa')->update(['payload'=>json_encode($s,JSON_THROW_ON_ERROR)]);
+        $this->get('/portal-admin/performance/approvals?resource=review')->assertOk()->assertDontSee('value="approval.consume"',false);
+    }
+    public function test_empty_membership_and_logout_do_not_leak_context():void
+    {
+        $this->login();DB::table('performance_admin_lab_memberships')->where('admin_user_id',$this->actor)->update(['active'=>false]);
+        $this->get('/portal-admin/performance')->assertOk()->assertSee('Nenhuma empresa de laboratório autorizada')->assertDontSee('Empresa Alfa');
+        $this->post('/portal-admin/logout')->assertRedirect();$this->get('/portal-admin/performance')->assertRedirect('/portal-admin/login');
     }
     public function test_kill_switch_denies_runtime_routes_even_after_registration():void
     {
