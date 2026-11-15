@@ -45,6 +45,31 @@ final class PortalUniversityVocabularyNoGrantTest extends TestCase
         }
     }
 
+    public function test_even_explicit_synthetic_university_grants_are_denied_without_eligible_service_proof(): void
+    {
+        $actor = new PortalUserId('synthetic-owner');
+        $company = new OrganizationId('synthetic-company');
+        $member = new OrganizationMembership(
+            $actor, $company, OrganizationRole::Owner, MembershipStatus::Active,
+            [Permission::ViewServices, Permission::ViewUniversity, Permission::ManageUniversity],
+        );
+        $policy = new OrganizationAuthorizationService();
+
+        foreach ([Permission::ViewUniversity, Permission::ManageUniversity] as $permission) {
+            $ctx = new AuthorizationContext($actor, $company, $company, $permission->value);
+            self::assertFalse(
+                $policy->decide($ctx, $member)->allowed,
+                'A typed grant is not a verified active Imagine service.',
+            );
+        }
+
+        // This protection must not silently disable unrelated Portal scopes.
+        $servicesCtx = new AuthorizationContext(
+            $actor, $company, $company, Permission::ViewServices->value,
+        );
+        self::assertTrue($policy->decide($servicesCtx, $member)->allowed);
+    }
+
     public function test_db_grants_and_http_access_are_not_enabled_by_vocabulary(): void
     {
         $root = dirname(__DIR__, 2);
