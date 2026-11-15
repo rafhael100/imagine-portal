@@ -1,0 +1,144 @@
+name: Portal SEO F114 - atomic grant encrypted candidate and audit revocation
+
+on:
+  pull_request:
+    branches:
+      - review/portal-seo-f113-session-revocation-serial-2026-11-15
+    paths:
+      - '.github/workflows/portal-seo-f114-grant-token-audit-pg18-ci.yml'
+      - 'apps/portal/labs/gsc-f114-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgGrantTokenRevocationLab.php'
+      - 'apps/portal/docs/PORTAL-SEO-F114-GRANT-TOKEN-REVOCATION-REVIEW.md'
+
+permissions:
+  contents: read
+
+jobs:
+  pg18-grant-token-atomic:
+    name: PG18 grant-token audit / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f108-ci-postgres-only
+          POSTGRES_DB: portal_gsc_f108_ci
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f108_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      CI: 'true'
+      PORTAL_SEO_F108_PG_CI: '1'
+      PORTAL_SEO_F109_PG_CI: '1'
+      PORTAL_SEO_F110_PG_CI: '1'
+      PORTAL_SEO_F111_PG_CI: '1'
+      PORTAL_SEO_F112_PG_CI: '1'
+      PORTAL_SEO_F113_PG_CI: '1'
+      PORTAL_SEO_F114_PG_CI: '1'
+      PORTAL_GSC_TOKEN_VAULT_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f108_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: f108-ci-postgres-only
+      POSTGRES_PASSWORD: f108-ci-postgres-only
+      F108_ROLE_PASSWORD: f108-ci-role-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact review head (no token persistence)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up PHP and PostgreSQL extension
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Verify SHA and allowlisted paths
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/f114-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const names=readFileSync(process.env.RUNNER_TEMP+"/f114-paths","utf8").split("\0").filter(Boolean);
+            const allowed=new Set([
+              ".github/workflows/portal-seo-f114-grant-token-audit-pg18-ci.yml",
+              "apps/portal/app/Domain/SeoReview/PortalSeoPgGrantTokenRevocationLab.php",
+              "apps/portal/labs/gsc-f114-pg18/verify-grant-token-revocation.php",
+              "apps/portal/docs/PORTAL-SEO-F114-GRANT-TOKEN-REVOCATION-REVIEW.md"
+            ]);
+            if(names.length<4||names.length>allowed.size||names.some(n=>!allowed.has(n)))
+              throw Error("F114: unexpected changed paths");
+            console.log("F114: scoped files",names.length);
+          '
+      - name: Install version-locked Laravel dependencies with no install scripts
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer validate --no-check-publish --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Apply existing Laravel GSC migrations to disposable PostgreSQL18
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          php artisan migrate --force --no-interaction
+      - name: Run F108-F113 prerequisites and verify F114 grant/token/audit atomic revocation
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          umask 077
+          php -l labs/gsc-f108-pg18/verify-real-pg.php
+          php labs/gsc-f108-pg18/verify-real-pg.php
+          php -l labs/gsc-f109-pg18/verify-locks.php
+          php labs/gsc-f109-pg18/verify-locks.php
+          php -l app/Domain/SeoReview/GoogleSearchConsoleOAuthRlsLabBoundary.php
+          php -l labs/gsc-f110-pg18/verify-oauth-state.php
+          php -r 'if(!extension_loaded("sodium")) exit(1);'
+          php labs/gsc-f110-pg18/verify-oauth-state.php
+          php -l app/Domain/SeoReview/PortalSeoPgIdentityReviewLab.php
+          php -l database/migrations/2026_11_15_000006_create_portal_seo_review_identity_rls.php
+          php -l labs/gsc-f111-pg18/verify-identity.php
+          php labs/gsc-f111-pg18/verify-identity.php
+          php -l app/Domain/SeoReview/PortalSeoPgOAuthSessionBoundLab.php
+          php -l labs/gsc-f112-pg18/verify-session-bound-oauth.php
+          php labs/gsc-f112-pg18/verify-session-bound-oauth.php
+          php -l app/Domain/SeoReview/PortalSeoPgSessionAdvisoryLockLab.php
+          php -l app/Domain/SeoReview/PortalSeoPgSessionRevocationLab.php
+          php -l labs/gsc-f113-pg18/verify-session-revocation-lock.php
+          php labs/gsc-f113-pg18/verify-session-revocation-lock.php
+          php -l app/Domain/SeoReview/PortalSeoPgGrantTokenRevocationLab.php
+          php -l labs/gsc-f114-pg18/verify-grant-token-revocation.php
+          php labs/gsc-f114-pg18/verify-grant-token-revocation.php
+      - name: Ensure no tracked files changed
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
