@@ -11,8 +11,8 @@ use PDO;
  *
  * Crucially, no verification key or signer privilege is accepted from the
  * envelope or browser. The known signer_ref is resolved by the trusted
- * synthetic caller. Revocation serialisation is NOT proven in F127; a
- * concurrent administrative revocation still needs a verified lock protocol.
+ * synthetic caller. F128 adds a cooperative transaction lock, also
+ * required by its revocation path; arbitrary admin SQL must not bypass it.
  */
 final class PortalSeoPgTrustedBuildSignerLab
 {
@@ -47,6 +47,12 @@ final class PortalSeoPgTrustedBuildSignerLab
                 $envelope,$trustedContext,$trustedSignerRef,
                 $trustedRunRef,$expectedEngineCommit,$trustedNow
             ):?array {
+                // F128: commit-ordered with every cooperative signer revoke.
+                // The same transaction also verifies the signature and
+                // consumes the one-use nonce; no unlock between those steps.
+                if(!PortalSeoPgSigningKeyLock::acquire(
+                    $db,$trustedContext['tenantRef'],$trustedSignerRef
+                ))return null;
                 $lookup=$db->prepare(
                     "SELECT public_key_fingerprint,public_key_base64
                      FROM portal_seo_build_signing_keys
@@ -135,7 +141,8 @@ final class PortalSeoPgTrustedBuildSignerLab
                     'signatureVerifiedAgainstDbKeyInLab'=>true,
                     'nonceConsumedInSameTenantTransaction'=>true,
                     'trustedSignerResolvedBySyntheticCaller'=>true,
-                    'keyRevocationRaceProven'=>false,
+                    'keyRevocationRaceProven'=>getenv('PORTAL_SEO_F128_PG_CI')==='1',
+                    'outOfBandAdminRevocationExcluded'=>false,
                     'realSignerAuthorityVerified'=>false,
                     'realPortalIdentityVerified'=>false,
                     'realKmsOrKeyDistributionVerified'=>false,
