@@ -21,7 +21,7 @@ final class PortalAdminStagingPreflightTest extends TestCase
 
         foreach([
             'portal_admin.enabled','app.url','app.debug','app.key',
-            'database.default','session.driver','session.encrypt',
+            'database.default','cache.default','session.driver','session.encrypt',
             'session.secure','session.http_only','session.same_site',
         ] as $name) $this->oldConfig[$name]=config($name);
 
@@ -42,6 +42,7 @@ final class PortalAdminStagingPreflightTest extends TestCase
         config()->set('app.debug',false);
         config()->set('app.key','base64:'.base64_encode(random_bytes(32)));
         config()->set('database.default','pgsql');
+        config()->set('cache.default','database');
         config()->set('session.driver','database');
         config()->set('session.encrypt',true);
         config()->set('session.secure',true);
@@ -52,7 +53,7 @@ final class PortalAdminStagingPreflightTest extends TestCase
     public function test_secure_staging_configuration_and_schema_passes_preflight():void
     {
         self::assertSame([],Policy::issues('staging'));
-        foreach(['sessions','portal_admin_users',
+        foreach(['sessions','cache','cache_locks','portal_admin_users',
             'portal_admin_security_events','portal_admin_org_grants'
         ] as $table)self::assertTrue(Schema::hasTable($table));
         self::assertTrue(Schema::hasColumn(
@@ -86,6 +87,7 @@ final class PortalAdminStagingPreflightTest extends TestCase
         foreach([
             ['app.url','http://portal-staging.example.test'],
             ['session.driver','array'],
+            ['cache.default','array'],
             ['session.encrypt',false],
             ['session.secure',false],
             ['session.http_only',false],
@@ -124,3 +126,4 @@ final class PortalAdminStagingPreflightTest extends TestCase
         }
     }
 }
+

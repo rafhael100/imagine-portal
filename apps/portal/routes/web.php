@@ -53,8 +53,7 @@ Route::prefix('portal-admin')
 }
 
 // ADMIN-P0: explicit opt-in laboratory only; existing admin guard and MFA reused.
-if(config('portal_admin.enabled')===true && config('performance_admin.enabled')===true
-    && app()->environment(['local','testing'])){
+if(config('portal_admin.enabled')===true && \App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed()){
     Route::prefix('portal-admin/performance')->name('performance-admin.')
         ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class,\App\Http\Middleware\PerformanceAdminLabGate::class])
         ->group(function():void{

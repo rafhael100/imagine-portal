@@ -8,7 +8,8 @@ final class PerformanceAdminLabGate
 {
     public function handle(Request $request,Closure $next):Response
     {
-        if(config('performance_admin.enabled')!==true||!app()->environment(['local','testing']))abort(404);
+        if(!\App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed())abort(404);
+        if(app()->environment('staging')&&!$request->isSecure())abort(404);
         $response=$next($request);
         $response->headers->set('Cache-Control','private, no-store');
         $response->headers->set('X-Frame-Options','DENY');

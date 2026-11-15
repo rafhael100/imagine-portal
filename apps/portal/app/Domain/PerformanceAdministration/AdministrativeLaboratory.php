@@ -17,7 +17,8 @@ final class AdministrativeLaboratory
     {
         $q=DB::table('performance_admin_lab_memberships')->where('admin_user_id',Auth::guard('portal-admin')->id())
             ->where('tenant',$tenant)->where('active',true)->where('expires_at','>',time());
-        if($lock)$q->lockForUpdate();$member=$q->first();if(!$member)abort(404);return $member;
+        if($lock){$member=DB::selectOne('select * from public.performance_admin_lab_lock_member(?, ?)',[(int)Auth::guard('portal-admin')->id(),$tenant]);}
+        else $member=$q->first();if(!$member)abort(404);return $member;
     }
     public function state(string $tenant,bool $lock=false):array
     {

@@ -8,7 +8,7 @@ final class PinnedLaboratoryTransport implements PerformanceAdminTransport
 {
     public function __construct()
     {
-        if(!app()->environment(['local','testing'])||config('performance_admin.enabled')!==true)throw new RuntimeException('Laboratory unavailable');
+        if(!PrivateDemonstrationPolicy::allowed())throw new RuntimeException('Laboratory unavailable');
         $root=realpath((string)config('performance_admin.engine_root'));
         if(!$root)throw new RuntimeException('Pinned engine unavailable');
         foreach(['src/Domain/Administration/AdministrativeLabEngine.php'=>'engine_hash',

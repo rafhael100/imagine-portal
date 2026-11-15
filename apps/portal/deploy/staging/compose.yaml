@@ -1,0 +1,116 @@
+name: imagine-portal-staging
+
+# F138 manual-only staging proposal. Nothing is deployed by this file.
+# HTTPS is bound to loopback only, with a second access restriction.
+# No secrets may be committed to Git.
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/staging/Dockerfile.php
+      additional_contexts:
+        performance_engine: '${PERFORMANCE_ADMIN_ENGINE_SOURCE:?reviewed-engine-source-required}' 
+    environment:
+      APP_NAME: '${APP_NAME:-Imagine Portal Staging}'
+      APP_URL: '${APP_URL:?https-url-required}'
+      APP_KEY: '${APP_KEY:?private-app-key-required}'
+      PORTAL_ADMIN_AUTH_ENABLED: '${PORTAL_ADMIN_AUTH_ENABLED:-false}'
+      PORTAL_ADMIN_PROVISION_ENABLED: 'false'
+      PERFORMANCE_ADMIN_LAB_ENABLED: '${PERFORMANCE_ADMIN_LAB_ENABLED:-false}'
+      PERFORMANCE_ADMIN_MODE: '${PERFORMANCE_ADMIN_MODE:-private_staging}'
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: '/opt/imagine/performance-engine'
+      LOG_CHANNEL: stderr
+      MAIL_MAILER: array
+      APP_ENV: staging
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_DATABASE: '${PORTAL_STAGING_DB:?set-db-name}'
+      DB_USERNAME: '${PORTAL_APP_DB_USER:?set-app-role}'
+      DB_PASSWORD: '${PORTAL_APP_DB_PASSWORD:?set-app-role-password}'
+      SESSION_DRIVER: database
+      SESSION_ENCRYPT: 'true'
+      SESSION_SECURE_COOKIE: 'true'
+      SESSION_HTTP_ONLY: 'true'
+      SESSION_SAME_SITE: lax
+      CACHE_STORE: database
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - portal_storage:/var/www/html/storage
+      - portal_bootstrap_cache:/var/www/html/bootstrap/cache
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - portal_front
+      - portal_database
+    restart: unless-stopped
+
+  web:
+    secrets:
+      - tls_certificate
+      - tls_private_key
+      - access_passwords
+    build:
+      context: ../..
+      dockerfile: deploy/staging/Dockerfile.nginx
+    ports:
+      - '127.0.0.1:${PORTAL_STAGING_LOOPBACK_PORT:?dedicated-free-loopback-port-required}:8443'
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:mode=1777
+      - /var/run:mode=1777
+      - /tmp:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - app
+    networks:
+      - portal_front
+    restart: unless-stopped
+
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: '${PORTAL_STAGING_DB:?set-db-name}'
+      POSTGRES_USER: '${PORTAL_STAGING_DB_OWNER:?set-db-owner}'
+      POSTGRES_PASSWORD: '${PORTAL_STAGING_DB_OWNER_PASSWORD:?set-owner-password}'
+      PORTAL_APP_DB_USER: '${PORTAL_APP_DB_USER:?set-app-role}'
+      PORTAL_APP_DB_PASSWORD: '${PORTAL_APP_DB_PASSWORD:?set-app-role-password}'
+    volumes:
+      - portal_pgdata:/var/lib/postgresql
+      - ./initdb/create-app-role.sh:/docker-entrypoint-initdb.d/20-create-app-role.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - portal_database
+    restart: unless-stopped
+
+networks:
+  portal_front: {}
+  portal_database:
+    internal: true
+
+volumes:
+  portal_storage: {}
+  portal_bootstrap_cache: {}
+  portal_pgdata: {}
+
+
+secrets:
+  tls_certificate:
+    file: '${PORTAL_TLS_CERT_FILE:?reviewed-tls-certificate-required}'
+  tls_private_key:
+    file: '${PORTAL_TLS_KEY_FILE:?private-tls-key-required}'
+  access_passwords:
+    file: '${PORTAL_ACCESS_PASSWORD_FILE:?nominal-private-access-file-required}'
