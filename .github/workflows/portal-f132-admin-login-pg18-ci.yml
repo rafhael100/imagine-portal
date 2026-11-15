@@ -1,4 +1,4 @@
-name: Portal F132-F135 - admin MFA, session revocation and mandatory audit PG18
+name: Portal F132-F136 - admin MFA, session audit and SEO organization scope PG18
 
 on:
   pull_request:
@@ -23,6 +23,11 @@ on:
       - 'apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php'
       - 'apps/portal/database/migrations/2026_11_15_000013_create_portal_admin_security_events.php'
       - 'apps/portal/tests/Feature/PortalAdminSessionAuditTest.php'
+      - 'apps/portal/tests/Feature/PortalAdminOrganizationSeoGateTest.php'
+      - 'apps/portal/app/Http/Middleware/PortalAdminOrganizationSeoGate.php'
+      - 'apps/portal/app/Http/Controllers/PortalAdminSeoScopeController.php'
+      - 'apps/portal/resources/views/portal-admin/seo-scope.blade.php'
+      - 'apps/portal/database/migrations/2026_11_15_000014_create_portal_admin_org_grants.php'
   workflow_dispatch:
 
 permissions:
@@ -61,6 +66,7 @@ jobs:
       PORTAL_ADMIN_F133_PG_CI: '1'
       PORTAL_ADMIN_F134_PG_CI: '1'
       PORTAL_ADMIN_F135_PG_CI: '1'
+      PORTAL_ADMIN_F136_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -94,6 +100,10 @@ jobs:
           php -l apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php
           php -l apps/portal/database/migrations/2026_11_15_000013_create_portal_admin_security_events.php
           php -l apps/portal/tests/Feature/PortalAdminSessionAuditTest.php
+          php -l apps/portal/app/Http/Middleware/PortalAdminOrganizationSeoGate.php
+          php -l apps/portal/app/Http/Controllers/PortalAdminSeoScopeController.php
+          php -l apps/portal/database/migrations/2026_11_15_000014_create_portal_admin_org_grants.php
+          php -l apps/portal/tests/Feature/PortalAdminOrganizationSeoGateTest.php
           php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php
           php -l apps/portal/bootstrap/app.php
           php -l apps/portal/app/Http/Controllers/PortalAdminLoginController.php
@@ -130,7 +140,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminSessionAuditTest'
+          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminSessionAuditTest|PortalAdminOrganizationSeoGateTest'
       - name: No tracked source changes
         shell: bash
         run: |
