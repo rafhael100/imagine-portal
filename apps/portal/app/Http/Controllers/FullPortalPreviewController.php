@@ -39,6 +39,8 @@ final class FullPortalPreviewController
             return redirect('/_preview/portal')->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
         }
         $p=$auth->current($request);
+        if ($p['role']==='client'&&isset($p['customer_id'])&&$request->session()->has('preview.commercial_selection'))
+            return redirect('/_preview/portal/shop');
         return redirect($p['role']==='client'&&isset($p['customer_id'])&&in_array($intent,['onepage','landing-pages','performance'],true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/'.$p['role'].'/overview');
     }
     public function logout(Request $request)
