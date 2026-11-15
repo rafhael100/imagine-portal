@@ -11,6 +11,25 @@ from playwright.sync_api import sync_playwright
 from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
 
+class PerOrderSyntheticAPI(API):
+    """Distinct fake PSP references per order; keep DB uniqueness enabled."""
+    def __init__(self, order_id):
+        super().__init__()
+        self.suffix = order_id.split('-')[-1][:20]
+        assert len(self.suffix)==20 and all(c in '0123456789abcdef' for c in self.suffix)
+
+    def call(self, method, path, payload=None):
+        result=super().call(method,path,payload)
+        if method=='POST' and path=='/customers':
+            ref='cus_f423'+self.suffix
+            self.customer['id']=ref
+            result['id']=ref
+        elif method=='POST' and path=='/payments':
+            ref='pay_f423'+self.suffix
+            self.payment['id']=ref
+            result['id']=ref
+        return result
+
 BASE = os.environ.get(
     'PURCHASE_PREVIEW_BASE',
     'http://127.0.0.1:18083/_rehearsal/purchase'
@@ -95,7 +114,7 @@ with sync_playwright() as playwright:
     assert row['amount_cents'] == 98000, 'Only the activation is charged'
     assert row['state']=='queued'
 
-    api = API()
+    api = PerOrderSyntheticAPI(oid)
     worker = Worker(db,api)
     worker.process(row)
     assert len(api.posts)==2
