@@ -29,7 +29,7 @@ jobs:
       - name: Checkout exact PR candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${github.event.pull_request.head.sha || github.sha}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Generate synthetic one-run secrets, never committed
         run: |
@@ -125,9 +125,11 @@ jobs:
           docker compose --env-file .env.staging exec -T web nginx -t
       - name: Remove all CI-only volumes, containers and secrets
         if: always()
+        working-directory: .
         run: |
-          if test -s .env.staging; then
-            docker compose --env-file .env.staging down -v --remove-orphans || true
+          if test -s apps/portal/deploy/staging/.env.staging; then
+            (cd apps/portal/deploy/staging && \
+              docker compose --env-file .env.staging down -v --remove-orphans) || true
           fi
-          rm -f .env.staging
-          test ! -e .env.staging
+          rm -f apps/portal/deploy/staging/.env.staging
+          test ! -e apps/portal/deploy/staging/.env.staging
