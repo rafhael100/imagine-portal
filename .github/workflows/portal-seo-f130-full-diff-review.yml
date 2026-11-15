@@ -1,0 +1,47 @@
+name: Portal SEO F130 - full source diff risk inventory (always NO-GO)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f130-full-diff-review.yml'
+      - 'apps/portal/labs/seo-f130-release/**'
+
+permissions:
+  contents: read
+
+jobs:
+  complete-diff-inventory:
+    name: Enumerate exact Git paths, prioritize review, block release claims
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      F130_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      F130_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact unmerged candidate and entire local Git history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Validate bounded risk inventory helper and CI guard
+        run: node --test apps/portal/labs/seo-f130-release/diff-review.test.mjs
+      - name: Enumerate complete exact Git diff and write always-unapproved review checklist
+        run: node apps/portal/labs/seo-f130-release/collect-real-diff.mjs
+      - name: Publish path-only JSON artifact for independent review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portal-seo-f130-full-diff-review
+          path: ${{ runner.temp }}/portal-seo-f130-full-diff-review.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Ensure tracked source was never modified
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
