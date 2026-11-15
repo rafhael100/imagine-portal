@@ -8,6 +8,8 @@ on:
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php'
       - 'apps/portal/labs/seo-f123-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgEvidenceNonceRetentionLab.php'
+      - 'apps/portal/labs/seo-f124-pg18/**'
       - 'apps/portal/labs/seo-f122-signed-evidence/**'
   workflow_dispatch:
 
@@ -44,6 +46,7 @@ jobs:
       PORTAL_SEO_F118_LAB: '1'
       PORTAL_SEO_F122_LAB: '1'
       PORTAL_SEO_F123_PG_CI: '1'
+      PORTAL_SEO_F124_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -52,6 +55,7 @@ jobs:
       DB_PASSWORD: f108-ci-postgres-only
       POSTGRES_PASSWORD: f108-ci-postgres-only
       F123_ROLE_PASSWORD: f123-ci-role-only
+      F124_ROLE_PASSWORD: f124-ci-role-only
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
@@ -93,6 +97,8 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php
           php -l apps/portal/database/migrations/2026_11_15_000007_create_portal_seo_build_evidence_nonces.php
           php -l apps/portal/labs/seo-f123-pg18/verify-evidence-once.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgEvidenceNonceRetentionLab.php
+          php -l apps/portal/labs/seo-f124-pg18/verify-nonce-retention.php
       - name: Install locked Laravel dependencies
         working-directory: apps/portal
         shell: bash
@@ -124,6 +130,11 @@ jobs:
             "$tempdir/concurrent-envelope.json" "$tempdir/concurrent-public-key" \
             "$tempdir/rotated-a-envelope.json" "$tempdir/rotated-a-public-key" \
             "$tempdir/rotated-b-envelope.json" "$tempdir/rotated-b-public-key"
+      - name: F124 bounded cleanup of expired PG18 nonce hashes by tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/seo-f124-pg18/verify-nonce-retention.php
       - name: Ensure no tracked source modifications
         shell: bash
         run: |
