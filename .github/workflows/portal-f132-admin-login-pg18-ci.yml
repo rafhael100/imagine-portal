@@ -1,4 +1,4 @@
-name: Portal F132-F133 - admin password, TOTP and guarded bootstrap PG18
+name: Portal F132-F134 - admin password, TOTP, provisioning and session revocation PG18
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
       - '.github/workflows/portal-f132-admin-login-pg18-ci.yml'
       - 'apps/portal/app/Models/PortalAdminUser.php'
       - 'apps/portal/app/Console/Commands/BootstrapPortalAdmin.php'
+      - 'apps/portal/app/Console/Commands/InvalidatePortalAdminSessions.php'
       - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php'
       - 'apps/portal/bootstrap/app.php'
       - 'apps/portal/.env.example'
@@ -19,6 +20,7 @@ on:
       - 'apps/portal/tests/Feature/PortalAdmin*'
       - 'apps/portal/tests/Unit/PortalAdminTotpTest.php'
       - 'apps/portal/database/migrations/2026_11_15_000011_create_portal_admin_users.php'
+      - 'apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php'
   workflow_dispatch:
 
 permissions:
@@ -55,6 +57,7 @@ jobs:
       PORTAL_ADMIN_AUTH_ENABLED: 'true'
       PORTAL_ADMIN_F132_PG_CI: '1'
       PORTAL_ADMIN_F133_PG_CI: '1'
+      PORTAL_ADMIN_F134_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -84,6 +87,8 @@ jobs:
         run: |
           set -euo pipefail
           php -l apps/portal/app/Console/Commands/BootstrapPortalAdmin.php
+          php -l apps/portal/app/Console/Commands/InvalidatePortalAdminSessions.php
+          php -l apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php
           php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php
           php -l apps/portal/bootstrap/app.php
           php -l apps/portal/app/Http/Controllers/PortalAdminLoginController.php
