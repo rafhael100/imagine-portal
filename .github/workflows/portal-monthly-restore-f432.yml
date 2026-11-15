@@ -1,0 +1,39 @@
+name: Portal F432 PG18 monthly restored-claim replay quarantine NO-DEPLOY
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/ops/monthly-recovery-f432/**'
+      - '.github/workflows/portal-monthly-restore-f432.yml'
+permissions:
+  contents: read
+jobs:
+  restore-in-isolated-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      PORTAL_F432_DISPOSABLE_ONLY: '1'
+    steps:
+      - name: Checkout exact reviewed source without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Syntax and safety guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n apps/portal/ops/monthly-recovery-f432/smoke-restore.sh
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$PORTAL_F432_DISPOSABLE_ONLY" = 1
+          test "$PAYMENTS_ENABLED" = false
+      - name: Create source, backup, restore into new network-isolated PG18
+        shell: bash
+        run: bash apps/portal/ops/monthly-recovery-f432/smoke-restore.sh
+      - name: Record exact limitation
+        shell: bash
+        run: |
+          echo 'F432: only synthetic backup restored to a separate disposable PG18 cluster.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO: not a backup of Leaseweb nor a production deployment/rollback test.' >> "$GITHUB_STEP_SUMMARY"
