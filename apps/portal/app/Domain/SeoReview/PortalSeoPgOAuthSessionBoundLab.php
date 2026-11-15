@@ -74,10 +74,17 @@ final readonly class PortalSeoPgOAuthSessionBoundLab
                 $selectedTenant,$opaquePortalSession,$resourceHandle,
                 $exactSiteUrl,$fingerprint,$callback,$trustedNow
             ):?array {
-                // Rechecks synthetic Portal session, membership and resource
-                // inside this transaction. With SELECT-only DB privileges,
-                // concurrent revocation still needs a separate approved
-                // locking/serialization design before production.
+                // Cooperative F113 tenant/session lock. An approved
+                // revoker must use the SAME protocol. The callback still
+                // cannot claim real identity or production permission.
+                $digest=hash_hmac('sha256',
+                    'portal-session-review-v1|'.$selectedTenant.'|'.
+                    $opaquePortalSession,$this->sessionKey->getValue());
+                if (!PortalSeoPgSessionAdvisoryLockLab::acquire(
+                    $db,$selectedTenant,$digest))return null;
+
+                // Recheck session, MFA record, membership and property after
+                // the lock is held. Only SELECT permissions are needed.
                 $identity=(new PortalSeoPgIdentityReviewLab(
                     $db,$this->sessionKey->getValue()
                 ))->inspectInsideActiveTenantTransaction(
@@ -90,11 +97,8 @@ final readonly class PortalSeoPgOAuthSessionBoundLab
                     ($identity['customerDisplayAuthorized']??null)!==false)
                     return null;
 
-                // A server-side actor is recovered ONLY from the locked
-                // session row. No client-provided actor or email is trusted.
-                $digest=hash_hmac('sha256',
-                    'portal-session-review-v1|'.$selectedTenant.'|'.
-                    $opaquePortalSession,$this->sessionKey->getValue());
+                // The actor is recovered ONLY from the scoped
+                // session record. No client actor/email is accepted.
                 $actorQuery=$db->prepare('SELECT actor_ref FROM
                     portal_seo_review_sessions
                     WHERE tenant_ref=:tenant AND session_digest=:digest
