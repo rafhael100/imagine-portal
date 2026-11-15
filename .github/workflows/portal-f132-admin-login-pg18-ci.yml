@@ -47,7 +47,8 @@ jobs:
       CI: 'true'
       APP_ENV: testing
       APP_DEBUG: 'false'
-      PORTAL_ADMIN_AUTH_ENABLED: 'false'
+      # Dedicated CI opts in to route registration; production remains off.
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
       PORTAL_ADMIN_F132_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
