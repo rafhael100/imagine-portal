@@ -21,6 +21,7 @@ final class PortalAdminUser extends Authenticatable
     protected $casts=[
         'is_active'=>'boolean',
         'last_totp_counter'=>'integer',
+        'session_version'=>'integer',
     ];
 
     public function getAuthPasswordName():string
