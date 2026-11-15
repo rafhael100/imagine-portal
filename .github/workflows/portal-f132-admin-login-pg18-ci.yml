@@ -1,4 +1,4 @@
-name: Portal F132-F134 - admin password, TOTP, provisioning and session revocation PG18
+name: Portal F132-F135 - admin MFA, session revocation and mandatory audit PG18
 
 on:
   pull_request:
@@ -21,6 +21,8 @@ on:
       - 'apps/portal/tests/Unit/PortalAdminTotpTest.php'
       - 'apps/portal/database/migrations/2026_11_15_000011_create_portal_admin_users.php'
       - 'apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php'
+      - 'apps/portal/database/migrations/2026_11_15_000013_create_portal_admin_security_events.php'
+      - 'apps/portal/tests/Feature/PortalAdminSessionAuditTest.php'
   workflow_dispatch:
 
 permissions:
@@ -58,6 +60,7 @@ jobs:
       PORTAL_ADMIN_F132_PG_CI: '1'
       PORTAL_ADMIN_F133_PG_CI: '1'
       PORTAL_ADMIN_F134_PG_CI: '1'
+      PORTAL_ADMIN_F135_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -89,6 +92,8 @@ jobs:
           php -l apps/portal/app/Console/Commands/BootstrapPortalAdmin.php
           php -l apps/portal/app/Console/Commands/InvalidatePortalAdminSessions.php
           php -l apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php
+          php -l apps/portal/database/migrations/2026_11_15_000013_create_portal_admin_security_events.php
+          php -l apps/portal/tests/Feature/PortalAdminSessionAuditTest.php
           php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php
           php -l apps/portal/bootstrap/app.php
           php -l apps/portal/app/Http/Controllers/PortalAdminLoginController.php
@@ -125,7 +130,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest'
+          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminSessionAuditTest'
       - name: No tracked source changes
         shell: bash
         run: |
