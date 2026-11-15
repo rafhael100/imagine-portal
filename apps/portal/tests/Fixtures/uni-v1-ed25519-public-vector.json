@@ -1,0 +1,9 @@
+{
+    "schema_version": 1,
+    "purpose": "synthetic-public-signature-vector-only-not-authorization",
+    "public_key_base64": "MvAXBI0ZgXu4HJmMKv3IAzE1/ZfHyioBa0e6joTjzPQ=",
+    "envelope": "uni-v1.eyJpc3MiOiJpbWFnaW5lLXBvcnRhbCIsImF1ZCI6ImltYWdpbmUtdW5pdmVyc2lkYWRlIiwia2lkIjoic3ludGhldGljLXZlY3Rvci1rMSIsIm9yZyI6InN5bnRoZXRpYy1jb21wYW55LWEiLCJzdWIiOiJzeW50aGV0aWMtcGVyc29uLWEiLCJwZXJtIjoidW5pdmVyc2l0eTp2aWV3IiwicmV2IjoyLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDAzMCwibm9uY2UiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiJ9.DrPOH8-Be0G15XJY6FAE8y6AOsiUNWg6nRM_t8HmY4lGWZO3XtXFqMfM8t7dkAhhGkjH0D2-TmLLjSdyVF7oDw",
+    "verification_epoch": 1800000005,
+    "expected_company": "synthetic-company-a",
+    "expected_permission": "university:view"
+}
