@@ -109,7 +109,28 @@ if(($argv[1]??'')==='--revoke-worker'){
             'now'=>$now,'tenant'=>'demo-tenant','signer'=>F128_SIGNER,
             'fp'=>$argv[2]
         ]);
-        return $stmt->fetchColumn()!==false;
+        if($stmt->fetchColumn()===false)return false;
+
+        // F129 audit event: the cooperative worker must follow the same
+        // update+mandatory-audit transaction protocol as the revoker class.
+        $actor='portal-f128-test';
+        $digest=hash('sha256',
+            "IMAGINE-SEO-F129-KEY-REVOKED\n".
+            "demo-tenant\n".F128_SIGNER."\n".$argv[2]."\n".
+            $actor."\n".$now
+        );
+        $audit=$pdo->prepare(
+            "INSERT INTO portal_seo_build_signer_events
+            (tenant_ref,event_digest,signer_ref,public_key_fingerprint,
+             actor_ref,event_code,occurred_at)
+            VALUES ('demo-tenant',:digest,:signer,:fingerprint,:actor,
+             'signer_key_revoked',:occurred)"
+        );
+        return $audit->execute([
+            'digest'=>$digest,'signer'=>F128_SIGNER,
+            'fingerprint'=>$argv[2],'actor'=>$actor,
+            'occurred'=>$now
+        ])&&$audit->rowCount()===1;
     });
     must128($ok===true,'cooperative worker did not revoke');
     echo "REVOKED\n";
@@ -136,6 +157,8 @@ foreach(['portal_f128_service','portal_f128_admin','portal_f128_readonly'] as $r
 $admin->exec('GRANT SELECT,INSERT ON portal_seo_build_evidence_nonces
     TO portal_f128_service');
 $admin->exec('GRANT UPDATE ON portal_seo_build_signing_keys
+    TO portal_f128_admin');
+$admin->exec('GRANT INSERT ON portal_seo_build_signer_events
     TO portal_f128_admin');
 $service=db128('portal_f128_service',F128_PASS);
 $revoker=db128('portal_f128_admin',F128_PASS);
@@ -218,6 +241,12 @@ must128(evidence128($service,$privatePreview,$tenant,$now)===null,
     'accepted signed report replayed');
 must128(count128($admin,'portal_seo_build_evidence_nonces')===1,
     'revocation/replay wrote unexpected nonce records');
+$eventCount=(int)$admin->query("SELECT COUNT(*)
+    FROM portal_seo_build_signer_events
+    WHERE tenant_ref='demo-tenant' AND event_code='signer_key_revoked'")
+    ->fetchColumn();
+must128($eventCount===2,
+    'F129: worker and revoker must commit exactly two audit events');
 
 $scope=new Scope($service);
 $ownCount=$scope->run($tenant,static fn(PDO $db)=>
