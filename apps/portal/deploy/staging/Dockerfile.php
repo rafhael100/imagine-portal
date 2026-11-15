@@ -22,6 +22,7 @@ RUN composer install \
 COPY . .
 COPY --from=performance_engine src/Domain/Administration/AdministrativeLabEngine.php /opt/imagine/performance-engine/src/Domain/Administration/AdministrativeLabEngine.php
 COPY --from=performance_engine src/Domain/Commercial/MonthlyManagementFeeFloorV7Candidate.php /opt/imagine/performance-engine/src/Domain/Commercial/MonthlyManagementFeeFloorV7Candidate.php
+COPY --from=performance_engine src/Domain/Administration/AdministrativeServiceEnvelope.php /opt/imagine/performance-engine/src/Domain/Administration/AdministrativeServiceEnvelope.php
 RUN composer dump-autoload \
         --no-dev --classmap-authoritative --no-scripts --no-plugins \
     && mkdir -p \
