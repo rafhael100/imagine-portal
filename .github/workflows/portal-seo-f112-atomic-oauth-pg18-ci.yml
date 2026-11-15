@@ -9,7 +9,6 @@ on:
       - 'apps/portal/labs/gsc-f112-pg18/**'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgIdentityReviewLab.php'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgOAuthSessionBoundLab.php'
-      - 
       - 'apps/portal/docs/PORTAL-SEO-F112-SESSION-OAUTH-ATOMIC-REVIEW.md'
 
 permissions:
