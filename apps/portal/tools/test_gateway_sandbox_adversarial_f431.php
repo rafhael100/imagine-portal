@@ -90,8 +90,10 @@ foreach(['connection reset','timeout','invalid JSON'] as $kind) {
     rejects(static fn()=>$gateway->createPayment(CUSTOMER,ORDER,98000,DUE),'uncertain write '.$kind);
     must($attempts===1,'no duplicate write after '.$kind);
 }
+// The PSP assigns a new opaque ID at POST; strict ID matching belongs to
+// GET reconciliation, where the expected persisted ID is known.
 foreach([
-    ['id'=>'pay_other'],
+    ['id'=>'forged-unparseable-id'],
     ['customer'=>'cus_other'],
     ['externalReference'=>'imagine:forged'],
     ['value'=>980.01],
