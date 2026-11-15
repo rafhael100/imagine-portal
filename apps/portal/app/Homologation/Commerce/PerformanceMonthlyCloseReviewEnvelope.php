@@ -31,6 +31,10 @@ final class PerformanceMonthlyCloseReviewEnvelope
         self::validateContext($tenant,$order,$reportVersion,$acknowledgedReportSha256,$secret);
         self::validateCandidate($candidate);
         $issued=self::timestamp($issuedAtUtc);
+        $firstAllowed=self::calendarDay($candidate['period_end'])->modify('+1 day');
+        if ($issued < $firstAllowed) {
+            throw new InvalidArgumentException('Monthly review cannot precede the closed period');
+        }
         $payload=[
             'schema'=>self::SCHEMA,
             'tenant_ref'=>$tenant,
@@ -127,7 +131,7 @@ final class PerformanceMonthlyCloseReviewEnvelope
             || !in_array($c['channel_count'],[1,2],true)
             || $c['currency']!=='BRL'
             || !is_int($c['informational_management_fee_cents'])
-            || $c['informational_management_fee_cents']<17_000
+            || $c['informational_management_fee_cents']<$c['channel_count']*PerformancePostpaidPolicy::MONTHLY_MINIMUM_CENTS
             || $c['informational_management_fee_cents']>100_000_000
             || $c['minimum_per_channel_cents']!==17_000
             || $c['activation_excluded_from_monthly_fee']!==true
