@@ -127,6 +127,7 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/tools/test_purchase_browser.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_full_portal.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_flow.py
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_handoff_f426.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
