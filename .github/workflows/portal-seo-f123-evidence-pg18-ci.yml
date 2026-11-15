@@ -1,0 +1,170 @@
+name: Portal SEO F123 - signed evidence once PG18 tenant RLS (CI only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f123-evidence-pg18-ci.yml'
+      - 'apps/portal/database/migrations/2026_11_15_000007_create_portal_seo_build_evidence_nonces.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php'
+      - 'apps/portal/labs/seo-f123-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgEvidenceNonceRetentionLab.php'
+      - 'apps/portal/labs/seo-f124-pg18/**'
+      - 'apps/portal/labs/seo-f125-engine-signer/**'
+      - 'apps/portal/labs/seo-f126-pg18/**'
+      - 'apps/portal/labs/seo-f122-signed-evidence/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg18-evidence-once:
+    name: PG18 Ed25519 nonce once + concurrent / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f108-ci-postgres-only
+          POSTGRES_DB: portal_gsc_f108_ci
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f108_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_SEO_F118_LAB: '1'
+      PORTAL_SEO_F122_LAB: '1'
+      PORTAL_SEO_F123_PG_CI: '1'
+      PORTAL_SEO_F124_PG_CI: '1'
+      PORTAL_SEO_F125_LAB: '1'
+      PORTAL_SEO_F126_PG_CI: '1'
+      SEO_F121_SIGNER_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f108_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: f108-ci-postgres-only
+      POSTGRES_PASSWORD: f108-ci-postgres-only
+      F123_ROLE_PASSWORD: f123-ci-role-only
+      F124_ROLE_PASSWORD: f124-ci-role-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout immutable SEO Engine RC45
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 7847c8c66d5be228a08a94282da562c790cdd440
+          path: .qa/seo-f118
+          persist-credentials: false
+      - name: Checkout actual immutable Engine F121 signer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          path: .qa/seo-f125
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: PHP ${{ matrix.php }} and real PDO PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Verify exact Engine head and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f118 rev-parse HEAD)" = 7847c8c66d5be228a08a94282da562c790cdd440
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
+          node --check apps/portal/labs/seo-f119-build/emit-engine.mjs
+          node --check apps/portal/labs/seo-f122-signed-evidence/make-envelope.mjs
+          node --check apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs
+          php -l apps/portal/labs/seo-f126-pg18/verify-engine-signer-once.php
+          test "$(git -C .qa/seo-f125 rev-parse HEAD)" = 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php
+          php -l apps/portal/database/migrations/2026_11_15_000007_create_portal_seo_build_evidence_nonces.php
+          php -l apps/portal/labs/seo-f123-pg18/verify-evidence-once.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgEvidenceNonceRetentionLab.php
+          php -l apps/portal/labs/seo-f124-pg18/verify-nonce-retention.php
+      - name: Install locked Laravel dependencies
+        working-directory: apps/portal
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Apply existing plus F123 migrations to disposable PG18
+        working-directory: apps/portal
+        run: php artisan migrate --force --no-interaction
+      - name: Exercise signed nonce once, real tenant RLS, concurrency, and key rotation
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          node apps/portal/labs/seo-f119-build/emit-engine.mjs clean > "$tempdir/report.json"
+          for mode in first concurrent rotated-a rotated-b; do
+            signMode=valid
+            if [[ "$mode" == rotated-* ]]; then signMode=fixed-nonce; fi
+            node apps/portal/labs/seo-f122-signed-evidence/make-envelope.mjs \
+              "$tempdir/report.json" "$tempdir/$mode-envelope.json" \
+              "$tempdir/$mode-public-key" "$signMode" > /dev/null
+          done
+          php apps/portal/labs/seo-f123-pg18/verify-evidence-once.php \
+            "$tempdir/first-envelope.json" "$tempdir/first-public-key" \
+            "$tempdir/concurrent-envelope.json" "$tempdir/concurrent-public-key" \
+            "$tempdir/rotated-a-envelope.json" "$tempdir/rotated-a-public-key" \
+            "$tempdir/rotated-b-envelope.json" "$tempdir/rotated-b-public-key"
+      - name: F124 bounded cleanup of expired PG18 nonce hashes by tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/seo-f124-pg18/verify-nonce-retention.php
+      - name: F126 actual Engine-owned signed report -> Portal F122 -> PG18 F123
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tempdir="$(mktemp -d)"
+          trap 'rm -rf "$tempdir"' EXIT
+          node apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs \
+            valid "$tempdir/source-envelope.json" "$tempdir/source-public-key" > /dev/null
+          php apps/portal/labs/seo-f126-pg18/verify-engine-signer-once.php \
+            "$tempdir/source-envelope.json" "$tempdir/source-public-key"
+      - name: Ensure no tracked source modifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f118 status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
