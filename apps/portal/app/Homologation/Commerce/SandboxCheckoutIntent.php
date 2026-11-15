@@ -39,11 +39,11 @@ final readonly class SandboxCheckoutIntent
                 in_array($o['payment_hold']??null,[true,'t',1,'1'],true)) {
                 throw new RuntimeException('Order unavailable');
             }
-            // Only Onepage participates in the first CI-only Sandbox billing
-            // rehearsal. Landing Page and Performance catalog entries expressly
-            // disable direct checkout. Never turn a media *estimate* into a PSP
-            // intent or bypass commercial approval with a crafted POST.
-            if ($o['product']!=='onepage') {
+            // Only Onepage and NEW versioned Performance activation are
+            // eligible for this *synthetic* Asaas sandbox. Landing Page,
+            // legacy prepaid Performance and recurring management charges
+            // are not authorized. Never bill media or planned management.
+            if (!in_array($o['product'],['onepage','performance'],true)) {
                 throw new RuntimeException('Sandbox rehearsal is not enabled for this offer');
             }
             $q=$this->db->prepare(
@@ -75,6 +75,9 @@ final readonly class SandboxCheckoutIntent
                 ($quote['product']??null)!==$o['product'] ||
                 ($quote['real_charge_enabled']??null)!==false) {
                 throw new RuntimeException('Approved quote unavailable');
+            }
+            if ($o['product']==='performance') {
+                self::requireApprovedActivationOnly($quote,$amount);
             }
             $due=(new DateTimeImmutable(
                 'now',new DateTimeZone('America/Sao_Paulo')
@@ -110,4 +113,52 @@ final readonly class SandboxCheckoutIntent
             }
         );
     }
+    /**
+     * Freeze the server-created new-contract snapshot at the PSP boundary.
+     * This does NOT authorize an invoice, recurring billing, ad spend, C6
+     * routing, charge on production, or a legacy Performance conversion.
+     */
+    private static function requireApprovedActivationOnly(array $quote,int $amount): void
+    {
+        if (($quote['pricing_policy']??null)!==PerformancePostpaidPolicy::VERSION ||
+            ($quote['gateway']??null)!=='asaas' ||
+            ($quote['real_charge_enabled']??null)!==false ||
+            ($quote['real_postpaid_invoice_authorized']??null)!==false ||
+            ($quote['minimum_management_fee_per_channel_cents']??null)!==PerformancePostpaidPolicy::MONTHLY_MINIMUM_CENTS ||
+            ($quote['activation_per_channel_cents']??null)!==PerformancePostpaidPolicy::ACTIVATION_CENTS ||
+            ($quote['settlement_policy']??null)!=='calendar_month_actual_spend_per_channel_floor_postpaid' ||
+            ($quote['media_paid_directly_to_platforms']??null)!==true ||
+            ($quote['management_fee_basis_points']??null)!==2000) {
+            throw new RuntimeException('Approved Performance activation terms unavailable');
+        }
+        $media=$quote['media_by_channel_cents']??null;
+        if (!is_array($media) || $media===[] || count($media)>2 ||
+            array_diff(array_keys($media),['meta_ads','google_ads'])!==[]) {
+            throw new RuntimeException('Approved channel scope unavailable');
+        }
+        try {
+            $eligibility=['meta_ads'=>true,'google_ads'=>true,'chatgpt_ads'=>false];
+            $setup=\App\Domain\Performance\ActivationPostpaidPreview::activationQuote(
+                array_keys($media),$eligibility
+            );
+            foreach ($setup['items'] as $row) {
+                $budget=$media[$row['channel']]??null;
+                if (!is_int($budget) || $budget<$row['minimum_media_cents'] ||
+                    $budget>100_000_000) {
+                    throw new \InvalidArgumentException('Invalid media budget');
+                }
+            }
+            $calculated=PerformancePostpaidPolicy::fullMonth(array_keys($media),$media);
+        } catch (\Throwable) {
+            throw new RuntimeException('Invalid frozen Performance activation snapshot');
+        }
+        $expected=$calculated['activation_total_cents'];
+        if ($expected!==$setup['activation_due_now_cents'] ||
+            $amount!==$expected ||
+            ($quote['activation_total_cents']??null)!==$expected ||
+            ($quote['estimated_management_fee_cents']??null)!==$calculated['management_fee_cents']) {
+            throw new RuntimeException('Performance PSP amount does not match activation');
+        }
+    }
+
 }

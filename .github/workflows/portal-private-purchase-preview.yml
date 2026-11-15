@@ -131,6 +131,9 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_commercial_quotes.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_checkout.py
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
+          # Run the new channel activation LAST to preserve existing account
+          # and report-throttle tests. It respects Retry-After itself.
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
           cd apps/portal/ops/private-purchase
           # Prove the shared application SQL login cannot enumerate another
           # customer's identity, orders, events, invoices or financial reports.
