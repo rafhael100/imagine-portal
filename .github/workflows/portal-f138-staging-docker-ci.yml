@@ -51,7 +51,7 @@ jobs:
           APP_URL=https://localhost:18088
           APP_KEY=base64:$(openssl rand -base64 32)
           PORTAL_STAGING_LOOPBACK_PORT=18088
-          PORTAL_STAGING_DB=portal_f138_ci
+          PORTAL_STAGING_DB=perf_admin_staging_ci
           PORTAL_STAGING_DB_OWNER=portal_f138_owner
           PORTAL_STAGING_DB_OWNER_PASSWORD=$(openssl rand -hex 24)
           PORTAL_APP_DB_USER=portal_f138_runtime
@@ -157,6 +157,7 @@ jobs:
           source .env.staging
           set +a
           sed -i 's/PORTAL_ADMIN_AUTH_ENABLED=false/PORTAL_ADMIN_AUTH_ENABLED=true/; s/PERFORMANCE_ADMIN_LAB_ENABLED=false/PERFORMANCE_ADMIN_LAB_ENABLED=true/' .env.staging
+          export PORTAL_ADMIN_AUTH_ENABLED=true PERFORMANCE_ADMIN_LAB_ENABLED=true
           mkdir -p "$RUNNER_TEMP/private-vault" "$RUNNER_TEMP/staging-evidence"
           chmod 700 "$RUNNER_TEMP/private-vault"
           # Provision fixtures only in a disposable CI process with owner credentials.
@@ -168,6 +169,7 @@ jobs:
             -e PERFORMANCE_ADMIN_BROWSER_VAULT=/ci-vault/reviewer.json \
             -e DB_USERNAME="$PORTAL_STAGING_DB_OWNER" -e DB_PASSWORD="$PORTAL_STAGING_DB_OWNER_PASSWORD" \
             app php tests/Fixtures/performance-admin-seed.php
+          test -s "$RUNNER_TEMP/private-vault/reviewer.json"
           docker compose --env-file .env.staging up -d --force-recreate app
           sudo apt-get update -qq
           sudo apt-get install -y -qq libnss3-tools >/dev/null
