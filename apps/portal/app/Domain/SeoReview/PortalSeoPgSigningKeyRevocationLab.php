@@ -9,8 +9,9 @@ use PDO;
  * F128: revoke one server-selected signing key under the SAME cooperative
  * tenant+signer transaction lock used by F127 report verification/acceptance.
  *
- * Deliberately NOT an admin endpoint or issuer-auth service; no audit event,
- * dual control, key custody or production approval is supplied.
+ * Deliberately NOT an admin endpoint or issuer-auth service; F129 adds a
+ * mandatory tenant-RLS audit event in the same transaction, but no real
+ * dual control, event retention approval or production authority.
  */
 final class PortalSeoPgSigningKeyRevocationLab
 {
@@ -59,12 +60,42 @@ final class PortalSeoPgSigningKeyRevocationLab
                     'valid_from'=>$trustedNow,
                 ]);
                 if($stmt->fetchColumn()===false)return null;
+
+                // F129: audit is MANDATORY in the SAME transaction.
+                // Missing INSERT permission, RLS mismatch or a duplicate
+                // audit digest must roll back the preceding key UPDATE.
+                $eventDigest=hash('sha256',
+                    "IMAGINE-SEO-F129-KEY-REVOKED\n".
+                    $trustedContext['tenantRef']."\n".
+                    $trustedSignerRef."\n".
+                    $trustedFingerprint."\n".
+                    $trustedContext['actorRef']."\n".
+                    $trustedNow
+                );
+                $event=$db->prepare(
+                    "INSERT INTO portal_seo_build_signer_events
+                    (tenant_ref,event_digest,signer_ref,public_key_fingerprint,
+                     actor_ref,event_code,occurred_at)
+                    VALUES
+                    (:tenant,:digest,:signer,:fingerprint,:actor,
+                     'signer_key_revoked',:occurred)"
+                );
+                if(!$event||!$event->execute([
+                    'tenant'=>$trustedContext['tenantRef'],
+                    'digest'=>$eventDigest,'signer'=>$trustedSignerRef,
+                    'fingerprint'=>$trustedFingerprint,
+                    'actor'=>$trustedContext['actorRef'],
+                    'occurred'=>$trustedNow,
+                ])||$event->rowCount()!==1)
+                    throw new \RuntimeException('F129: mandatory audit unavailable');
+
                 return [
                     'contractVersion'=>
                         'portal-seo-f128-cooperative-signer-revocation-lab-v1',
                     'oneSignerKeyRevokedInPgLab'=>true,
                     'tenantSignerTransactionLockUsed'=>true,
-                    'revocationAuditPersisted'=>false,
+                    'revocationAuditPersistedInPgLab'=>true,
+                    'realAuditRetentionApproved'=>false,
                     'unauthorizedOutOfBandMutationExcluded'=>false,
                     'realAdministratorVerified'=>false,
                     'realKmsRevocationVerified'=>false,
