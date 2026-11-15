@@ -4,6 +4,7 @@
     $link=fn($m,$extra=[])=>route('performance-admin.index',array_merge(['module'=>$m,'tenant'=>$tenant],$extra));
     $names=['google_ads'=>'Google Ads','meta_ads'=>'Meta Ads','chatgpt_ads'=>'ChatGPT Ads'];
     $statuses=['active'=>'Ativo','onboarding'=>'Em implantação','paused'=>'Pausado','failed'=>'Com falha','pending'=>'Pendente','approved'=>'Aprovado em laboratório','rejected'=>'Rejeitado','revoked'=>'Revogado','consumed'=>'Recibo consumido','open'=>'Aberto','acknowledged'=>'Reconhecido','resolved'=>'Resolvido','unavailable'=>'Indisponível','simulated'=>'Simulado','monitored'=>'Monitorado (simulação)','alert'=>'Com alerta'];
+    $filterStatuses=array_intersect_key($statuses,array_flip(match($module){'campaigns','reports'=>['monitored','alert'],'agents'=>['active','paused','failed'],'approvals'=>['pending','approved','rejected','revoked','consumed'],'incidents'=>['open','acknowledged','resolved'],'channels'=>['simulated','unavailable'],default=>['active','onboarding']}));
     $roles=['superadmin'=>'Superadministrador Imagine','operations'=>'Gestor de Operações','analyst'=>'Analista de Performance','ai_supervisor'=>'Supervisor de IA','finance'=>'Financeiro','auditor'=>'Auditor somente leitura'];
 @endphp
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>{{ $modules[$module] }} · Administração Performance AI</title>
@@ -39,7 +40,7 @@
 <article class="card metric"><span>{{ $label }}</span><strong>{{ $value }}</strong><small>Nov/2026 · cenário sintético</small></article>
 @endforeach
 </section>
-@if($can('finance'))
+@if($can('finance') && isset($finance['unverified_actual_media_cents']))
 <div class="cards"><article class="card metric"><span>Mídia simulada · separada da gestão</span><strong>{{ $money($finance['unverified_actual_media_cents']) }}</strong><small>Não verificada pelo provedor</small></article><article class="card metric"><span>Gestão estimada · não é receita recebida</span><strong>{{ $money($finance['estimated_management_fee_cents']) }}</strong><small>20% / piso por canal no mês cheio</small></article><article class="card metric"><span>Ativações de referência</span><strong>{{ $money($finance['activation_reference_cents']) }}</strong><small>R$490/canal · não faturável</small></article></div>
 @endif
 <div class="grid2"><section class="card"><h2>Evolução ilustrativa de leads</h2><p class="muted">Histórico sintético semanal. Não representa desempenho real.</p>
@@ -97,7 +98,7 @@ $target=($filters['tab']??'overview');
 <option value="{{ $key }}" @selected(($filters['channel']??'')===$key)>{{ $label }}</option>
 @endforeach
 </select></div><div><label for="sort">Ordenar</label><select id="sort" name="sort"><option value="name">Nome</option><option value="status" @selected(($filters['sort']??'')==='status')>Situação</option></select></div><div><label for="status">Situação</label><select id="status" name="status"><option value="">Todas</option>
-@foreach($statuses as $key=>$label)
+@foreach($filterStatuses as $key=>$label)
 <option value="{{ $key }}" @selected(($filters['status']??'')===$key)>{{ $label }}</option>
 @endforeach
 </select></div>
@@ -156,7 +157,12 @@ $actions=match($module){'agents'=>$detail['status']==='active'?['agent.pause'=>'
 @foreach($finance['channels'] as $ch=>$value)
 <tr><td>{{ $names[$ch] }}</td><td>{{ $money($value['unverified_actual_media_cents']) }}</td><td>{{ $money($value['unverified_earned_fee_cents']) }}</td><td>Sintético · não faturável</td></tr>
 @endforeach
-</tbody></table></div><p class="notice">20% do investimento verificado ou mínimo R$170 por canal ativo em mês cheio. Neste exemplo: Google R$200 + Meta R$170 = R$370. Períodos parciais aguardam política contratual: não aplicar automaticamente o piso.</p><dl><dt>Ativação por canal</dt><dd>R$490 · referência, sem contratação real.</dd><dt>Extratos / divergências</dt><dd>Pendentes de comprovação oficial. Valores das campanhas e da mídia do cenário não foram conciliados por provedor.</dd><dt>Faturas / pagamentos conciliados</dt><dd>Indisponíveis. Autoridade de cobrança permanece no Portal.</dd><dt>Asaas e C6</dt><dd>Sem credenciais, conexão ou cobrança. Configuração futura restrita ao backend.</dd></dl></section>
+</tbody></table></div>@if(($finance['state']??'')==='partial_policy_pending')
+<p class="notice">Período parcial: cálculo indisponível enquanto a política contratual não for homologada. Nenhum piso ou cobrança foi aplicado.</p>
+@else
+<p class="notice">20% do investimento verificado ou mínimo R$170 por canal ativo em mês cheio. Neste exemplo: Google R$200 + Meta R$170 = R$370. Períodos parciais aguardam política contratual: não aplicar automaticamente o piso.</p>
+@endif
+<dl><dt>Ativação por canal</dt><dd>R$490 · referência, sem contratação real.</dd><dt>Extratos / divergências</dt><dd>Pendentes de comprovação oficial. Valores das campanhas e da mídia do cenário não foram conciliados por provedor.</dd><dt>Faturas / pagamentos conciliados</dt><dd>Indisponíveis. Autoridade de cobrança permanece no Portal.</dd><dt>Asaas e C6</dt><dd>Sem credenciais, conexão ou cobrança. Configuração futura restrita ao backend.</dd></dl></section>
 @elseif($module==='reports')
 <section class="card"><h2>Relatório de campanhas</h2><p>Empresa selecionada: {{ $tenant }} · Novembro 2026 · dados simulados.</p><a class="button" href="{{ route('performance-admin.export',['tenant'=>$tenant]) }}">Exportar CSV de laboratório ↓</a><a class="button secondary" href="{{ $link('campaigns') }}">Filtrar campanhas</a><div class="notice">Dados incompletos: sem receita, vendas atribuídas ou extrato oficial. ROI e ROAS não calculados. PDF: arquitetura preparada por contrato de consulta, ainda indisponível.</div><p>Objetivos e canais podem ser consultados nos filtros de campanhas. A exportação contém o conjunto de campanhas da empresa selecionada, sem dados de outras empresas.</p></section>
 @elseif($module==='settings')

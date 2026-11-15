@@ -102,6 +102,17 @@ final class PerformanceAdministrationTest extends TestCase
         self::assertSame('acknowledged',$this->state()['incidents']['sync']['status']);self::assertSame('resolved',$this->state()['incidents']['task']['status']);
         $this->get('/portal-admin/performance/incidents')->assertSee('Resolvido');
     }
+    public function test_report_filters_export_and_partial_month_never_imply_billing():void
+    {
+        $this->login();$this->grant('finance');
+        $this->get('/portal-admin/performance/export/lab-alfa?channel=meta_ads')->assertOk()->assertSee('meta_ads')->assertDontSee('google_ads');
+        $this->get('/portal-admin/performance/reports?channel=meta_ads&objective=Visitas')->assertOk()->assertSee('Exportar CSV filtrado');
+        $this->get('/portal-admin/performance/clients?q=nao-existe')->assertOk()->assertSee('Nenhum cliente corresponde');
+        $engine=new PinnedLaboratoryTransport();$state=$this->state();$state['channels']['google_ads']['full_month']=false;
+        self::assertSame('partial_policy_pending',$engine->finance($state)['state']);
+        DB::table('performance_admin_lab_states')->where('tenant','lab-alfa')->update(['payload'=>json_encode($state,JSON_THROW_ON_ERROR)]);
+        $this->get('/portal-admin/performance/finance')->assertOk()->assertSee('Nenhum piso ou cobrança foi aplicado');
+    }
     public function test_kill_switch_denies_runtime_routes_even_after_registration():void
     {
         $this->login();config()->set('performance_admin.enabled',false);$this->get('/portal-admin/performance')->assertNotFound();
