@@ -33,6 +33,16 @@ final readonly class OrganizationAuthorizationService
 
         $permission = Permission::tryFrom($context->requestedPermission);
 
+        // University is a benefit contingent on a trusted active service.
+        // An explicit organization grant/owner role by itself is NOT proof
+        // of eligibility. Fail closed until the independently reviewed
+        // service contract, issuer and transactional revocation are wired.
+        // This applies to VIEW and MANAGE independently; no HTTP auth.
+        if ($permission === Permission::ViewUniversity
+            || $permission === Permission::ManageUniversity) {
+            return AuthorizationDecision::deny();
+        }
+
         if ($permission === null
             || ! $context->organizationId->equals($context->resourceOrganizationId)
             || $membership === null
