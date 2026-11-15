@@ -1,0 +1,142 @@
+name: Portal F138 - isolated Docker staging smoke (CI only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-f138-staging-docker-ci.yml'
+      - 'apps/portal/deploy/staging/**'
+      - 'apps/portal/.dockerignore'
+      - 'apps/portal/.gitignore'
+      - 'apps/portal/database/migrations/2026_11_15_000016_create_portal_cache_for_throttling.php'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php'
+      - 'apps/portal/app/Console/Commands/PortalAdminStagingPreflight.php'
+      - 'apps/portal/tests/Feature/PortalAdminStagingPreflightTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-isolation:
+    name: Build only, migrate disposable PG18, check runtime role and loopback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/portal/deploy/staging
+        shell: bash
+    steps:
+      - name: Checkout exact PR candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Generate synthetic one-run secrets, never committed
+        run: |
+          set -euo pipefail
+          umask 077
+          php -l ../../database/migrations/2026_11_15_000016_create_portal_cache_for_throttling.php
+          php -l ../../app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php
+          bash -n initdb/create-app-role.sh
+          cat > .env.staging <<EOF
+          APP_NAME="Imagine Portal CI"
+          APP_ENV=staging
+          APP_DEBUG=false
+          APP_URL=https://portal-staging.example.test
+          APP_KEY=base64:$(openssl rand -base64 32)
+          PORTAL_STAGING_LOOPBACK_PORT=18081
+          PORTAL_STAGING_DB=portal_f138_ci
+          PORTAL_STAGING_DB_OWNER=portal_f138_owner
+          PORTAL_STAGING_DB_OWNER_PASSWORD=$(openssl rand -hex 24)
+          PORTAL_APP_DB_USER=portal_f138_runtime
+          PORTAL_APP_DB_PASSWORD=$(openssl rand -hex 24)
+          LOG_CHANNEL=stderr
+          SESSION_DRIVER=database
+          SESSION_ENCRYPT=true
+          SESSION_SECURE_COOKIE=true
+          SESSION_HTTP_ONLY=true
+          SESSION_SAME_SITE=lax
+          CACHE_STORE=database
+          QUEUE_CONNECTION=sync
+          MAIL_MAILER=array
+          PORTAL_ADMIN_AUTH_ENABLED=false
+          PORTAL_ADMIN_PROVISION_ENABLED=false
+          EOF
+          chmod 600 .env.staging
+          docker compose --env-file .env.staging config --quiet
+      - name: Build PHP FPM and Nginx public-only images (no deploy)
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.staging build --pull app web
+      - name: Start disposable PostgreSQL only
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.staging up -d --wait --wait-timeout 120 db
+      - name: Migrate with owner and grant narrowly scoped runtime permissions
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -e DB_USERNAME="$PORTAL_STAGING_DB_OWNER" \
+            -e DB_PASSWORD="$PORTAL_STAGING_DB_OWNER_PASSWORD" \
+            app php artisan migrate --force --no-interaction
+          docker compose --env-file .env.staging exec -T db \
+            psql -X -v ON_ERROR_STOP=1 \
+            -U "$PORTAL_STAGING_DB_OWNER" -d "$PORTAL_STAGING_DB" \
+            -v app_role="$PORTAL_APP_DB_USER" < grant-runtime.sql
+      - name: Verify runtime role and secure admin preflight
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          flags="$(docker compose --env-file .env.staging exec -T db \
+            psql -X -At \
+            -U "$PORTAL_STAGING_DB_OWNER" -d "$PORTAL_STAGING_DB" \
+            -c "SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname='portal_f138_runtime'")"
+          test "$flags" = 'f|f'
+          if docker compose --env-file .env.staging run --rm --no-deps \
+              app php artisan portal-admin:staging-preflight; then
+            echo 'F138: admin flag OFF must block preflight' >&2
+            exit 1
+          fi
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -e PORTAL_ADMIN_AUTH_ENABLED=true \
+            app php artisan portal-admin:staging-preflight
+      - name: Start app and Nginx privately; test health and disabled admin route
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.staging up -d app web
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error \
+                 http://127.0.0.1:18081/up >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18081/up >/dev/null
+          status="$(curl --silent --output /dev/null \
+            --write-out '%{http_code}' \
+            http://127.0.0.1:18081/portal-admin/login)"
+          test "$status" = '404'
+          docker compose --env-file .env.staging exec -T web nginx -t
+      - name: Inspect disposable PostgreSQL bootstrap if tests failed
+        if: failure()
+        run: |
+          if test -s .env.staging; then
+            docker compose --env-file .env.staging ps || true
+            docker compose --env-file .env.staging logs --no-color --tail=60 db || true
+          fi
+      - name: Remove all CI-only volumes, containers and secrets
+        if: always()
+        working-directory: .
+        run: |
+          if test -s apps/portal/deploy/staging/.env.staging; then
+            (cd apps/portal/deploy/staging && \
+              docker compose --env-file .env.staging down -v --remove-orphans) || true
+          fi
+          rm -f apps/portal/deploy/staging/.env.staging
+          test ! -e apps/portal/deploy/staging/.env.staging
