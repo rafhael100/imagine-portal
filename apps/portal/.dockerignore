@@ -1,0 +1,19 @@
+# F138: secrets, artifacts and mutable app state must never enter images.
+.env
+.env.*
+!.env.example
+deploy/staging/.env.staging
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+vendor/
+node_modules/
+tests/
+labs/
+.git/
+.github/
+*.pem
+*.key
+*.p12
+*.pfx
