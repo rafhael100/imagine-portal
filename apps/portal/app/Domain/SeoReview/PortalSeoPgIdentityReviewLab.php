@@ -148,7 +148,7 @@ final readonly class PortalSeoPgIdentityReviewLab
                     'SELECT actor_ref,issued_at,expires_at,mfa_verified_at,
                         revoked_at,account_revision,session_revision
                      FROM portal_seo_review_sessions
-                     WHERE tenant_ref=:tenant AND session_digest=:digest FOR SHARE'
+                     WHERE tenant_ref=:tenant AND session_digest=:digest '
                 );
                 if (!$statement || !$statement->execute([
                     'tenant'=>$tenantRef,'digest'=>$sessionDigest
@@ -178,7 +178,7 @@ final readonly class PortalSeoPgIdentityReviewLab
                 $members=$db->prepare(
                     'SELECT status,permission,checked_at,revoked_at
                      FROM portal_seo_review_memberships
-                     WHERE tenant_ref=:tenant AND actor_ref=:actor FOR SHARE'
+                     WHERE tenant_ref=:tenant AND actor_ref=:actor '
                 );
                 if (!$members || !$members->execute([
                     'tenant'=>$tenantRef,'actor'=>$actor
@@ -196,7 +196,7 @@ final readonly class PortalSeoPgIdentityReviewLab
                 $resources=$db->prepare(
                     'SELECT property_fingerprint,status,updated_at
                      FROM portal_seo_review_resources
-                     WHERE tenant_ref=:tenant AND resource_digest=:digest FOR SHARE'
+                     WHERE tenant_ref=:tenant AND resource_digest=:digest '
                 );
                 if (!$resources || !$resources->execute([
                     'tenant'=>$tenantRef,'digest'=>$resourceDigest
