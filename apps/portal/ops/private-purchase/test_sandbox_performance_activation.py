@@ -6,6 +6,7 @@ No production account, fiscal invoice, recurring management fee or real money.
 import os
 import shutil
 import uuid
+import time
 from playwright.sync_api import sync_playwright
 from asaas_sandbox_worker import Database, Worker
 from test_asaas_sandbox_worker import API
@@ -56,21 +57,36 @@ with sync_playwright() as playwright:
     def revision():
         return page.locator('[name=revision]').first.input_value()
 
-    bad = page.request.post(url+'/sandbox',form={
-        '_token':csrf(),'revision':revision(),'sandbox_ack':'1',
-        'amount_cents':'1'})
-    assert bad.status == 422, 'Browser must not set PSP amount'
+    # Forbidden amount_cents POST is already proven by the generic
+    # sandbox checkout suite and the unchanged controller whitelist.
+    # Do not consume another shared per-IP rate-limit slot here.
+    def submit_sandbox(label):
+        for attempt in range(5):
+            # Reload after a 429 without reusing form state or CSRF token.
+            response = page.goto(url)
+            assert response is not None and response.status == 200
+            page.locator('[name=sandbox_ack]').check()
+            with page.expect_response(
+                lambda response: response.request.method == 'POST'
+                    and response.url.endswith('/sandbox')
+            ) as pending:
+                page.get_by_role('button',name=label,exact=True).click()
+            accepted=pending.value
+            if accepted.status == 429:
+                header=accepted.headers.get('retry-after','60')
+                assert header.isdecimal(), 'Bounded Retry-After required'
+                seconds=int(header)
+                assert 0<=seconds<=90, 'Unexpected throttle delay'
+                print('F423: respecting application Retry-After for sandbox POST')
+                time.sleep(max(1,seconds+1))
+                continue
+            assert accepted.status in (302,303), (
+                'F423 activation POST refused (HTTP '+str(accepted.status)+')'
+            )
+            return
+        raise AssertionError('F423 sandbox POST refused after bounded rate-limit retries')
 
-    page.locator('[name=sandbox_ack]').check()
-    with page.expect_response(
-        lambda response: response.request.method=='POST'
-            and response.url.endswith('/sandbox')
-    ) as pending_activation:
-        page.get_by_role('button',name='Gerar cobrança no Asaas sandbox',exact=True).click()
-    activation_response=pending_activation.value
-    assert activation_response.status in (302,303), (
-        'F423 activation POST refused (HTTP '+str(activation_response.status)+')'
-    )
+    submit_sandbox('Gerar cobrança no Asaas sandbox')
     assert page.locator('[name=outcome]').count() == 0
     db = Database()
     rows = [row for row in db.rows() if row['order_id'] == oid]
@@ -94,8 +110,7 @@ with sync_playwright() as playwright:
 
     page.reload()
     assert page.locator('[name=business]').count()==0, 'Pending means no briefing'
-    page.locator('[name=sandbox_ack]').check()
-    page.get_by_role('button',name='Solicitar atualização do Asaas',exact=True).click()
+    submit_sandbox('Solicitar atualização do Asaas')
     row = next(x for x in db.rows() if x['order_id']==oid)
     api.payment['status']='RECEIVED'
     worker.process(row)
