@@ -160,6 +160,10 @@ $admin->exec('GRANT UPDATE ON portal_seo_build_signing_keys
     TO portal_f128_admin');
 $admin->exec('GRANT INSERT ON portal_seo_build_signer_events
     TO portal_f128_admin');
+// F130 deferred audit guard checks the matching event at COMMIT, so the
+// revoker has tenant-RLS SELECT on its own audit records, not other tenants.
+$admin->exec('GRANT SELECT ON portal_seo_build_signer_events
+    TO portal_f128_admin');
 $service=db128('portal_f128_service',F128_PASS);
 $revoker=db128('portal_f128_admin',F128_PASS);
 $readonly=db128('portal_f128_readonly',F128_PASS);

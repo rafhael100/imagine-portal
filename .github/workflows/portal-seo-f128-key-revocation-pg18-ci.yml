@@ -1,4 +1,4 @@
-name: Portal SEO F128-F129 - signer revocation and atomic audit PG18
+name: Portal SEO F128-F130 - key revocation audited and guarded in PG18
 
 on:
   pull_request:
@@ -6,6 +6,8 @@ on:
       - '.github/workflows/portal-seo-f128-key-revocation-pg18-ci.yml'
       - 'apps/portal/labs/seo-f128-pg18/**'
       - 'apps/portal/labs/seo-f129-pg18/**'
+      - 'apps/portal/labs/seo-f130-pg18/**'
+      - 'apps/portal/database/migrations/2026_11_15_000010_enforce_portal_seo_signer_audit_immutability.php'
       - 'apps/portal/database/migrations/2026_11_15_000009_create_portal_seo_build_signer_events.php'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyLock.php'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyRevocationLab.php'
@@ -57,6 +59,7 @@ jobs:
       PORTAL_SEO_F127_PG_CI: '1'
       PORTAL_SEO_F128_PG_CI: '1'
       PORTAL_SEO_F129_PG_CI: '1'
+      PORTAL_SEO_F130_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -67,6 +70,7 @@ jobs:
       F127_ROLE_PASSWORD: f127-ci-role-only
       F128_ROLE_PASSWORD: f128-ci-role-only
       F129_ROLE_PASSWORD: f129-ci-role-only
+      F130_ROLE_PASSWORD: f130-ci-role-only
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
@@ -107,6 +111,8 @@ jobs:
           php -r 'if (!extension_loaded("sodium")) exit(1);'
           php -l apps/portal/labs/seo-f128-pg18/verify-concurrent-key-revocation.php
           php -l apps/portal/labs/seo-f129-pg18/verify-atomic-revocation-audit.php
+          php -l apps/portal/labs/seo-f130-pg18/verify-db-key-event-guards.php
+          php -l apps/portal/database/migrations/2026_11_15_000010_enforce_portal_seo_signer_audit_immutability.php
           php -l apps/portal/database/migrations/2026_11_15_000009_create_portal_seo_build_signer_events.php
           php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyLock.php
           php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyRevocationLab.php
@@ -145,6 +151,11 @@ jobs:
         run: |
           set -euo pipefail
           php apps/portal/labs/seo-f129-pg18/verify-atomic-revocation-audit.php
+      - name: F130 enforce DB event immutability and audited-only key transitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/seo-f130-pg18/verify-db-key-event-guards.php
       - name: Check no tracked files changed
         shell: bash
         run: |
