@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/portal-seo-f127-trusted-keys-pg18-ci.yml'
       - 'apps/portal/labs/seo-f127-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyRevocationLab.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyLock.php'
       - 'apps/portal/app/Domain/SeoReview/PortalSeoPgTrustedBuildSignerLab.php'
       - 'apps/portal/database/migrations/2026_11_15_000008_create_portal_seo_build_signing_keys.php'
       - 'apps/portal/labs/seo-f126-engine-pg18/**'
@@ -50,6 +52,7 @@ jobs:
       PORTAL_SEO_F123_PG_CI: '1'
       PORTAL_SEO_F125_LAB: '1'
       PORTAL_SEO_F127_PG_CI: '1'
+      PORTAL_SEO_F128_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
