@@ -26,7 +26,10 @@ export function parseNameStatusZ(raw){
   return out;
 }
 export function categorizeReviewPath(path){
-  if(typeof path!=='string'||!path||path.length>2048)invalid();
+  if(typeof path!=='string'||!path||path.length>2048||
+     path.startsWith('/')||path.includes('\\')||
+     path.split('/').some(x=>x===''||x==='.'||x==='..')||
+     /[\x00-\x1f\x7f]/.test(path))invalid();
   const p=path.toLowerCase();
   if(/(^|\/)(\.env($|\.)|id_rsa|id_ed25519|secrets?($|[/.])|private[_-]?key)/.test(p))
     return {area:'sensitive-configuration',risk:'critical'};
