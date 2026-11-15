@@ -42,6 +42,8 @@ final class PortalAdminStagingPreflight extends Command
                 $issues[]='ADMIN_ORG_GRANTS_REQUIRED';
             if(!Schema::hasTable('sessions'))
                 $issues[]='DATABASE_SESSIONS_TABLE_REQUIRED';
+            if(!Schema::hasTable('cache') || !Schema::hasTable('cache_locks'))
+                $issues[]='SHARED_DATABASE_RATE_LIMIT_TABLES_REQUIRED';
             if(!Schema::hasColumn('portal_admin_users','session_version'))
                 $issues[]='ADMIN_SESSION_VERSION_REQUIRED';
         }catch(Throwable){
