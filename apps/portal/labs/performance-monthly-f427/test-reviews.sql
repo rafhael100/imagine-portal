@@ -89,9 +89,13 @@ BEGIN
  BEGIN PERFORM secret FROM perf_monthly_f427.scope_keys;
  EXCEPTION WHEN insufficient_privilege THEN blocked:=true; END;
  IF NOT blocked THEN RAISE EXCEPTION 'CRITICAL: viewer read scope secret'; END IF;
- IF perf_monthly_f427.consume_review(repeat('a',64),repeat('c',64),'org-alpha-001','order-alpha-001',
-    (date_trunc('month',now())-interval '1 month')::date,3,repeat('1',64),repeat('2',64),17000)
- THEN RAISE EXCEPTION 'CRITICAL: viewer may consume'; END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM perf_monthly_f427.consume_review(repeat('a',64),repeat('c',64),'org-alpha-001','order-alpha-001',
+   (date_trunc('month',now())-interval '1 month')::date,3,repeat('1',64),repeat('2',64),17000);
+ EXCEPTION WHEN insufficient_privilege THEN blocked:=true;
+ END;
+ IF NOT blocked THEN RAISE EXCEPTION 'CRITICAL: viewer can invoke consume function'; END IF;
 END $own$;
 SELECT set_config('imagine.f427_tenant','org-beta-001',false);
 DO $cross$
