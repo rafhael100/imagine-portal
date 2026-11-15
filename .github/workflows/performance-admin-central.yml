@@ -1,0 +1,97 @@
+name: ADMIN P0 - Portal central with pinned Performance engine and PostgreSQL18
+on:
+  pull_request:
+    paths: ['apps/portal/**', '.github/workflows/performance-admin-central.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  central:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: perf-admin-ci-disposable
+          POSTGRES_DB: perf_admin_central_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d perf_admin_central_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      PERFORMANCE_ADMIN_LAB_ENABLED: 'true'
+      PERFORMANCE_ADMIN_PG_CI: '1'
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: ${{ github.workspace }}/engine
+      PERFORMANCE_ADMIN_BROWSER_VAULT: /tmp/perf-admin-vault.json
+      PERFORMANCE_ADMIN_EVIDENCE: /tmp/perf-admin-evidence
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: perf_admin_central_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: perf-admin-ci-disposable
+      SESSION_DRIVER: file
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 238bcb026aca0a02d90c0ebff38fb2d4f35d8e1f
+          path: engine
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Install locked Portal and test engine contract
+        run: |
+          composer install --working-dir=apps/portal --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          php engine/tests/administrative_lab_engine_test.php
+          php engine/tests/monthly_management_fee_floor_v7_candidate_test.php
+      - name: Prepare only disposable CI database
+        working-directory: apps/portal
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan migrate --force --no-interaction
+          php artisan view:cache
+          for f in storage/framework/views/*.php; do php -l "$f" || exit 1; done
+      - name: Tenant, role, revision, replay, approval and incident flows
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter=PerformanceAdministrationTest
+      - name: Seed unique CI-only reviewer without credential output
+        run: |
+          mkdir -p "$PERFORMANCE_ADMIN_EVIDENCE"
+          php apps/portal/tests/Fixtures/performance-admin-seed.php
+          php apps/portal/tests/Fixtures/render-performance-admin.php
+          cd apps/portal
+          php artisan serve --host=127.0.0.1 --port=18942 > "$RUNNER_TEMP/perf-admin-server.log" 2>&1 &
+      - name: Browser journey and credential-free evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/perf-admin-browser"
+          cd "$RUNNER_TEMP/perf-admin-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          NODE_PATH="$RUNNER_TEMP/perf-admin-browser/node_modules" node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/performance-admin-browser.cjs"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: performance-admin-credential-free-evidence
+          path: /tmp/perf-admin-evidence
+          retention-days: 7
+      - name: Delete ephemeral authentication material
+        if: always()
+        run: rm -f "$PERFORMANCE_ADMIN_BROWSER_VAULT"

@@ -9,6 +9,9 @@
         <strong>Sem autorização de clientes</strong>
         <p>Este acesso não concede permissões sobre empresas, serviços contratados, SEO Engine, CRM, Google Search Console ou dados de clientes.</p>
     </div>
+    @if(config('performance_admin.enabled')===true && app()->environment(['local','testing']))
+    <p><a href="{{ route('performance-admin.index') }}">Abrir Central Administrativa Performance AI · Laboratório →</a></p>
+    @endif
     <form method="POST" action="{{ route('portal-admin.logout') }}">
         @csrf
         <button class="secondary" type="submit">Encerrar sessão</button>
