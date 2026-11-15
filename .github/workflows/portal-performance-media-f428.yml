@@ -1,0 +1,44 @@
+name: Portal F428 synthetic media-statement reconciliation NO-BILLING
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/PerformanceMediaEvidenceReconciliation.php'
+      - 'apps/portal/tools/test_performance_media_evidence_f428.php'
+      - '.github/workflows/portal-performance-media-f428.yml'
+permissions:
+  contents: read
+jobs:
+  media-evidence-review:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact PR SHA with no persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup pinned PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Test full statement match, failures and immutable NO-GO flags
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/PerformanceMediaEvidenceReconciliation.php
+          php -l apps/portal/tools/test_performance_media_evidence_f428.php
+          php apps/portal/tools/test_performance_media_evidence_f428.php
+          grep -Fq "'official_media_evidence_verified'=>false" apps/portal/app/Homologation/Commerce/PerformanceMediaEvidenceReconciliation.php
+          grep -Fq "'can_charge'=>false" apps/portal/app/Homologation/Commerce/PerformanceMediaEvidenceReconciliation.php
+          grep -Fq "'can_write_psp'=>false" apps/portal/app/Homologation/Commerce/PerformanceMediaEvidenceReconciliation.php
+      - name: Document isolated scope
+        run: |
+          echo 'F428: verified only synthetic offline row normalization and discrepancy detection.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-GO: no authenticated Google/Meta APIs, no official statement, no invoice or PSP.' >> "$GITHUB_STEP_SUMMARY"
