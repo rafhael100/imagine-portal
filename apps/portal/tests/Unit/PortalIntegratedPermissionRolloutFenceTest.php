@@ -44,6 +44,8 @@ final class PortalIntegratedPermissionRolloutFenceTest extends TestCase
             'members.manage',
             'seo.gsc.connect',
             'seo.gsc.view',
+            'university:view',
+            'university:manage',
         ], $known);
         self::assertCount(count(array_unique($known)), $known);
 
@@ -55,11 +57,14 @@ final class PortalIntegratedPermissionRolloutFenceTest extends TestCase
             'members.manage', 'seo.gsc.connect', 'seo.gsc.view',
         ];
         self::assertSame(
-            ['commercial.delivery-review.view'],
+            ['commercial.delivery-review.view', 'university:view', 'university:manage'],
             array_values(array_diff($known, $schemaEligible)),
         );
         self::assertNull(Permission::tryFrom('seo.gsc.*'));
         self::assertNull(Permission::tryFrom('commercial.delivery-review.*'));
+        self::assertNull(Permission::tryFrom('university:*'));
+        self::assertNotContains('university:view', $schemaEligible);
+        self::assertNotContains('university:manage', $schemaEligible);
     }
 
     public function test_database_migrations_do_not_enable_unreviewed_commercial_review_grants(): void
