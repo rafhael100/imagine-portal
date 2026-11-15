@@ -3,6 +3,8 @@
 declare(strict_types=1);
 namespace App\Http\Controllers;
 use App\Homologation\PreviewProfiles;
+use App\Homologation\Commerce\CommercialSelectionHandoff;
+use InvalidArgumentException;
 use Illuminate\Http\Request;
 
 final class FullPortalPreviewController
@@ -33,14 +35,27 @@ final class FullPortalPreviewController
         abort_unless(array_diff(array_keys($request->all()),['_token','username','password'])===[],422);
         $data=$request->validate(['username'=>'required|string|max:64','password'=>'required|string|max:256']);
         $intent=$request->session()->get('preview.intent');
+        // PreviewProfiles intentionally invalidates the old session at login.
+        // Capture ONLY the three validated enum choices before rotation.
+        $pending=$request->session()->get('preview.commercial_selection');
+        $commercial=null;
+        if ($pending!==null) {
+            try { $commercial=CommercialSelectionHandoff::parse($pending); }
+            catch (InvalidArgumentException|\TypeError) { abort(422,'Seleção comercial inválida.'); }
+        }
         $auth=app(PreviewProfiles::class);
         abort_unless($auth->ready(),503,'Perfis de teste ainda não configurados.');
         if (!$auth->login($request,$data['username'],$data['password'])) {
             return redirect('/_preview/portal')->withErrors(['username'=>'Usuário ou senha inválidos.'])->withInput(['username'=>$data['username']]);
         }
         $p=$auth->current($request);
-        if ($p['role']==='client'&&isset($p['customer_id'])&&$request->session()->has('preview.commercial_selection'))
+        if ($p['role']==='client'&&isset($p['customer_id'])&&$commercial!==null) {
+            // Restore ONLY canonical intent after the new session ID and CSRF
+            // token were generated, never the original session contents.
+            $request->session()->put('preview.commercial_selection',
+                CommercialSelectionHandoff::sessionData($commercial));
             return redirect('/_preview/portal/shop');
+        }
         return redirect($p['role']==='client'&&isset($p['customer_id'])&&in_array($intent,['onepage','landing-pages','performance'],true)?'/_preview/portal/shop?product='.$intent:'/_preview/portal/'.$p['role'].'/overview');
     }
     public function logout(Request $request)
