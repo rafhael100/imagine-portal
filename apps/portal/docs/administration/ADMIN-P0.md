@@ -16,7 +16,7 @@ Performance PR410 `3b34173ea3aa368b7db3b748bdae099f2540102e`: motor e contratos 
 
 ## Funcionalidade
 
-Dez módulos em `/portal-admin/performance/{module}`: dashboard, clients, channels, campaigns, agents, approvals, finance, reports, incidents e settings. Seletor de empresas contém somente vínculos ativos/não expirados do administrador. Detalhes do cliente com oito abas e links para as consultas por contexto. Campanhas, canais, agentes, aprovações e incidentes com busca, canal, situação, ordem e paginação de dez registros; objetivos nas campanhas. Histórico dos cinquenta eventos mais recentes do tenant. CSV do conjunto de campanhas do contexto (não incorpora filtros visuais); PDF indisponível.
+Dez módulos em `/portal-admin/performance/{module}`: dashboard, clients, channels, campaigns, agents, approvals, finance, reports, incidents e settings. Seletor de empresas contém somente vínculos ativos/não expirados do administrador. Detalhes do cliente com oito abas e links para as consultas por contexto. Campanhas, canais, agentes, aprovações e incidentes com busca, canal, situação, ordem e paginação de dez registros; objetivos nas campanhas. Histórico dos cinquenta eventos mais recentes do tenant. CSV das campanhas do contexto com os mesmos filtros de busca, canal, situação, objetivo e período; PDF indisponível.
 
 Dashboard diferencia contagem do contexto atual de empresas autorizadas, dados sintéticos de ausência de conexão, gestão estimada de receita recebida. Não há ROI/ROAS/CPA inventado. ChatGPT Ads aparece indisponível e não recebe autorização de leitura/escrita nem cobrança. Informações de contrato e finanças são fictícias; extratos, gateways e métricas reais indisponíveis.
 
@@ -47,6 +47,6 @@ Para uma sessão web fora do CI ainda é necessária **autorização específica
 
 Fonte de identidade/vínculos: Portal. Estado operacional: contrato v1 do motor. Financeiro/cobrança: Portal; provedor é fonte de métricas somente quando houver leitura homologada. O adaptador local verifica hashes e não encaminha tokens humanos. Não contém HTTP, segredos ou conexão de banco Performance. Teste local não é identidade técnica S2S: mTLS/assinatura, idempotência durável distribuída, políticas independentes de revogação e escopo ainda precisam de homologação.
 
-Pendências: IAM/grants operacionais, RLS de produção, revisão independente SEG/DBA/LGPD/Financeiro, contas Ads e ChatGPT autorizadas, conciliação oficial, regra contratual de mês parcial, gateways, PDF, paginação de clientes em escala, filtros temporais além do único cenário, retenção/exportação de auditoria e prova concorrente multicluster. Nenhuma alçada real inferida. Dados reais, custos e ações externas continuam bloqueados.
+Pendências: IAM/grants operacionais, RLS de produção, revisão independente SEG/DBA/LGPD/Financeiro, contas Ads e ChatGPT autorizadas, conciliação oficial, regra contratual de mês parcial, gateways, PDF, filtros temporais além do único cenário, retenção/exportação de auditoria e prova concorrente multicluster. Nenhuma alçada real inferida. Dados reais, custos e ações externas continuam bloqueados.
 
 DRAFT / NO-MERGE / NO-DEPLOY / NO-CHARGE / NO-ADS-WRITE.

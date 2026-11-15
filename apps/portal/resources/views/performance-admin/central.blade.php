@@ -48,12 +48,28 @@
 @endforeach
 </section><section class="card"><h2>Distribuição de campanhas</h2>
 @foreach(['google_ads','meta_ads'] as $ch)
-@php($count=count(array_filter($state['campaigns'],fn($c)=>$c['channel']===$ch)))
+@php
+$count=count(array_filter($state['campaigns'],fn($c)=>$c['channel']===$ch));
+@endphp
 <div class="barrow"><span>{{ $names[$ch] }}</span><div class="track"><i style="width:{{ (int)(100*$count/count($state['campaigns'])) }}%"></i></div><strong>{{ $count }}</strong></div>
 @endforeach
 <p class="muted">ChatGPT Ads: integração indisponível. Não conectado.</p><a class="rowlink" href="{{ $link('incidents') }}">Revisar pendências →</a></section></div>
 @elseif($module==='clients')
-<section class="card"><h2>Clientes no seu escopo</h2><p class="muted">Apenas vínculos ativos e não expirados do administrador autenticado.</p><div class="tabs">
+<form method="get" class="toolbar"><input type="hidden" name="tenant" value="{{ $tenant }}"><div><label for="client-q">Pesquisar empresa</label><input id="client-q" name="q" value="{{ $filters['q']??'' }}" maxlength="80"></div><div><label for="client-status">Situação</label><select id="client-status" name="status"><option value="">Todas</option><option value="active" @selected(($filters['status']??'')==='active')>Ativo</option><option value="onboarding" @selected(($filters['status']??'')==='onboarding')>Em implantação</option></select></div><div><label for="client-sort">Ordenação</label><select id="client-sort" name="sort"><option value="name">Nome</option><option value="status" @selected(($filters['sort']??'')==='status')>Situação</option></select></div><button>Filtrar clientes</button></form>
+<section class="card"><h2>Clientes no seu escopo</h2><div class="tablewrap"><table><thead><tr><th>Empresa</th><th>Situação</th><th>Campanhas</th><th>Detalhes</th></tr></thead><tbody>
+@forelse($clientRows as $client)
+<tr><td>{{ $client['name'] }}</td><td>{{ $statuses[$client['status']] }}</td><td>{{ $client['campaigns'] }}</td><td><a class="rowlink" href="{{ $link('clients',['tenant'=>$client['tenant']]) }}">Abrir cliente →</a></td></tr>
+@empty
+<tr><td colspan="4">Nenhum cliente corresponde aos filtros.</td></tr>
+@endforelse
+</tbody></table></div><nav class="pager" aria-label="Paginação de clientes"><span>Página {{ $page }} · {{ $total }} empresas autorizadas no filtro</span>
+@if($page>1)
+<a href="{{ $link('clients',array_merge($filters,['page'=>$page-1])) }}">← Anterior</a>
+@endif
+@if($page*10<$total)
+<a href="{{ $link('clients',array_merge($filters,['page'=>$page+1])) }}">Próxima →</a>
+@endif
+</nav><p class="muted">Apenas vínculos ativos e não expirados do administrador autenticado.</p><div class="tabs">
 @foreach($memberships as $m)
 <a href="{{ $link('clients',['tenant'=>$m->tenant]) }}" @if($m->tenant===$tenant) aria-current="page" @endif>{{ $m->tenant }}</a>
 @endforeach
@@ -69,11 +85,13 @@
 @elseif(($filters['tab']??'overview')==='overview')
 <dl><dt>Canais</dt><dd>Google Ads e Meta Ads em simulação; ChatGPT Ads indisponível.</dd><dt>Integrações oficiais</dt><dd>Sem autorização de leitura ou escrita, sem sincronização.</dd><dt>Contratação / ativação</dt><dd>Não realizadas. Responsáveis: membros autorizados do laboratório.</dd><dt>Pendências</dt><dd>Extratos oficiais, IAM operacional, S2S e homologação dos provedores.</dd></dl>
 @else
-@php($target=($filters['tab']??'overview'))
+@php
+$target=($filters['tab']??'overview');
+@endphp
 <p>Abra a visão operacional desta empresa para consultar registros, filtros e detalhes.</p><a class="button" href="{{ $link($target) }}">Abrir {{ $modules[$target]??$target }} →</a>
 @endif
 </section>
-@elseif(in_array($module,['channels','campaigns','agents','approvals','incidents'],true))
+@elseif(in_array($module,['channels','campaigns','agents','approvals','incidents','reports'],true))
 <form method="get" class="toolbar"><input type="hidden" name="tenant" value="{{ $tenant }}"><div><label for="q">Pesquisar</label><input id="q" name="q" value="{{ $filters['q']??'' }}" maxlength="80" placeholder="Nome ou título"></div><div><label for="channel">Canal</label><select id="channel" name="channel"><option value="">Todos os canais</option>
 @foreach($names as $key=>$label)
 <option value="{{ $key }}" @selected(($filters['channel']??'')===$key)>{{ $label }}</option>
@@ -83,10 +101,13 @@
 <option value="{{ $key }}" @selected(($filters['status']??'')===$key)>{{ $label }}</option>
 @endforeach
 </select></div>
-@if($module==='campaigns')
+@if(in_array($module,['campaigns','reports'],true))
 <div><label for="objective">Objetivo</label><select id="objective" name="objective"><option value="">Todos</option><option @selected(($filters['objective']??'')==='Leads')>Leads</option><option @selected(($filters['objective']??'')==='Visitas')>Visitas</option></select></div>
 @endif
 <button type="submit">Filtrar</button><a class="button secondary" href="{{ $link($module) }}">Limpar</a></form>
+@if($module==='reports')
+<div class="notice">Relatório de laboratório: dados incompletos, sem receita ou atribuição verificadas. ROI/ROAS e PDF indisponíveis. CSV respeita os filtros atuais e a empresa selecionada.</div><p><a class="button" href="{{ route('performance-admin.export',array_merge(['tenant'=>$tenant],array_intersect_key($filters,array_flip(['q','channel','status','objective','period'])))) }}">Exportar CSV filtrado ↓</a></p>
+@endif
 <section class="card"><h2>{{ $modules[$module] }} <span class="tag">{{ $total }} registros</span></h2><div class="tablewrap"><table><thead><tr><th scope="col">Registro</th><th scope="col">Canal / contexto</th><th scope="col">Situação</th><th scope="col">Detalhes</th></tr></thead><tbody>
 @forelse($rows as $row)
 <tr><td><strong>{{ $row['name']??$row['title'] }}</strong><small>{{ $row['id'] }} · fonte sintética</small></td><td>{{ $names[$row['channel']??$row['id']]??$tenant }}<small>{{ $row['level']??$row['risk']??$row['severity']??'Laboratório' }}</small></td><td><span class="tag">{{ $statuses[$row['status']]??$row['status'] }}</span></td><td><a class="rowlink" href="{{ $link($module,['resource'=>$row['id']]) }}">Ver detalhes →</a></td></tr>
@@ -105,7 +126,7 @@
 <section class="card detail"><h2>{{ $detail['name']??$detail['title'] }}</h2><p class="muted">Empresa {{ $tenant }} · fonte sintética · revisão {{ $state['revision'] }} · {{ $date($state['updated_at']) }}</p><dl>
 @if($module==='channels')
 <dt>Conta de laboratório</dt><dd>{{ $detail['account'] }}</dd><dt>Orçamento planejado</dt><dd>{{ $money($detail['planned_cents']) }} · não aprovado para execução</dd><dt>Investimento verificado</dt><dd>Indisponível; nenhum extrato oficial.</dd><dt>Leitura / escrita</dt><dd>Não autorizadas. Última sincronização: indisponível.</dd><dt>Campanhas</dt><dd><a class="rowlink" href="{{ $link('campaigns',['channel'=>$detail['id']]) }}">Consultar campanhas deste canal →</a></dd>
-@elseif($module==='campaigns')
+@elseif(in_array($module,['campaigns','reports'],true))
 <dt>Indicadores simulados</dt><dd>Mídia {{ $money($detail['spend_cents']) }} · Impressões {{ $detail['impressions'] }} · Cliques {{ $detail['clicks'] }} · Conversões {{ $detail['conversions'] }} · Leads {{ $detail['leads'] }} · CPL {{ $money((int)round($detail['spend_cents']/$detail['leads'])) }}</dd><dt>Diagnóstico</dt><dd>{{ $detail['diagnosis'] }}</dd><dt>Variações / CPA / ROI / ROAS</dt><dd>Indisponíveis: faltam séries oficiais, receita e atribuição verificadas.</dd><dt>Ações publicitárias</dt><dd>Bloqueadas. Não há conector de escrita.</dd>
 @elseif($module==='agents')
 <dt>Autonomia</dt><dd>{{ $detail['level'] }} · Observação. N2 exige aprovação por ação; N3 depende de escopo, prazo, risco e limites homologados.</dd><dt>Última / próxima execução</dt><dd>{{ $date($detail['last_run']) }} · {{ $date($detail['next_run']) }} · histórico sintético, sem modelo externo.</dd><dt>Recomendação</dt><dd>{{ $detail['recommendation'] }}</dd><dt>Estado interno</dt><dd>{{ $statuses[$detail['status']] }}. Agentes com falha exigem intervenção; retomada indisponível.</dd>

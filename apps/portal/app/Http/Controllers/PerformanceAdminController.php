@@ -26,7 +26,7 @@ final class PerformanceAdminController
             'resource'=>'nullable|string|max:64','period'=>'nullable|in:2026-11','objective'=>'nullable|in:Leads,Visitas']);
         $rows=[];$detail=null;
         if($state){
-            $key=['channels'=>'channels','campaigns'=>'campaigns','agents'=>'agents','approvals'=>'approvals','incidents'=>'incidents'][$module]??null;
+            $key=['channels'=>'channels','campaigns'=>'campaigns','agents'=>'agents','approvals'=>'approvals','incidents'=>'incidents','reports'=>'campaigns'][$module]??null;
             if($key){$rows=array_values($state[$key]);
                 $rows=array_values(array_filter($rows,fn($r)=>(!isset($filters['q'])||mb_stripos($r['name']??$r['title']??'', $filters['q'])!==false)
                     &&(!isset($filters['channel'])||($r['channel']??$r['id'])===$filters['channel'])
@@ -40,7 +40,17 @@ final class PerformanceAdminController
         $events=$state?DB::table('performance_admin_lab_events')->where('tenant',$tenant)->orderByDesc('id')->limit(50)->get()->map(fn($r)=>json_decode($r->event,true,16,JSON_THROW_ON_ERROR))->all():[];
         $finance=$state&&$can('finance')?$lab->transport()->finance($state):null;
         $scopeCount=count($memberships);
-        return view('performance-admin.central',compact('module','memberships','tenant','member','state','can','rows','total','page','filters','events','finance','scopeCount','detail')+['modules'=>self::MODULES]);
+        $clientRows=[];
+        if($module==='clients'){
+            foreach($memberships as $m){$candidate=$lab->state($m->tenant);
+                if(isset($filters['q'])&&mb_stripos($candidate['name'],$filters['q'])===false)continue;
+                if(isset($filters['status'])&&$candidate['client_status']!==$filters['status'])continue;
+                $clientRows[]=['tenant'=>$m->tenant,'name'=>$candidate['name'],'status'=>$candidate['client_status'],'campaigns'=>count($candidate['campaigns'])];
+            }
+            usort($clientRows,fn($a,$b)=>strcmp($a[$filters['sort']??'name'],$b[$filters['sort']??'name']));
+            $total=count($clientRows);$clientRows=array_slice($clientRows,($page-1)*10,10);
+        }
+        return view('performance-admin.central',compact('module','memberships','tenant','member','state','can','rows','total','page','filters','events','finance','scopeCount','detail','clientRows')+['modules'=>self::MODULES]);
     }
     public function command(Request $request,string $tenant)
     {
@@ -58,8 +68,14 @@ final class PerformanceAdminController
     public function export(Request $request,string $tenant):Response
     {
         $lab=new AdministrativeLaboratory();$lab->membership($tenant);$s=$lab->state($tenant);
+        $filters=$request->validate(['q'=>'nullable|string|max:80','channel'=>'nullable|in:google_ads,meta_ads,chatgpt_ads','status'=>'nullable|in:monitored,alert','objective'=>'nullable|in:Leads,Visitas','period'=>'nullable|in:2026-11']);
         $stream=fopen('php://temp','r+');fputcsv($stream,['campanha','canal','periodo','origem','midia_centavos','impressoes','cliques','leads'],',','"','');
-        foreach($s['campaigns'] as $r){$name=$r['name'];if(preg_match('/^[=+@\-\t\r\n]/',$name))$name="'".$name;
+        foreach($s['campaigns'] as $r){
+            if(isset($filters['q'])&&mb_stripos($r['name'],$filters['q'])===false)continue;
+            if(isset($filters['channel'])&&$r['channel']!==$filters['channel'])continue;
+            if(isset($filters['status'])&&$r['status']!==$filters['status'])continue;
+            if(isset($filters['objective'])&&$r['objective']!==$filters['objective'])continue;
+            $name=$r['name'];if(preg_match('/^[=+@\-\t\r\n]/',$name))$name="'".$name;
             fputcsv($stream,[$name,$r['channel'],$s['period'],'synthetic',$r['spend_cents'],$r['impressions'],$r['clicks'],$r['leads']],',','"','');}
         rewind($stream);$csv=stream_get_contents($stream);fclose($stream);
         return response($csv,200,['Content-Type'=>'text/csv; charset=UTF-8','Content-Disposition'=>'attachment; filename="performance-laboratorio.csv"','Cache-Control'=>'private, no-store']);
