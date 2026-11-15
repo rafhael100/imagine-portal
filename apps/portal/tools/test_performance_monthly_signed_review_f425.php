@@ -125,6 +125,13 @@ $changed=$candidate;$changed['proposed_due_date']='2026-11-01';
 denyIssue(static fn()=>Wire::issue($changed,TENANT,ORDER,2,$digest,ISSUED,SIGNING_KEY),'due before close');
 $changed=$candidate;$changed['period_end']='2026-11-29';
 denyIssue(static fn()=>Wire::issue($changed,TENANT,ORDER,2,$digest,ISSUED,SIGNING_KEY),'wrong month end');
+$changed=$candidate;$changed['informational_management_fee_cents']=17_000;
+denyIssue(static fn()=>Wire::issue($changed,TENANT,ORDER,2,$digest,ISSUED,SIGNING_KEY),
+    'two channels cannot be below R$340 management total');
+denyIssue(static fn()=>Wire::issue(
+    $candidate,TENANT,ORDER,2,$digest,'2026-11-30T23:59:59Z',SIGNING_KEY
+),'not signed before month is closed');
+
 denyIssue(static fn()=>Wire::issue($candidate,TENANT,ORDER,0,$digest,ISSUED,SIGNING_KEY),'zero report version');
 denyIssue(static fn()=>Wire::issue($candidate,TENANT,ORDER,2,$digest,'2026-11-31T12:00:00Z',SIGNING_KEY),'nonexistent date');
 denyIssue(static fn()=>Wire::issue($candidate,TENANT,ORDER,2,$digest,ISSUED,'short'),'weak key');
