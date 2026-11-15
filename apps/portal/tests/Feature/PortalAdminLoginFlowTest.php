@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\PortalAccess\Security\PortalAdminTotp;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -196,9 +197,9 @@ final class PortalAdminLoginFlowTest extends TestCase
             $this->get('/portal-admin')->assertOk();
             $before=DB::table('portal_admin_users')
                 ->where('id',$this->adminId)->first();
-            $this->artisan('portal-admin:invalidate-sessions',[
+            self::assertSame(0,Artisan::call('portal-admin:invalidate-sessions',[
                 '--email'=>$this->email
-            ])->assertExitCode(0);
+            ]));
             $after=DB::table('portal_admin_users')
                 ->where('id',$this->adminId)->first();
             self::assertSame(
@@ -210,9 +211,9 @@ final class PortalAdminLoginFlowTest extends TestCase
                 ->assertRedirect('/portal-admin/login');
             $this->assertGuest('portal-admin');
 
-            $this->artisan('portal-admin:invalidate-sessions',[
+            self::assertSame(0,Artisan::call('portal-admin:invalidate-sessions',[
                 '--email'=>$this->email,'--deactivate'=>true
-            ])->assertExitCode(0);
+            ]));
             $deactivated=DB::table('portal_admin_users')
                 ->where('id',$this->adminId)->first();
             self::assertFalse((bool)$deactivated->is_active);
@@ -233,12 +234,12 @@ final class PortalAdminLoginFlowTest extends TestCase
         $old=getenv('PORTAL_ADMIN_F134_PG_CI');
         putenv('PORTAL_ADMIN_F134_PG_CI=1');
         try{
-            $this->artisan('portal-admin:invalidate-sessions',[
+            self::assertSame(1,Artisan::call('portal-admin:invalidate-sessions',[
                 '--email'=>'unknown-admin@example.test'
-            ])->assertExitCode(1);
-            $this->artisan('portal-admin:invalidate-sessions',[
+            ]));
+            self::assertSame(1,Artisan::call('portal-admin:invalidate-sessions',[
                 '--email'=>'bad-input'
-            ])->assertExitCode(1);
+            ]));
         }finally{
             if($old===false)putenv('PORTAL_ADMIN_F134_PG_CI');
             else putenv('PORTAL_ADMIN_F134_PG_CI='.$old);
