@@ -1,4 +1,4 @@
-name: Portal F132-F136 - admin MFA, session audit and SEO organization scope PG18
+name: Portal F132-F137 - admin MFA, SEO scope and staging session preflight PG18
 
 on:
   pull_request:
@@ -7,10 +7,12 @@ on:
       - 'apps/portal/app/Models/PortalAdminUser.php'
       - 'apps/portal/app/Console/Commands/BootstrapPortalAdmin.php'
       - 'apps/portal/app/Console/Commands/InvalidatePortalAdminSessions.php'
+      - 'apps/portal/app/Console/Commands/PortalAdminStagingPreflight.php'
       - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminEnrollmentSecret.php'
       - 'apps/portal/bootstrap/app.php'
       - 'apps/portal/.env.example'
       - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminTotp.php'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php'
       - 'apps/portal/app/Http/Controllers/PortalAdminLoginController.php'
       - 'apps/portal/app/Http/Middleware/PortalAdmin*'
       - 'apps/portal/config/auth.php'
@@ -28,6 +30,8 @@ on:
       - 'apps/portal/app/Http/Controllers/PortalAdminSeoScopeController.php'
       - 'apps/portal/resources/views/portal-admin/seo-scope.blade.php'
       - 'apps/portal/database/migrations/2026_11_15_000014_create_portal_admin_org_grants.php'
+      - 'apps/portal/database/migrations/2026_11_15_000015_create_portal_sessions.php'
+      - 'apps/portal/tests/Feature/PortalAdminStagingPreflightTest.php'
   workflow_dispatch:
 
 permissions:
@@ -67,6 +71,7 @@ jobs:
       PORTAL_ADMIN_F134_PG_CI: '1'
       PORTAL_ADMIN_F135_PG_CI: '1'
       PORTAL_ADMIN_F136_PG_CI: '1'
+      PORTAL_ADMIN_F137_PG_CI: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -97,6 +102,10 @@ jobs:
           set -euo pipefail
           php -l apps/portal/app/Console/Commands/BootstrapPortalAdmin.php
           php -l apps/portal/app/Console/Commands/InvalidatePortalAdminSessions.php
+          php -l apps/portal/app/Console/Commands/PortalAdminStagingPreflight.php
+          php -l apps/portal/app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php
+          php -l apps/portal/database/migrations/2026_11_15_000015_create_portal_sessions.php
+          php -l apps/portal/tests/Feature/PortalAdminStagingPreflightTest.php
           php -l apps/portal/database/migrations/2026_11_15_000012_add_portal_admin_session_version.php
           php -l apps/portal/database/migrations/2026_11_15_000013_create_portal_admin_security_events.php
           php -l apps/portal/tests/Feature/PortalAdminSessionAuditTest.php
@@ -140,7 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminSessionAuditTest|PortalAdminOrganizationSeoGateTest'
+          php artisan test --no-ansi --filter='PortalAdminLoginFlowTest|PortalAdminTotpTest|PortalAdminRoutesClosedByDefaultTest|PortalAdminBootstrapCommandTest|PortalAdminEnrollmentSecretTest|PortalAdminSessionAuditTest|PortalAdminOrganizationSeoGateTest|PortalAdminStagingPreflightTest'
       - name: No tracked source changes
         shell: bash
         run: |

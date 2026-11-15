@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\PortalAccess\Security\PortalAdminStagingSecurityPolicy;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,12 +19,14 @@ final class PortalAdminFeatureGate
     {
         if(config('portal_admin.enabled')!==true)abort(404);
 
-        if(!app()->environment('testing')){
-            if(!in_array(config('session.driver'),['database','redis'],true)||
-               config('session.secure')!==true ||
-               !str_starts_with((string)config('app.url'),'https://'))
-                abort(503);
-        }
+        // CI alone bypasses this deployment policy for synthetic HTTP tests.
+        // In all non-test contexts the only allowed target is restricted
+        // staging, with an encrypted database session and TLS cookies.
+        if(!app()->environment('testing') &&
+           PortalAdminStagingSecurityPolicy::issues(
+               app()->environment()
+           )!==[])
+            abort(503);
 
         $response=$next($request);
         $response->headers->set('Cache-Control','private, no-store');
