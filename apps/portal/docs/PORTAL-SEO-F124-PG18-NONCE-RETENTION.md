@@ -9,7 +9,7 @@ A F123 consome apenas uma vez cada relatório assinado, persistindo o digest do 
 - É acessível somente em PHP CLI, `APP_ENV=testing`, `CI=true`, PostgreSQL de teste e feature flags específicas.
 - Exige contexto tenant+actor resolvido pelo chamador; usa transação com `app.tenant_ref` restrito ao escopo local da transação, role sem superusuário nem bypass RLS.
 - Exclui **apenas** registros com `expires_at < now - 3600`, preservando uma hora após a expiração do relatório.
-- Limita a 500 registros por transação usando `FOR UPDATE SKIP LOCKED` e `DELETE ... RETURNING`. Outras rotinas concorrentes não precisam aguardar registros já bloqueados.
+- Limita a 500 registros por transação usando seleção limitada seguida de `DELETE ... RETURNING` atômico; a própria exclusão aplica os bloqueios necessários. Execuções simultâneas podem aguardar a mesma linha, sem duplicar exclusões. A consulta não exige privilégios de `UPDATE` do papel de limpeza.
 - Retorna exclusivamente quantidades, não os hashes ou identificadores de empresas.
 - Não habilita exclusão em produção nem acesso de clientes.
 
@@ -24,3 +24,6 @@ Testar `.github/workflows/portal-seo-f123-evidence-pg18-ci.yml`, matriz PHP 8.3/
 Não há agendamento, política definitiva de retenção LGPD, métricas operacionais, notificações, revisão de backup/restauração, autenticação real do Portal, emissor gerenciado/KMS, rotação/revogação efetiva, nem infraestrutura VPS de homologação. O corte de 1 hora é critério conservador **de laboratório**, não política aprovada.
 
 Nenhum cliente, token real, deploy, Google OAuth ou banco de produção é acessado.
+
+## Ajuste de permissão verificado
+A primeira tentativa de CI mostrou que o `FOR UPDATE SKIP LOCKED` exigia concessão extra de `UPDATE` no PostgreSQL. Em vez de dar essa permissão a um papel encarregado apenas de limpeza, a F124 usa DELETE atômico limitado, sob `SELECT` + `DELETE`. O lote máximo e a política RLS são mantidos.
