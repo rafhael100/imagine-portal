@@ -30,3 +30,10 @@ A classe de snapshot pode ser criada por um chamador de teste. Ela **não** é e
 5. **Só então** conectar a Universidade ao Portal por backend-to-backend e avaliar homologação privada, sem deploy automático.
 
 **Não foi modificado nenhum CHECK de grants, migração, rota, controlador, auth provider, serviço externo ou cliente real.**
+
+
+## Vetor criptográfico compartilhado (somente teste)
+
+Os repositórios Portal e Universidade contêm o mesmo arquivo público `uni-v1-ed25519-public-vector.json` em seus diretórios `tests/Fixtures`. SHA-256 do conteúdo **b6925128a7d66efe1e304710d085d51c5e854215230fa0f02505d201b4381e7c**.
+
+O vetor foi assinado localmente com um par de chaves sintético efêmero; **somente a chave pública e a mensagem assinada foram versionadas**. A chave privada não foi publicada nem reutilizada. Os testes verificam a assinatura e a separação de domínio `uni-v1.`, sem conceder grants ou credenciais. A igualdade do SHA nos dois repositórios impede divergência silenciosa no contrato.
