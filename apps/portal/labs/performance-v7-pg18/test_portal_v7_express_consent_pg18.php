@@ -66,10 +66,10 @@ v7pgMust(count($rows)===1
     && $rows[0]['terms_sha256']===$terms,
     'actor, company, terms and plan originate in trusted SQL session/agreement, not caller');
 foreach(['INSERT','UPDATE','DELETE','SELECT'] as $priv) {
-    $allowed=$reader->query("SELECT has_table_privilege(
+    $hasPrivilege=$reader->query("SELECT has_table_privilege(
        session_user,'public.portal_v7_consent_events_lab','$priv')"
     )->fetchColumn();
-    v7pgMust(!in_array($allowed,[true,1,'1','t'],true),
+    v7pgMust(!in_array($hasPrivilege,[true,1,'1','t'],true),
         'SQL login cannot '.$priv.' consent events directly');
 }
 try {
