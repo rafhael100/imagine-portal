@@ -6,8 +6,8 @@ from urllib.parse import quote
 from playwright.sync_api import sync_playwright
 
 BASE=os.environ.get('PURCHASE_PREVIEW_BASE','http://127.0.0.1:18083/_rehearsal/purchase').split('/_rehearsal/')[0]+'/_preview/portal'
-fixture=pathlib.Path('/tmp/portal-customer-ci.json')
-saved=json.loads(fixture.read_text())
+# Dedicated synthetic account avoids exhausting the per-user login limiter
+# of the existing long regression suite. Security thresholds stay unchanged.
 
 def href(site, channels, tier):
     return BASE+'/shop?site='+site+'&channels='+quote(channels,safe='')+'&tier='+tier
@@ -15,10 +15,24 @@ def href(site, channels, tier):
 with sync_playwright() as playwright:
     browser=playwright.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page(viewport={'width':375,'height':850})
+    # Create a dedicated synthetic account first, then log out. Reusing the
+    # shared /tmp/portal-customer-ci.json user would exceed the existing
+    # 6-login-per-minute security limit when all older scenarios run.
+    initial_user='demo-f426-'+uuid.uuid4().hex[:9]
+    page.goto(BASE+'/register')
+    for field,value in [
+      ('name','F426 customer fixture'),('company','F426 fictitious company'),
+      ('username',initial_user),('password','ci-owned-customer-only-2026'),
+      ('password_confirmation','ci-owned-customer-only-2026')
+    ]: page.locator('[name='+field+']').fill(value)
+    page.get_by_role('button',name='Criar conta e continuar').click()
+    assert '/client/' in page.url,page.url
+    page.goto(BASE+'/client/overview')
+    page.get_by_role('button',name='Sair',exact=True).click()
     # Selection starts before authentication. Only enum values cross domains.
     page.goto(href('onepage','google_ads,meta_ads','recommended'))
     assert page.url.rstrip('/')==BASE
-    page.locator('[name=username]').fill(saved['user'])
+    page.locator('[name=username]').fill(initial_user)
     page.locator('[name=password]').fill('ci-owned-customer-only-2026')
     page.get_by_role('button',name='Entrar',exact=True).click()
     assert page.url.endswith('/shop'),page.url
