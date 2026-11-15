@@ -92,7 +92,30 @@ with sync_playwright() as p:
   form=page.locator('form[action$="/performance-response"]');expect(form).to_be_visible();assert form.locator('[name=version]').input_value()=='2'
   for width in [320,390,1280]:
    page.set_viewport_size({'width':width,'height':900});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-  form.locator('[name=report_ack]').check();form.get_by_role('button',name='Conferir apuração',exact=True).click()
+  # Submit through the visible browser form, but assert the POST's HTTP
+  # outcome. A rate-limited form click can otherwise look like a review
+  # failure when it was never accepted. Respect Retry-After, retain the
+  # real limiter and refresh the CSRF/revision after a rejected POST.
+  accepted=False
+  for attempt in range(3):
+   if attempt:
+    assert page.goto(work).status==200
+    form=page.locator('form[action$="/performance-response"]')
+    expect(form).to_be_visible()
+   form.locator('[name=report_ack]').check()
+   with page.expect_response(lambda r:r.request.method=='POST' and r.url.endswith('/performance-response')) as pending:
+    form.get_by_role('button',name='Conferir apuração',exact=True).click()
+   answer=pending.value
+   if answer.status==429:
+    assert attempt<2, 'F425: review POST exhausted bounded rate-limit retries'
+    delay(answer)
+    continue
+   assert answer.status in (200,302,303), (
+    'F425: review POST not accepted, HTTP '+str(answer.status))
+   accepted=True
+   break
+  assert accepted
+  assert page.goto(work).status==200
   expect(page.get_by_text('Conferido pelo cliente; aguarda financeiro',exact=False)).to_be_visible()
   login('administrador.teste');page.goto(work)
   assert page.locator('form[action$="/performance-report"]').count()==1

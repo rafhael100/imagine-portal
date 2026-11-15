@@ -1,0 +1,45 @@
+name: Portal F425 signed postpaid monthly review NO-INVOICE
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseReviewEnvelope.php'
+      - 'apps/portal/tools/test_performance_monthly_signed_review_f425.php'
+      - '.github/workflows/portal-performance-monthly-f425-signed-review.yml'
+permissions:
+  contents: read
+jobs:
+  signed-review-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact candidate without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup pinned isolated PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Assert deterministic review signature and NO-GO scope
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseReviewEnvelope.php
+          php -l apps/portal/tools/test_performance_monthly_signed_review_f425.php
+          php apps/portal/tools/test_performance_monthly_signed_review_f425.php
+          grep -Fq "'can_charge'=>false" apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseReviewEnvelope.php
+          grep -Fq "'can_issue_invoice'=>false" apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseReviewEnvelope.php
+          grep -Fq "'can_write_psp'=>false" apps/portal/app/Homologation/Commerce/PerformanceMonthlyCloseReviewEnvelope.php
+      - name: Confirm no payment or authorization implied
+        if: success()
+        run: |
+          echo 'F425: synthetic monthly proposal HMAC checked (PHP 8.3/8.4).' >> "$GITHUB_STEP_SUMMARY"
+          echo 'NO-INVOICE: no PSP write, media proof, client IAM, replay ledger or deployment.' >> "$GITHUB_STEP_SUMMARY"
