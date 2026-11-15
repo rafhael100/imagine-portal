@@ -130,7 +130,12 @@ jobs:
           source .env.staging
           set +a
           docker compose --env-file .env.staging up -d app web
-          test "$(curl --cacert ci-cert.pem --silent --output /dev/null --write-out '%{http_code}' https://localhost:18088/up)" = '401' 
+          for attempt in $(seq 1 20); do
+            status="$(curl --cacert ci-cert.pem --silent --output /dev/null --write-out '%{http_code}' https://localhost:18088/up || true)"
+            if test "$status" = '401'; then break; fi
+            sleep 2
+          done
+          test "$status" = '401' 
           for attempt in $(seq 1 20); do
             if curl --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
                  https://localhost:18088/up >/dev/null 2>&1; then
@@ -145,12 +150,53 @@ jobs:
             https://localhost:18088/portal-admin/login)"
           test "$status" = '404'
           docker compose --env-file .env.staging exec -T web nginx -t
+      - name: Authenticate nominal synthetic reviewer in actual staging runtime
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          sed -i 's/PORTAL_ADMIN_AUTH_ENABLED=false/PORTAL_ADMIN_AUTH_ENABLED=true/; s/PERFORMANCE_ADMIN_LAB_ENABLED=false/PERFORMANCE_ADMIN_LAB_ENABLED=true/' .env.staging
+          mkdir -p "$RUNNER_TEMP/private-vault" "$RUNNER_TEMP/staging-evidence"
+          chmod 700 "$RUNNER_TEMP/private-vault"
+          # Provision fixtures only in a disposable CI process with owner credentials.
+          # HTTP application remains APP_ENV=staging and uses the runtime role.
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -v "$GITHUB_WORKSPACE/apps/portal/tests:/var/www/html/tests:ro" \
+            -v "$RUNNER_TEMP/private-vault:/ci-vault" --user "$(id -u):$(id -g)" \
+            -e CI=true -e PERFORMANCE_ADMIN_PG_CI=1 \
+            -e PERFORMANCE_ADMIN_BROWSER_VAULT=/ci-vault/reviewer.json \
+            -e DB_USERNAME="$PORTAL_STAGING_DB_OWNER" -e DB_PASSWORD="$PORTAL_STAGING_DB_OWNER_PASSWORD" \
+            app php tests/Fixtures/performance-admin-seed.php
+          docker compose --env-file .env.staging up -d --force-recreate app
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libnss3-tools >/dev/null
+          mkdir -p "$HOME/.pki/nssdb"
+          certutil -N -d sql:"$HOME/.pki/nssdb" --empty-password
+          certutil -A -d sql:"$HOME/.pki/nssdb" -n Imagine-CI-CA -t 'C,,' -i ci-cert.pem
+          mkdir -p "$RUNNER_TEMP/staging-browser"
+          cd "$RUNNER_TEMP/staging-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          PERFORMANCE_ADMIN_BROWSER_URL=https://localhost:18088 \
+          PERFORMANCE_ADMIN_BROWSER_VAULT="$RUNNER_TEMP/private-vault/reviewer.json" \
+          PERFORMANCE_ADMIN_EVIDENCE="$RUNNER_TEMP/staging-evidence" \
+          NODE_EXTRA_CA_CERTS="$GITHUB_WORKSPACE/apps/portal/deploy/staging/ci-cert.pem" \
+          NODE_PATH="$RUNNER_TEMP/staging-browser/node_modules" \
+          node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/performance-admin-browser.cjs"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: private-staging-credential-free-evidence
+          path: ${{ runner.temp }}/staging-evidence
+          retention-days: 7
       - name: Inspect disposable PostgreSQL bootstrap if tests failed
         if: failure()
         run: |
           if test -s .env.staging; then
             docker compose --env-file .env.staging ps || true
-            docker compose --env-file .env.staging logs --no-color --tail=60 db || true
+            docker compose --env-file .env.staging logs --no-color --tail=60 web || true
           fi
       - name: Remove all CI-only volumes, containers and secrets
         if: always()
@@ -161,5 +207,6 @@ jobs:
               docker compose --env-file .env.staging down -v --remove-orphans) || true
           fi
           rm -f apps/portal/deploy/staging/.env.staging apps/portal/deploy/staging/ci-{key.pem,cert.pem,access.htpasswd}
+          rm -rf "$RUNNER_TEMP/private-vault"
           test ! -e apps/portal/deploy/staging/.env.staging
 
