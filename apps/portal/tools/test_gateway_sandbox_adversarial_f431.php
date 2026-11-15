@@ -54,7 +54,8 @@ $good=transport(static function(string $method,string $url,array $headers,?array
         $writes++;
         must(str_ends_with($url,'/payments'),'only single sandbox payment endpoint');
         must($data['customer']===CUSTOMER,'correct fake customer');
-        must($data['value']===980.00,'activation R$980 exact');
+        must(is_int($data['value']) || is_float($data['value']), 'synthetic PSP amount is numeric');
+        must((int)round($data['value']*100)===98000,'activation R$980 exact integer cents');
         must($data['externalReference']===ORDER,'exact charge ownership');
         must($data['billingType']==='UNDEFINED','client selects method in sandbox');
         must(!isset($data['installmentCount']),'no accidental installment instruction');
