@@ -151,17 +151,20 @@ $admin->prepare(
      VALUES (?,?,?,?,'synthetic_accepted',?,?,?,true)'
 )->execute([$tenant,$agreement,$period,$org,1,$stableHash,$terms]);
 
-$allowed=static fn(string $opaque=$bearer,string $t=$tenant,
-    string $a=$agreement,string $month=$period,string $planHash=$stableHash,
-    string $conditions=$terms,int $revision=1):bool=>
-    $authority->permits($opaque,$t,$a,$month,$planHash,$conditions,$revision);
+$allowed=static fn(?string $opaque=null,?string $t=null,
+    ?string $a=null,?string $month=null,?string $planHash=null,
+    ?string $conditions=null,?int $revision=null):bool=>
+    $authority->permits($opaque??$bearer,$t??$tenant,$a??$agreement,
+        $month??$period,$planHash??$stableHash,$conditions??$terms,
+        $revision??1);
 v7pgMust($allowed(),'first-party-shaped PG session with real table MFA, explicit permission and agreement permits lab review');
 $prepare=static fn(
-    string $opaque=$bearer,string $expectedTenant=$tenant,
-    string $expectedAgreement=$agreement,string $termsHash=$terms,int $revision=1,
+    ?string $opaque=null,?string $expectedTenant=null,
+    ?string $expectedAgreement=null,?string $termsHash=null,?int $revision=null,
     ?array $planned=null
 ):array=>$bridge->prepare(
-    $opaque,$expectedTenant,$expectedAgreement,$termsHash,$revision,
+    $opaque??$bearer,$expectedTenant??$tenant,$expectedAgreement??$agreement,
+    $termsHash??$terms,$revision??1,
     $activation,$original,$eligible,$scope,$planned??$plan,$nowUtc,
     'k_f827_plan_01','nonce_f827_plan_123456789012',
     $issuedAt,$expiresAt,$activationKey,$planKey
