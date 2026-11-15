@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * F134: revoke all prior admin sessions, including pending password/MFA,
+ * F134/F135: revoke all prior sessions with a mandatory atomic audit,
  * using a version increment. Never accepts a session token or password.
  *
  * Not an HTTP endpoint. Test-only CI or explicitly approved interactive
@@ -50,9 +50,12 @@ final class InvalidatePortalAdminSessions extends Command
         }
 
         $deactivate=(bool)$this->option('deactivate');
+        // No claim of real administrator identity: the operation is still
+        // a CI fixture or a TTY-controlled staging command.
+        $actorContext=$ci?'ci_synthetic_operator':'staging_tty_unverified';
         try{
             $updated=DB::transaction(static function()use(
-                $email,$deactivate
+                $email,$deactivate,$actorContext
             ):int {
                 $admin=DB::table('portal_admin_users')
                     ->where('email',$email)
@@ -69,9 +72,30 @@ final class InvalidatePortalAdminSessions extends Command
                 if($deactivate)
                     $values['is_active']=false;
 
-                return DB::table('portal_admin_users')
+                $version=(int)$admin->session_version;
+                $affected=DB::table('portal_admin_users')
                     ->where('id',$admin->id)
+                    ->where('session_version',$version)
                     ->update($values);
+                if($affected!==1)return 0;
+
+                // F135: mandatory append-only audit in the SAME transaction.
+                // Any INSERT error undoes the preceding session rotation.
+                $inserted=DB::table('portal_admin_security_events')->insert([
+                    'event_ref'=>bin2hex(random_bytes(16)),
+                    'admin_user_id'=>(int)$admin->id,
+                    'event_code'=>$deactivate
+                        ?'admin_deactivated':'sessions_revoked',
+                    'version_before'=>$version,
+                    'version_after'=>$version+1,
+                    'actor_context'=>$actorContext,
+                    'occurred_at'=>now(),
+                ]);
+                if($inserted!==true)
+                    throw new \RuntimeException(
+                        'F135: mandatory session revocation audit refused'
+                    );
+                return 1;
             });
         }catch(Throwable){
             $this->error('Não foi possível concluir a revogação.');
