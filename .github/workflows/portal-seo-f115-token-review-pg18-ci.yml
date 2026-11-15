@@ -136,9 +136,12 @@ jobs:
           php -l app/Domain/SeoReview/PortalSeoPgSessionRevocationLab.php
           php -l labs/gsc-f113-pg18/verify-session-revocation-lock.php
           php labs/gsc-f113-pg18/verify-session-revocation-lock.php
+          php -l app/Domain/SeoReview/PortalSeoPgGrantTokenRevocationLab.php
+          php -l labs/gsc-f114-pg18/verify-grant-token-revocation.php
+          php labs/gsc-f114-pg18/verify-grant-token-revocation.php
           php -l app/Domain/SeoReview/PortalSeoPgScopedTokenCandidateReviewLab.php
-          php -l labs/gsc-f115-pg18/verify-grant-token-revocation.php
-          php labs/gsc-f115-pg18/verify-grant-token-revocation.php
+          php -l labs/gsc-f115-pg18/verify-token-candidate-gate.php
+          php labs/gsc-f115-pg18/verify-token-candidate-gate.php
       - name: Ensure no tracked files changed
         run: |
           set -euo pipefail
