@@ -67,26 +67,88 @@ final readonly class PortalSeoPgIdentityReviewLab
         );
         if ($propertyFingerprint===null)return null;
 
-        $key=$this->pepper->getValue();
-        $sessionDigest=hash_hmac('sha256',
-            'portal-session-review-v1|'.$tenantRef.'|'.$sessionHandle,$key);
-        $resourceDigest=hash_hmac('sha256',
-            'portal-seo-resource-review-v1|'.$tenantRef.'|'.$resourceHandle,$key);
-
-        // The scoped transaction helper requires an actor field, but this
-        // placeholder is NEVER used for a grant lookup. The true actor is
-        // read exclusively from the session record after the RLS query.
         $result=$this->scope->run(
             ['tenantRef'=>$tenantRef,'actorRef'=>'preauth-lookup'],
-            function(PDO $db)use(
-                $tenantRef,$sessionDigest,$resourceDigest,
-                $propertyFingerprint,$exactGoogleSiteUrl,$trustedNow
-            ):?array {
+            fn(PDO $db):?array => $this->inspectInsideActiveTenantTransaction(
+                $db,$tenantRef,$sessionHandle,$resourceHandle,
+                $exactGoogleSiteUrl,$trustedNow
+            )
+        );
+        return is_array($result)?$result:null;
+    }
+
+    /**
+     * F112: use the same PG transaction for current session, membership and
+     * resource checks AND OAuth callback state consumption. This method is
+     * ONLY for the existing test-only PostgreSQL transaction; any unscoped,
+     * non-RLS, bypass-role, non-test or invalid caller returns NULL.
+     * Does not authorize HTTP or prove MFA/identity for production.
+     */
+    public function inspectInsideActiveTenantTransaction(
+        PDO $db,
+        mixed $tenantRef,
+        #[SensitiveParameter] mixed $sessionHandle,
+        mixed $resourceHandle,
+        mixed $exactGoogleSiteUrl,
+        mixed $trustedNow
+    ):?array {
+        if (!self::enabled() || !$db->inTransaction() ||
+            $db->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' ||
+            !is_string($tenantRef) ||
+            preg_match(self::REF,$tenantRef)!==1 ||
+            !is_string($sessionHandle) ||
+            preg_match(self::HANDLE,$sessionHandle)!==1 ||
+            !is_string($resourceHandle) ||
+            preg_match(self::HANDLE,$resourceHandle)!==1 ||
+            !is_int($trustedNow) ||
+            $trustedNow<1600000000 || $trustedNow>2200000000)
+            return null;
+
+        $fingerprint=GoogleSearchConsolePropertyIdentifier::fingerprint(
+            $exactGoogleSiteUrl
+        );
+        if($fingerprint===null)return null;
+
+        try{
+            if($db->query(
+                "SELECT current_setting('app.tenant_ref',true)"
+            )->fetchColumn()!==$tenantRef)return null;
+
+            $role=$db->query('SELECT rolsuper,rolbypassrls FROM pg_roles
+                WHERE rolname=current_user')->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($role) ||
+                !in_array($role['rolsuper']??null,[false,'f','0',0],true) ||
+                !in_array($role['rolbypassrls']??null,[false,'f','0',0],true))
+                return null;
+
+            $key=$this->pepper->getValue();
+            $sessionDigest=hash_hmac('sha256',
+                'portal-session-review-v1|'.$tenantRef.'|'.$sessionHandle,$key);
+            $resourceDigest=hash_hmac('sha256',
+                'portal-seo-resource-review-v1|'.$tenantRef.'|'.$resourceHandle,$key);
+            return $this->inspectWithDigests(
+                $db,$tenantRef,$sessionDigest,$resourceDigest,
+                $fingerprint,$exactGoogleSiteUrl,$trustedNow
+            );
+        }catch(\Throwable){
+            return null;
+        }
+    }
+
+    private function inspectWithDigests(
+        PDO $db,
+        string $tenantRef,
+        string $sessionDigest,
+        string $resourceDigest,
+        string $propertyFingerprint,
+        string $exactGoogleSiteUrl,
+        int $trustedNow
+    ):?array {
                 $statement=$db->prepare(
                     'SELECT actor_ref,issued_at,expires_at,mfa_verified_at,
                         revoked_at,account_revision,session_revision
                      FROM portal_seo_review_sessions
-                     WHERE tenant_ref=:tenant AND session_digest=:digest'
+                     WHERE tenant_ref=:tenant AND session_digest=:digest FOR SHARE'
                 );
                 if (!$statement || !$statement->execute([
                     'tenant'=>$tenantRef,'digest'=>$sessionDigest
@@ -116,7 +178,7 @@ final readonly class PortalSeoPgIdentityReviewLab
                 $members=$db->prepare(
                     'SELECT status,permission,checked_at,revoked_at
                      FROM portal_seo_review_memberships
-                     WHERE tenant_ref=:tenant AND actor_ref=:actor'
+                     WHERE tenant_ref=:tenant AND actor_ref=:actor FOR SHARE'
                 );
                 if (!$members || !$members->execute([
                     'tenant'=>$tenantRef,'actor'=>$actor
@@ -134,7 +196,7 @@ final readonly class PortalSeoPgIdentityReviewLab
                 $resources=$db->prepare(
                     'SELECT property_fingerprint,status,updated_at
                      FROM portal_seo_review_resources
-                     WHERE tenant_ref=:tenant AND resource_digest=:digest'
+                     WHERE tenant_ref=:tenant AND resource_digest=:digest FOR SHARE'
                 );
                 if (!$resources || !$resources->execute([
                     'tenant'=>$tenantRef,'digest'=>$resourceDigest
@@ -182,9 +244,6 @@ final readonly class PortalSeoPgIdentityReviewLab
                     'networkPerformed'=>false,
                     'releaseStatus'=>'HOLD_TRUSTED_PORTAL_ISSUER_AND_GOOGLE'
                 ];
-            }
-        );
-        return is_array($result)?$result:null;
     }
 
     private static function pgInt(mixed $value):?int
