@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\PortalAccess\Security\PortalAdminTotp;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -153,4 +154,45 @@ final class PortalAdminOrganizationSeoGateTest extends TestCase
         $this->get('/portal-admin/seo-review/org-a')
             ->assertRedirect('/portal-admin/login');
     }
+    public function test_forced_admin_session_rotation_revokes_existing_org_scope():void
+    {
+        $this->grant('org-a');
+        $this->login();
+        $this->get('/portal-admin/seo-review/org-a')->assertOk();
+
+        DB::table('portal_admin_users')
+            ->where('id',$this->adminId)
+            ->increment('session_version');
+
+        // A valid seo.view grant is not sufficient if the session version
+        // was revoked after MFA. Middleware must check DB version first.
+        $this->get('/portal-admin/seo-review/org-a')
+            ->assertRedirect('/portal-admin/login');
+        $this->assertGuest('portal-admin');
+        self::assertSame(1,DB::table('portal_admin_org_grants')
+            ->where('admin_user_id',$this->adminId)
+            ->where('organization_ref','org-a')->count());
+    }
+
+    public function test_audited_cli_session_revocation_blocks_organization_without_touching_grant():void
+    {
+        $this->grant('org-a');
+        $this->login();
+        $this->get('/portal-admin/seo-review/org-a')->assertOk();
+
+        self::assertSame(0,Artisan::call(
+            'portal-admin:invalidate-sessions',['--email'=>$this->email]
+        ));
+        $this->get('/portal-admin/seo-review/org-a')
+            ->assertRedirect('/portal-admin/login');
+
+        $events=DB::table('portal_admin_security_events')
+            ->where('admin_user_id',$this->adminId)->get();
+        self::assertCount(1,$events);
+        self::assertSame('sessions_revoked',$events[0]->event_code);
+        self::assertSame(1,DB::table('portal_admin_org_grants')
+            ->where('admin_user_id',$this->adminId)
+            ->where('organization_ref','org-a')->count());
+    }
+
 }
