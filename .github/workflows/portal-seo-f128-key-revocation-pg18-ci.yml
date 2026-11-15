@@ -1,0 +1,142 @@
+name: Portal SEO F128 - serialized signer revocation versus verification PG18
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f128-key-revocation-pg18-ci.yml'
+      - 'apps/portal/labs/seo-f128-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyLock.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyRevocationLab.php'
+      - 'apps/portal/labs/seo-f127-pg18/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgTrustedBuildSignerLab.php'
+      - 'apps/portal/database/migrations/2026_11_15_000008_create_portal_seo_build_signing_keys.php'
+      - 'apps/portal/labs/seo-f126-engine-pg18/**'
+      - 'apps/portal/labs/seo-f125-engine-signer/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php'
+      - 'apps/portal/database/migrations/2026_11_15_000007_create_portal_seo_build_evidence_nonces.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actual-engine-signed-pg18:
+    name: PG18 revoke-first signer concurrency and RLS / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f108-ci-postgres-only
+          POSTGRES_DB: portal_gsc_f108_ci
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f108_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      SEO_F121_SIGNER_LAB: '1'
+      PORTAL_SEO_F118_LAB: '1'
+      PORTAL_SEO_F122_LAB: '1'
+      PORTAL_SEO_F123_PG_CI: '1'
+      PORTAL_SEO_F125_LAB: '1'
+      PORTAL_SEO_F127_PG_CI: '1'
+      PORTAL_SEO_F128_PG_CI: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f108_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: f108-ci-postgres-only
+      POSTGRES_PASSWORD: f108-ci-postgres-only
+      F127_ROLE_PASSWORD: f127-ci-role-only
+      F128_ROLE_PASSWORD: f128-ci-role-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout immutable SEO Engine signer F121
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          path: .qa/seo-f125
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: PHP ${{ matrix.php }} with Ed25519 and PDO PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Assert pinned engine SHA and check source syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f125 rev-parse HEAD)" = 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
+          node --check apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs
+          node --check .qa/seo-f125/src/seo-signed-build-evidence.mjs
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+          php -l apps/portal/labs/seo-f128-pg18/verify-concurrent-key-revocation.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyLock.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSigningKeyRevocationLab.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgTrustedBuildSignerLab.php
+          php -l apps/portal/database/migrations/2026_11_15_000008_create_portal_seo_build_signing_keys.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgSignedEvidenceReplayLab.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php
+      - name: Install locked Laravel dependencies
+        shell: bash
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Apply migrations to disposable PostgreSQL18 only
+        shell: bash
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          php artisan migrate --force --no-interaction
+      - name: Revoke Engine key first, hold lock, then reject concurrent signed report
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          for kind in valid private-preview wrong-locale; do
+            node apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs \
+              "$kind" "$work/$kind-envelope.json" "$work/$kind-public-key" >/dev/null
+          done
+          php apps/portal/labs/seo-f128-pg18/verify-concurrent-key-revocation.php "$work"
+      - name: Check no tracked files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
