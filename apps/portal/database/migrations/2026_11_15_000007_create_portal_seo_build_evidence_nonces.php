@@ -28,7 +28,7 @@ return new class extends Migration {
             $t->unsignedBigInteger('received_at');
             $t->unsignedBigInteger('expires_at');
             $t->primary(
-                ['tenant_ref','public_key_fingerprint','nonce_digest'],
+                ['tenant_ref','nonce_digest'],
                 'seo_evidence_nonce_pk'
             );
             $t->index(['tenant_ref','expires_at'],'seo_evidence_tenant_expiry_idx');
