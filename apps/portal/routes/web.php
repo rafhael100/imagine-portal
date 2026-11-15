@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Route;
  * No customer login, public registration, GSC or SEO data routes are exposed.
  * The web middleware provides cookies, server sessions and CSRF protection.
  */
+// Preserve the legacy Portal guarantee: with the flag disabled, NO admin
+// route is registered at all. The middleware separately denies runtime
+// access if the flag is turned off after route caching.
+if(config('portal_admin.enabled')===true){
 Route::prefix('portal-admin')
     ->name('portal-admin.')
     ->middleware([PortalAdminFeatureGate::class])
@@ -34,3 +38,4 @@ Route::prefix('portal-admin')
             PortalAdminLoginController::class,'home'
         ])->middleware([PortalAdminMfaGuard::class])->name('home');
     });
+}
