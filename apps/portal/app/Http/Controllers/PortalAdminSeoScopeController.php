@@ -13,7 +13,7 @@ use Illuminate\View\View;
  */
 final class PortalAdminSeoScopeController
 {
-    public function show():View
+    public function show(string $organization):View
     {
         return view('portal-admin.seo-scope');
     }
