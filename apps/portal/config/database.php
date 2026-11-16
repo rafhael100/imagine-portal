@@ -37,6 +37,14 @@ return [
             'password'=>env('PERFORMANCE_AUTHORITY_DB_PASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
             'sslmode'=>env('PERFORMANCE_AUTHORITY_SSLMODE','verify-full'),'sslrootcert'=>env('PERFORMANCE_AUTHORITY_CA_FILE'),
         ],
+        // Same Portal database, separate least-privilege credential. Never inherit bootstrap credentials.
+        'automation_authority' => [
+            'driver'=>'pgsql','host'=>env('DB_HOST'),'port'=>env('DB_PORT','5432'),
+            'database'=>env('DB_DATABASE'),'username'=>env('AUTOMATION_AUTHORITY_DB_USERNAME'),
+            'password'=>env('AUTOMATION_AUTHORITY_DB_PASSWORD'),'charset'=>'utf8','prefix'=>'',
+            'search_path'=>'public','sslmode'=>env('AUTOMATION_AUTHORITY_SSLMODE','verify-full'),
+            'sslrootcert'=>env('AUTOMATION_AUTHORITY_CA_FILE'),
+        ],
 
         'sqlite' => [
             'driver' => 'sqlite',

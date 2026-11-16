@@ -70,3 +70,8 @@ if(config('portal_admin.enabled')===true && config('performance_admin.native_rea
  Route::get('/portal-admin/performance-private/{company}',[\App\Http\Controllers\PerformancePrivateReadController::class,'show'])
   ->whereUuid('company')->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.show');
 }
+// Central P0: administrative ownership metadata only, dark by default, no tenant data/effect.
+if(config('portal_admin.enabled')===true && \App\Domain\AutomationAdministration\AutomationPolicyCatalog::available()){
+ Route::get('/portal-admin/automations',[\App\Http\Controllers\AutomationAdminController::class,'index'])
+  ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('automation-admin.index');
+}

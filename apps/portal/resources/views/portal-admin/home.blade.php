@@ -12,6 +12,9 @@
     @if(\App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed())
     <p><a href="{{ route('performance-admin.index') }}">Abrir Central Administrativa Performance AI · Laboratório →</a></p>
     @endif
+    @if(\App\Domain\AutomationAdministration\AutomationPolicyCatalog::available())
+    <p><a href="{{ route('automation-admin.index') }}">Abrir Central de Automações · Políticas candidatas →</a></p>
+    @endif
     <form method="POST" action="{{ route('portal-admin.logout') }}">
         @csrf
         <button class="secondary" type="submit">Encerrar sessão</button>

@@ -1,0 +1,205 @@
+name: Performance Phase5 integrated native product authorities
+on:
+  push:
+    branches: ['integration/admin-phase5-product-authorities-2026-11-16']
+    paths: ['apps/portal/**','.github/workflows/performance-phase5-integration.yml']
+permissions:
+  contents: read
+jobs:
+  authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-phase4-ci
+          POSTGRES_DB: performance_phase4_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d performance_phase4_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      ADMIN_PHASE5_CI: '1'
+      P20_AUTHORITY_PG_CI: '1'
+      AUTOMATION_ADMIN_PG_CI: '1'
+      IMAGINE_AUTOMATION_ADMIN_ENABLED: 'true'
+      IMAGINE_AUTOMATION_ADMIN_MODE: isolated_ci
+      AUTOMATION_AUTHORITY_DB_USERNAME: portal_automation_runtime
+      AUTOMATION_AUTHORITY_DB_PASSWORD: SYNTHETIC_P20_CI_ONLY
+      AUTOMATION_AUTHORITY_SSLMODE: disable
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      ADMIN_PHASE4_PG_CI: '1'
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      PERFORMANCE_ADMIN_LAB_ENABLED: 'true'
+      PERFORMANCE_NATIVE_READ_ENABLED: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: performance_phase4_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: synthetic-phase4-ci
+      PERFORMANCE_AUTHORITY_DB_USERNAME: portal_performance_runtime
+      PERFORMANCE_AUTHORITY_DB_PASSWORD: SYNTHETIC_PHASE4_CI_ONLY
+      PERFORMANCE_AUTHORITY_SSLMODE: disable
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: ${{ github.workspace }}/engine
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 0fec80aa81a81a103481664dd568f79bd85ce588
+          path: engine
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, sodium, mbstring, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Observe exact CI-owned PostgreSQL instance
+        run: |
+          set -euo pipefail
+          addr=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '${{ job.services.postgres.id }}')
+          cluster=$(docker exec '${{ job.services.postgres.id }}' psql -U postgres -d performance_phase4_ci -Atc 'SELECT system_identifier FROM pg_control_system()')
+          test -n "$addr"
+          test -n "$cluster"
+          echo "PHASE5_EXPECTED_DB_ADDR=$addr" >> "$GITHUB_ENV"
+          echo "PHASE5_EXPECTED_CLUSTER=$cluster" >> "$GITHUB_ENV"
+      - name: Locked dependencies and additive migrations in disposable database only
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          set -euo pipefail
+          if PHASE5_EXPECTED_CLUSTER=0 php tools/phase5/prepare-ci.php > "$RUNNER_TEMP/p5-invalid-cluster.log" 2>&1; then exit 1; fi
+          grep -q PHASE5_PREPARATION_DENIED "$RUNNER_TEMP/p5-invalid-cluster.log"
+          if DB_HOST=remote.invalid php tools/phase5/prepare-ci.php > "$RUNNER_TEMP/p5-invalid-config.log" 2>&1; then exit 1; fi
+          grep -q PHASE5_PREPARATION_DENIED "$RUNNER_TEMP/p5-invalid-config.log"
+          docker exec '${{ job.services.postgres.id }}' psql -U postgres -d performance_phase4_ci -Atc "SELECT to_regclass('public.migrations') IS NULL" | grep -qx t
+          php tools/phase5/prepare-ci.php | tee "$RUNNER_TEMP/p5-prepared.json"
+          grep -q '"completed":true' "$RUNNER_TEMP/p5-prepared.json"
+          php tests/Fixtures/phase5/authority-role.php
+          php tests/Fixtures/phase4/authority-role.php
+      - name: Native password MFA service and grant revocation
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|AutomationDatabaseAuthorityTest|AutomationAdministrationTest|AutomationStateReaderTest|DisposablePreparationTest|IntegratedProductAuthorityTest'
+      - name: Native login MFA authority to separate HTTPS mTLS Performance application
+        env:
+          ADMIN_PHASE4_HTTPS_CI: '1'
+          ADMIN_PHASE4_TLS: /tmp/admin-phase4-tls
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$ADMIN_PHASE4_TLS"
+          cd "$ADMIN_PHASE4_TLS"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.pem -subj '/CN=SYNTHETIC Phase4 CI CA' >/dev/null 2>&1
+          for name in server client; do
+            openssl req -newkey rsa:2048 -nodes -keyout "$name.key" -out "$name.csr" -subj '/CN=performance-ci.internal' >/dev/null 2>&1
+            if [ "$name" = server ]; then printf 'subjectAltName=DNS:performance-ci.internal\nextendedKeyUsage=serverAuth\n' > ext; else printf 'extendedKeyUsage=clientAuth\n' > ext; fi
+            openssl x509 -req -in "$name.csr" -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out "$name.pem" -extfile ext >/dev/null 2>&1
+          done
+          sudo ip address add 172.30.250.2/32 dev lo
+          cd "$GITHUB_WORKSPACE"
+          php apps/portal/tests/Fixtures/phase4/receiver-setup.php
+          python3 apps/portal/tests/Fixtures/phase4/https-server.py > "$ADMIN_PHASE4_TLS/server.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; sudo ip address del 172.30.250.2/32 dev lo; rm -rf "$ADMIN_PHASE4_TLS"' EXIT
+          for attempt in $(seq 1 40); do
+            if curl --silent --noproxy '*' --cacert "$ADMIN_PHASE4_TLS/ca.pem" --cert "$ADMIN_PHASE4_TLS/client.pem" --key "$ADMIN_PHASE4_TLS/client.key" --resolve performance-ci.internal:19444:172.30.250.2 https://performance-ci.internal:19444/ >/dev/null; then break; fi
+            sleep 0.1
+          done
+          cd apps/portal
+          php artisan test --no-ansi --filter=test_native_login_mfa_to_real_private_performance_and_correlated_audits
+      - name: Real FPM Nginx and private TLS PostgreSQL receiver, no host ports
+        env:
+          ADMIN_PHASE4_HTTPS_CI: '1'
+          ADMIN_PHASE4_TLS: /tmp/admin-phase4-fpm
+        run: |
+          set -euo pipefail
+          umask 077
+          tls="$ADMIN_PHASE4_TLS"
+          mkdir -p "$tls" "$tls/pg-private" "$tls/pg-tls" "$tls/runtime"
+          cd "$tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.pem -subj '/CN=SYNTHETIC Phase4 FPM CI CA' >/dev/null 2>&1
+          for name in server client database; do
+            openssl req -newkey rsa:2048 -nodes -keyout "$name.key" -out "$name.csr" -subj "/CN=$name" >/dev/null 2>&1
+            case "$name" in
+              server) printf 'subjectAltName=DNS:performance-ci.internal\nextendedKeyUsage=serverAuth\n' > ext ;;
+              database) printf 'subjectAltName=DNS:database\nextendedKeyUsage=serverAuth\n' > ext ;;
+              client) printf 'extendedKeyUsage=clientAuth\n' > ext ;;
+            esac
+            openssl x509 -req -in "$name.csr" -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out "$name.pem" -extfile ext >/dev/null 2>&1
+          done
+          touch index
+          printf '1000\n' > crlnumber
+          printf '[ca]\ndefault_ca=local\n[local]\ndatabase=index\ncertificate=ca.pem\nprivate_key=ca.key\ndefault_md=sha256\ndefault_crl_days=1\ncrlnumber=crlnumber\n' > crl.cnf
+          openssl ca -gencrl -config crl.cnf -out clients.crl -batch >/dev/null 2>&1
+          cp ca.pem clients-ca.pem
+          cp database.pem pg-tls/server.pem
+          cp database.key pg-tls/server.key
+          printf 'SYNTHETIC_PHASE4_FPM_BOOTSTRAP\n' > pg-private/bootstrap-password
+          printf 'local all all trust\nhostssl all all 0.0.0.0/0 scram-sha-256\n' > pg-private/pg_hba.conf
+          sudo chown -R 999:999 pg-private pg-tls
+          sudo chmod 700 pg-private pg-tls
+          cd "$GITHUB_WORKSPACE/engine/deploy/private-admin"
+          for image in php:8.4-fpm-bookworm nginx:1.29-alpine postgres:18; do docker pull "$image" >/dev/null; done
+          export PERFORMANCE_PHP_IMAGE=$(docker image inspect php:8.4-fpm-bookworm --format '{{index .RepoDigests 0}}')
+          export PERFORMANCE_NGINX_IMAGE=$(docker image inspect nginx:1.29-alpine --format '{{index .RepoDigests 0}}')
+          export PERFORMANCE_PG_IMAGE=$(docker image inspect postgres:18 --format '{{index .RepoDigests 0}}')
+          export PERFORMANCE_PRIVATE_MATERIAL_DIR="$tls/runtime" PERFORMANCE_TLS_DIR="$tls" PERFORMANCE_PG_PRIVATE_DIR="$tls/pg-private" PERFORMANCE_PG_TLS_DIR="$tls/pg-tls"
+          export PERFORMANCE_PG_DSN='pgsql:host=database;dbname=performance_receiver_phase4_ci;sslmode=verify-full;sslrootcert=/run/private/db-ca.pem'
+          printf 'services:\n  receiver:\n    environment:\n      PERFORMANCE_PRIVATE_READ_ENABLED: "1"\n      PERFORMANCE_PRIVATE_PG_USER: phase4_receiver\n' > "$tls/ci-override.yaml"
+          dc=(docker compose -f "$GITHUB_WORKSPACE/engine/deploy/private-admin/compose.yaml" -f "$tls/ci-override.yaml")
+          trap '"${dc[@]}" down --volumes >/dev/null 2>&1 || true; sudo rm -rf "$tls"' EXIT
+          "${dc[@]}" up -d database >/dev/null
+          for attempt in $(seq 1 60); do if "${dc[@]}" exec -T database pg_isready -U performance_migrator -d performance_private >/dev/null; then break; fi; sleep 1; done
+          dbid=$("${dc[@]}" ps -q database)
+          dbip=$(docker inspect "$dbid" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+          export PHASE4_RECEIVER_OWNER_DSN="pgsql:host=database;hostaddr=$dbip;dbname=postgres;sslmode=verify-full;sslrootcert=$tls/ca.pem"
+          export PHASE4_RECEIVER_ADMIN_DSN="pgsql:host=database;hostaddr=$dbip;dbname=performance_receiver_phase4_ci;sslmode=verify-full;sslrootcert=$tls/ca.pem"
+          export PHASE4_RECEIVER_OWNER_USER=performance_migrator PHASE4_RECEIVER_OWNER_PASSWORD=SYNTHETIC_PHASE4_FPM_BOOTSTRAP
+          php "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/phase4/receiver-setup.php"
+          cp "$tls/keyring.json" "$tls/runtime/service-keyring.json"
+          cp "$tls/runtime-password" "$tls/runtime/db-password"
+          cp "$tls/ca.pem" "$tls/runtime/db-ca.pem"
+          sudo chown -R 33:33 "$tls/runtime"
+          sudo chmod 700 "$tls/runtime"
+          "${dc[@]}" up -d --build receiver proxy >/dev/null
+          proxyid=$("${dc[@]}" ps -q proxy)
+          export PHASE4_RECEIVER_ADDRESS=$(docker inspect "$proxyid" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+          export PHASE4_RECEIVER_PORT=8443 PHASE4_RECEIVER_URL=https://performance-ci.internal:8443/v1/admin/read
+          for attempt in $(seq 1 60); do
+            if curl --silent --noproxy '*' --cacert "$tls/ca.pem" --cert "$tls/client.pem" --key "$tls/client.key" --resolve "performance-ci.internal:8443:$PHASE4_RECEIVER_ADDRESS" "$PHASE4_RECEIVER_URL" >/dev/null; then break; fi
+            sleep 1
+          done
+          cd "$GITHUB_WORKSPACE/apps/portal"
+          php artisan test --no-ansi --filter=test_native_login_mfa_to_real_private_performance_and_correlated_audits
+          export PERFORMANCE_PRIVATE_READ_ENABLED=true PERFORMANCE_PRIVATE_IDENTITY_FILE="$tls/identity.json"
+          export PERFORMANCE_PRIVATE_URL="$PHASE4_RECEIVER_URL" PERFORMANCE_PRIVATE_HOST=performance-ci.internal PERFORMANCE_PRIVATE_PORT=8443 PERFORMANCE_PRIVATE_ADDRESS="$PHASE4_RECEIVER_ADDRESS"
+          export PERFORMANCE_PRIVATE_CA="$tls/ca.pem" PERFORMANCE_PRIVATE_CERTIFICATE="$tls/client.pem" PERFORMANCE_PRIVATE_PRIVATE_KEY="$tls/client.key"
+          export SESSION_DRIVER=file ADMIN_PHASE4_EVIDENCE="$RUNNER_TEMP/phase4-evidence"
+          mkdir -p "$ADMIN_PHASE4_EVIDENCE"
+          php tests/Fixtures/phase4/browser-seed.php
+          php artisan serve --host=127.0.0.1 --port=18944 > "$tls/portal-server.log" 2>&1 &
+          portal_pid=$!
+          mkdir -p "$RUNNER_TEMP/phase4-browser"
+          cd "$RUNNER_TEMP/phase4-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 @axe-core/playwright@4.10.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          NODE_PATH="$RUNNER_TEMP/phase4-browser/node_modules" node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/phase4/browser.cjs"
+          kill "$portal_pid"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: performance-phase5-integrated-evidence
+          path: ${{ runner.temp }}/phase4-evidence
+          retention-days: 7
