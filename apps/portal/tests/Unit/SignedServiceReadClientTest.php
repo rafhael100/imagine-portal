@@ -9,7 +9,7 @@ final class SignedServiceReadClientTest extends TestCase
  {
   if(getenv('PERFORMANCE_ADMIN_PG_CI')!=='1')$this->markTestSkipped('Requires exact cross-repository candidate checkout');
   config()->set('performance_admin.enabled',true);config()->set('performance_admin.mode','isolated_ci');
-  config()->set('performance_admin.service_review_enabled',true);config()->set('performance_admin.service_review_url','https://performance.example.test/v1/admin/read');
+  config()->set('performance_admin.service_review_enabled',true);config()->set('performance_admin.service_review_url','https://performance.example.test/v1/admin/read');config()->set('performance_admin.service_review_host','performance.example.test');config()->set('performance_admin.service_review_address','172.20.0.4');
   $identity=['issuer'=>'portal_service','key_id'=>'service_key_01','secret'=>str_repeat('K',48),'active'=>true,'expires_at'=>time()+120,'companies'=>['company_alfa'],'operations'=>['dashboard.read']];
   Http::preventStrayRequests();$calls=[];
   Http::fake(function($request)use(&$calls){$calls[]=$request;
@@ -32,4 +32,14 @@ final class SignedServiceReadClientTest extends TestCase
   try{$c->read('company_alfa','dashboard.read',[],'request_unique_001');self::fail();}catch(\RuntimeException $e){self::assertSame('Trusted HTTPS read endpoint required',$e->getMessage());}
   Http::assertNothingSent();
  }
+ public function test_public_or_unpinned_destination_is_rejected_before_transport():void
+ {
+  config()->set('performance_admin.enabled',true);config()->set('performance_admin.mode','isolated_ci');config()->set('performance_admin.service_review_enabled',true);
+  config()->set('performance_admin.service_review_url','https://performance.example.test/v1/admin/read');
+  config()->set('performance_admin.service_review_host','performance.example.test');config()->set('performance_admin.service_review_address','8.8.8.8');
+  Http::preventStrayRequests();Http::fake();$c=new SignedServiceReadClient(fn()=>[],fn()=>null);
+  try{$c->read('company_alfa','dashboard.read',[],'request_unique_001');self::fail();}catch(\RuntimeException $e){self::assertSame('Private pinned destination required',$e->getMessage());}
+  Http::assertNothingSent();
+ }
+
 }
