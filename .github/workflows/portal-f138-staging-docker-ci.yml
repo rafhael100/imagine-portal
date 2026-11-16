@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 99300bb0259b557d0580674e37fdffe51e00d103
+          ref: 3b2b9a56befb56cca6e57b95eb0de2ccb9b5f5cb
           path: engine
           persist-credentials: false
       - name: Generate synthetic one-run secrets, never committed

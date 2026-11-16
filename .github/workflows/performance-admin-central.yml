@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 99300bb0259b557d0580674e37fdffe51e00d103
+          ref: 3b2b9a56befb56cca6e57b95eb0de2ccb9b5f5cb
           path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -86,6 +86,35 @@ jobs:
           npm install --no-audit --no-fund playwright@1.58.2 @axe-core/playwright@4.10.2 >/dev/null
           npx playwright install --with-deps chromium >/dev/null
           NODE_PATH="$RUNNER_TEMP/perf-admin-browser/node_modules" node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/performance-admin-browser.cjs"
+      - name: Separate applications over verified private HTTPS and mTLS (synthetic authorities)
+        env:
+          ADMIN_PHASE3_HTTPS_CI: '1'
+          ADMIN_PHASE3_TLS: /tmp/admin-phase3-tls
+          ADMIN_PHASE3_STATE: /tmp/admin-phase3-tls/state.json
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$ADMIN_PHASE3_TLS"
+          cd "$ADMIN_PHASE3_TLS"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.pem -subj '/CN=Disposable Phase3 CI CA' >/dev/null 2>&1
+          openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj '/CN=performance-ci.internal' >/dev/null 2>&1
+          printf 'subjectAltName=DNS:performance-ci.internal\nextendedKeyUsage=serverAuth\n' > server.ext
+          openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out server.pem -extfile server.ext >/dev/null 2>&1
+          openssl req -newkey rsa:2048 -nodes -keyout client.key -out client.csr -subj '/CN=portal-service-ci' >/dev/null 2>&1
+          printf 'extendedKeyUsage=clientAuth\n' > client.ext
+          openssl x509 -req -in client.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out client.pem -extfile client.ext >/dev/null 2>&1
+          openssl x509 -in client.pem -noout -serial | cut -d= -f2 > client.serial
+          sudo ip address add 172.30.250.1/32 dev lo
+          cd "$GITHUB_WORKSPACE"
+          php apps/portal/tests/Fixtures/phase3/setup.php
+          python3 apps/portal/tests/Fixtures/phase3/https-server.py > "$ADMIN_PHASE3_TLS/server.log" 2>&1 &
+          phase3_server_pid=$!
+          trap 'kill "$phase3_server_pid" 2>/dev/null || true; sudo ip address del 172.30.250.1/32 dev lo; rm -rf "$ADMIN_PHASE3_TLS"' EXIT
+          for attempt in $(seq 1 40); do
+            if curl --silent --noproxy '*' --cacert "$ADMIN_PHASE3_TLS/ca.pem" --cert "$ADMIN_PHASE3_TLS/client.pem" --key "$ADMIN_PHASE3_TLS/client.key" --resolve performance-ci.internal:19443:172.30.250.1 https://performance-ci.internal:19443/ >/dev/null; then break; fi
+            sleep 0.1
+          done
+          php apps/portal/tests/Fixtures/phase3/client.php
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
