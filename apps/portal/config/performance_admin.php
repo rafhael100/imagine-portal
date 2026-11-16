@@ -1,6 +1,8 @@
 <?php
 return [
     // Never exposes a production route or grants operational authorization.
+    'mode'=>env('PERFORMANCE_ADMIN_MODE','isolated_ci'),
+    'synthetic_only'=>true,
     'enabled'=>env('PERFORMANCE_ADMIN_LAB_ENABLED',false),
     'engine_root'=>env('PERFORMANCE_ADMIN_LAB_ENGINE_ROOT',''),
     'engine_sha'=>'434f231471a1bfcab5af26d38005c4a59253b0de',

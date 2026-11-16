@@ -1,0 +1,226 @@
+name: Portal F138 - isolated Docker staging smoke (CI only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-f138-staging-docker-ci.yml'
+      - 'apps/portal/deploy/staging/**'
+      - 'apps/portal/app/Domain/PerformanceAdministration/**'
+      - 'apps/portal/app/Http/Controllers/PerformanceAdminController.php'
+      - 'apps/portal/resources/views/performance-admin/**'
+      - 'apps/portal/tests/Fixtures/performance-admin-*'
+      - 'apps/portal/config/performance_admin.php'
+      - 'apps/portal/.dockerignore'
+      - 'apps/portal/.gitignore'
+      - 'apps/portal/database/migrations/2026_11_15_000017_create_portal_cache_for_throttling.php'
+      - 'apps/portal/app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php'
+      - 'apps/portal/app/Console/Commands/PortalAdminStagingPreflight.php'
+      - 'apps/portal/tests/Feature/PortalAdminStagingPreflightTest.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-isolation:
+    name: Build only, migrate disposable PG18, check runtime role and loopback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/portal/deploy/staging
+        shell: bash
+    steps:
+      - name: Checkout exact PR candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 434f231471a1bfcab5af26d38005c4a59253b0de
+          path: engine
+          persist-credentials: false
+      - name: Generate synthetic one-run secrets, never committed
+        run: |
+          set -euo pipefail
+          umask 077
+          php -l ../../database/migrations/2026_11_15_000017_create_portal_cache_for_throttling.php
+          php -l ../../app/Domain/PortalAccess/Security/PortalAdminStagingSecurityPolicy.php
+          bash -n initdb/create-app-role.sh
+          cat > .env.staging <<EOF
+          APP_NAME="Imagine Portal CI"
+          APP_ENV=staging
+          APP_DEBUG=false
+          APP_URL=https://localhost:18088
+          APP_KEY=base64:$(openssl rand -base64 32)
+          PORTAL_STAGING_LOOPBACK_PORT=18088
+          PORTAL_STAGING_DB=perf_admin_staging_ci
+          PORTAL_STAGING_DB_OWNER=portal_f138_owner
+          PORTAL_STAGING_DB_OWNER_PASSWORD=$(openssl rand -hex 24)
+          PORTAL_APP_DB_USER=portal_f138_runtime
+          PORTAL_APP_DB_PASSWORD=$(openssl rand -hex 24)
+          LOG_CHANNEL=stderr
+          SESSION_DRIVER=database
+          SESSION_ENCRYPT=true
+          SESSION_SECURE_COOKIE=true
+          SESSION_HTTP_ONLY=true
+          SESSION_SAME_SITE=lax
+          CACHE_STORE=database
+          QUEUE_CONNECTION=sync
+          MAIL_MAILER=array
+          PORTAL_ADMIN_AUTH_ENABLED=false
+          PORTAL_ADMIN_PROVISION_ENABLED=false
+          PERFORMANCE_ADMIN_LAB_ENABLED=false
+          PERFORMANCE_ADMIN_MODE=private_staging
+          PERFORMANCE_ADMIN_ENGINE_SOURCE=$GITHUB_WORKSPACE/engine
+          EOF
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
+            -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            -keyout ci-key.pem -out ci-cert.pem 2>/dev/null
+          access_password="$(openssl rand -hex 24)"
+          printf 'ci-operator:%s\n' "$(openssl passwd -6 "$access_password")" > ci-access.htpasswd
+          printf '\nPORTAL_TLS_CERT_FILE=./ci-cert.pem\nPORTAL_TLS_KEY_FILE=./ci-key.pem\nPORTAL_ACCESS_PASSWORD_FILE=./ci-access.htpasswd\n' >> .env.staging
+          printf 'CI_ACCESS_PASSWORD=%s\n' "$access_password" >> .env.staging
+          # Disposable credentials readable by the unprivileged ingress UID.
+          chmod 644 ci-key.pem ci-cert.pem ci-access.htpasswd
+          chmod 600 .env.staging
+          docker compose --env-file .env.staging config --quiet
+      - name: Build PHP FPM and Nginx public-only images (no deploy)
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.staging build --pull app web
+      - name: Start disposable PostgreSQL only
+        run: |
+          set -euo pipefail
+          docker compose --env-file .env.staging up -d --wait --wait-timeout 120 db
+      - name: Migrate with owner and grant narrowly scoped runtime permissions
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -e DB_USERNAME="$PORTAL_STAGING_DB_OWNER" \
+            -e DB_PASSWORD="$PORTAL_STAGING_DB_OWNER_PASSWORD" \
+            app php artisan migrate --force --no-interaction
+          docker compose --env-file .env.staging exec -T db \
+            psql -X -v ON_ERROR_STOP=1 \
+            -U "$PORTAL_STAGING_DB_OWNER" -d "$PORTAL_STAGING_DB" \
+            -v app_role="$PORTAL_APP_DB_USER" < grant-runtime.sql
+      - name: Verify runtime role and secure admin preflight
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          flags="$(docker compose --env-file .env.staging exec -T db \
+            psql -X -At \
+            -U "$PORTAL_STAGING_DB_OWNER" -d "$PORTAL_STAGING_DB" \
+            -c "SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname='portal_f138_runtime'")"
+          test "$flags" = 'f|f'
+          if docker compose --env-file .env.staging run --rm --no-deps \
+              app php artisan portal-admin:staging-preflight; then
+            echo 'F138: admin flag OFF must block preflight' >&2
+            exit 1
+          fi
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -e PORTAL_ADMIN_AUTH_ENABLED=true \
+            app php artisan portal-admin:staging-preflight
+      - name: Start app and Nginx privately; test health and disabled admin route
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          docker compose --env-file .env.staging up -d app web
+          for attempt in $(seq 1 20); do
+            status="$(curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --silent --output /dev/null --write-out '%{http_code}' https://localhost:18088/up || true)"
+            if test "$status" = '401'; then break; fi
+            sleep 2
+          done
+          test "$status" = '401' 
+          for attempt in $(seq 1 20); do
+            if curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
+                 https://localhost:18088/up >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
+            https://localhost:18088/up >/dev/null
+          status="$(curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --silent --output /dev/null \
+            --write-out '%{http_code}' \
+            https://localhost:18088/portal-admin/login)"
+          test "$status" = '404'
+          docker compose --env-file .env.staging exec -T web nginx -t
+          docker compose --env-file .env.staging exec -T app php -r '
+            if (getenv("PORTAL_STAGING_DB_OWNER_PASSWORD") !== false || getenv("POSTGRES_PASSWORD") !== false) exit(1);
+            if (preg_match("/^\\S+\\s+00000000\\s+/m", file_get_contents("/proc/net/route"))) exit(2);
+            echo "Runtime excludes owner secrets and has no default IPv4 egress route.\n";
+          '
+          test "$(docker network inspect imagine-portal-staging_portal_front --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-portal-staging_portal_database --format '{{.Internal}}')" = true
+      - name: Authenticate nominal synthetic reviewer in actual staging runtime
+        run: |
+          set -euo pipefail
+          set -a
+          source .env.staging
+          set +a
+          sed -i 's/PORTAL_ADMIN_AUTH_ENABLED=false/PORTAL_ADMIN_AUTH_ENABLED=true/; s/PERFORMANCE_ADMIN_LAB_ENABLED=false/PERFORMANCE_ADMIN_LAB_ENABLED=true/' .env.staging
+          export PORTAL_ADMIN_AUTH_ENABLED=true PERFORMANCE_ADMIN_LAB_ENABLED=true
+          mkdir -p "$RUNNER_TEMP/private-vault" "$RUNNER_TEMP/staging-evidence"
+          chmod 700 "$RUNNER_TEMP/private-vault"
+          # Provision fixtures only in a disposable CI process with owner credentials.
+          # HTTP application remains APP_ENV=staging and uses the runtime role.
+          docker compose --env-file .env.staging run --rm --no-deps \
+            -v "$GITHUB_WORKSPACE/apps/portal/tests:/var/www/html/tests:ro" \
+            -v "$RUNNER_TEMP/private-vault:/ci-vault" --user "$(id -u):$(id -g)" \
+            -e CI=true -e PERFORMANCE_ADMIN_PG_CI=1 \
+            -e PERFORMANCE_ADMIN_BROWSER_VAULT=/ci-vault/reviewer.json \
+            -e DB_USERNAME="$PORTAL_STAGING_DB_OWNER" -e DB_PASSWORD="$PORTAL_STAGING_DB_OWNER_PASSWORD" \
+            app php tests/Fixtures/performance-admin-seed.php
+          test -s "$RUNNER_TEMP/private-vault/reviewer.json"
+          docker compose --env-file .env.staging up -d --force-recreate app
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libnss3-tools >/dev/null
+          mkdir -p "$HOME/.pki/nssdb"
+          certutil -N -d sql:"$HOME/.pki/nssdb" --empty-password
+          certutil -A -d sql:"$HOME/.pki/nssdb" -n Imagine-CI-CA -t 'C,,' -i ci-cert.pem
+          mkdir -p "$RUNNER_TEMP/staging-browser"
+          cd "$RUNNER_TEMP/staging-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 @axe-core/playwright@4.10.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          PERFORMANCE_ADMIN_BROWSER_URL=https://localhost:18088 \
+          PERFORMANCE_ADMIN_BROWSER_VAULT="$RUNNER_TEMP/private-vault/reviewer.json" \
+          PERFORMANCE_ADMIN_EVIDENCE="$RUNNER_TEMP/staging-evidence" \
+          NODE_EXTRA_CA_CERTS="$GITHUB_WORKSPACE/apps/portal/deploy/staging/ci-cert.pem" \
+          NODE_PATH="$RUNNER_TEMP/staging-browser/node_modules" \
+          node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/performance-admin-browser.cjs"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: private-staging-credential-free-evidence
+          path: ${{ runner.temp }}/staging-evidence
+          retention-days: 7
+      - name: Inspect disposable PostgreSQL bootstrap if tests failed
+        if: failure()
+        run: |
+          if test -s .env.staging; then
+            docker compose --env-file .env.staging ps || true
+            docker compose --env-file .env.staging logs --no-color --tail=60 web || true
+          fi
+      - name: Remove all CI-only volumes, containers and secrets
+        if: always()
+        working-directory: .
+        run: |
+          if test -s apps/portal/deploy/staging/.env.staging; then
+            (cd apps/portal/deploy/staging && \
+              docker compose --env-file .env.staging down -v --remove-orphans) || true
+          fi
+          rm -f apps/portal/deploy/staging/.env.staging apps/portal/deploy/staging/ci-{key.pem,cert.pem,access.htpasswd}
+          rm -rf "$RUNNER_TEMP/private-vault"
+          test ! -e apps/portal/deploy/staging/.env.staging
+

@@ -60,7 +60,7 @@ $count=count(array_filter($state['campaigns'],fn($c)=>$c['channel']===$ch));
 <form method="get" class="toolbar"><input type="hidden" name="tenant" value="{{ $tenant }}">@include('performance-admin.client-context')<div><label for="client-q">Pesquisar empresa</label><input id="client-q" name="q" value="{{ $filters['q']??'' }}" maxlength="80"></div><div><label for="client-status">Situação</label><select id="client-status" name="status"><option value="">Todas</option><option value="active" @selected(($filters['status']??'')==='active')>Ativo</option><option value="onboarding" @selected(($filters['status']??'')==='onboarding')>Em implantação</option></select></div><div><label for="client-sort">Ordenação</label><select id="client-sort" name="sort"><option value="name">Nome</option><option value="status" @selected(($filters['sort']??'')==='status')>Situação</option></select></div><button>Filtrar clientes</button></form>
 <section class="card"><h2>Clientes no seu escopo</h2><div class="tablewrap"><table><thead><tr><th scope="col">Empresa</th><th scope="col">Situação</th><th scope="col">Campanhas</th><th scope="col">Detalhes</th></tr></thead><tbody>
 @forelse($clientRows as $client)
-<tr><td>{{ $client['name'] }}</td><td>{{ $statuses[$client['status']] }}</td><td>{{ $client['campaigns'] }}</td><td><a class="rowlink" href="{{ $link('clients',['tenant'=>$client['tenant']]) }}">Abrir cliente →</a></td></tr>
+<tr><td>{{ $client['name'] }}</td><td>{{ $statuses[$client['status']] }}</td><td>{{ $client['campaigns'] }}</td><td><a class="rowlink" href="{{ $link('clients',array_merge($filters,['tenant'=>$client['tenant'],'tab'=>'overview'])) }}">Abrir cliente →</a></td></tr>
 @empty
 <tr><td colspan="4">Nenhum cliente corresponde aos filtros.</td></tr>
 @endforelse

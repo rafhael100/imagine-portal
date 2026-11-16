@@ -14,3 +14,8 @@
 /storage/logs/*
 !/storage/logs/.gitignore
 *.log
+/deploy/staging/.env.staging
+
+
+/deploy/staging/ci-*.pem
+/deploy/staging/ci-*.htpasswd
