@@ -74,7 +74,7 @@ jobs:
           for f in storage/framework/views/*.php; do php -l "$f" || exit 1; done
       - name: Tenant, role, revision, replay, approval and incident flows
         working-directory: apps/portal
-        run: php artisan test --no-ansi --filter='AutomationAdministrationTest|PerformanceAdministrationTest|AdministrativeActionAvailabilityTest|PrivateDemonstrationPolicyTest|SignedServiceReadClientTest|PerformanceAuthorityBridgeTest'
+        run: php artisan test --no-ansi --filter='AutomationStateReaderTest|AutomationAdministrationTest|PerformanceAdministrationTest|AdministrativeActionAvailabilityTest|PrivateDemonstrationPolicyTest|SignedServiceReadClientTest|PerformanceAuthorityBridgeTest'
       - name: Seed unique CI-only reviewer without credential output
         run: |
           mkdir -p "$PERFORMANCE_ADMIN_EVIDENCE"
