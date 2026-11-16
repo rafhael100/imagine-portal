@@ -2,6 +2,7 @@ name: Performance Phase4 native Portal authority PostgreSQL
 on:
   push:
     branches: ['integration/admin-phase4-native-authority-2026-11-16']
+    paths: ['apps/portal/**','.github/workflows/performance-phase4-authority.yml']
 permissions:
   contents: read
 jobs:

@@ -4,7 +4,7 @@ const root=process.env.ADMIN_PHASE4_TLS,vault=JSON.parse(fs.readFileSync(path.jo
 const base='http://127.0.0.1:18944',out=process.env.ADMIN_PHASE4_EVIDENCE;
 function otp(){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const d=crypto.createHmac('sha1',Buffer.from(vault.secret,'hex')).update(b).digest(),o=d[d.length-1]&15;return String((d.readUInt32BE(o)&0x7fffffff)%1000000).padStart(6,'0');}
 (async()=>{const browser=await chromium.launch({headless:true});try{
- const page=await browser.newPage();let checks=0;const check=x=>{if(!x)throw Error('Assertion');checks++;};
+ const context=await browser.newContext();const page=await context.newPage();let checks=0;const check=x=>{if(!x)throw Error('Assertion');checks++;};
  await page.goto(base+'/portal-admin/login');await page.locator('[name=email]').fill(vault.email);await page.locator('[name=password]').fill(vault.password);
  await Promise.all([page.waitForURL('**/mfa'),page.locator('button[type=submit]').click()]);await page.locator('[name=code]').fill(otp());
  await Promise.all([page.waitForURL('**/portal-admin'),page.locator('button[type=submit]').click()]);
