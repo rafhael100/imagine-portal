@@ -1,0 +1,12 @@
+@extends('portal-admin.layout')
+@section('title','Central de automações')
+@section('content')
+<style>
+main{max-width:1320px;margin:40px auto}article{padding:clamp(18px,3vw,42px)}.auto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px}.auto-card{border:1px solid #dfe7f0;border-radius:14px;padding:22px;background:#fffaf3}.auto-card h2{font-size:20px}.auto-tag{display:inline-block;padding:5px 10px;background:#fff0db;border-radius:8px;font-size:13px;font-weight:700}.auto-toolbar{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:24px 0}.auto-toolbar select{padding:12px;border-radius:8px;font:inherit;max-width:100%}.auto-toolbar button{width:auto;margin:0}.auto-status{border-left:4px solid #F9941D;padding:16px;margin-top:24px;background:#f5f7fb}a:focus-visible,select:focus-visible{outline:3px solid #F9941D;outline-offset:3px}
+</style>
+<a href="{{ route('portal-admin.home') }}">← Voltar à administração</a><p class="auto-tag">Política CENTRAL-AUTO-V1 · Candidata de homologação</p>
+<h1>Automações conectadas. Responsabilidades claras.</h1><p>Visão administrativa das políticas do ecossistema Imagine. Cada produto conserva suas decisões e permissões.</p>
+<form method="get" class="auto-toolbar"><div><label for="product">Responsável pela política</label><select id="product" name="product"><option value="">Todos</option>@foreach(\App\Domain\AutomationAdministration\AutomationPolicyCatalog::policies() as $key=>$policy)<option value="{{ $key }}" {{ $selected===$key?'selected':'' }}>{{ $policy['title'] }}</option>@endforeach</select></div><button type="submit">Filtrar políticas</button></form>
+<div class="auto-grid">@foreach($policies as $key=>$policy)<section class="auto-card" aria-labelledby="policy-{{ $key }}"><span class="auto-tag">{{ $policy['owner'] }}</span><h2 id="policy-{{ $key }}">{{ $policy['title'] }}</h2><p>{{ $policy['policy'] }}</p><p><strong>Gate:</strong> {{ $policy['limit'] }}</p></section>@endforeach</div>
+<section class="auto-status"><h2>Falhas, limites por empresa e auditoria</h2><p><strong>Dados operacionais indisponíveis.</strong> Não há adaptador homologado para consultar execuções dos produtos nesta tela. A ausência de dados não significa zero falhas ou consumo.</p><p>Esta visão não permite editar políticas, acessar clientes, executar fluxos, consumir IA ou abrir o editor n8n. O vínculo seguro com as fontes e a autorização de cada consulta ainda são requisitos de homologação.</p></section>
+@endsection
