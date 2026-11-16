@@ -1,0 +1,146 @@
+{
+  "portal_base": "83c4e37e06b6b8daefbe8f84153946856eed27b3",
+  "engine_candidate": "d15de1ae9704feee6f9fcf4497f19721b95b5b95",
+  "tested_portal_code": "3da1eaa980ee402bb4160dbcaaf2fe2a2567c777",
+  "note": "Final source snapshot includes the subsequent documentation-only cache-maintenance clarification.",
+  "files": [
+    {
+      "path": ".github/workflows/performance-phase6-readiness.yml",
+      "bytes": 14627,
+      "sha256": "57c77a07405b929ea8fe09547b5fd053e4915b0a7774f082b6fe1a43017e340a",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/.dockerignore",
+      "bytes": 429,
+      "sha256": "e40124e1e5cc939188bca50fc4d31159646b46b617f0dfebae872353e29d929c",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceAdministration/NativePerformanceAuthority.php",
+      "bytes": 7367,
+      "sha256": "68893fe7eac7e45d8c65558ecaadfbfe6e81243dd2a8157eb91ec970e1dff9f9",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceAdministration/PerformanceSecurityEvents.php",
+      "bytes": 861,
+      "sha256": "b1a0f6ed6df7704191d3e7a98a5992eac370def4ea4103af2720ff140fc1fc4e",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/app/Providers/AppServiceProvider.php",
+      "bytes": 2726,
+      "sha256": "e2e520394d7422e6327aec0b96729924f4dc3518491bb2cf2ec6227a87e4acf4",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/app/Support/PrivateStagingSecret.php",
+      "bytes": 803,
+      "sha256": "ce1054e40de0e69d4ccee45ddc1da038fcbbcbf4a5192d3e8a02b030b8073643",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/config/app.php",
+      "bytes": 4356,
+      "sha256": "6a71c00c76ca95a41a11e56b13ab449b501bf0be5928b4dbaedda6d913ed9775",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/config/database.php",
+      "bytes": 8111,
+      "sha256": "2ba0d8503b9a2e2d394177e107192bb18d4e9c7582799ccd262caf269f6d317e",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/config/logging.php",
+      "bytes": 4846,
+      "sha256": "5e28628bbfa23ecca07a9b0e5d9f9929a647d939c1e784a7f29f176b2d9a0dd6",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/RELEASE-GATES.md",
+      "bytes": 12196,
+      "sha256": "b8fba35395762775b4a7086f4046e0fa5115facc50372ca82870afc6776fea78",
+      "kind": "documentation"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/cloudflared.example.yml",
+      "bytes": 874,
+      "sha256": "66940d82895b3f8d785332b08b465e7db788d5667bbc71d8d8381199a9fab75b",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/compose.access.yaml",
+      "bytes": 705,
+      "sha256": "38c43d7b864b11818f46b4755e89bf6d2ca685cdfee47a97da334ed3e9c2d2a5",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/compose.yaml",
+      "bytes": 7019,
+      "sha256": "8324edf6707b9ac2bc05fc7d208af9d1fde746dbacb46136175c4a6ceff47821",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/portal-nginx-main.conf",
+      "bytes": 507,
+      "sha256": "9e053b47c57d91ac252e59f2018262a794ca4e0b356a82f5806bc6873cbefe84",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/phase6/readonly-inventory.py",
+      "bytes": 3053,
+      "sha256": "4c8bf9adfdd9c46374f6f9bf3f59d65770e1cece09b14970914a725b0ee794b3",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/deploy/staging/Dockerfile.php",
+      "bytes": 1844,
+      "sha256": "8d985f058332ca37123a12b3bef9b00c7e2e0a24bfd8c3eb8135638a0fb2a563",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/resources/views/performance-admin/private-read.blade.php",
+      "bytes": 1933,
+      "sha256": "834c7094760b4d3c7dc2e2cbad79f70417a30429331ffa4530ccaa900f3b14ca",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/resources/views/performance-admin/private-select.blade.php",
+      "bytes": 1311,
+      "sha256": "37920416aa4879181bfef9d7e6098217cef385ddd8dffa6d2798987d07d93852",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/resources/views/portal-admin/home.blade.php",
+      "bytes": 1345,
+      "sha256": "6e2dd5b43f4910f056fe9706ee5efd0bd7bbe411f1d08b50c3264d18de13dd63",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/tests/Feature/IntegratedProductAuthorityTest.php",
+      "bytes": 7978,
+      "sha256": "d38a1731f8f37d621beca9bebfa8faae620483b68a47667a0da27865837ca4f2",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/phase6/materials.py",
+      "bytes": 3760,
+      "sha256": "536abc3001f713255d3daf80503d5996d32514a6d9c2c265d5fb4715c3a3aee4",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/phase6/smoke.sh",
+      "bytes": 3679,
+      "sha256": "8eef99cdcf87a40775ec7dbfe7c071494df3261f6765f5da00f583c799a61cf6",
+      "kind": "code_or_config"
+    },
+    {
+      "path": "apps/portal/tests/Unit/PerformanceSecurityEventsTest.php",
+      "bytes": 849,
+      "sha256": "0b73004ffbb334e1847fe16dcf71042394a649663523e7739773471c55c9a0d2",
+      "kind": "code_or_config"
+    }
+  ]
+}
