@@ -14,7 +14,7 @@ return [
     'synthetic_only'=>true,
     'enabled'=>env('PERFORMANCE_ADMIN_LAB_ENABLED',false),
     'engine_root'=>env('PERFORMANCE_ADMIN_LAB_ENGINE_ROOT',''),
-    'engine_sha'=>'3b2b9a56befb56cca6e57b95eb0de2ccb9b5f5cb',
+    'engine_sha'=>'696ce3fe4d4023855b62af140017b051d491820f',
     'engine_hash'=>'a34c64c1cf47f6778c3b55e561a6bf3ae00650423d3d0ed5e838793ed7eb11dc',
     'finance_hash'=>'4140213bb138e5e02b0ec2e6182ff4e0bbf79013c262a6ada61b97afaac1cb66',
 ];
