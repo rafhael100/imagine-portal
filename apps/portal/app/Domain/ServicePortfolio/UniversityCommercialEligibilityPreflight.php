@@ -1,0 +1,156 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\ServicePortfolio;
+
+use App\Domain\Organizations\OrganizationId;
+use Throwable;
+
+/**
+ * Future four-source reconciliation: current contracts, independent
+ * revocation, approved commercial SKU policy and current coverage period.
+ *
+ * ALL sources are deliberately unavailable by default. Even a successful
+ * synthetic comparison is NOT authorization, active payment evidence, SSO,
+ * a Portal session or permission to serve any customer.
+ */
+final readonly class UniversityCommercialEligibilityPreflight
+{
+    public function __construct(
+        private UniversityContractAuthority $contracts = new UnavailableUniversityContractAuthority(),
+        private UniversityServiceRevisionAuthority $revisions = new UnavailableUniversityServiceRevisionAuthority(),
+        private UniversityCommercialPolicyAuthority $policies = new UnavailableUniversityCommercialPolicyAuthority(),
+        private UniversityServiceCoverageAuthority $coverage = new UnavailableUniversityServiceCoverageAuthority(),
+    ) {
+    }
+
+    public function inspect(
+        ?OrganizationId $organization,
+        int $nowEpoch,
+    ): UniversityCommercialEligibilityResult {
+        if ($organization === null || $nowEpoch <= 0) {
+            return UniversityCommercialEligibilityResult::blocked('invalid_context');
+        }
+
+        // University schema has max 80 bytes, while generic Portal IDs can
+        // be longer. NEVER truncate or map tenant identifiers implicitly.
+        if (strlen($organization->value) > 80) {
+            return UniversityCommercialEligibilityResult::blocked('unsupported_tenant_identifier');
+        }
+
+        try {
+            $records = $this->contracts->currentFor($organization);
+            $revisions = $this->revisions->currentFor($organization);
+            $policy = $this->policies->currentFor($organization);
+            $coverage = $this->coverage->currentFor($organization);
+        } catch (Throwable) {
+            return UniversityCommercialEligibilityResult::blocked('source_unavailable');
+        }
+
+        if ($records === null || $revisions === null || $policy === null || $coverage === null) {
+            return UniversityCommercialEligibilityResult::blocked('source_unavailable');
+        }
+
+        if (!is_array($records) || !array_is_list($records) || count($records) > 50
+            || !is_array($coverage) || !array_is_list($coverage) || count($coverage) > 50
+        ) {
+            return UniversityCommercialEligibilityResult::blocked('invalid_source');
+        }
+
+        if ($policy->observedAtEpoch > $nowEpoch
+            || $policy->observedAtEpoch < $nowEpoch - 60
+            || $policy->expiresAtEpoch <= $nowEpoch
+            || $policy->expiresAtEpoch > $nowEpoch + 60
+            || $policy->effectiveFromEpoch > $nowEpoch
+            || $policy->effectiveUntilEpoch <= $nowEpoch
+        ) {
+            return UniversityCommercialEligibilityResult::blocked('stale_or_inactive_policy');
+        }
+
+        // Preserve read-once semantics: original providers must not be
+        // queried again after acquiring contract and revocation snapshots.
+        $contracts = new class($records) implements UniversityContractAuthority {
+            public function __construct(private array $records)
+            {
+            }
+
+            public function currentFor(OrganizationId $organization): ?array
+            {
+                return $this->records;
+            }
+        };
+        $revocation = new class($revisions) implements UniversityServiceRevisionAuthority {
+            public function __construct(private UniversityServiceRevisionSnapshot $snapshot)
+            {
+            }
+
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot
+            {
+                return $this->snapshot;
+            }
+        };
+
+        $base = (new UniversityRevocationPreflight($contracts, $revocation))
+            ->inspect($organization, $nowEpoch);
+        if ($base->reason !== 'candidate_pending_authority') {
+            return UniversityCommercialEligibilityResult::blocked('contract_'.$base->reason);
+        }
+
+        $active = [];
+        foreach ($records as $record) {
+            if (!$record instanceof UniversityContractSnapshot) {
+                return UniversityCommercialEligibilityResult::blocked('invalid_contract_source');
+            }
+            if ($record->isQualifyingCandidate()) {
+                $active[$record->serviceReference] = $record;
+            }
+        }
+
+        $seen = [];
+        foreach ($coverage as $item) {
+            if (!$item instanceof UniversityServiceCoverageSnapshot) {
+                return UniversityCommercialEligibilityResult::blocked('invalid_coverage_source');
+            }
+
+            if (!$item->organizationId->equals($organization)) {
+                return UniversityCommercialEligibilityResult::blocked('wrong_coverage_tenant');
+            }
+
+            if (isset($seen[$item->serviceReference])
+                || !isset($active[$item->serviceReference])) {
+                return UniversityCommercialEligibilityResult::blocked('duplicate_or_extra_coverage');
+            }
+            $seen[$item->serviceReference] = true;
+            $contract = $active[$item->serviceReference];
+
+            if ($item->product !== $contract->product
+                || $item->contractRevision !== $contract->sourceRevision
+                || $item->policyRevision !== $policy->revision
+            ) {
+                return UniversityCommercialEligibilityResult::blocked('contract_policy_revision_mismatch');
+            }
+
+            if ($item->observedAtEpoch > $nowEpoch
+                || $item->observedAtEpoch < $nowEpoch - 60
+                || $item->expiresAtEpoch <= $nowEpoch
+                || $item->expiresAtEpoch > $nowEpoch + 60
+                || $item->effectiveFromEpoch > $nowEpoch
+                || $item->effectiveUntilEpoch <= $nowEpoch
+            ) {
+                return UniversityCommercialEligibilityResult::blocked('stale_or_expired_coverage');
+            }
+
+            if (!$policy->includes($item->product, $item->planSku)) {
+                return UniversityCommercialEligibilityResult::blocked('sku_not_approved');
+            }
+        }
+
+        if (count($seen) !== count($active)
+            || $base->candidateCount !== count($active)) {
+            return UniversityCommercialEligibilityResult::blocked('missing_active_service_coverage');
+        }
+
+        return UniversityCommercialEligibilityResult::inspected(count($active));
+    }
+}
