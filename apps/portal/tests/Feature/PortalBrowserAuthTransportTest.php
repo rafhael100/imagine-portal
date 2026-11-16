@@ -112,6 +112,80 @@ final class PortalBrowserAuthTransportTest extends TestCase
         return $adapter;
     }
 
+    /**
+     * F353 follow-up: transport evidence only. The existing identity double is
+     * NOT PostgreSQL identity/MFA evidence. Quote runs in this test process,
+     * never behind a newly invented route or business permission.
+     */
+    public function test_composite_quote_slice_session_and_recalculation_do_not_grant_business_access(): void
+    {
+        $this->loginWithMfa();
+        $this->request('GET', 'session')->assertOk()
+            ->assertExactJson(['authenticated' => true]);
+
+        // One existing anonymous Comercial #442 fixture, not the 48-choice suite.
+        // Source SHA: 78c74b646cc9cf494464ba5aa85f198be1f0efef.
+        $quote = (new \App\Homologation\Commerce\CompositeQuotePreview())->quote([
+            'site' => 'onepage', 'channels' => ['google_ads', 'meta_ads'], 'tier' => 'minimum',
+        ]);
+        self::assertSame(99000, $quote['site_setup_cents']);
+        self::assertSame(98000, $quote['advertising_activation_cents']);
+        self::assertSame(197000, $quote['setup_activation_total_cents']);
+        self::assertSame([65666, 65666, 65668], $quote['illustrative_three_parts_cents']);
+        self::assertSame(7990, $quote['site_monthly_cents']);
+        self::assertSame(90, $quote['site_monthly_first_due_offset_days']);
+        self::assertSame(170000, $quote['media_paid_directly_to_platforms_cents']);
+        self::assertSame(37000, $quote['management_estimate_postpaid_cents']);
+        self::assertSame((new \App\Homologation\Commerce\ApprovedOfferCatalog())->version(), $quote['catalog_version']);
+        foreach (['public_checkout_authorized', 'real_charge_enabled', 'contract_accepted',
+            'customer_or_tenant_data_captured', 'payment_schedule_created'] as $flag) {
+            self::assertFalse($quote[$flag]);
+        }
+
+        // Preserve the actual binding: even a transport-authenticated session
+        // is not business authority for its configured organization or another.
+        $boundary = $this->app->make(\App\Domain\PortalAccess\Authority\PortalAuthorityBoundary::class);
+        foreach ([self::ORG, '44444444-4444-4444-8444-444444444444'] as $org) {
+            $verdict = $boundary->inspect(str_repeat('b', 64),
+                new \App\Domain\Organizations\OrganizationId($org),
+                'synthetic-quote-review-only', 'services.view', 1_700_000_000);
+            self::assertFalse($verdict->syntheticChecksPass);
+            self::assertFalse($verdict->canAuthorizeHttp());
+        }
+        // No quote handler was registered, even within this test harness.
+        foreach ($this->app['router']->getRoutes() as $route) {
+            self::assertContains($route->uri(), ['up', '__auth-test/csrf', '__auth-test/password',
+                '__auth-test/mfa', '__auth-test/session', '__auth-test/logout']);
+        }
+    }
+
+    public function test_composite_quote_slice_missing_or_incomplete_mfa_is_visible_as_denial(): void
+    {
+        $this->adapter();
+        $this->request('GET', 'session')->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+        $this->request('POST', 'password', $this->credentials(), $this->csrf())->assertStatus(202);
+        $this->request('GET', 'session')->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+        $this->request('POST', 'mfa', ['code' => '000000'], $this->csrf())->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+        $this->request('GET', 'session')->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+    }
+
+    public function test_composite_quote_slice_other_company_is_refused_before_identity_lookup(): void
+    {
+        $adapter = $this->adapter();
+        $this->request('POST', 'password', $this->credentials([
+            'organization' => '44444444-4444-4444-8444-444444444444',
+        ]), $this->csrf())->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+        self::assertSame(0, $adapter->passwordCalls);
+        self::assertSame(0, $adapter->mfaCalls);
+        $this->request('GET', 'session')->assertUnauthorized()
+            ->assertExactJson(['error' => 'authentication_failed']);
+    }
+
     public function test_default_adapter_never_authenticates_or_attests_revocation(): void
     {
         $adapter = $this->app->make(PortalBrowserAuthentication::class);
