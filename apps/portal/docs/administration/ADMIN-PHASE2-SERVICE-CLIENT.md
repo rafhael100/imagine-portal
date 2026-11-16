@@ -1,0 +1,7 @@
+# Cliente candidato de leitura S2S
+
+Branch separada sobre a candidata integrada. Mantém o adaptador de laboratório existente. Não há rota pública nem substituição automática do motor local. service_review_enabled=false é imutável por ambiente; habilitação operacional depende de nova revisão de código e infraestrutura.
+
+Cliente usa contrato do Performance414 pinado por SHA e SHA256. Credencial é resolvida por callback do servidor, incluindo issuer/key id, expiração, empresas e operações. Nunca recebe Request/session/cookie/token humano. Corpo tem schema fechado (period/resource/page), envelope HMAC versionado, nonce novo por tentativa e idempotência estável. HTTPS obrigatório, validação de certificado ativa, redirects proibidos, connect2s/read5s, no máximo duas tentativas para timeout/5xx. Resposta valida escopo/correlação e só admite synthetic/unavailable, nenhuma cobrança ou operação externa. Logs do callback contêm apenas código finito e correlação.
+
+Testes HTTP fake verificam assinatura/escopo do contrato, retry e ausência de credenciais humanas. Isso NÃO comprova identidade remota/TLS operacional nem comunicação entre VPSs. O inbox PostgreSQL de Performance414 foi testado separadamente em CI, com runtime restrito, replay, idempotência, lock timeout e restauração cifrada. Falta hospedar um receiver privado aprovado, conectar resolvedores operacionais e testar ambos ponta a ponta em staging autorizado. Sem Google/Meta/ChatGPT Ads ou gateways externos habilitados.
