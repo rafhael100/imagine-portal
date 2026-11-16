@@ -21,6 +21,7 @@ jobs:
       CI: 'true'
       ADMIN_PHASE5_CI: '1'
       P20_AUTHORITY_PG_CI: '1'
+      AUTOMATION_ADMIN_PG_CI: '1'
       IMAGINE_AUTOMATION_ADMIN_ENABLED: 'true'
       IMAGINE_AUTOMATION_ADMIN_MODE: isolated_ci
       AUTOMATION_AUTHORITY_DB_USERNAME: portal_automation_runtime
