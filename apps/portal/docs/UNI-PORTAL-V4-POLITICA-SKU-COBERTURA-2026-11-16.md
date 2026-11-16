@@ -45,3 +45,15 @@ Os testes incluem um serviço ativo com cobertura, dois serviços com cancelamen
 - [Universidade PR #81](https://github.com/rafhael100/imagine-universidade/pull/81): consumidora com 10 fluxos de escrita e provider `UnavailablePortalAuthority` (deny-all).
 
 **Decisão atual: HOLD / NO-GO.** Não alterar `OrganizationAuthorizationService`, migrações reais, perfis dos clientes, pagamento ou SSO para reconhecer essas candidatas como autorização.
+
+
+## V4.1 — latência total, tempo final e interoperabilidade (16/11/2026)
+- A leitura das quatro autoridades tem orçamento conjunto padrão de **1.500 ms** (faixa validada 1–5.000 ms). Ultrapassar o limite retorna `source_read_timeout` e **zero candidatos**. É um limite pós-resposta de domínio; não substitui os *network timeouts* de cada fornecedor futuro.
+- Após ler as quatro fontes, a reconciliação usa um timestamp de fim de leitura conservador: o tempo monotônico transcorrido é arredondado para cima em segundos, evitando aceitar contrato, revisão, política ou cobertura que expirem nesse intervalo.
+- Casos negativos próprios: expiração durante a leitura, timeout artificial na quarta fonte, indisponibilidade independente das quatro fontes e orçamento inválido.
+- `UniversityInteropIdentifiers` centraliza contrato entre schemas: **80 bytes para `OrganizationId`** e **120 bytes para `PortalUserId`**, embora o Portal genérico aceite até 128 em ambos. IDs mais longos não podem ser truncados, remapeados, hasheados ou aceitos como alias. **Compatibilidade de formato não comprova SSO nem identidade confiável**.
+- O preflight V4 usa a validação da organização; a validação de sujeito só poderá ser aplicada por um futuro emissor autenticado, ainda **não existente**. Nenhuma fonte ou issuer fica vinculado no `AppServiceProvider`.
+- Revalidação do consumidor: Universidade [PR #81](https://github.com/rafhael100/imagine-universidade/pull/81) impõe limite próprio de **1.500 ms** na autoridade Portal e checa expiração no fim da chamada. O procedimento real de sessão/credenciais permanece bloqueado.
+- QA: [Portal Laravel PHP 8.3/8.4 #43870685792](https://github.com/rafhael100/imagine-portal/actions/runs/43870685792) **success**, 664 testes e 10.161 asserções por versão; [Portal F64 privado #43870686138](https://github.com/rafhael100/imagine-portal/actions/runs/43870686138) **success**. Isso não é evidência de fonte comercial, autenticação operacional ou VPS real.
+
+**V4.1 continua DRAFT / NO-GO**, dependente do owner de contrato, política de SKU aprovada, identidade empresarial, revogação autenticamente atual, AppSec/DBA/LGPD e homologação de produção.
