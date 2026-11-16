@@ -150,6 +150,13 @@ jobs:
             https://localhost:18088/portal-admin/login)"
           test "$status" = '404'
           docker compose --env-file .env.staging exec -T web nginx -t
+          docker compose --env-file .env.staging exec -T app php -r '
+            if (getenv("PORTAL_STAGING_DB_OWNER_PASSWORD") !== false || getenv("POSTGRES_PASSWORD") !== false) exit(1);
+            if (preg_match("/^\\S+\\s+00000000\\s+/m", file_get_contents("/proc/net/route"))) exit(2);
+            echo "Runtime excludes owner secrets and has no default IPv4 egress route.\n";
+          '
+          test "$(docker network inspect imagine-portal-staging_portal_front --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-portal-staging_portal_database --format '{{.Internal}}')" = true
       - name: Authenticate nominal synthetic reviewer in actual staging runtime
         run: |
           set -euo pipefail

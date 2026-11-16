@@ -97,7 +97,8 @@ services:
     restart: unless-stopped
 
 networks:
-  portal_front: {}
+  portal_front:
+    internal: true
   portal_database:
     internal: true
 
