@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Domain\Organizations\OrganizationId;
 use App\Domain\ServicePortfolio\PortfolioProduct;
+use App\Domain\ServicePortfolio\UniversityCoverageBasis;
 use App\Domain\ServicePortfolio\UniversityCommercialEligibilityPreflight;
 use App\Domain\ServicePortfolio\UniversityCommercialPolicyAuthority;
 use App\Domain\ServicePortfolio\UniversityCommercialPolicySnapshot;
@@ -78,6 +79,7 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
             $reference, $organization ?? $this->org(), PortfolioProduct::Onepage,
             $sku, $contractRevision, $policyRevision,
             $from, $until, self::NOW - 5, self::NOW + 30,
+            UniversityCoverageBasis::RecurringContractWindow,
         );
     }
 
