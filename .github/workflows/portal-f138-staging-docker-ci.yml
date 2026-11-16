@@ -131,21 +131,21 @@ jobs:
           set +a
           docker compose --env-file .env.staging up -d app web
           for attempt in $(seq 1 20); do
-            status="$(curl --cacert ci-cert.pem --silent --output /dev/null --write-out '%{http_code}' https://localhost:18088/up || true)"
+            status="$(curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --silent --output /dev/null --write-out '%{http_code}' https://localhost:18088/up || true)"
             if test "$status" = '401'; then break; fi
             sleep 2
           done
           test "$status" = '401' 
           for attempt in $(seq 1 20); do
-            if curl --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
+            if curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
                  https://localhost:18088/up >/dev/null 2>&1; then
               break
             fi
             sleep 2
           done
-          curl --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
+          curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --fail --silent --show-error \
             https://localhost:18088/up >/dev/null
-          status="$(curl --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --silent --output /dev/null \
+          status="$(curl --connect-timeout 2 --max-time 5 --cacert ci-cert.pem --user "ci-operator:$CI_ACCESS_PASSWORD" --silent --output /dev/null \
             --write-out '%{http_code}' \
             https://localhost:18088/portal-admin/login)"
           test "$status" = '404'
