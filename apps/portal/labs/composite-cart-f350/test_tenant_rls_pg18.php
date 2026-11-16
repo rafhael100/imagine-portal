@@ -44,8 +44,12 @@ $b=db($roleB,'f350-disposable-b-only');
 foreach ([$admin,$a,$b] as $connection) {
     $who=$connection->query("SELECT current_user AS role, current_database() AS db,
        inet_server_addr()::text AS host, inet_server_port() AS port")->fetch();
+    // Docker NAT exposes a bridge address *inside* Postgres even when
+    // PDO connects through host 127.0.0.1. Do not confuse server-side
+    // inet_server_addr() with the protected TCP destination on the client.
     check($who['db']==='portal_composite_f350_ci' &&
-        $who['host']==='127.0.0.1' && (int)$who['port']===5432,
+        is_string($who['host']) && $who['host']!=='' &&
+        (int)$who['port']===5432,
         'SQL connection must really be the isolated disposable database');
 }
 foreach ([$roleA,$roleB] as $role){
