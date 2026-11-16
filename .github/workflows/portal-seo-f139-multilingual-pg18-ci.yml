@@ -73,7 +73,7 @@ jobs:
         with:
           node-version: '22'
       - name: PHP ${{ matrix.php }}, sodium and PDO PostgreSQL
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: sodium, pdo, pdo_pgsql, mbstring, dom, xml, fileinfo, zip

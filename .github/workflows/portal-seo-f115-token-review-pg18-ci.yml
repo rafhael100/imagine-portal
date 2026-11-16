@@ -70,7 +70,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up PHP and PostgreSQL extension
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo, pdo_pgsql, sodium, mbstring, dom, xml, fileinfo, zip

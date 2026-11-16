@@ -36,12 +36,12 @@ jobs:
         shell: bash
     steps:
       - name: Checkout isolado
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: PHP e extensoes para teste
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
         with:
           php-version: ${{ matrix.php }}
           coverage: none
@@ -86,7 +86,7 @@ jobs:
 
       - name: Arquivar copia de evidencia do lock versionado
         if: matrix.php == '8.3' && always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: composer-lock-f1-01-a-php83
           path: apps/portal/composer.lock
