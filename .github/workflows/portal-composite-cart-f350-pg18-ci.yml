@@ -62,7 +62,7 @@ jobs:
           # inet_server_addr() inside the container to report its bridge IP.
           test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT inet_server_port()')" = 5432
           test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')" = postgres
-          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_setting(''server_version_num'')::int >= 180000')" = t
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT current_setting('server_version_num')::int >= 180000")" = t
       - name: Create ONLY least-privileged synthetic reader roles
         run: |
           set -euo pipefail
