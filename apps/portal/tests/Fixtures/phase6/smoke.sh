@@ -15,7 +15,17 @@ docker build -t "$P6_PORTAL_IMAGE" --build-context performance_engine=./engine -
 docker build -t "$P6_PORTAL_WEB_IMAGE" -f apps/portal/deploy/staging/Dockerfile.nginx apps/portal >/dev/null
 docker build -t "$P6_RECEIVER_IMAGE" --build-arg PHP_IMAGE=php:8.4-fpm-bookworm -f engine/deploy/private-admin/Dockerfile engine >/dev/null
 base=(docker compose -p imagine-performance-p6-ci -f apps/portal/deploy/phase6/compose.yaml)
-trap '"${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true; sudo rm -rf "$P6_CI_MATERIAL"' EXIT
+cleanup(){
+ result=$?
+ if [[ $result != 0 ]]; then
+  "${base[@]}" ps -a || true
+  "${base[@]}" logs --tail 15 portal-db performance-db portal receiver portal-web performance-web || true
+ fi
+ "${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+ sudo rm -rf "$P6_CI_MATERIAL"
+ exit "$result"
+}
+trap cleanup EXIT
 "${base[@]}" up -d --wait portal-db performance-db
 "${base[@]}" up -d portal portal-web receiver performance-web
 for attempt in $(seq 1 30); do

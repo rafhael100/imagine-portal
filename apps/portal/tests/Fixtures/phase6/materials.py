@@ -16,7 +16,7 @@ def write(dir,name,data,uid,public=False):
 def copy(dir,name,source,uid,public=False):write(dir,name,(p/source).read_bytes(),uid,public)
 for d,host in [('portal-pg','portal-db'),('performance-pg','performance-db')]:
  write(d,'bootstrap_password',secrets.token_hex(32),999);copy(d,'server.pem',host+'.pem',999,True);copy(d,'server.key',host+'.key',999)
- write(d,'pg_hba.conf','local all all peer\nhostssl all all 0.0.0.0/0 scram-sha-256\n',999,True)
+ write(d,'pg_hba.conf','local all all scram-sha-256\nhostssl all all 0.0.0.0/0 scram-sha-256\n',999,True)
 for n in ['portal_db_password','portal_authority_password']:write('portal-secrets',n,secrets.token_hex(32),33)
 write('portal-secrets','portal_app_key','base64:'+base64.b64encode(secrets.token_bytes(32)).decode(),33)
 write('portal-secrets','portal_service_identity','{}',33)
