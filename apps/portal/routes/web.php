@@ -62,3 +62,9 @@ if(config('portal_admin.enabled')===true && \App\Domain\PerformanceAdministratio
             Route::get('/{module?}',[\App\Http\Controllers\PerformanceAdminController::class,'index'])->name('index');
         });
 }
+
+// Central P0: administrative ownership metadata only, dark by default, no tenant data/effect.
+if(config('portal_admin.enabled')===true && \App\Domain\AutomationAdministration\AutomationPolicyCatalog::available()){
+ Route::get('/portal-admin/automations',[\App\Http\Controllers\AutomationAdminController::class,'index'])
+  ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('automation-admin.index');
+}
