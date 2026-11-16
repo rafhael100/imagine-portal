@@ -60,6 +60,11 @@ final readonly class AsaasVerifiedSettlementSource implements PortalCurrentSettl
             if ($actualCents===null || $actualCents!==$bind->amountCents) {
                 return null;
             }
+            // A network read may outlive a local binding/grant. Re-read the native
+            // source and match the exact immutable snapshot immediately before proof.
+            $fresh=$this->bindings->findInstallationPayment($orderRef);
+            if(!$fresh instanceof AsaasTrustedPaymentBinding ||
+                get_object_vars($fresh)!==get_object_vars($bind))return null;
             $receipt=[
                 'schema'=>'imagine.asaas.installation-settlement.v1',
                 'provider'=>'asaas',
