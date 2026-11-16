@@ -74,12 +74,13 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         int $from = self::NOW - 3600,
         int $until = self::NOW + 3600,
         ?OrganizationId $organization = null,
+        UniversityCoverageBasis $basis = UniversityCoverageBasis::RecurringContractWindow,
     ): UniversityServiceCoverageSnapshot {
         return new UniversityServiceCoverageSnapshot(
             $reference, $organization ?? $this->org(), PortfolioProduct::Onepage,
             $sku, $contractRevision, $policyRevision,
             $from, $until, self::NOW - 5, self::NOW + 30,
-            UniversityCoverageBasis::RecurringContractWindow,
+            $basis,
         );
     }
 
@@ -137,6 +138,51 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         self::assertFalse($candidate->provesPaidContract());
         self::assertFalse($policy->mayAuthorizeUniversity());
         self::assertFalse($this->coverage()->mayAuthorizeUniversity());
+    }
+
+    public function test_installation_webhook_and_unverified_coverage_never_count_as_active_service(): void
+    {
+        foreach ([
+            UniversityCoverageBasis::Unverified,
+            UniversityCoverageBasis::InstallationPaymentOnly,
+            UniversityCoverageBasis::WebhookEventOnly,
+        ] as $basis) {
+            $decision = $this->inspect(
+                [$this->contract()], $this->revisions(), $this->policy(),
+                [$this->coverage(basis: $basis)],
+            );
+
+            self::assertSame('coverage_not_authoritative', $decision->reason, $basis->value);
+            self::assertSame(0, $decision->candidateCount);
+            self::assertFalse($decision->mayIssuePortalGrant());
+        }
+
+        // A legacy data object that did not classify its evidence remains
+        // unverified. A new field must not silently upgrade historical rows.
+        $legacy = new UniversityServiceCoverageSnapshot(
+            'svc-onepage-a', $this->org(), PortfolioProduct::Onepage,
+            'sku-onepage-monthly', 3, 7, self::NOW - 3600,
+            self::NOW + 3600, self::NOW - 5, self::NOW + 30,
+        );
+        self::assertSame(UniversityCoverageBasis::Unverified, $legacy->basis);
+        self::assertSame('coverage_not_authoritative', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(), [$legacy],
+        )->reason);
+    }
+
+    public function test_approved_first_cycle_grace_is_only_a_non_authorizing_candidate(): void
+    {
+        // Services can have a formally approved initial grace period; no
+        // recurring payment is implied. Actual eligibility needs the owner
+        // approved commercial policy and independently current contract.
+        $decision = $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(basis: UniversityCoverageBasis::ApprovedGraceWindow)],
+        );
+        self::assertSame('candidate_pending_official_authority', $decision->reason);
+        self::assertSame(1, $decision->candidateCount);
+        self::assertFalse($decision->mayIssuePortalGrant());
+        self::assertFalse($decision->provesPaidContract());
     }
 
     public function test_unapproved_sku_and_missing_plan_fail_closed(): void
