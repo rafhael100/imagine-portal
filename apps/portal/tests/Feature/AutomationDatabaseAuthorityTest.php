@@ -43,6 +43,19 @@ final class AutomationDatabaseAuthorityTest extends TestCase
   $this->grant();$this->post('/portal-admin/login',['email'=>$this->email,'password'=>'SyntheticP20#Password']);
   $this->assertFalse($this->check());
  }
+ public function test_reader_without_mfa_denies_before_calling_the_source():void {
+  $this->grant();
+  $this->post('/portal-admin/login',['email'=>$this->email,'password'=>'SyntheticP20#Password'])->assertRedirect('/portal-admin/mfa');
+  $calls=0;$authority=new DatabaseAutomationAuthority;
+  $reader=new AutomationStateReader(function($company)use(&$calls){$calls++;return $this->state($company);},fn($actor,$company)=>$authority->allows($actor,$company));
+  try {
+   $reader->read($this->actor,self::COMPANY);
+   $this->fail('Reader must deny access without MFA');
+  } catch(\RuntimeException $exception) {
+   $this->assertSame('AUTOMATION_READ_DENIED',$exception->getMessage());
+  }
+  $this->assertSame(0,$calls);
+ }
  public function test_nominal_mfa_and_specific_persisted_grant_are_required():void {
   $this->login();$this->assertFalse($this->check());$this->grant();$this->assertTrue($this->check());
   $this->assertFalse($this->check('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'));
