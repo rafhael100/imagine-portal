@@ -1,0 +1,95 @@
+name: Portal SEO F106 - pinned Node/PHP funnel contract (offline)
+
+on:
+  pull_request:
+    branches:
+      - review/portal-seo-f104-date-bridge-lab-2026-11-14
+    paths:
+      - '.github/workflows/portal-seo-f106-funnel-ci.yml'
+      - 'apps/portal/app/Domain/SeoReview/OfflineSeoFunnelPreview.php'
+      - 'apps/portal/labs/gsc-f106-funnel/**'
+
+permissions:
+  contents: read
+
+jobs:
+  cross-repo-funnel-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout exact SEO F106 reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 7a072c01c3cbf48e69f99a7273081c20d49390d1
+          path: .qa/seo-f106
+          persist-credentials: false
+      - name: Set up pinned Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify immutable source and only controlled Portal files
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C .qa/seo-f106 rev-parse HEAD)" = 7a072c01c3cbf48e69f99a7273081c20d49390d1
+          test -z "$(git -C .qa/seo-f106 status --porcelain --untracked-files=no)"
+          git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/portal-seo-f106-paths"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const files=readFileSync(process.env.RUNNER_TEMP+"/portal-seo-f106-paths","utf8").split("\0").filter(Boolean);
+            const allow=new Set([
+              ".github/workflows/portal-seo-f106-funnel-ci.yml",
+              "apps/portal/app/Domain/SeoReview/OfflineSeoFunnelPreview.php",
+              "apps/portal/labs/gsc-f106-funnel/emit-node.mjs",
+              "apps/portal/labs/gsc-f106-funnel/test-php.php",
+              "apps/portal/labs/gsc-f106-funnel/README.md"
+            ]);
+            if(files.length<4||files.length>allow.size||files.some(f=>!allow.has(f)))
+              throw Error("F106 Portal: unexpected changed paths");
+            console.log("Portal F106 review scope:",files.length,"allowed files");
+          '
+      - name: Run original SEO Engine offline tests
+        run: npm --prefix .qa/seo-f106 test
+      - name: Lint PHP and Node boundary contracts
+        run: |
+          set -euo pipefail
+          php -v
+          php -l apps/portal/app/Domain/SeoReview/OfflineSeoFunnelPreview.php
+          php -l apps/portal/labs/gsc-f106-funnel/test-php.php
+          node --check apps/portal/labs/gsc-f106-funnel/emit-node.mjs
+      - name: Validate original SEO Engine DTO with PHP in test-only mode
+        shell: bash
+        env:
+          APP_ENV: testing
+          PORTAL_SEO_F106_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture="$(mktemp)"
+          trap 'rm -f "$fixture"' EXIT
+          for scenario in complete partial zero; do
+            node apps/portal/labs/gsc-f106-funnel/emit-node.mjs "$scenario" > "$fixture"
+            php apps/portal/labs/gsc-f106-funnel/test-php.php "$fixture" "$scenario"
+          done
+      - name: Reject tracked mutations
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f106 status --porcelain --untracked-files=no)"

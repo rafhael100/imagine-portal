@@ -1,0 +1,119 @@
+name: Portal SEO F139 - signed multilingual v2 PG18 once and tenant RLS
+
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoPgMultilingualEvidenceOnceLab.php'
+      - 'apps/portal/labs/seo-f139-multilingual-pg18/**'
+      - 'apps/portal/docs/PORTAL-SEO-F139-V2-PG18-ONCE.md'
+      - '.github/workflows/portal-seo-f139-multilingual-pg18-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-v2-pg18:
+    name: Engine v2 to PostgreSQL 18 / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f108-ci-postgres-only
+          POSTGRES_DB: portal_gsc_f108_ci
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_gsc_f108_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      SEO_F126_SIGNER_LAB: '1'
+      PORTAL_SEO_F138_LAB: '1'
+      PORTAL_SEO_F139_PG_CI: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_gsc_f108_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: f108-ci-postgres-only
+      POSTGRES_PASSWORD: f108-ci-postgres-only
+      F139_ROLE_PASSWORD: f139-ci-role-only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout immutable Engine F126 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 38b80fe77bd74ea6e19b8751014038ac3b9f8400
+          path: .qa/seo-f138
+          persist-credentials: false
+      - name: Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: PHP ${{ matrix.php }}, sodium and PDO PostgreSQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium, pdo, pdo_pgsql, mbstring, dom, xml, fileinfo, zip
+          tools: composer:v2
+          coverage: none
+      - name: Verify immutable Engine and source syntax
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f138 rev-parse HEAD)" = 38b80fe77bd74ea6e19b8751014038ac3b9f8400
+          node --check apps/portal/labs/seo-f138-signed-multilingual/emit-from-engine.mjs
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedMultilingualV2Lab.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoPgMultilingualEvidenceOnceLab.php
+          php -l apps/portal/labs/seo-f139-multilingual-pg18/verify-v2-once.php
+          php -r 'if(!extension_loaded("sodium"))exit(1);'
+      - name: Install locked Laravel dependencies
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+      - name: Initialize disposable PG18 with migrations and FORCE tenant RLS
+        working-directory: apps/portal
+        run: php artisan migrate --force --no-interaction
+      - name: Engine signs actual local HTML; Portal verifies and PG18 consumes once
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for case in valid blocked other-tenant expired wrong-key tampered bad-flags wrong-contract; do
+            node apps/portal/labs/seo-f138-signed-multilingual/emit-from-engine.mjs \
+              "$case" "$tmp/$case-envelope.json" "$tmp/$case-public.key"
+          done
+          node apps/portal/labs/seo-f138-signed-multilingual/emit-from-engine.mjs \
+            valid "$tmp/concurrent-envelope.json" "$tmp/concurrent-public.key"
+          php apps/portal/labs/seo-f139-multilingual-pg18/verify-v2-once.php "$tmp"
+      - name: No tracked source mutations
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f138 status --porcelain --untracked-files=no)"

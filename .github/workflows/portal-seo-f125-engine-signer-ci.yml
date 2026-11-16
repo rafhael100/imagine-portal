@@ -1,0 +1,83 @@
+name: Portal SEO F125 - Engine-owned signed build evidence interop
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-seo-f125-engine-signer-ci.yml'
+      - 'apps/portal/labs/seo-f125-engine-signer/**'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php'
+      - 'apps/portal/app/Domain/SeoReview/PortalSeoStaticBuildReadinessLab.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-owned-signature:
+    name: Engine F121 signs -> Portal F122 verifies / PHP ${{ matrix.php }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      SEO_F121_SIGNER_LAB: '1'
+      PORTAL_SEO_F118_LAB: '1'
+      PORTAL_SEO_F122_LAB: '1'
+      PORTAL_SEO_F125_LAB: '1'
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout exact Engine F121
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: rafhael100/imagine-seo-engine
+          ref: 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          path: .qa/seo-f125
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: PHP ${{ matrix.php }} with sodium
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+      - name: Validate immutable signer and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .qa/seo-f125 rev-parse HEAD)" = 3c75b8e7b64f4173a17f4daab45cea1b8bdc5554
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
+          node --check apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs
+          node --check .qa/seo-f125/src/seo-signed-build-evidence.mjs
+          php -l apps/portal/labs/seo-f125-engine-signer/verify-portal.php
+          php -l apps/portal/app/Domain/SeoReview/PortalSeoSignedBuildEvidenceLab.php
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+      - name: Audit, sign with Engine and verify in PHP (7 scenarios)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for mode in valid private-preview wrong-locale tampered wrong-key other-tenant expired; do
+            node apps/portal/labs/seo-f125-engine-signer/emit-from-engine.mjs \
+              "$mode" "$tmp/$mode-envelope.json" "$tmp/$mode-public-key" > /dev/null
+            php apps/portal/labs/seo-f125-engine-signer/verify-portal.php \
+              "$tmp/$mode-envelope.json" "$tmp/$mode-public-key" "$mode"
+          done
+      - name: No mutation of tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/seo-f125 status --porcelain --untracked-files=no)"
