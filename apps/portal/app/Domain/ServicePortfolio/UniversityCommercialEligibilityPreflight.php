@@ -179,6 +179,14 @@ final readonly class UniversityCommercialEligibilityPreflight
             if (!$policy->includes($item->product, $item->planSku)) {
                 return UniversityCommercialEligibilityResult::blocked('sku_not_approved');
             }
+
+            // Even within an eligible service SKU, first-cycle grace must
+            // be separately allowed by the currently effective commercial
+            // policy. A coverage record cannot approve its own exception.
+            if ($item->basis === UniversityCoverageBasis::ApprovedGraceWindow
+                && !$policy->allowsGrace($item->product, $item->planSku)) {
+                return UniversityCommercialEligibilityResult::blocked('grace_not_approved');
+            }
         }
 
         if (count($seen) !== count($active)
