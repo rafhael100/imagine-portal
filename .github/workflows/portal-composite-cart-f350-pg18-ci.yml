@@ -1,0 +1,86 @@
+name: Portal F350 - real PostgreSQL18 tenant RLS composite cart lab
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/composite-cart-f350/**'
+      - '.github/workflows/portal-composite-cart-f350-pg18-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  f350-two-real-tenants:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f350-disposable-admin-only
+          POSTGRES_DB: portal_composite_f350_ci
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_composite_f350_ci"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      PORTAL_F350_DISPOSABLE: LOCAL_127_0_0_1_ONLY
+      PGHOST: '127.0.0.1'
+      PGPORT: '5432'
+      PGDATABASE: portal_composite_f350_ci
+      PGUSER: postgres
+      PGPASSWORD: f350-disposable-admin-only
+    steps:
+      - name: Checkout exact candidate without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP synthetic PG18 dependencies only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          extensions: pdo,pdo_pgsql
+      - name: Strict synthetic DB and PHP source preflight
+        run: |
+          set -euo pipefail
+          php -r 'if(!extension_loaded("pdo_pgsql")||PHP_VERSION_ID<80300)exit(1);'
+          php -l apps/portal/labs/composite-cart-f350/test_tenant_rls_pg18.php
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = portal_composite_f350_ci
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = portal_composite_f350_ci
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT inet_server_addr()::text")" = 127.0.0.1
+      - name: Create ONLY least-privileged synthetic reader roles
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE f350_tenant_a_reader LOGIN PASSWORD 'f350-disposable-a-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE f350_tenant_b_reader LOGIN PASSWORD 'f350-disposable-b-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE portal_composite_f350_ci TO f350_tenant_a_reader,f350_tenant_b_reader"
+      - name: Apply isolated F350 schema and FORCE RLS only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/composite-cart-f350/tenant_reader_rls_pg18.sql
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='composite_cart_f350.draft_quote'::regclass")" = t
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_policies WHERE schemaname='composite_cart_f350'")" = 1
+      - name: Exercise genuine two-login SQL isolation and revocation from PHP
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/composite-cart-f350/test_tenant_rls_pg18.php
+      - name: Drop isolated schema and synthetic roles
+        if: always()
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS composite_cart_f350 CASCADE'
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_a_reader'
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_b_reader'
+          test -z "$(git status --porcelain --untracked-files=no)"
+          echo 'F350 real PostgreSQL18 lab verifies separate tenant logins/FORCE RLS, NOT real Portal identity, checkout, payments or customer records.' >> "$GITHUB_STEP_SUMMARY"
