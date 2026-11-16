@@ -1,0 +1,65 @@
+name: CENTRAL AUTO P20 nominal Portal authority PostgreSQL
+on:
+  pull_request:
+    paths: ['apps/portal/**', '.github/workflows/central-auto-p20-authority.yml']
+permissions:
+  contents: read
+concurrency:
+  group: central-auto-p20-authority-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-p20-owner-ci-only
+          POSTGRES_DB: portal_automation_p20_ci
+        ports: ['127.0.0.1:5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d portal_automation_p20_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      P20_AUTHORITY_PG_CI: '1'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      IMAGINE_AUTOMATION_ADMIN_ENABLED: 'true'
+      IMAGINE_AUTOMATION_ADMIN_MODE: isolated_ci
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: portal_automation_p20_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: synthetic-p20-owner-ci-only
+      AUTOMATION_AUTHORITY_DB_USERNAME: portal_automation_runtime
+      AUTOMATION_AUTHORITY_DB_PASSWORD: SYNTHETIC_P20_CI_ONLY
+      AUTOMATION_AUTHORITY_SSLMODE: disable
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, dom, xml, sodium
+          tools: composer:v2
+          coverage: none
+      - name: Install locked dependencies and migrate disposable database only
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan migrate --force --no-interaction
+          php tests/Fixtures/p20/authority-role.php
+      - name: New nominal MFA grant RLS revocation and audit tests
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter=AutomationDatabaseAuthorityTest
