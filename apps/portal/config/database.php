@@ -31,6 +31,12 @@ return [
     */
 
     'connections' => [
+        'performance_authority' => [
+            'driver'=>'pgsql','host'=>env('DB_HOST','127.0.0.1'),'port'=>env('DB_PORT','5432'),
+            'database'=>env('DB_DATABASE'),'username'=>env('PERFORMANCE_AUTHORITY_DB_USERNAME'),
+            'password'=>env('PERFORMANCE_AUTHORITY_DB_PASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
+            'sslmode'=>env('PERFORMANCE_AUTHORITY_SSLMODE','verify-full'),'sslrootcert'=>env('PERFORMANCE_AUTHORITY_CA_FILE'),
+        ],
 
         'sqlite' => [
             'driver' => 'sqlite',
