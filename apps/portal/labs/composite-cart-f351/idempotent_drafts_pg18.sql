@@ -13,9 +13,7 @@ ALTER TABLE composite_cart_f350.draft_quote
 CREATE UNIQUE INDEX f351_one_draft_per_tenant_request
  ON composite_cart_f350.draft_quote (tenant_role,request_hash)
  WHERE request_hash IS NOT NULL;
--- Existing tenant readers intentionally retain only their previously
--- reviewed F350 column permissions. New hashes are internal-only.
-REVOKE ALL (request_hash,quote_digest)
- ON composite_cart_f350.draft_quote
- FROM f350_tenant_a_reader,f350_tenant_b_reader;
+-- Existing tenant readers intentionally retain only their explicit
+-- F350 SELECT column grants. Newly added hashes are internal-only.
+-- Do not GRANT or broaden their previously reviewed permissions here.
 COMMIT;
