@@ -22,6 +22,8 @@ final readonly class UniversityCommercialPolicySnapshot
         public int $effectiveUntilEpoch,
         public int $observedAtEpoch,
         public int $expiresAtEpoch,
+        /** @var array<string,list<string>> A grace period is SKU-specific. */
+        public array $graceSkusByProduct = [],
     ) {
         if ($revision < 1
             || $effectiveFromEpoch <= 0
@@ -53,6 +55,38 @@ final readonly class UniversityCommercialPolicySnapshot
                 $seen[$sku] = true;
             }
         }
+
+        if (count($graceSkusByProduct) > 4) {
+            throw new InvalidArgumentException('Too many grace policy products.');
+        }
+
+        foreach ($graceSkusByProduct as $product => $skus) {
+            if (!is_string($product)
+                || ($parsed = PortfolioProduct::tryFrom($product)) === null
+                || $parsed === PortfolioProduct::UniversidadeImagine
+                || !is_array($skus)
+                || !array_is_list($skus)
+                || count($skus) > 20) {
+                throw new InvalidArgumentException('Invalid grace policy product.');
+            }
+
+            $seenGrace = [];
+            foreach ($skus as $sku) {
+                if (!is_string($sku)
+                    || preg_match('/\A[a-z0-9][a-z0-9._:-]{0,63}\z/D', $sku) !== 1
+                    || isset($seenGrace[$sku])
+                    || !in_array($sku, $eligibleSkusByProduct[$product] ?? [], true)) {
+                    throw new InvalidArgumentException('Grace SKU is not uniquely eligible.');
+                }
+                $seenGrace[$sku] = true;
+            }
+        }
+    }
+
+    public function allowsGrace(PortfolioProduct $product, string $sku): bool
+    {
+        return $product !== PortfolioProduct::UniversidadeImagine
+            && in_array($sku, $this->graceSkusByProduct[$product->value] ?? [], true);
     }
 
     public function includes(PortfolioProduct $product, string $sku): bool
