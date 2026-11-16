@@ -70,7 +70,9 @@ services:
   portal-web:
     <<: *locked
     image: '${P6_PORTAL_WEB_IMAGE:?reviewed immutable private Portal web image required}'
-    volumes: ['${P6_WEB_PKI_DIR:?own HTTPS material required}:/run/secrets:ro']
+    volumes:
+      - '${P6_WEB_PKI_DIR:?own HTTPS material required}:/run/secrets:ro'
+      - './portal-nginx-main.conf:/etc/nginx/nginx.conf:ro'
     ports: ['127.0.0.1:${P6_LOOPBACK_PORT:?freshly checked dedicated port required}:8443']
     tmpfs: ['/tmp:mode=1777','/var/cache/nginx:mode=1777','/var/run:mode=1777']
     networks: [ingress, portal_front]

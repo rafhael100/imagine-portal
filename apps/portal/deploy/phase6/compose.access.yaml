@@ -11,7 +11,7 @@ services:
     command: ['tunnel','--no-autoupdate','--config','/run/access/config.yml','run']
     volumes: ['${P6_ACCESS_DIR:?approved access config and own credentials required}:/run/access:ro']
     tmpfs: ['/tmp:mode=1777']
-    networks: [ingress, portal_front]
+    networks: [ingress]
     mem_limit: 128m
     cpus: 0.25
     pids_limit: 64

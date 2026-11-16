@@ -23,11 +23,13 @@ COPY . .
 COPY --from=performance_engine src/Domain/Administration/AdministrativeLabEngine.php /opt/imagine/performance-engine/src/Domain/Administration/AdministrativeLabEngine.php
 COPY --from=performance_engine src/Domain/Commercial/MonthlyManagementFeeFloorV7Candidate.php /opt/imagine/performance-engine/src/Domain/Commercial/MonthlyManagementFeeFloorV7Candidate.php
 COPY --from=performance_engine src/Domain/Administration/AdministrativeServiceEnvelope.php /opt/imagine/performance-engine/src/Domain/Administration/AdministrativeServiceEnvelope.php
-RUN composer dump-autoload \
+RUN rm -f bootstrap/cache/*.php \
+    && composer dump-autoload \
         --no-dev --classmap-authoritative --no-scripts --no-plugins \
     && mkdir -p \
         storage/framework/sessions storage/framework/views \
         storage/framework/cache/data storage/logs bootstrap/cache \
+    && php artisan package:discover --no-ansi \
     && chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data

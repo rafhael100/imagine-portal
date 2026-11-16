@@ -35,6 +35,17 @@ for attempt in $(seq 1 30); do
 done
 [[ "$code" == 200 ]]
 [[ "$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" -o /dev/null -w '%{http_code}' https://127.0.0.1:18946/up)" == 401 ]]
+# Verify the pre-authorization trail contains status only, never user supplied URL/query.
+curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" -o /dev/null 'https://127.0.0.1:18946/up?token=DO_NOT_LOG_SYNTHETIC_CANARY'
+"${base[@]}" logs --no-log-prefix --no-color portal-web > "$RUNNER_TEMP/phase6-ingress.log"
+! grep -q DO_NOT_LOG_SYNTHETIC_CANARY "$RUNNER_TEMP/phase6-ingress.log"
+python3 - "$RUNNER_TEMP/phase6-ingress.log" <<'PYLOG'
+import json,sys
+rows=[json.loads(x) for x in open(sys.argv[1]) if x.startswith('{')]
+assert any(x['status']==401 for x in rows) and any(x['status']==200 for x in rows)
+assert all(set(x)=={'schema','request_id','status','duration'} for x in rows)
+print('PHASE6_INGRESS_SANITIZATION_PASS')
+PYLOG
 for service in portal receiver; do
  id=$("${base[@]}" ps -q "$service")
  [[ "$(docker inspect --format '{{.Config.User}}' "$id")" == '33:33' ]]
