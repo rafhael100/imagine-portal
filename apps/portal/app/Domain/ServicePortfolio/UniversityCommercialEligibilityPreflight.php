@@ -22,7 +22,12 @@ final readonly class UniversityCommercialEligibilityPreflight
         private UniversityServiceRevisionAuthority $revisions = new UnavailableUniversityServiceRevisionAuthority(),
         private UniversityCommercialPolicyAuthority $policies = new UnavailableUniversityCommercialPolicyAuthority(),
         private UniversityServiceCoverageAuthority $coverage = new UnavailableUniversityServiceCoverageAuthority(),
+        // Bound combined source latency even when each snapshot is individually fresh.
+        private int $maxSourceReadMs = 1500,
     ) {
+        if ($maxSourceReadMs < 1 || $maxSourceReadMs > 5000) {
+            throw new \InvalidArgumentException('Invalid university source-read budget.');
+        }
     }
 
     public function inspect(
@@ -39,6 +44,11 @@ final readonly class UniversityCommercialEligibilityPreflight
             return UniversityCommercialEligibilityResult::blocked('unsupported_tenant_identifier');
         }
 
+        // Time-box the FOUR source reads together. One slow provider must
+        // never yield a seemingly-current composite snapshot after a long
+        // pause. This is diagnostic only; a future operational adapter must
+        // also enforce per-request network timeouts and atomic revocation.
+        $startedAt = hrtime(true);
         try {
             $records = $this->contracts->currentFor($organization);
             $revisions = $this->revisions->currentFor($organization);
@@ -46,6 +56,10 @@ final readonly class UniversityCommercialEligibilityPreflight
             $coverage = $this->coverage->currentFor($organization);
         } catch (Throwable) {
             return UniversityCommercialEligibilityResult::blocked('source_unavailable');
+        }
+
+        if (hrtime(true) - $startedAt > $this->maxSourceReadMs * 1_000_000) {
+            return UniversityCommercialEligibilityResult::blocked('source_read_timeout');
         }
 
         if ($records === null || $revisions === null || $policy === null || $coverage === null) {
