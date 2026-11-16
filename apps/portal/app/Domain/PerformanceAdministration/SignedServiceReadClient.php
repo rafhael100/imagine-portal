@@ -49,6 +49,7 @@ final class SignedServiceReadClient
       'progress'=>static function($total,$downloaded){if($downloaded>65536)throw new RuntimeException('Service response limit');}])->acceptJson()->connectTimeout(2)->timeout(5)
      ->withHeaders(['X-Imagine-Correlation'=>$e['correlation_id']])->post($url,['envelope'=>$e,'body'=>$body]);}
    catch(ConnectionException){($this->audit)('service_timeout',$e['correlation_id']);if($attempt===0)continue;throw new RuntimeException('Service unavailable');}
+   catch(\Throwable){($this->audit)('service_transport_denied',$e['correlation_id']);throw new RuntimeException('Service transport denied');}
    if($response->serverError()&&$attempt===0){($this->audit)('service_retry',$e['correlation_id']);continue;}
    if(!$response->successful())throw new RuntimeException('Service response denied');
    Envelope::verify($e,$body,time(),fn($issuer,$key)=>$this->resolve($issuer,$key));

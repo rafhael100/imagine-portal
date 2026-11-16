@@ -160,8 +160,8 @@ jobs:
             if (preg_match("/^\\S+\\s+00000000\\s+/m", file_get_contents("/proc/net/route"))) exit(2);
             echo "Runtime excludes owner secrets and has no default IPv4 egress route.\n";
           '
-          test "$(docker network inspect imagine-portal-staging_portal_front --format '{{.Internal}}')" = true
-          test "$(docker network inspect imagine-portal-staging_portal_database --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-performance-admin-staging_portal_front --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-performance-admin-staging_portal_database --format '{{.Internal}}')" = true
       - name: Authenticate nominal synthetic reviewer in actual staging runtime
         run: |
           set -euo pipefail
