@@ -1,0 +1,321 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use App\Domain\Organizations\OrganizationId;
+use App\Domain\ServicePortfolio\PortfolioProduct;
+use App\Domain\ServicePortfolio\UniversityCommercialEligibilityPreflight;
+use App\Domain\ServicePortfolio\UniversityCommercialPolicyAuthority;
+use App\Domain\ServicePortfolio\UniversityCommercialPolicySnapshot;
+use App\Domain\ServicePortfolio\UniversityContractAuthority;
+use App\Domain\ServicePortfolio\UniversityContractSnapshot;
+use App\Domain\ServicePortfolio\UniversityContractStatus;
+use App\Domain\ServicePortfolio\UniversityServiceCoverageAuthority;
+use App\Domain\ServicePortfolio\UniversityServiceCoverageSnapshot;
+use App\Domain\ServicePortfolio\UniversityServiceRevisionAuthority;
+use App\Domain\ServicePortfolio\UniversityServiceRevisionSnapshot;
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+use RuntimeException;
+
+final class UniversityCommercialEligibilityPreflightTest extends TestCase
+{
+    private const NOW = 1800000000;
+
+    private function org(string $id = 'synthetic-company-a'): OrganizationId
+    {
+        return new OrganizationId($id);
+    }
+
+    private function contract(
+        string $ref = 'svc-onepage-a',
+        UniversityContractStatus $status = UniversityContractStatus::Active,
+        int $revision = 3,
+        ?OrganizationId $organization = null,
+    ): UniversityContractSnapshot {
+        return new UniversityContractSnapshot(
+            $ref, $organization ?? $this->org(), PortfolioProduct::Onepage,
+            $status, true, false, $revision, self::NOW - 5, self::NOW + 30,
+        );
+    }
+
+    /** @param array<string,int> $revisions @param list<string> $revoked */
+    private function revisions(
+        array $revisions = ['svc-onepage-a' => 3],
+        array $revoked = [],
+    ): UniversityServiceRevisionSnapshot {
+        return new UniversityServiceRevisionSnapshot(
+            $this->org(), $revisions, $revoked, self::NOW - 5, self::NOW + 30,
+        );
+    }
+
+    /** @param array<string,list<string>> $eligible */
+    private function policy(
+        array $eligible = ['sites_onepage' => ['sku-onepage-monthly']],
+        int $revision = 7,
+        int $observed = self::NOW - 5,
+        int $expires = self::NOW + 30,
+        int $from = self::NOW - 86400,
+        int $until = self::NOW + 86400,
+    ): UniversityCommercialPolicySnapshot {
+        return new UniversityCommercialPolicySnapshot(
+            $revision, $eligible, $from, $until, $observed, $expires,
+        );
+    }
+
+    private function coverage(
+        string $reference = 'svc-onepage-a',
+        string $sku = 'sku-onepage-monthly',
+        int $contractRevision = 3,
+        int $policyRevision = 7,
+        int $from = self::NOW - 3600,
+        int $until = self::NOW + 3600,
+        ?OrganizationId $organization = null,
+    ): UniversityServiceCoverageSnapshot {
+        return new UniversityServiceCoverageSnapshot(
+            $reference, $organization ?? $this->org(), PortfolioProduct::Onepage,
+            $sku, $contractRevision, $policyRevision,
+            $from, $until, self::NOW - 5, self::NOW + 30,
+        );
+    }
+
+    /** @param list<UniversityContractSnapshot>|null $contracts
+     *  @param list<UniversityServiceCoverageSnapshot>|null $coverage
+     */
+    private function inspect(
+        ?array $contracts,
+        ?UniversityServiceRevisionSnapshot $revisions,
+        ?UniversityCommercialPolicySnapshot $policy,
+        ?array $coverage,
+        ?OrganizationId $organization = null,
+    ): \App\Domain\ServicePortfolio\UniversityCommercialEligibilityResult {
+        $contractsSource = new class($contracts) implements UniversityContractAuthority {
+            public function __construct(private ?array $result) {}
+            public function currentFor(OrganizationId $organization): ?array { return $this->result; }
+        };
+        $revisionSource = new class($revisions) implements UniversityServiceRevisionAuthority {
+            public function __construct(private ?UniversityServiceRevisionSnapshot $result) {}
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot { return $this->result; }
+        };
+        $policySource = new class($policy) implements UniversityCommercialPolicyAuthority {
+            public function __construct(private ?UniversityCommercialPolicySnapshot $result) {}
+            public function currentFor(OrganizationId $organization): ?UniversityCommercialPolicySnapshot { return $this->result; }
+        };
+        $coverageSource = new class($coverage) implements UniversityServiceCoverageAuthority {
+            public function __construct(private ?array $result) {}
+            public function currentFor(OrganizationId $organization): ?array { return $this->result; }
+        };
+
+        return (new UniversityCommercialEligibilityPreflight(
+            $contractsSource, $revisionSource, $policySource, $coverageSource,
+        ))->inspect($organization ?? $this->org(), self::NOW);
+    }
+
+    public function test_default_authorities_unavailable_and_never_issue_grants(): void
+    {
+        $decision = (new UniversityCommercialEligibilityPreflight())
+            ->inspect($this->org(), self::NOW);
+        self::assertSame('source_unavailable', $decision->reason);
+        self::assertSame(0, $decision->candidateCount);
+        self::assertFalse($decision->mayIssuePortalGrant());
+        self::assertFalse($decision->provesPaidContract());
+    }
+
+    public function test_matching_four_sources_remain_strictly_non_authorizing(): void
+    {
+        $policy = $this->policy();
+        $candidate = $this->inspect(
+            [$this->contract()], $this->revisions(), $policy, [$this->coverage()],
+        );
+        self::assertSame('candidate_pending_official_authority', $candidate->reason);
+        self::assertSame(1, $candidate->candidateCount);
+        self::assertFalse($candidate->mayIssuePortalGrant());
+        self::assertFalse($candidate->provesPaidContract());
+        self::assertFalse($policy->mayAuthorizeUniversity());
+        self::assertFalse($this->coverage()->mayAuthorizeUniversity());
+    }
+
+    public function test_unapproved_sku_and_missing_plan_fail_closed(): void
+    {
+        $unapproved = $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(sku: 'sku-not-approved')],
+        );
+        self::assertSame('sku_not_approved', $unapproved->reason);
+        self::assertSame(0, $unapproved->candidateCount);
+
+        self::assertSame('missing_active_service_coverage', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(), [],
+        )->reason);
+        self::assertSame('sku_not_approved', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(eligible: []),
+            [$this->coverage()],
+        )->reason);
+    }
+
+    public function test_policy_expiry_effective_period_and_future_observation_are_rejected(): void
+    {
+        foreach ([
+            $this->policy(observed: self::NOW - 61),
+            $this->policy(observed: self::NOW + 1),
+            $this->policy(expires: self::NOW),
+            $this->policy(expires: self::NOW + 61),
+            $this->policy(from: self::NOW + 1),
+            $this->policy(until: self::NOW),
+        ] as $candidate) {
+            self::assertSame('stale_or_inactive_policy', $this->inspect(
+                [$this->contract()], $this->revisions(), $candidate, [$this->coverage()],
+            )->reason);
+        }
+    }
+
+    public function test_current_month_and_revision_must_match_exactly(): void
+    {
+        foreach ([
+            $this->coverage(contractRevision: 4),
+            $this->coverage(policyRevision: 8),
+        ] as $wrongRevision) {
+            self::assertSame('contract_policy_revision_mismatch', $this->inspect(
+                [$this->contract()], $this->revisions(), $this->policy(),
+                [$wrongRevision],
+            )->reason);
+        }
+
+        foreach ([
+            $this->coverage(from: self::NOW + 1),
+            $this->coverage(until: self::NOW),
+        ] as $outOfPeriod) {
+            self::assertSame('stale_or_expired_coverage', $this->inspect(
+                [$this->contract()], $this->revisions(), $this->policy(),
+                [$outOfPeriod],
+            )->reason);
+        }
+    }
+
+    public function test_foreign_tenant_and_extraneous_or_duplicate_coverage_fail_closed(): void
+    {
+        self::assertSame('wrong_coverage_tenant', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(organization: $this->org('synthetic-company-b'))],
+        )->reason);
+        self::assertSame('duplicate_or_extra_coverage', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(), $this->coverage()],
+        )->reason);
+        self::assertSame('duplicate_or_extra_coverage', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(), $this->coverage(reference: 'svc-invented')],
+        )->reason);
+    }
+
+    public function test_last_qualifying_service_cancelled_even_with_policy_and_coverage(): void
+    {
+        $decision = $this->inspect(
+            [$this->contract(status: UniversityContractStatus::Cancelled, revision: 4)],
+            $this->revisions(['svc-onepage-a' => 4], ['svc-onepage-a']),
+            $this->policy(), [$this->coverage()],
+        );
+        self::assertSame('contract_no_eligible_service', $decision->reason);
+        self::assertSame(0, $decision->candidateCount);
+        self::assertFalse($decision->mayIssuePortalGrant());
+    }
+
+    public function test_independent_revocation_revision_mismatch_preempts_policy(): void
+    {
+        $decision = $this->inspect(
+            [$this->contract()], $this->revisions(['svc-onepage-a' => 4], ['svc-onepage-a']),
+            $this->policy(), [$this->coverage()],
+        );
+        self::assertSame('contract_contract_revision_mismatch', $decision->reason);
+        self::assertSame(0, $decision->candidateCount);
+    }
+
+    public function test_unavailable_source_and_tenant_length_mismatch_are_blocked(): void
+    {
+        self::assertSame('source_unavailable', $this->inspect(
+            [$this->contract()], $this->revisions(), null, [$this->coverage()],
+        )->reason);
+        self::assertSame('source_unavailable', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(), null,
+        )->reason);
+
+        $overlongPortalTenant = $this->org(str_repeat('a', 81));
+        self::assertSame('unsupported_tenant_identifier', $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(), [$this->coverage()],
+            $overlongPortalTenant,
+        )->reason);
+    }
+
+    public function test_malformed_policy_product_and_duplicate_sku_are_rejected(): void
+    {
+        foreach ([
+            ['universidade_imagine' => ['forbidden-benefit-sku']],
+            ['bogus_product' => ['bogus-plan']],
+            ['sites_onepage' => ['duplicated', 'duplicated']],
+            ['sites_onepage' => ['UppercaseSku']],
+        ] as $wrongPolicy) {
+            try {
+                $this->policy($wrongPolicy);
+                self::fail('Malformed policy was accepted.');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
+    public function test_sources_are_read_once_and_outages_never_produce_candidates(): void
+    {
+        $goodContracts = [$this->contract()];
+        $goodRevision = $this->revisions();
+        $goodPolicy = $this->policy();
+        $goodCoverage = [$this->coverage()];
+
+        $contracts = new class($goodContracts) implements UniversityContractAuthority {
+            public int $calls = 0;
+            public function __construct(private array $first) {}
+            public function currentFor(OrganizationId $organization): ?array {
+                return ++$this->calls === 1 ? $this->first : null;
+            }
+        };
+        $revisions = new class($goodRevision) implements UniversityServiceRevisionAuthority {
+            public int $calls = 0;
+            public function __construct(private UniversityServiceRevisionSnapshot $first) {}
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot {
+                return ++$this->calls === 1 ? $this->first : null;
+            }
+        };
+        $policy = new class($goodPolicy) implements UniversityCommercialPolicyAuthority {
+            public int $calls = 0;
+            public function __construct(private UniversityCommercialPolicySnapshot $first) {}
+            public function currentFor(OrganizationId $organization): ?UniversityCommercialPolicySnapshot {
+                return ++$this->calls === 1 ? $this->first : null;
+            }
+        };
+        $coverage = new class($goodCoverage) implements UniversityServiceCoverageAuthority {
+            public int $calls = 0;
+            public function __construct(private array $first) {}
+            public function currentFor(OrganizationId $organization): ?array {
+                return ++$this->calls === 1 ? $this->first : null;
+            }
+        };
+        $decision = (new UniversityCommercialEligibilityPreflight(
+            $contracts, $revisions, $policy, $coverage
+        ))->inspect($this->org(), self::NOW);
+        self::assertSame('candidate_pending_official_authority', $decision->reason);
+        self::assertSame(1, $contracts->calls);
+        self::assertSame(1, $revisions->calls);
+        self::assertSame(1, $policy->calls);
+        self::assertSame(1, $coverage->calls);
+
+        $outage = new class implements UniversityCommercialPolicyAuthority {
+            public function currentFor(OrganizationId $organization): ?UniversityCommercialPolicySnapshot {
+                throw new RuntimeException('Synthetic commercial policy provider outage');
+            }
+        };
+        self::assertSame('source_unavailable', (new UniversityCommercialEligibilityPreflight(
+            $contracts, $revisions, $outage, $coverage,
+        ))->inspect($this->org(), self::NOW)->reason);
+    }
+}
