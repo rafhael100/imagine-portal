@@ -60,9 +60,10 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         int $expires = self::NOW + 30,
         int $from = self::NOW - 86400,
         int $until = self::NOW + 86400,
+        array $grace = [],
     ): UniversityCommercialPolicySnapshot {
         return new UniversityCommercialPolicySnapshot(
-            $revision, $eligible, $from, $until, $observed, $expires,
+            $revision, $eligible, $from, $until, $observed, $expires, $grace,
         );
     }
 
@@ -176,13 +177,47 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         // recurring payment is implied. Actual eligibility needs the owner
         // approved commercial policy and independently current contract.
         $decision = $this->inspect(
-            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->contract()], $this->revisions(), $this->policy(
+                grace: ['sites_onepage' => ['sku-onepage-monthly']],
+            ),
             [$this->coverage(basis: UniversityCoverageBasis::ApprovedGraceWindow)],
         );
         self::assertSame('candidate_pending_official_authority', $decision->reason);
         self::assertSame(1, $decision->candidateCount);
         self::assertFalse($decision->mayIssuePortalGrant());
         self::assertFalse($decision->provesPaidContract());
+    }
+
+    public function test_grace_must_be_explicitly_whitelisted_per_sku(): void
+    {
+        $decision = $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(basis: UniversityCoverageBasis::ApprovedGraceWindow)],
+        );
+        self::assertSame('grace_not_approved', $decision->reason);
+        self::assertSame(0, $decision->candidateCount);
+
+        // The SKU may be eligible for a normal recurring window, but NOT
+        // for a grace period without an explicit commercial policy rule.
+        $normal = $this->inspect(
+            [$this->contract()], $this->revisions(), $this->policy(),
+            [$this->coverage(basis: UniversityCoverageBasis::RecurringContractWindow)],
+        );
+        self::assertSame('candidate_pending_official_authority', $normal->reason);
+        self::assertFalse($normal->mayIssuePortalGrant());
+
+        foreach ([
+            ['sites_onepage' => ['unlisted-plan']],
+            ['universidade_imagine' => ['benefit-cannot-qualify']],
+            ['sites_onepage' => ['sku-onepage-monthly', 'sku-onepage-monthly']],
+        ] as $invalidGrace) {
+            try {
+                $this->policy(grace: $invalidGrace);
+                self::fail('An invalid SKU grace policy was accepted.');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
     }
 
     public function test_unapproved_sku_and_missing_plan_fail_closed(): void
