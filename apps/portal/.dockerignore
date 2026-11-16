@@ -20,3 +20,6 @@ labs/
 
 
 *.htpasswd
+
+# Laravel package/config manifests from CI/dev must never enter a production-dependency image.
+bootstrap/cache/*.php

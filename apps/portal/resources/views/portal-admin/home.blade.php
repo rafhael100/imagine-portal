@@ -11,6 +11,7 @@
     </div>
     @if(\App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed())
     <p><a href="{{ route('performance-admin.index') }}">Abrir Central Administrativa Performance AI · Laboratório →</a></p>
+    @if(config('performance_admin.native_read_enabled')===true)<p><a href="{{ route('performance-private.index') }}">Consultar motor Performance privado · Somente leitura →</a></p>@endif
     @endif
     @if(\App\Domain\AutomationAdministration\AutomationPolicyCatalog::available())
     <p><a href="{{ route('automation-admin.index') }}">Abrir Central de Automações · Políticas candidatas →</a></p>

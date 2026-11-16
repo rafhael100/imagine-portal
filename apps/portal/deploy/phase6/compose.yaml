@@ -1,0 +1,155 @@
+name: imagine-performance-p6-staging
+x-locked: &locked
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  restart: 'no'
+  logging: {driver: json-file, options: {max-size: 10m, max-file: '3'}}
+services:
+  portal:
+    <<: *locked
+    user: '33:33'
+    image: '${P6_PORTAL_IMAGE:?reviewed immutable Portal candidate required}'
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: 'false'
+      APP_NAME: Imagine Performance Private
+      APP_URL: '${P6_PRIVATE_URL:?approved HTTPS hostname required}'
+      PORTAL_APP_KEY_FILE: /run/secrets/portal_app_key
+      PORTAL_ADMIN_AUTH_ENABLED: '${P6_ADMIN_ENABLED:-false}'
+      PORTAL_ADMIN_PROVISION_ENABLED: 'false'
+      PERFORMANCE_ADMIN_LAB_ENABLED: '${P6_LAB_ENABLED:-false}'
+      PERFORMANCE_ADMIN_MODE: private_staging
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: /opt/imagine/performance-engine
+      PERFORMANCE_NATIVE_READ_ENABLED: '${P6_S2S_ENABLED:-false}'
+      PERFORMANCE_PRIVATE_READ_ENABLED: '${P6_S2S_ENABLED:-false}'
+      PERFORMANCE_PRIVATE_IDENTITY_FILE: /run/secrets/portal_service_identity
+      PERFORMANCE_PRIVATE_URL: https://performance.internal:8443/v1/admin/read
+      PERFORMANCE_PRIVATE_HOST: performance.internal
+      PERFORMANCE_PRIVATE_PORT: '8443'
+      PERFORMANCE_PRIVATE_ADDRESS: '${P6_RECEIVER_IP:?fresh isolated network inventory required}'
+      PERFORMANCE_PRIVATE_CA: /run/pki/performance_ca.pem
+      PERFORMANCE_PRIVATE_CERTIFICATE: /run/pki/portal_client.pem
+      PERFORMANCE_PRIVATE_PRIVATE_KEY: /run/pki/portal_client.key
+      DB_CONNECTION: pgsql
+      DB_HOST: portal-db
+      DB_PORT: '5432'
+      DB_DATABASE: portal_p6_synthetic
+      DB_USERNAME: portal_p6_runtime
+      PORTAL_DB_PASSWORD_FILE: /run/secrets/portal_db_password
+      DB_SSLMODE: verify-full
+      DB_SSLROOTCERT: /run/pki/portal_db_ca.pem
+      PERFORMANCE_AUTHORITY_DB_USERNAME: portal_p6_authority
+      PERFORMANCE_AUTHORITY_PASSWORD_FILE: /run/secrets/portal_authority_password
+      PERFORMANCE_AUTHORITY_SSLMODE: verify-full
+      PERFORMANCE_AUTHORITY_CA_FILE: /run/pki/portal_db_ca.pem
+      SESSION_DRIVER: database
+      SESSION_ENCRYPT: 'true'
+      SESSION_SECURE_COOKIE: 'true'
+      SESSION_HTTP_ONLY: 'true'
+      SESSION_SAME_SITE: strict
+      SESSION_COOKIE: imagine_performance_p6_session
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: error
+    volumes:
+      - '${P6_PORTAL_SECRET_DIR:?own protected directory required}:/run/secrets:ro'
+      - '${P6_PORTAL_PKI_DIR:?own protected PKI required}:/run/pki:ro'
+      - portal_storage:/var/www/html/storage
+      - portal_bootstrap:/var/www/html/bootstrap/cache
+    tmpfs: ['/tmp:mode=1777']
+    networks:
+      portal_front: {aliases: [app]}
+      portal_storage: {}
+      service_link: {}
+    mem_limit: 768m
+    cpus: 1.25
+    pids_limit: 128
+  portal-web:
+    <<: *locked
+    image: '${P6_PORTAL_WEB_IMAGE:?reviewed immutable private Portal web image required}'
+    volumes:
+      - '${P6_WEB_PKI_DIR:?own HTTPS material required}:/run/secrets:ro'
+      - './portal-nginx-main.conf:/etc/nginx/nginx.conf:ro'
+    ports: ['127.0.0.1:${P6_LOOPBACK_PORT:?freshly checked dedicated port required}:8443']
+    tmpfs: ['/tmp:mode=1777','/var/cache/nginx:mode=1777','/var/run:mode=1777']
+    networks: [ingress, portal_front]
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+  portal-db:
+    <<: *locked
+    read_only: false
+    user: '999:999'
+    image: '${P6_PG_IMAGE:?reviewed immutable PostgreSQL18 image required}'
+    environment: {POSTGRES_DB: portal_p6_synthetic, POSTGRES_USER: portal_p6_migrator, POSTGRES_PASSWORD_FILE: /run/pg/bootstrap_password}
+    command: ['postgres','-c','ssl=on','-c','ssl_cert_file=/run/pg/server.pem','-c','ssl_key_file=/run/pg/server.key','-c','hba_file=/run/pg/pg_hba.conf']
+    volumes: ['portal_pg:/var/lib/postgresql','${P6_PORTAL_PG_DIR:?own Portal PG private material required}:/run/pg:ro']
+    tmpfs: ['/tmp:mode=1777','/var/run/postgresql:uid=999,gid=999,mode=0700']
+    networks: [portal_storage]
+    healthcheck: {test: ['CMD-SHELL','pg_isready -U portal_p6_migrator -d portal_p6_synthetic'], interval: 10s, timeout: 3s, retries: 12}
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+  receiver:
+    <<: *locked
+    user: '33:33'
+    image: '${P6_RECEIVER_IMAGE:?reviewed immutable receiver candidate required}'
+    environment:
+      APP_ENV: staging
+      PERFORMANCE_PRIVATE_READ_ENABLED: '${P6_RECEIVER_ENABLED:-0}'
+      PERFORMANCE_PRIVATE_PG_DSN: pgsql:host=performance-db;port=5432;dbname=performance_p6_synthetic;sslmode=verify-full;sslrootcert=/run/private/db-ca.pem
+      PERFORMANCE_PRIVATE_PG_USER: performance_p6_reader
+      PERFORMANCE_PRIVATE_PG_PASSWORD_FILE: /run/private/db-password
+      PERFORMANCE_PRIVATE_KEYRING_FILE: /run/private/service-keyring.json
+    volumes: ['${P6_RECEIVER_PRIVATE_DIR:?own receiver material required}:/run/private:ro']
+    tmpfs: ['/tmp:mode=1777']
+    networks: [performance_front, performance_storage]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+  performance-web:
+    <<: *locked
+    user: '101:101'
+    image: '${P6_NGINX_IMAGE:?reviewed immutable Nginx required}'
+    volumes:
+      - '${P6_ENGINE_SOURCE:?exact reviewed receiver source required}/deploy/private-admin/nginx.conf:/etc/nginx/nginx.conf:ro'
+      - '${P6_RECEIVER_TLS_DIR:?exclusive mTLS CA cert CRL required}:/run/tls:ro'
+    tmpfs: ['/tmp:mode=1777','/var/cache/nginx:mode=1777']
+    networks:
+      performance_front: {}
+      service_link: {ipv4_address: '${P6_RECEIVER_IP}'}
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+  performance-db:
+    <<: *locked
+    read_only: false
+    user: '999:999'
+    image: '${P6_PG_IMAGE}'
+    environment: {POSTGRES_DB: performance_p6_synthetic, POSTGRES_USER: performance_p6_migrator, POSTGRES_PASSWORD_FILE: /run/pg/bootstrap_password}
+    command: ['postgres','-c','ssl=on','-c','ssl_cert_file=/run/pg/server.pem','-c','ssl_key_file=/run/pg/server.key','-c','hba_file=/run/pg/pg_hba.conf']
+    volumes: ['performance_pg:/var/lib/postgresql','${P6_PERFORMANCE_PG_DIR:?own Performance PG material required}:/run/pg:ro']
+    tmpfs: ['/tmp:mode=1777','/var/run/postgresql:uid=999,gid=999,mode=0700']
+    networks: [performance_storage]
+    healthcheck: {test: ['CMD-SHELL','pg_isready -U performance_p6_migrator -d performance_p6_synthetic'], interval: 10s, timeout: 3s, retries: 12}
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+networks:
+  ingress: {}
+  portal_front: {internal: true}
+  portal_storage: {internal: true}
+  performance_front: {internal: true}
+  performance_storage: {internal: true}
+  service_link:
+    internal: true
+    ipam: {config: [{subnet: '${P6_SERVICE_SUBNET:?fresh non-overlapping private subnet required}'}]}
+volumes:
+  portal_storage: {}
+  portal_bootstrap: {}
+  portal_pg: {}
+  performance_pg: {}
+# Preparation only. No external/shared network, Docker socket, automatic migration, customer data or dispatch.

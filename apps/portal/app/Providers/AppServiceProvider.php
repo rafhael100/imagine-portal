@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
                         return $loadIdentity();
                     };
                     return (new \App\Domain\PerformanceAdministration\SignedServiceReadClient($identity,
-                        static function($event,$id){ /* Native authority persists intent/result. No payload logging. */ }))
+                        static fn($event,$id)=>\App\Domain\PerformanceAdministration\PerformanceSecurityEvents::record($event,$id)))
                         ->read($company,$op,[],$correlation);
                 });
         });

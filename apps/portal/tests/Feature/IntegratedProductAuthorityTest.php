@@ -62,4 +62,20 @@ final class IntegratedProductAuthorityTest extends TestCase {
   $this->assertSame(0,DB::table('portal_performance_access_audit')->where('correlation_id',$id)->where('outcome','completed')->count());
  }
 
+ public function test_external_authority_transactions_and_stale_isolation_are_denied_before_source():void {
+  $this->performance();$calls=0;$reader=new AuthorizedPerformanceRead(new NativePerformanceAuthority,function()use(&$calls){$calls++;return [];});
+  foreach([DB::getDefaultConnection(),'performance_authority'] as $name){
+   $db=DB::connection($name);$db->beginTransaction();
+   try{try{$reader->read($this->company,'dashboard.read',(string)Str::uuid());$this->fail('Inherited transaction accepted');}catch(\RuntimeException $e){$this->assertSame('PERFORMANCE_AUTHORITY_DENIED',$e->getMessage());}}finally{$db->rollBack();}
+   $db->statement("SET default_transaction_isolation='repeatable read'");
+   try{try{$reader->read($this->company,'dashboard.read',(string)Str::uuid());$this->fail('Stale isolation accepted');}catch(\RuntimeException $e){$this->assertSame('PERFORMANCE_AUTHORITY_DENIED',$e->getMessage());}}finally{$db->statement("SET default_transaction_isolation='read committed'");}
+  }
+  $this->assertSame(0,$calls);
+ }
+
+ public function test_extra_authority_write_grants_are_rejected():void {
+  $this->performance();DB::statement('GRANT INSERT ON portal_performance_services TO portal_performance_runtime');
+  try{try{(new NativePerformanceAuthority)->lease($this->company,'dashboard.read',(string)Str::uuid());$this->fail('Extra authority write accepted');}catch(\RuntimeException $e){$this->assertSame('PERFORMANCE_AUTHORITY_DENIED',$e->getMessage());}}finally{DB::statement('REVOKE INSERT ON portal_performance_services FROM portal_performance_runtime');}
+ }
+
 }

@@ -1,0 +1,19 @@
+# Proposal only. No tunnel/application/DNS/credential created by this file.
+# Explicit optional connector overlay joins ONLY this candidate front/ingress after approval.
+tunnel: REQUIRED_APPROVED_TUNNEL_UUID
+credentials-file: /run/access/tunnel_credentials.json
+ingress:
+  - hostname: performance-hml.imaginecomunica.com.br
+    service: https://portal-web:8443
+    originRequest:
+      originServerName: performance-hml.imaginecomunica.com.br
+      caPool: /run/access/portal_origin_ca.pem
+      noTLSVerify: false
+      connectTimeout: 5s
+      access:
+        required: true
+        teamName: REQUIRED_APPROVED_ACCESS_TEAM
+        audTag: [REQUIRED_APPROVED_ACCESS_AUD]
+  - service: http_status:404
+# Default-deny Cloudflare Access app allowlist + Portal password/TOTP required.
+# Hostname and 18092 are proposals, NOT verified/reserved/published. No quick/public tunnel.
