@@ -1,10 +1,16 @@
-name: imagine-portal-staging
+name: imagine-performance-admin-staging
 
 # F138 manual-only staging proposal. Nothing is deployed by this file.
 # HTTPS is bound to loopback only, with a second access restriction.
 # No secrets may be committed to Git.
 services:
   app:
+    mem_limit: 768m
+    cpus: 1.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     build:
       context: ../..
       dockerfile: deploy/staging/Dockerfile.php
@@ -53,6 +59,12 @@ services:
     restart: unless-stopped
 
   web:
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "3"}
     secrets:
       - tls_certificate
       - tls_private_key
@@ -78,6 +90,12 @@ services:
     restart: unless-stopped
 
   db:
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     image: postgres:18
     environment:
       POSTGRES_DB: '${PORTAL_STAGING_DB:?set-db-name}'

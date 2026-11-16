@@ -28,6 +28,12 @@ final class SignedServiceReadClient
       ||!is_int(config('performance_admin.service_review_port'))||$port!==config('performance_admin.service_review_port')
       ||!is_string($address)||filter_var($address,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)===false
       ||!(str_starts_with($address,'10.')||str_starts_with($address,'192.168.')||(preg_match('/\A172\.(1[6-9]|2[0-9]|3[01])\./',$address)===1)))throw new RuntimeException('Private pinned destination required');
+  $tls=[];
+  foreach(['service_review_ca','service_review_certificate','service_review_private_key'] as $key){
+   $value=config('performance_admin.'.$key);
+   if(!is_string($value)||!is_file($value)||is_link($value))throw new RuntimeException('Private service TLS material required');
+   $tls[$key]=$value;
+  }
   $path=rtrim((string)config('performance_admin.engine_root'),'/').'/src/Domain/Administration/AdministrativeServiceEnvelope.php';
   if(!is_file($path)||!hash_equals((string)config('performance_admin.service_envelope_hash'),hash_file('sha256',$path)))throw new RuntimeException('Service contract integrity denied');
   require_once $path;
@@ -37,12 +43,13 @@ final class SignedServiceReadClient
    if(!is_array($identity)||!is_string($identity['issuer']??null)||!is_string($identity['key_id']??null)||!is_string($identity['secret']??null))throw new RuntimeException('Service identity unavailable');
    $e=Envelope::issue($identity['issuer'],$identity['key_id'],$company,$operation,str_replace('-','',Str::uuid()->toString()),$idempotencyKey,$body,time(),$identity['secret']);
    Envelope::verify($e,$body,time(),fn($issuer,$key)=>$this->resolve($issuer,$key));
-   try{$response=Http::withOptions(['verify'=>true,'allow_redirects'=>false,'proxy'=>'',
+   try{$response=Http::withOptions(['verify'=>$tls['service_review_ca'],'cert'=>$tls['service_review_certificate'],'ssl_key'=>$tls['service_review_private_key'],'allow_redirects'=>false,'proxy'=>'',
       'curl'=>[CURLOPT_RESOLVE=>[$host.':'.$port.':'.$address]],
       'on_headers'=>static function($response){$length=$response->getHeaderLine('Content-Length');if($length!==''&&(!ctype_digit($length)||(int)$length>65536))throw new RuntimeException('Service response limit');},
       'progress'=>static function($total,$downloaded){if($downloaded>65536)throw new RuntimeException('Service response limit');}])->acceptJson()->connectTimeout(2)->timeout(5)
      ->withHeaders(['X-Imagine-Correlation'=>$e['correlation_id']])->post($url,['envelope'=>$e,'body'=>$body]);}
    catch(ConnectionException){($this->audit)('service_timeout',$e['correlation_id']);if($attempt===0)continue;throw new RuntimeException('Service unavailable');}
+   catch(\Throwable){($this->audit)('service_transport_denied',$e['correlation_id']);throw new RuntimeException('Service transport denied');}
    if($response->serverError()&&$attempt===0){($this->audit)('service_retry',$e['correlation_id']);continue;}
    if(!$response->successful())throw new RuntimeException('Service response denied');
    Envelope::verify($e,$body,time(),fn($issuer,$key)=>$this->resolve($issuer,$key));

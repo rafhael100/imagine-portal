@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 99300bb0259b557d0580674e37fdffe51e00d103
+          ref: 5c5802bbcf231853764d7241fd3acf1a35588de7
           path: engine
           persist-credentials: false
       - name: Generate synthetic one-run secrets, never committed
@@ -160,8 +160,8 @@ jobs:
             if (preg_match("/^\\S+\\s+00000000\\s+/m", file_get_contents("/proc/net/route"))) exit(2);
             echo "Runtime excludes owner secrets and has no default IPv4 egress route.\n";
           '
-          test "$(docker network inspect imagine-portal-staging_portal_front --format '{{.Internal}}')" = true
-          test "$(docker network inspect imagine-portal-staging_portal_database --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-performance-admin-staging_portal_front --format '{{.Internal}}')" = true
+          test "$(docker network inspect imagine-performance-admin-staging_portal_database --format '{{.Internal}}')" = true
       - name: Authenticate nominal synthetic reviewer in actual staging runtime
         run: |
           set -euo pipefail
