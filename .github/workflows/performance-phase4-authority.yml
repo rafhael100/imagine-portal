@@ -156,3 +156,24 @@ jobs:
           done
           cd "$GITHUB_WORKSPACE/apps/portal"
           php artisan test --no-ansi --filter=test_native_login_mfa_to_real_private_performance_and_correlated_audits
+          export PERFORMANCE_PRIVATE_READ_ENABLED=true PERFORMANCE_PRIVATE_IDENTITY_FILE="$tls/identity.json"
+          export PERFORMANCE_PRIVATE_URL="$PHASE4_RECEIVER_URL" PERFORMANCE_PRIVATE_HOST=performance-ci.internal PERFORMANCE_PRIVATE_PORT=8443 PERFORMANCE_PRIVATE_ADDRESS="$PHASE4_RECEIVER_ADDRESS"
+          export PERFORMANCE_PRIVATE_CA="$tls/ca.pem" PERFORMANCE_PRIVATE_CERTIFICATE="$tls/client.pem" PERFORMANCE_PRIVATE_PRIVATE_KEY="$tls/client.key"
+          export SESSION_DRIVER=file ADMIN_PHASE4_EVIDENCE="$RUNNER_TEMP/phase4-evidence"
+          mkdir -p "$ADMIN_PHASE4_EVIDENCE"
+          php tests/Fixtures/phase4/browser-seed.php
+          php artisan serve --host=127.0.0.1 --port=18944 > "$tls/portal-server.log" 2>&1 &
+          portal_pid=$!
+          mkdir -p "$RUNNER_TEMP/phase4-browser"
+          cd "$RUNNER_TEMP/phase4-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 @axe-core/playwright@4.10.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          NODE_PATH="$RUNNER_TEMP/phase4-browser/node_modules" node "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/phase4/browser.cjs"
+          kill "$portal_pid"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: performance-phase4-private-evidence
+          path: ${{ runner.temp }}/phase4-evidence
+          retention-days: 7
