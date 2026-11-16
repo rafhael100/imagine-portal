@@ -129,7 +129,7 @@ ensure((int)$readerB->query('SELECT count(*) FROM composite_cart_f350.draft_quot
 
 echo json_encode([
  'contractVersion'=>'portal-f352-real-pg18-concurrent-composite-drafts-v1',
- 'realIndependentPhpProcesses'=>15,
+ 'realIndependentPhpProcesses'=>16,
  'sameTenantConcurrentCalls'=>8,
  'sameTenantFreshInserts'=>1,
  'sameTenantIdempotentReplays'=>7,
