@@ -52,12 +52,6 @@ services:
       - no-new-privileges:true
     depends_on:
       db:
-    mem_limit: 1g
-    cpus: 1.5
-    pids_limit: 128
-    logging:
-      driver: json-file
-      options: {max-size: "10m", max-file: "3"}
         condition: service_healthy
     networks:
       - portal_front
@@ -96,6 +90,12 @@ services:
     restart: unless-stopped
 
   db:
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     image: postgres:18
     environment:
       POSTGRES_DB: '${PORTAL_STAGING_DB:?set-db-name}'

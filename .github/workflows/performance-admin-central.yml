@@ -114,6 +114,10 @@ jobs:
             if curl --silent --noproxy '*' --cacert "$ADMIN_PHASE3_TLS/ca.pem" --cert "$ADMIN_PHASE3_TLS/client.pem" --key "$ADMIN_PHASE3_TLS/client.key" --resolve performance-ci.internal:19443:172.30.250.1 https://performance-ci.internal:19443/ >/dev/null; then break; fi
             sleep 0.1
           done
+          if ADMIN_PHASE3_VERIFY_FAILURE_TEST=1 php apps/portal/tests/Fixtures/phase3/client.php > "$ADMIN_PHASE3_TLS/expected-failure.log" 2>&1; then
+            echo 'Verifier incorrectly accepted an intentional failure' >&2
+            exit 1
+          fi
           php apps/portal/tests/Fixtures/phase3/client.php
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

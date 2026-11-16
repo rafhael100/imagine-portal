@@ -5,6 +5,7 @@ require __DIR__.'/../../../vendor/autoload.php';
 $app=require __DIR__.'/../../../bootstrap/app.php';$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 // Laravel registers its own exception renderer; the standalone verifier must fail the shell.
 set_exception_handler(static function(Throwable $e):void{fwrite(STDERR,'Phase3 verifier failed: '.get_class($e).' at line '.$e->getLine()."\n");exit(1);});
+if(getenv('ADMIN_PHASE3_VERIFY_FAILURE_TEST')==='1')throw new RuntimeException('Intentional verifier failure');
 config()->set('performance_admin.enabled',true);config()->set('performance_admin.mode','isolated_ci');config()->set('performance_admin.service_review_enabled',true);
 config()->set('performance_admin.engine_root',getenv('PERFORMANCE_ADMIN_LAB_ENGINE_ROOT'));
 config()->set('performance_admin.service_review_url','https://performance-ci.internal:19443/v1/admin/read');config()->set('performance_admin.service_review_host','performance-ci.internal');config()->set('performance_admin.service_review_port',19443);config()->set('performance_admin.service_review_address','172.30.250.1');
@@ -14,7 +15,7 @@ $identity=fn()=>['issuer'=>'portal_service','key_id'=>'service_key_01','active'=
 $events=[];$client=new App\Domain\PerformanceAdministration\SignedServiceReadClient($identity,function($event,$id)use(&$events){$events[]=[$event,$id];});
 $n=0;$ok=function($v)use(&$n){if(!$v)throw new RuntimeException('HTTPS assertion '.($n+1));$n++;};
 // Real certificate failures, with no Http fake or disabled TLS verification.
-config()->set('performance_admin.service_review_ca',$t.'/server.pem');
+config()->set('performance_admin.service_review_ca',$t.'/client.pem');
 try{$client->read('company_alfa','dashboard.read',[],'https_badca0001');throw new LogicException('Untrusted CA accepted');}catch(RuntimeException){$ok(true);}
 config()->set('performance_admin.service_review_ca',$t.'/ca.pem');
 config()->set('performance_admin.service_review_certificate',$t.'/server.pem');config()->set('performance_admin.service_review_private_key',$t.'/server.key');
