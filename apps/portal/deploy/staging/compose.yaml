@@ -73,6 +73,7 @@ services:
     depends_on:
       - app
     networks:
+      - portal_ingress
       - portal_front
     restart: unless-stopped
 
@@ -97,6 +98,7 @@ services:
     restart: unless-stopped
 
 networks:
+  portal_ingress: {}
   portal_front:
     internal: true
   portal_database:
