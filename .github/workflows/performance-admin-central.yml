@@ -103,6 +103,7 @@ jobs:
           openssl req -newkey rsa:2048 -nodes -keyout client.key -out client.csr -subj '/CN=portal-service-ci' >/dev/null 2>&1
           printf 'extendedKeyUsage=clientAuth\n' > client.ext
           openssl x509 -req -in client.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out client.pem -extfile client.ext >/dev/null 2>&1
+          openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out stranger.pem -extfile client.ext >/dev/null 2>&1
           openssl x509 -in client.pem -noout -serial | cut -d= -f2 > client.serial
           sudo ip address add 172.30.250.1/32 dev lo
           cd "$GITHUB_WORKSPACE"

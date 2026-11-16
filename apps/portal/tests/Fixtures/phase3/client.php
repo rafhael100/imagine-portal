@@ -21,6 +21,14 @@ config()->set('performance_admin.service_review_ca',$t.'/ca.pem');
 config()->set('performance_admin.service_review_certificate',$t.'/server.pem');config()->set('performance_admin.service_review_private_key',$t.'/server.key');
 try{$client->read('company_alfa','dashboard.read',[],'https_badcert01');throw new LogicException('Wrong client accepted');}catch(RuntimeException){$ok(true);}
 config()->set('performance_admin.service_review_certificate',$t.'/client.pem');config()->set('performance_admin.service_review_private_key',$t.'/client.key');
+config()->set('performance_admin.service_review_certificate',$t.'/stranger.pem');config()->set('performance_admin.service_review_private_key',$t.'/server.key');
+try{$client->read('company_alfa','dashboard.read',[],'https_stranger1');throw new LogicException('Unenrolled serial accepted');}catch(RuntimeException){$ok(true);}
+config()->set('performance_admin.service_review_certificate',$t.'/client.pem');config()->set('performance_admin.service_review_private_key',$t.'/client.key');
+foreach(['oversized_response','temporarily_unavailable','slow_response'] as $resource){
+ $events=[];
+ try{$client->read('company_alfa','dashboard.read',['resource'=>$resource],'https_negative1');throw new LogicException('Transport failure accepted');}catch(RuntimeException){$ok(true);}
+ if($resource==='slow_response')$ok(count(array_filter($events,fn($e)=>$e[0]==='service_timeout'))===2);
+}
 $events=[];
 $r=$client->read('company_alfa','dashboard.read',[],'https_request001');$ok($r['status']==='unavailable'&&$r['metrics']===null&&$r['billable']===false);
 $ok($client->read('company_alfa','dashboard.read',[],'https_request001')==$r);

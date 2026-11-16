@@ -1,5 +1,5 @@
 """Runner-only mTLS HTTP transport: no plaintext backend listener or production route."""
-import http.server, ssl, os, subprocess, json
+import http.server, ssl, os, subprocess, json, time
 from pathlib import Path
 assert os.environ.get('CI') == 'true' and os.environ.get('ADMIN_PHASE3_HTTPS_CI') == '1'
 root = Path(os.environ['ADMIN_PHASE3_TLS'])
@@ -12,9 +12,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         length = self.headers.get('Content-Length','')
         if not length.isdigit() or int(length)>16384:
             self.send_error(413); return
+        wire = self.rfile.read(int(length))
+        query = json.loads(json.loads(wire)['body'])
+        # Explicit negative transport fixtures, never official/synthetic business metrics.
+        resource = query.get('resource')
+        if resource in ('oversized_response','temporarily_unavailable','slow_response'):
+            if resource == 'slow_response': time.sleep(6)
+            body = b'x'*70000 if resource == 'oversized_response' else b'{}'
+            self.send_response(200 if resource == 'oversized_response' else 503)
+            self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(body))); self.end_headers()
+            try: self.wfile.write(body)
+            except (BrokenPipeError, ssl.SSLError): pass
+            return
         env = dict(os.environ, ADMIN_CI_VERIFIED_PEER='portal_service')
         try:
-            p = subprocess.run(['php',str(Path(__file__).with_name('receiver.php'))],input=self.rfile.read(int(length)),capture_output=True,timeout=8,env=env,check=True)
+            p = subprocess.run(['php',str(Path(__file__).with_name('receiver.php'))],input=wire,capture_output=True,timeout=8,env=env,check=True)
             r = json.loads(p.stdout)
             body = json.dumps(r['body']).encode()
             self.send_response(r['status']); self.send_header('Content-Type','application/json'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
