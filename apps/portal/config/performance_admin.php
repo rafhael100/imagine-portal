@@ -1,5 +1,6 @@
 <?php
 return [
+    'native_read_enabled'=>env('PERFORMANCE_NATIVE_READ_ENABLED',false),
     // Never exposes a production route or grants operational authorization.
     'service_review_enabled'=>false, // Deliberately unwired; no environment toggle opens transport.
     'service_review_url'=>'',
