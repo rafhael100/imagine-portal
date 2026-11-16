@@ -1,13 +1,13 @@
 # Proposal only. No tunnel/application/DNS/credential created by this file.
-# Run cloudflared on the future host against the dedicated loopback origin after approval.
+# Optional connector profile joins ONLY this candidate front/ingress after approval.
 tunnel: REQUIRED_APPROVED_TUNNEL_UUID
-credentials-file: /run/private/tunnel_credentials.json
+credentials-file: /run/access/tunnel_credentials.json
 ingress:
   - hostname: performance-hml.imaginecomunica.com.br
-    service: https://127.0.0.1:18092
+    service: https://portal-web:8443
     originRequest:
       originServerName: performance-hml.imaginecomunica.com.br
-      caPool: /run/private/portal_origin_ca.pem
+      caPool: /run/access/portal_origin_ca.pem
       noTLSVerify: false
       connectTimeout: 5s
       access:

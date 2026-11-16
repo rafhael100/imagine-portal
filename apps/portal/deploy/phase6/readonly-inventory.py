@@ -10,7 +10,7 @@ def inspect(port=18092,subnet='10.87.6.0/28'):
  proposal=ipaddress.ip_network(subnet,strict=True)
  if not proposal.is_private or proposal.version!=4:raise ValueError('Private candidate network required')
  stacks=json.loads(run(['docker','compose','ls','--format','json']))
- containers=[json.loads(x) for x in run(['docker','ps','--format','{{json .}}']).splitlines() if x]
+ containers=[json.loads(x) for x in run(['docker','ps','-a','--format','{{json .}}']).splitlines() if x]
  netids=run(['docker','network','ls','-q']).splitlines()
  networks=[]
  for net in netids:
@@ -32,7 +32,7 @@ def inspect(port=18092,subnet='10.87.6.0/28'):
   'compose_projects':[{'name':s['Name'],'status':s.get('Status')} for s in stacks],
   'containers':[{'name':c['Names'],'image':c['Image'],'status':c['Status'],'ports':c.get('Ports','')} for c in containers],
   'networks':networks,'named_volumes':run(['docker','volume','ls','-q']).splitlines(),
-  'proposal':{'project':'imagine-performance-p6-staging','port':port,'port_observed_unused':not occupied,'subnet':subnet,'subnet_conflicts':conflicts,'reservation_made':False},
+  'proposal':{'project':'imagine-performance-p6-staging','port':port,'port_observed_unused':not occupied,'subnet':subnet,'subnet_conflicts':conflicts,'reservation_made':False,'project_name_conflict':any(s['Name']=='imagine-performance-p6-staging' for s in stacks)},
   'installation_authorized':False,'status':'NO_GO_PENDING_REVIEW_AND_APPROVAL'}
 if __name__=='__main__':
  try: print(json.dumps(inspect(),sort_keys=True))
