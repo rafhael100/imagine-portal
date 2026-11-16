@@ -1,0 +1,187 @@
+{
+  "base": "fce965f76b96647c86ba0985b49ac48a0fc03021",
+  "automation_tip": "c87f39c8c761c9a9c64d13d14bf45de889061a32",
+  "code_commit": "0afe8be4c836ef0ccf652d991d5f61e210f7e181",
+  "files": [
+    {
+      "path": ".github/workflows/central-auto-p20-authority.yml",
+      "sha256": "3033b200250ab8b360bdc691382d3daf8cf70a68086386ed054e565cd88b37fd",
+      "bytes": 2463
+    },
+    {
+      "path": ".github/workflows/performance-admin-central.yml",
+      "sha256": "025ea37d130a956bd327a3bc4e2eba2f3096e58971cf92481521040e1cb0869b",
+      "bytes": 7130
+    },
+    {
+      "path": ".github/workflows/performance-phase5-integration.yml",
+      "sha256": "b3f1ddbc4e4df2b20781702edc49b4db73d706362ae44875edc88a59d8366f08",
+      "bytes": 12987
+    },
+    {
+      "path": "apps/portal/app/Domain/AutomationAdministration/AutomationPolicyCatalog.php",
+      "sha256": "7ed4e4dc3ea5c072b9086b82c465a7d791faa0f88e9e8e1aac3920beea562222",
+      "bytes": 1909
+    },
+    {
+      "path": "apps/portal/app/Domain/AutomationAdministration/AutomationS2SClient.php",
+      "sha256": "6c4385d6265f9205cda363a0ce803b801da877185c07e5542981cb1423ad4ad3",
+      "bytes": 3508
+    },
+    {
+      "path": "apps/portal/app/Domain/AutomationAdministration/AutomationStateReader.php",
+      "sha256": "785ba2fbc36249e1c9014cf1648789aebda311ca0f258d8f91d1e8d8fe0545cc",
+      "bytes": 2748
+    },
+    {
+      "path": "apps/portal/app/Domain/AutomationAdministration/DatabaseAutomationAuthority.php",
+      "sha256": "ff07e41c633bc967f2cacb675904ddce5ae25c5ea238682f2bccb2c7e0b09ae2",
+      "bytes": 3063
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceAdministration/AuthorizedPerformanceRead.php",
+      "sha256": "f7d004c6c858d904fb1d560db8fd94fb2de1004ba136f44a23e97c476dd66d49",
+      "bytes": 986
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceAdministration/NativePerformanceAuthority.php",
+      "sha256": "d3e9d4c1608bd800dfd5f711b873d2fad6c6750580e5fc7f34c49e30eddc679d",
+      "bytes": 6408
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/AutomationAdminController.php",
+      "sha256": "298c9c1b8fcb3822dad5c0c061e368727330cad8f0470baa7b4de194cb43c28d",
+      "bytes": 1320
+    },
+    {
+      "path": "apps/portal/app/Providers/AppServiceProvider.php",
+      "sha256": "a2199f8a81f46d22c996a38644978714b3ff6664b0a2cc6d5a9348df40dbfd8a",
+      "bytes": 2717
+    },
+    {
+      "path": "apps/portal/config/automation_admin.php",
+      "sha256": "aa48e632cc8745bb7383fc54d406e27ee211992ef1c212915814ba5f956257b6",
+      "bytes": 427
+    },
+    {
+      "path": "apps/portal/config/database.php",
+      "sha256": "cd00370a096fea04ef5968eb21076b2dfd1cff235145de2150bfafb9d971ab72",
+      "bytes": 7956
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_16_000019_create_portal_automation_authority.php",
+      "sha256": "a83b560f751497ecd43ad8ac7d31872f8c5bae686fce56015c4b2bc04c55d1a6",
+      "bytes": 2573
+    },
+    {
+      "path": "apps/portal/docs/administration/CENTRAL-AUTO-P0.md",
+      "sha256": "ee4aa46599bb6247746f2c1ff9dc3942467acf7bd8be0061a529768660ac8f3e",
+      "bytes": 1971
+    },
+    {
+      "path": "apps/portal/docs/administration/CENTRAL-AUTO-P2-P3.md",
+      "sha256": "72e82b968e846d8cfe8255c1a15e96e9abc7d23dfd8cf5cbd685dd39f71db7e3",
+      "bytes": 3036
+    },
+    {
+      "path": "apps/portal/docs/administration/CENTRAL-AUTO-P20-AUTHORITY.md",
+      "sha256": "965a785694149c2a75c227bb1bed35ee4f38195597044220e7d6c2740a638d72",
+      "bytes": 2695
+    },
+    {
+      "path": "apps/portal/resources/views/automation-admin/index.blade.php",
+      "sha256": "acc084833d266e4a0353ab69b9fe47c5cc23bedb74e187898568438c9c60ea58",
+      "bytes": 3372
+    },
+    {
+      "path": "apps/portal/resources/views/portal-admin/home.blade.php",
+      "sha256": "d643f76d76f86ddcbf5869b9db473ce0a9a804da5087aa0073987bde97f64273",
+      "bytes": 1155
+    },
+    {
+      "path": "apps/portal/routes/web.php",
+      "sha256": "4d437e9cc5e62b5a694418555767f482e91816a85948aa88216a7f2ba6afe9c7",
+      "bytes": 4239
+    },
+    {
+      "path": "apps/portal/tests/Feature/AutomationAdministrationTest.php",
+      "sha256": "e8dd1d60f7a5e4a53c3db0c9f8c5594716e3512d87de2024212bd0d6ac517d21",
+      "bytes": 4100
+    },
+    {
+      "path": "apps/portal/tests/Feature/AutomationDatabaseAuthorityTest.php",
+      "sha256": "60d8354c61b4a320cafa1d925e5b6e5a4611aca4b6a0971d3bb6946f1981ef28",
+      "bytes": 7997
+    },
+    {
+      "path": "apps/portal/tests/Feature/IntegratedProductAuthorityTest.php",
+      "sha256": "e78bdab0896663b0c64dbfa44bff1eeb298bb5573db505d069c3ccfca528bf9f",
+      "bytes": 6396
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/p20/authority-role.php",
+      "sha256": "a15f9978c7e4084c7529a69c43bda7eeef5d04254bfdd78480e96454764c5a62",
+      "bytes": 821
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/p20/preparation-process.php",
+      "sha256": "92cb320c4e811de59763752dd5bf07f34ff3c1b6e9c8ff76655939b0158f9383",
+      "bytes": 4229
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/performance-admin-browser.cjs",
+      "sha256": "0cbf7f339193824f124d68561ed5f9cf3be2519ce4012a440430bf75f0e854f3",
+      "bytes": 6330
+    },
+    {
+      "path": "apps/portal/tests/Fixtures/phase5/authority-role.php",
+      "sha256": "992dfa0175bf707f141e272bda60dff827878b54e832902820268de99afc0571",
+      "bytes": 1178
+    },
+    {
+      "path": "apps/portal/tests/Integration/AutomationS2S/Dockerfile",
+      "sha256": "09e99c4e7005b2ac8b9911f4e85f5fb766f487aacb5650c2970eb868c5bae708",
+      "bytes": 730
+    },
+    {
+      "path": "apps/portal/tests/Integration/AutomationS2S/README.md",
+      "sha256": "a20bda222bc538b5dec134e93c7d5d1afb205560ea9e5a73d8bc147e28c7a680",
+      "bytes": 1240
+    },
+    {
+      "path": "apps/portal/tests/Integration/AutomationS2S/read-private.php",
+      "sha256": "e96369bbc3c6621e50bc12c0881664258231c600e7b2d698208de54fb35d841e",
+      "bytes": 1286
+    },
+    {
+      "path": "apps/portal/tests/Unit/AutomationStateReaderTest.php",
+      "sha256": "542ab99e1e18c13d7d9a1cf80d81c34d06c97cae9b7db37da292beafd42292c1",
+      "bytes": 2137
+    },
+    {
+      "path": "apps/portal/tests/Unit/DisposablePreparationTest.php",
+      "sha256": "66b189af97161e2b2470b98cefecdd14731365cbc3dd1ca03cce87c30fa3569c",
+      "bytes": 3280
+    },
+    {
+      "path": "apps/portal/tools/p20/DisposablePreparation.php",
+      "sha256": "4fdfd39e8362c144c30a7f822e0f7469e1473072ff01bbaa3a932a6d5d3f1c34",
+      "bytes": 8817
+    },
+    {
+      "path": "apps/portal/tools/p20/README.md",
+      "sha256": "b734962c50486e1c30eca843c03f3be244f59a6fffc767b3aeb3826d7708a3b4",
+      "bytes": 6347
+    },
+    {
+      "path": "apps/portal/tools/p20/prepare.php",
+      "sha256": "0c6a4c1817f41ef7433809d02417d5128c96df19d51ba4cff882a1c2fa09d805",
+      "bytes": 3263
+    },
+    {
+      "path": "apps/portal/tools/phase5/prepare-ci.php",
+      "sha256": "779243cc0a7a639c4035d2a63d73726b29cd3964a2c3cf953697ff87843cff69",
+      "bytes": 1826
+    }
+  ]
+}
