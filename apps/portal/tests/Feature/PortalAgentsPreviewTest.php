@@ -48,7 +48,9 @@ final class PortalAgentsPreviewTest extends TestCase
         foreach (['modules','available'] as $page) {
             $html=view('portal.demo.'.$page)->render();
             self::assertStringContainsString('Imagine Agentes de IA',$html);
-            self::assertStringContainsString('Acesso', $html); // informational only
+            self::assertStringContainsString(
+                $page==='modules' ? 'Prévia offline' : 'Não contratável', $html
+            );
             self::assertStringNotContainsString('<script',$html);
             self::assertStringNotContainsString('https://',$html);
         }
