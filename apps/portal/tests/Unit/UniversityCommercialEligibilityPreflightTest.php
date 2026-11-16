@@ -222,6 +222,82 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         self::assertFalse($decision->mayIssuePortalGrant());
     }
 
+    public function test_one_of_two_services_cancelled_does_not_hide_other_covered_active_service(): void
+    {
+        $active = $this->contract('svc-onepage-a', UniversityContractStatus::Active, 3);
+        $cancelled = $this->contract('svc-onepage-b', UniversityContractStatus::Cancelled, 9);
+        $decision = $this->inspect(
+            [$active, $cancelled],
+            $this->revisions(
+                ['svc-onepage-a' => 3, 'svc-onepage-b' => 9],
+                ['svc-onepage-b'],
+            ),
+            $this->policy(),
+            [$this->coverage()],
+        );
+
+        self::assertSame('candidate_pending_official_authority', $decision->reason);
+        self::assertSame(1, $decision->candidateCount);
+        self::assertFalse($decision->mayIssuePortalGrant());
+
+        $lastCancelled = $this->inspect(
+            [
+                $this->contract('svc-onepage-a', UniversityContractStatus::Cancelled, 4),
+                $cancelled,
+            ],
+            $this->revisions(
+                ['svc-onepage-a' => 4, 'svc-onepage-b' => 9],
+                ['svc-onepage-a', 'svc-onepage-b'],
+            ),
+            $this->policy(),
+            [],
+        );
+        self::assertSame('contract_no_eligible_service', $lastCancelled->reason);
+        self::assertSame(0, $lastCancelled->candidateCount);
+    }
+
+    public function test_trial_suspended_and_unapproved_billing_status_cannot_qualify(): void
+    {
+        foreach ([
+            UniversityContractStatus::Trial,
+            UniversityContractStatus::Suspended,
+            UniversityContractStatus::Preparing,
+        ] as $status) {
+            $decision = $this->inspect(
+                [$this->contract(status: $status)],
+                $this->revisions(),
+                $this->policy(),
+                [$this->coverage()],
+            );
+            self::assertSame('contract_no_eligible_service', $decision->reason);
+        }
+
+        $trialOnly = new UniversityContractSnapshot(
+            'svc-onepage-a', $this->org(), PortfolioProduct::Onepage,
+            UniversityContractStatus::Active, true, true, 3,
+            self::NOW - 5, self::NOW + 30,
+        );
+        self::assertSame('contract_no_eligible_service', $this->inspect(
+            [$trialOnly], $this->revisions(), $this->policy(), [$this->coverage()],
+        )->reason);
+    }
+
+    public function test_product_mismatch_is_denied_even_when_the_sku_is_listed(): void
+    {
+        $coverage = new UniversityServiceCoverageSnapshot(
+            'svc-onepage-a', $this->org(), PortfolioProduct::PerformanceAI,
+            'perf-approved-sku', 3, 7, self::NOW - 3600,
+            self::NOW + 3600, self::NOW - 5, self::NOW + 30,
+        );
+        $policy = $this->policy([
+            'sites_onepage' => ['sku-onepage-monthly'],
+            'performance_ai' => ['perf-approved-sku'],
+        ]);
+        self::assertSame('contract_policy_revision_mismatch', $this->inspect(
+            [$this->contract()], $this->revisions(), $policy, [$coverage],
+        )->reason);
+    }
+
     public function test_independent_revocation_revision_mismatch_preempts_policy(): void
     {
         $decision = $this->inspect(
