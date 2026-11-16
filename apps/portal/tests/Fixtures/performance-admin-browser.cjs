@@ -15,6 +15,12 @@ function otp(){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date
  fs.writeFileSync(path.join(out,m+'-accessibility.json'),JSON.stringify({module:m,violations:accessibility.violations.map(v=>({id:v.id,impact:v.impact,help:v.help,targets:v.nodes.map(n=>n.target)}))},null,2));check(failures.length===0);
  await page.screenshot({path:path.join(out,m+'-desktop.png'),fullPage:true});if(m==='dashboard'){await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'dashboard-mobile.png'),fullPage:true});}}
  phase='pause';await page.goto(base+'/portal-admin/performance/agents?resource=analysis');await page.locator('.actionform [name=confirmed]').check();await page.locator('.actionform button').click();check(await page.getByRole('status').count()===1);await page.goto(base+'/portal-admin/performance/agents?resource=analysis');check(await page.getByText('Retomar agente interno',{exact:true}).count()>=1);
+ phase='client-context';await page.goto(base+'/portal-admin/performance/clients?q=Alfa&status=active&sort=status');
+ await page.getByRole('link',{name:'Abrir cliente →',exact:true}).click();check(new URL(page.url()).searchParams.get('q')==='Alfa');
+ await page.getByRole('navigation',{name:'Detalhes do cliente'}).getByRole('link',{name:'Campanhas',exact:true}).click();
+ check(new URL(page.url()).searchParams.get('context')==='client');check(new URL(page.url()).searchParams.get('client_sort')==='status');
+ await page.getByRole('link',{name:'← Voltar aos clientes com os filtros anteriores',exact:true}).click();
+ check(new URL(page.url()).searchParams.get('q')==='Alfa');check(new URL(page.url()).searchParams.get('sort')==='status');
  phase='filters';await page.goto(base+'/portal-admin/performance/campaigns');await page.locator('#q').fill('nao-existe');await page.getByRole('button',{name:'Filtrar',exact:true}).click();check(await page.getByText('Nenhum registro corresponde aos filtros.').isVisible());
  phase='csrf';const rejected=await page.request.post(base+'/portal-admin/performance/command/lab-alfa',{form:{action:'agent.pause'}});check(rejected.status()===419);
  check(errors.length===0);console.log('ADMIN BROWSER PASS: '+checks+' assertions; ten modules, desktop/mobile, real password/MFA, persisted pause, filters, CSRF and WCAG serious/critical checks.');

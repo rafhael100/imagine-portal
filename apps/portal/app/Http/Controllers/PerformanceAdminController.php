@@ -23,10 +23,10 @@ final class PerformanceAdminController
         $filters=$request->validate(['q'=>'nullable|string|max:80','channel'=>'nullable|in:google_ads,meta_ads,chatgpt_ads',
             'status'=>'nullable|in:active,onboarding,monitored,alert,paused,failed,pending,approved,rejected,revoked,consumed,open,acknowledged,resolved,unavailable,simulated',
             'page'=>'nullable|integer|min:1|max:10000','sort'=>'nullable|in:name,status','tab'=>'nullable|in:overview,campaigns,channels,agents,finance,approvals,reports,history',
-            'context'=>'nullable|in:client','client_q'=>'nullable|string|max:80','client_status'=>'nullable|in:active,onboarding','client_page'=>'nullable|integer|min:1|max:10000','resource'=>'nullable|string|max:64','period'=>'nullable|in:2026-11','objective'=>'nullable|in:Leads,Visitas']);
+            'context'=>'nullable|in:client','client_q'=>'nullable|string|max:80','client_status'=>'nullable|in:active,onboarding','client_sort'=>'nullable|in:name,status','client_page'=>'nullable|integer|min:1|max:10000','resource'=>'nullable|string|max:64','period'=>'nullable|in:2026-11','objective'=>'nullable|in:Leads,Visitas']);
         if($module==='clients'&&isset($filters['tab'])&&!in_array($filters['tab'],['overview','history'],true)){
             return redirect()->route('performance-admin.index',['module'=>$filters['tab'],'tenant'=>$tenant,'context'=>'client',
-                'client_q'=>$filters['q']??null,'client_status'=>$filters['status']??null,'client_page'=>$filters['page']??1]);
+                'client_q'=>$filters['q']??null,'client_status'=>$filters['status']??null,'client_page'=>$filters['page']??1,'client_sort'=>$filters['sort']??'name']);
         }
         $actionsFor=fn(string $m,array $r)=>\App\Domain\PerformanceAdministration\AdministrativeActionAvailability::actions($m,$r,$can,
             (int)\Illuminate\Support\Facades\Auth::guard('portal-admin')->id(),$request->session()->get('portal_admin_mfa_at'),time());
