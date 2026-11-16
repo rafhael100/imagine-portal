@@ -58,7 +58,11 @@ jobs:
           test "$PGHOST" = 127.0.0.1
           test "$PGDATABASE" = portal_composite_f350_ci
           test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = portal_composite_f350_ci
-          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT inet_server_addr()::text")" = 127.0.0.1
+          # The client is bound to host loopback, while Docker NAT may cause
+          # inet_server_addr() inside the container to report its bridge IP.
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT inet_server_port()')" = 5432
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')" = postgres
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_setting(''server_version_num'')::int >= 180000')" = t
       - name: Create ONLY least-privileged synthetic reader roles
         run: |
           set -euo pipefail
