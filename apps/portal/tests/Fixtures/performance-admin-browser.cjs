@@ -23,5 +23,15 @@ function otp(){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date
  check(new URL(page.url()).searchParams.get('q')==='Alfa');check(new URL(page.url()).searchParams.get('sort')==='status');
  phase='filters';await page.goto(base+'/portal-admin/performance/campaigns');await page.locator('#q').fill('nao-existe');await page.getByRole('button',{name:'Filtrar',exact:true}).click();check(await page.getByText('Nenhum registro corresponde aos filtros.').isVisible());
  phase='csrf';const rejected=await page.request.post(base+'/portal-admin/performance/command/lab-alfa',{form:{action:'agent.pause'}});check(rejected.status()===419);
+ phase='automation-policies';const automationResponse=await page.goto(base+'/portal-admin/automations');
+ if(process.env.IMAGINE_AUTOMATION_ADMIN_ENABLED==='true'){check(automationResponse.status()===200);
+ check(await page.getByRole('heading',{level:1}).count()===1);check(await page.getByText('Dados operacionais indisponíveis.',{exact:true}).isVisible());
+ for(const w of [320,390,768,1440]){await page.setViewportSize({width:w,height:900});check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
+ const automationAxe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa']).analyze();
+ fs.writeFileSync(path.join(out,'automation-accessibility.json'),JSON.stringify({violations:automationAxe.violations.map(v=>({id:v.id,impact:v.impact,help:v.help}))},null,2));check(automationAxe.violations.filter(v=>['serious','critical'].includes(v.impact)).length===0);
+ await page.screenshot({path:path.join(out,'automation-policies-desktop.png'),fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'automation-policies-mobile.png'),fullPage:true});
+ await page.locator('#product').selectOption('crm');await page.getByRole('button',{name:'Filtrar políticas',exact:true}).click();check(await page.locator('.auto-card').count()===1);
+ }else{check(automationResponse.status()===404);}
  check(errors.length===0);console.log('ADMIN BROWSER PASS: '+checks+' assertions; ten modules, desktop/mobile, real password/MFA, persisted pause, filters, CSRF and WCAG serious/critical checks.');
  }finally{await b.close();}})().catch((error)=>{console.error('Failure kind: '+error.name+'; '+(String(error.message).includes('frame')?'frame':String(error.message).includes('axe')?'axe':String(error.message).includes('Assertion')?'assertion':'other'));console.error('Administrative browser check failed at '+phase+'; no credentials or HTML logged.');process.exit(1);});
