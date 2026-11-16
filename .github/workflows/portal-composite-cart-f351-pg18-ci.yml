@@ -1,0 +1,93 @@
+name: Portal F351 - PG18 tenant-scoped quote replay and idempotency lab
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/labs/composite-cart-f351/**'
+      - '.github/workflows/portal-composite-cart-f351-pg18-ci.yml'
+      - 'apps/portal/labs/composite-cart-f350/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  f351-real-pg18:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f350-disposable-admin-only
+          POSTGRES_DB: portal_composite_f350_ci
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_composite_f350_ci"
+          --health-interval 5s
+          --health-timeout 4s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+      PORTAL_F350_DISPOSABLE: LOCAL_127_0_0_1_ONLY
+      PORTAL_F351_DISPOSABLE: LOCAL_SYNTHETIC_WRITER_ONLY
+      PGHOST: '127.0.0.1'
+      PGPORT: '5432'
+      PGDATABASE: portal_composite_f350_ci
+      PGUSER: postgres
+      PGPASSWORD: f350-disposable-admin-only
+    steps:
+      - name: Checkout exact proposed code without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup PHP (no payment clients or Composer install)
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          extensions: pdo,pdo_pgsql
+      - name: Refuse anything except loopback disposable PostgreSQL18
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/composite-cart-f351/SyntheticDraftWriter.php
+          php -l apps/portal/labs/composite-cart-f351/test_idempotent_writer_pg18.php
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = portal_composite_f350_ci
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_database()')" = portal_composite_f350_ci
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT current_setting('server_version_num')::int >= 180000")" = t
+      - name: Synthetic roles and F350 FORCE RLS foundation
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE f350_tenant_a_reader LOGIN PASSWORD 'f350-disposable-a-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE f350_tenant_b_reader LOGIN PASSWORD 'f350-disposable-b-only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+          psql -X -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE portal_composite_f350_ci TO f350_tenant_a_reader,f350_tenant_b_reader"
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/composite-cart-f350/tenant_reader_rls_pg18.sql
+      - name: Add tenant-scoped idempotency index without granting new reader columns
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/composite-cart-f351/idempotent_drafts_pg18.sql
+          test "$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_indexes WHERE schemaname='composite_cart_f350' AND indexname='f351_one_draft_per_tenant_request'")" = 1
+      - name: Exercise original RLS security before writing more drafts
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/composite-cart-f350/test_tenant_rls_pg18.php
+      - name: Test idempotent server-repriced draft writes and cross-tenant replay fences
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/composite-cart-f351/test_idempotent_writer_pg18.php
+      - name: Revoke roles and remove isolated F350/F351 data
+        if: always()
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS composite_cart_f350 CASCADE'
+          psql -X -v ON_ERROR_STOP=1 -c 'REVOKE CONNECT ON DATABASE portal_composite_f350_ci FROM f350_tenant_a_reader,f350_tenant_b_reader'
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_a_reader'
+          psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_b_reader'
+          test -z "$(git status --porcelain --untracked-files=no)"
+          echo 'F351 is synthetic-only. No Portal auth session, no tenant production writer, no cart, no PSP or invoice.' >> "$GITHUB_STEP_SUMMARY"
