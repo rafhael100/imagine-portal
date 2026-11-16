@@ -1,0 +1,35 @@
+name: Portal RC50 - Immutable Actions supply chain policy
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'apps/portal/tools/audit-workflow-action-pins.mjs'
+      - 'apps/portal/labs/seo-rc50-actions/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-action-pins:
+    name: Reject mutable action tags / Node 22
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout without retained credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Setup Node 22 by immutable SHA
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Verify syntax, unit tests and every workflow reference
+        run: |
+          set -euo pipefail
+          node --check apps/portal/tools/audit-workflow-action-pins.mjs
+          node --test apps/portal/labs/seo-rc50-actions/action-pins.test.mjs
+          node apps/portal/tools/audit-workflow-action-pins.mjs
+      - name: Do not change tracked files
+        run: test -z "$(git status --porcelain --untracked-files=no)"
