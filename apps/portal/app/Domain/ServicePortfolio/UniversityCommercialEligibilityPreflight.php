@@ -34,7 +34,7 @@ final readonly class UniversityCommercialEligibilityPreflight
         ?OrganizationId $organization,
         int $nowEpoch,
     ): UniversityCommercialEligibilityResult {
-        if ($organization === null || $nowEpoch <= 0) {
+        if ($organization === null || $nowEpoch <= 0 || $nowEpoch >= PHP_INT_MAX - 6) {
             return UniversityCommercialEligibilityResult::blocked('invalid_context');
         }
 
@@ -58,9 +58,15 @@ final readonly class UniversityCommercialEligibilityPreflight
             return UniversityCommercialEligibilityResult::blocked('source_unavailable');
         }
 
-        if (hrtime(true) - $startedAt > $this->maxSourceReadMs * 1_000_000) {
+        $elapsedNs = hrtime(true) - $startedAt;
+        if ($elapsedNs > $this->maxSourceReadMs * 1_000_000) {
             return UniversityCommercialEligibilityResult::blocked('source_read_timeout');
         }
+
+        // The original epoch was sampled BEFORE four potentially slow source
+        // reads. At end-of-read, treat even a partial elapsed second as a
+        // whole second for expiration checks. Never extend snapshot TTLs.
+        $checkedAtEpoch = $nowEpoch + intdiv($elapsedNs + 999_999_999, 1_000_000_000);
 
         if ($records === null || $revisions === null || $policy === null || $coverage === null) {
             return UniversityCommercialEligibilityResult::blocked('source_unavailable');
@@ -74,12 +80,16 @@ final readonly class UniversityCommercialEligibilityPreflight
 
         if ($policy->observedAtEpoch > $nowEpoch
             || $policy->observedAtEpoch < $nowEpoch - 60
-            || $policy->expiresAtEpoch <= $nowEpoch
+            || $policy->expiresAtEpoch <= $checkedAtEpoch
             || $policy->expiresAtEpoch > $nowEpoch + 60
             || $policy->effectiveFromEpoch > $nowEpoch
-            || $policy->effectiveUntilEpoch <= $nowEpoch
+            || $policy->effectiveUntilEpoch <= $checkedAtEpoch
         ) {
             return UniversityCommercialEligibilityResult::blocked('stale_or_inactive_policy');
+        }
+
+        if ($revisions->expiresAtEpoch <= $checkedAtEpoch) {
+            return UniversityCommercialEligibilityResult::blocked('revocation_expired_during_read');
         }
 
         // Preserve read-once semantics: original providers must not be
@@ -116,6 +126,9 @@ final readonly class UniversityCommercialEligibilityPreflight
             if (!$record instanceof UniversityContractSnapshot) {
                 return UniversityCommercialEligibilityResult::blocked('invalid_contract_source');
             }
+            if ($record->expiresAtEpoch <= $checkedAtEpoch) {
+                return UniversityCommercialEligibilityResult::blocked('contract_expired_during_read');
+            }
             if ($record->isQualifyingCandidate()) {
                 $active[$record->serviceReference] = $record;
             }
@@ -147,10 +160,10 @@ final readonly class UniversityCommercialEligibilityPreflight
 
             if ($item->observedAtEpoch > $nowEpoch
                 || $item->observedAtEpoch < $nowEpoch - 60
-                || $item->expiresAtEpoch <= $nowEpoch
+                || $item->expiresAtEpoch <= $checkedAtEpoch
                 || $item->expiresAtEpoch > $nowEpoch + 60
                 || $item->effectiveFromEpoch > $nowEpoch
-                || $item->effectiveUntilEpoch <= $nowEpoch
+                || $item->effectiveUntilEpoch <= $checkedAtEpoch
             ) {
                 return UniversityCommercialEligibilityResult::blocked('stale_or_expired_coverage');
             }
