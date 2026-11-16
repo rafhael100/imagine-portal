@@ -44,4 +44,19 @@ final class AutomationAdministrationTest extends TestCase
   $this->login();config()->set('automation_admin.enabled',false);
   $this->get('/portal-admin/automations')->assertNotFound();
  }
+ public function test_metadata_requires_a_server_provider_and_independent_company_grant():void {
+  $this->login();$company='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  $this->get('/portal-admin/automations?company='.$company)->assertOk()->assertDontSee('data-automation-state=',false);
+  $admin=$this->actor;
+  $reader=new \App\Domain\AutomationAdministration\AutomationStateReader(fn($scope)=>[
+   'schema'=>'CRM_AUTOMATION_STATE_V1','source_kind'=>'synthetic_private_database','company_id'=>$scope,'observed_at'=>time(),
+   'settings_version'=>1,'counts'=>['pending'=>1,'completed'=>2,'cancelled'=>0,'failed'=>0],
+   'events'=>[['action'=>'automation.task_created','at'=>time()-1]],'ai_provider_calls'=>0,'operational_authorization'=>false],
+   fn($actor,$scope)=>$actor===$admin&&$scope===$company);
+  app()->instance(\App\Domain\AutomationAdministration\AutomationStateReader::class,$reader);
+  $this->get('/portal-admin/automations?company='.$company)->assertOk()->assertSee('data-automation-state="completed"',false)->assertSee('automation.task_created');
+  $this->get('/portal-admin/automations?company=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')->assertOk()->assertDontSee('data-automation-state=',false);
+  $this->get('/portal-admin/automations?company='.$company.'&admin='.$admin)->assertUnprocessable();
+ }
+
 }
