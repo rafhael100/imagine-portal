@@ -1,0 +1,50 @@
+name: Sites sandbox expected-payment binding - isolated PG18 only
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Domain/SitesIntegration/PgSandboxInstallationBindingSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/SandboxSettlementFactory.php'
+      - 'apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php'
+      - 'apps/portal/ops/psp/sites-sandbox-bindings-candidate.sql'
+      - 'tests/sites-sandbox-binding-pg.php'
+      - '.github/workflows/portal-sites-sandbox-binding.yml'
+permissions:
+  contents: read
+jobs:
+  bindings:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portal_sites_binding_ci
+        ports: ['5432:5432']
+        options: --health-cmd 'pg_isready -U postgres -d portal_sites_binding_ci' --health-interval 5s --health-timeout 3s --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql,curl,sodium
+          coverage: none
+      - name: Native scope, immutable mappings and revocation during provider read
+        env:
+          PORTAL_SITES_BINDING_CI: '1'
+          SITES_BINDING_PG_DSN: pgsql:host=127.0.0.1;port=5432;dbname=portal_sites_binding_ci
+        run: php tests/sites-sandbox-binding-pg.php
+      - name: Existing strict settlement and proof regression - synthetic PSP only
+        env:
+          GITHUB_ACTIONS: 'true'
+          PORTAL_F390_ASAAS_CI: '1'
+          PORTAL_P0_CHECKOUT_ASAAS_PARITY_CI: '1'
+        run: |
+          php tests/f390-asaas-official-settlement.php
+          php tests/p0-checkout-asaas-proof-parity.php
