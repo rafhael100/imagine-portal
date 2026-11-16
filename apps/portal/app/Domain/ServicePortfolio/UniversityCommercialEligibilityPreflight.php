@@ -168,6 +168,14 @@ final readonly class UniversityCommercialEligibilityPreflight
                 return UniversityCommercialEligibilityResult::blocked('stale_or_expired_coverage');
             }
 
+            // Settlement of a site installation, a webhook event or a
+            // caller-constructed/legacy snapshot is NOT current service
+            // coverage. The two candidate bases below still need official
+            // contract/payment/grace provenance and independent approval.
+            if (!$item->basis->isCurrentServiceCandidate()) {
+                return UniversityCommercialEligibilityResult::blocked('coverage_not_authoritative');
+            }
+
             if (!$policy->includes($item->product, $item->planSku)) {
                 return UniversityCommercialEligibilityResult::blocked('sku_not_approved');
             }
