@@ -25,7 +25,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: portal_sites_binding_ci
         ports: ['5432:5432']
-        options: --health-cmd 'pg_isready -U postgres -d portal_sites_binding_ci' --health-interval 5s --health-timeout 3s --health-retries 15
+        options: --health-cmd "pg_isready -U postgres -d portal_sites_binding_ci" --health-interval 5s --health-timeout 3s --health-retries 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
