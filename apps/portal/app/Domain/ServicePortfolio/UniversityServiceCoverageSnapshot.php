@@ -24,6 +24,9 @@ final readonly class UniversityServiceCoverageSnapshot
         public int $effectiveUntilEpoch,
         public int $observedAtEpoch,
         public int $expiresAtEpoch,
+        // Fail-closed default: historical coverage snapshots never magically
+        // become current service proof after a deployment.
+        public UniversityCoverageBasis $basis = UniversityCoverageBasis::Unverified,
     ) {
         if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,119}\z/D', $serviceReference) !== 1
             || preg_match('/\A[a-z0-9][a-z0-9._:-]{0,63}\z/D', $planSku) !== 1
