@@ -1,0 +1,46 @@
+name: Portal V5 composite quote lab - anonymous site + ads only
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php'
+      - 'apps/portal/tools/test_composite_quote_preview.php'
+      - '.github/workflows/portal-composite-quote-preview-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  approved-v5-composite-preview:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      APP_ENV: testing
+      PAYMENTS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact Portal candidate with no persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup PHP without code coverage
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Validate isolated composite quote and 48 reviewed combinations
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php
+          php -l apps/portal/tools/test_composite_quote_preview.php
+          php apps/portal/tools/test_composite_quote_preview.php
+      - name: Preserve server catalog and forbid real charges
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
+          grep -Fq "'real_charge_enabled'=>false" apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php
+          grep -Fq "'public_checkout_authorized'=>false" apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php
+          grep -Fq '"production_activation_authorized_by_this_file": false' apps/portal/app/Homologation/Commerce/approved-catalog.json
+          echo 'Synthetic composite quote only; no authentication, checkout, PSP, invoice or production GO.' >> "$GITHUB_STEP_SUMMARY"
