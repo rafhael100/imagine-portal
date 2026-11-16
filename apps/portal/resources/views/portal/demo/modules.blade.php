@@ -3,6 +3,7 @@
         <x-portal.service-card name="Performance AI" description="Acesso ilustrativo ao painel de resultados simulados. Google Ads e Meta não conectados." status="Acesso indisponível" tone="warning" />
         <x-portal.service-card name="Sites" description="Acesso ilustrativo à organização dos seus projetos digitais." status="Acesso indisponível" tone="warning" />
         <x-portal.service-card name="Imagine CRM" description="Serviço independente. Login e sessão próprios, sem compartilhamento de credenciais ou sessão com o Portal." status="Acesso independente" tone="info" />
+        <x-portal.service-card name="Imagine Agentes de IA" description="Assistente Comercial ilustrativo: Visitas → Leads → Clientes. Sem autenticação de serviço, IA real ou leitura do CRM." status="Prévia offline · sem acesso" tone="warning" />
         <x-portal.service-card name="Universidade Imagine" description="Acesso ilustrativo às trilhas de aprendizagem. Integração de identidade não implementada." status="Acesso indisponível" tone="warning" />
     </div>
     <x-portal.panel title="Exemplo visual de carregamento">
