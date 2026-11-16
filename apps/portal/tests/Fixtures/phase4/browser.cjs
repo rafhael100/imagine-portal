@@ -2,7 +2,7 @@ const {chromium}=require('playwright'),AxeBuilder=require('@axe-core/playwright'
 const fs=require('fs'),crypto=require('crypto'),path=require('path');
 const root=process.env.ADMIN_PHASE4_TLS,vault=JSON.parse(fs.readFileSync(path.join(root,'browser-vault.json'),'utf8'));
 const base='http://127.0.0.1:18944',out=process.env.ADMIN_PHASE4_EVIDENCE;
-function otp(){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const d=crypto.createHmac('sha1',Buffer.from(vault.secret,'hex')).update(b).digest(),o=d[d.length-1]&15;return String((d.readUInt32BE(o)&0x7fffffff)%1000000).padStart(6,'0');}
+function otp(secret=vault.secret){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));const d=crypto.createHmac('sha1',Buffer.from(secret,'hex')).update(b).digest(),o=d[d.length-1]&15;return String((d.readUInt32BE(o)&0x7fffffff)%1000000).padStart(6,'0');}
 (async()=>{const browser=await chromium.launch({headless:true});try{
  const context=await browser.newContext();const page=await context.newPage();let checks=0;const check=x=>{if(!x)throw Error('Assertion');checks++;};
  await page.goto(base+'/portal-admin/login');await page.locator('[name=email]').fill(vault.email);await page.locator('[name=password]').fill(vault.password);
@@ -16,5 +16,12 @@ function otp(){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floor(Date
   await page.screenshot({path:path.join(out,'private-read-'+width+'.png'),fullPage:true});
   fs.writeFileSync(path.join(out,'accessibility-'+width+'.json'),JSON.stringify({violations:accessibility.violations.map(v=>({id:v.id,impact:v.impact}))}));
  }
+ const second=await browser.newContext(),other=await second.newPage();
+ await other.goto(base+'/portal-admin/login');await other.locator('[name=email]').fill(vault.second.email);await other.locator('[name=password]').fill(vault.second.password);
+ await Promise.all([other.waitForURL('**/mfa'),other.locator('button[type=submit]').click()]);await other.locator('[name=code]').fill(otp(vault.second.secret));
+ await Promise.all([other.waitForURL('**/portal-admin'),other.locator('button[type=submit]').click()]);
+ const responses=await Promise.all([page.goto(base+'/portal-admin/performance-private/'+vault.company),other.goto(base+'/portal-admin/performance-private/'+vault.company)]);
+ check(responses[0].status()===200);check(responses[1].status()===403);
+ await other.goto(base+'/portal-admin/performance-private');check(await other.getByRole('link',{name:'Abrir empresa '+vault.second.company}).count()===1);check(await other.getByRole('link',{name:'Abrir empresa '+vault.company}).count()===0);
  console.log('PHASE4 BROWSER PASS: '+checks+' checks; nominal password/MFA, authorized company selection, real S2S FPM/Nginx result, desktop/mobile and serious/critical accessibility checks.');
 }finally{await browser.close();}})().catch(()=>{console.error('Phase4 browser failed; credentials and HTML omitted');process.exit(1);});
