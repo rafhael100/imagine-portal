@@ -5,6 +5,11 @@ on:
     paths:
       - '.github/workflows/portal-f138-staging-docker-ci.yml'
       - 'apps/portal/deploy/staging/**'
+      - 'apps/portal/app/Domain/PerformanceAdministration/**'
+      - 'apps/portal/app/Http/Controllers/PerformanceAdminController.php'
+      - 'apps/portal/resources/views/performance-admin/**'
+      - 'apps/portal/tests/Fixtures/performance-admin-*'
+      - 'apps/portal/config/performance_admin.php'
       - 'apps/portal/.dockerignore'
       - 'apps/portal/.gitignore'
       - 'apps/portal/database/migrations/2026_11_15_000017_create_portal_cache_for_throttling.php'
