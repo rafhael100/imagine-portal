@@ -40,7 +40,7 @@ final readonly class UniversityCommercialEligibilityPreflight
 
         // University schema has max 80 bytes, while generic Portal IDs can
         // be longer. NEVER truncate or map tenant identifiers implicitly.
-        if (strlen($organization->value) > 80) {
+        if (!UniversityInteropIdentifiers::supportsOrganization($organization)) {
             return UniversityCommercialEligibilityResult::blocked('unsupported_tenant_identifier');
         }
 
