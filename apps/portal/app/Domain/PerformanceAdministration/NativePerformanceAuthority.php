@@ -9,6 +9,14 @@ use Throwable;
 /** Portal-owned authority. No browser identity, inherited SEO grant or production fixture promotion. */
 final class NativePerformanceAuthority
 {
+ public function outcome(string $company,string $operation,string $correlation,string $outcome):void {
+  if(!in_array($outcome,['completed','failed'],true))throw new RuntimeException('PERFORMANCE_AUDIT_DENIED');
+  $lease=$this->lease($company,$operation,$correlation);$actor=(int)Auth::guard('portal-admin')->id();
+  DB::connection('performance_authority')->transaction(function()use($company,$operation,$correlation,$outcome,$lease,$actor){
+   $db=DB::connection('performance_authority');$db->select("SELECT set_config('app.performance_actor',?,true),set_config('app.performance_company',?,true)",[(string)$actor,$company]);
+   $db->table('portal_performance_access_audit')->insert(['id'=>(string)Str::uuid(),'admin_user_id'=>$actor,'company_id'=>$company,'operation'=>$operation,'correlation_id'=>$correlation,'outcome'=>$outcome,'lease_digest'=>$lease,'observed_at'=>time()]);
+  });
+ }
  public function lease(string $company,string $operation,string $correlation):string {
   try{
    if(config('performance_admin.native_read_enabled')!==true||!PrivateDemonstrationPolicy::allowed()||!Str::isUuid($company)||!Str::isUuid($correlation))throw new RuntimeException;

@@ -70,4 +70,24 @@ final class NativePerformanceAuthorityTest extends TestCase {
   $this->login();$this->grant();DB::table('portal_performance_services')->where('company_id',$this->company)->update(['source_kind'=>'portal_contract_authority']);$this->denied(fn()=>$this->lease());
   $this->app->detectEnvironment(fn()=>'production');$this->denied(fn()=>$this->lease());
  }
+ public function test_native_login_mfa_to_real_private_performance_and_correlated_audits():void {
+  if(getenv('ADMIN_PHASE4_HTTPS_CI')!=='1')$this->markTestSkipped('Separate HTTPS process required');
+  $this->company='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';$this->login();$this->grant();
+  $tls=getenv('ADMIN_PHASE4_TLS');config()->set('performance_admin.service_review_enabled',true);
+  config()->set('performance_admin.engine_root',getenv('PERFORMANCE_ADMIN_LAB_ENGINE_ROOT'));
+  config()->set('performance_admin.service_identity_file',$tls.'/identity.json');
+  config()->set('performance_admin.service_review_url','https://performance-ci.internal:19444/v1/admin/read');
+  config()->set('performance_admin.service_review_host','performance-ci.internal');config()->set('performance_admin.service_review_port',19444);config()->set('performance_admin.service_review_address','172.30.250.2');
+  foreach(['ca'=>'ca.pem','certificate'=>'client.pem','private_key'=>'client.key'] as $key=>$file)config()->set('performance_admin.service_review_'.$key,$tls.'/'.$file);
+  $id=(string)Str::uuid();$reader=app(AuthorizedPerformanceRead::class);$result=$reader->read($this->company,'dashboard.read',$id);
+  $this->assertSame('unavailable',$result['status']);$this->assertNull($result['metrics']);$this->assertFalse($result['billable']);
+  $this->assertEquals($result,$reader->read($this->company,'dashboard.read',$id));
+  $this->get('/portal-admin/performance-private/'.$this->company)->assertOk()->assertSee('Dados indisponíveis')->assertSee('Não informado pela fonte');
+  $this->assertSame(2,DB::table('portal_performance_access_audit')->where('correlation_id',$id)->where('outcome','completed')->count());
+  $owner=new \PDO('pgsql:host=127.0.0.1;dbname=performance_receiver_phase4_ci','postgres',getenv('DB_PASSWORD'));
+  $q=$owner->prepare("SELECT count(*) FROM performance_admin_inbox.request_audit WHERE correlation_id=? AND outcome='read_result'");$q->execute([$id]);$this->assertSame(2,(int)$q->fetchColumn());
+  $owner->exec('UPDATE performance_admin_inbox.service_delegations SET active=false,revoked_at=now()');
+  $this->expectException(\RuntimeException::class);$reader->read($this->company,'dashboard.read',$id);
+ }
+
 }

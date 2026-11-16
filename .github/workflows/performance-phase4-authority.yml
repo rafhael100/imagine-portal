@@ -22,6 +22,8 @@ jobs:
       APP_DEBUG: 'false'
       ADMIN_PHASE4_PG_CI: '1'
       PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      PERFORMANCE_ADMIN_LAB_ENABLED: 'true'
+      PERFORMANCE_NATIVE_READ_ENABLED: 'true'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -31,6 +33,7 @@ jobs:
       PERFORMANCE_AUTHORITY_DB_USERNAME: portal_performance_runtime
       PERFORMANCE_AUTHORITY_DB_PASSWORD: SYNTHETIC_PHASE4_CI_ONLY
       PERFORMANCE_AUTHORITY_SSLMODE: disable
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: ${{ github.workspace }}/engine
       SESSION_DRIVER: array
       CACHE_STORE: array
       QUEUE_CONNECTION: sync
@@ -38,6 +41,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 29c2662dea2365dbe5f01ea82480d10bc5830653
+          path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
@@ -56,3 +65,30 @@ jobs:
       - name: Native password MFA service and grant revocation
         working-directory: apps/portal
         run: php artisan test --no-ansi --filter=NativePerformanceAuthorityTest
+      - name: Native login MFA authority to separate HTTPS mTLS Performance application
+        env:
+          ADMIN_PHASE4_HTTPS_CI: '1'
+          ADMIN_PHASE4_TLS: /tmp/admin-phase4-tls
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$ADMIN_PHASE4_TLS"
+          cd "$ADMIN_PHASE4_TLS"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout ca.key -out ca.pem -subj '/CN=SYNTHETIC Phase4 CI CA' >/dev/null 2>&1
+          for name in server client; do
+            openssl req -newkey rsa:2048 -nodes -keyout "$name.key" -out "$name.csr" -subj '/CN=performance-ci.internal' >/dev/null 2>&1
+            if [ "$name" = server ]; then printf 'subjectAltName=DNS:performance-ci.internal\nextendedKeyUsage=serverAuth\n' > ext; else printf 'extendedKeyUsage=clientAuth\n' > ext; fi
+            openssl x509 -req -in "$name.csr" -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -out "$name.pem" -extfile ext >/dev/null 2>&1
+          done
+          sudo ip address add 172.30.250.2/32 dev lo
+          cd "$GITHUB_WORKSPACE"
+          php apps/portal/tests/Fixtures/phase4/receiver-setup.php
+          python3 apps/portal/tests/Fixtures/phase4/https-server.py > "$ADMIN_PHASE4_TLS/server.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; sudo ip address del 172.30.250.2/32 dev lo; rm -rf "$ADMIN_PHASE4_TLS"' EXIT
+          for attempt in $(seq 1 40); do
+            if curl --silent --noproxy '*' --cacert "$ADMIN_PHASE4_TLS/ca.pem" --cert "$ADMIN_PHASE4_TLS/client.pem" --key "$ADMIN_PHASE4_TLS/client.key" --resolve performance-ci.internal:19444:172.30.250.2 https://performance-ci.internal:19444/ >/dev/null; then break; fi
+            sleep 0.1
+          done
+          cd apps/portal
+          php artisan test --no-ansi --filter=test_native_login_mfa_to_real_private_performance_and_correlated_audits

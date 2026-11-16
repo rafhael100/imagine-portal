@@ -1,15 +1,16 @@
 <?php
 return [
     'native_read_enabled'=>env('PERFORMANCE_NATIVE_READ_ENABLED',false),
+    'service_identity_file'=>env('PERFORMANCE_PRIVATE_IDENTITY_FILE',''),
     // Never exposes a production route or grants operational authorization.
-    'service_review_enabled'=>false, // Deliberately unwired; no environment toggle opens transport.
-    'service_review_url'=>'',
-    'service_review_host'=>'',
-    'service_review_ca'=>'',
-    'service_review_certificate'=>'',
-    'service_review_private_key'=>'',
-    'service_review_port'=>443,
-    'service_review_address'=>'', // Private IPv4 pinned with TLS hostname verification; no DNS/proxy fallback.
+    'service_review_enabled'=>env('PERFORMANCE_PRIVATE_READ_ENABLED',false), // Deliberately unwired; no environment toggle opens transport.
+    'service_review_url'=>env('PERFORMANCE_PRIVATE_URL',''),
+    'service_review_host'=>env('PERFORMANCE_PRIVATE_HOST',''),
+    'service_review_ca'=>env('PERFORMANCE_PRIVATE_CA',''),
+    'service_review_certificate'=>env('PERFORMANCE_PRIVATE_CERTIFICATE',''),
+    'service_review_private_key'=>env('PERFORMANCE_PRIVATE_PRIVATE_KEY',''),
+    'service_review_port'=>(int)env('PERFORMANCE_PRIVATE_PORT',443),
+    'service_review_address'=>env('PERFORMANCE_PRIVATE_ADDRESS',''), // Private IPv4 pinned with TLS hostname verification; no DNS/proxy fallback.
     'service_envelope_hash'=>'7c08724dbbdbfe8edb806d6a948c38ecc24e2927953eba14fba7cc1a04389cfe',
     'mode'=>env('PERFORMANCE_ADMIN_MODE','isolated_ci'),
     'synthetic_only'=>true,
