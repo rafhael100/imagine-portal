@@ -341,6 +341,108 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         }
     }
 
+    public function test_slow_coverage_source_fails_closed_even_when_snapshots_look_fresh(): void
+    {
+        $contracts = new class($this->contract()) implements UniversityContractAuthority {
+            public function __construct(private UniversityContractSnapshot $record) {}
+            public function currentFor(OrganizationId $organization): ?array { return [$this->record]; }
+        };
+        $revisions = new class($this->revisions()) implements UniversityServiceRevisionAuthority {
+            public function __construct(private UniversityServiceRevisionSnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot { return $this->data; }
+        };
+        $policy = new class($this->policy()) implements UniversityCommercialPolicyAuthority {
+            public function __construct(private UniversityCommercialPolicySnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?UniversityCommercialPolicySnapshot { return $this->data; }
+        };
+        $coverage = new class($this->coverage()) implements UniversityServiceCoverageAuthority {
+            public function __construct(private UniversityServiceCoverageSnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?array {
+                usleep(20_000);
+                return [$this->data];
+            }
+        };
+
+        $result = (new UniversityCommercialEligibilityPreflight(
+            $contracts, $revisions, $policy, $coverage, 2,
+        ))->inspect($this->org(), self::NOW);
+        self::assertSame('source_read_timeout', $result->reason);
+        self::assertSame(0, $result->candidateCount);
+        self::assertFalse($result->mayIssuePortalGrant());
+    }
+
+    public function test_invalid_time_budget_is_not_accepted(): void
+    {
+        foreach ([0, -1, 5001] as $budget) {
+            try {
+                new UniversityCommercialEligibilityPreflight(maxSourceReadMs: $budget);
+                self::fail('Invalid source latency budget was accepted.');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
+    public function test_independent_outages_in_all_four_sources_never_produce_candidates(): void
+    {
+        $records = new class($this->contract()) implements UniversityContractAuthority {
+            public bool $unavailable = false;
+            public function __construct(private UniversityContractSnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?array {
+                if ($this->unavailable) {
+                    throw new RuntimeException('contracts offline');
+                }
+                return [$this->data];
+            }
+        };
+        $revocations = new class($this->revisions()) implements UniversityServiceRevisionAuthority {
+            public bool $unavailable = false;
+            public function __construct(private UniversityServiceRevisionSnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?UniversityServiceRevisionSnapshot {
+                if ($this->unavailable) {
+                    throw new RuntimeException('revisions offline');
+                }
+                return $this->data;
+            }
+        };
+        $policy = new class($this->policy()) implements UniversityCommercialPolicyAuthority {
+            public bool $unavailable = false;
+            public function __construct(private UniversityCommercialPolicySnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?UniversityCommercialPolicySnapshot {
+                if ($this->unavailable) {
+                    throw new RuntimeException('policy offline');
+                }
+                return $this->data;
+            }
+        };
+        $coverage = new class($this->coverage()) implements UniversityServiceCoverageAuthority {
+            public bool $unavailable = false;
+            public function __construct(private UniversityServiceCoverageSnapshot $data) {}
+            public function currentFor(OrganizationId $organization): ?array {
+                if ($this->unavailable) {
+                    throw new RuntimeException('coverage offline');
+                }
+                return [$this->data];
+            }
+        };
+
+        foreach ([$records, $revocations, $policy, $coverage] as $source) {
+            $source->unavailable = true;
+            $result = (new UniversityCommercialEligibilityPreflight(
+                $records, $revocations, $policy, $coverage,
+            ))->inspect($this->org(), self::NOW);
+            self::assertSame('source_unavailable', $result->reason);
+            self::assertFalse($result->mayIssuePortalGrant());
+            $source->unavailable = false;
+        }
+
+        $healthy = (new UniversityCommercialEligibilityPreflight(
+            $records, $revocations, $policy, $coverage,
+        ))->inspect($this->org(), self::NOW);
+        self::assertSame('candidate_pending_official_authority', $healthy->reason);
+        self::assertFalse($healthy->mayIssuePortalGrant());
+    }
+
     public function test_sources_are_read_once_and_outages_never_produce_candidates(): void
     {
         $goodContracts = [$this->contract()];
