@@ -13,7 +13,7 @@ final class SandboxSettlementFactory
   try {
    if(!is_file($path)||is_link($path)||!is_readable($path)||filesize($path)>1024||(fileperms($path)&0037)!==0)throw new RuntimeException();
    $token=rtrim(file_get_contents($path),"\r\n");
-   return new AsaasVerifiedSettlementSource(new PgSandboxInstallationBindingSource($db,$serverOwnedSandboxAccount),new AsaasReadOnlyPaymentClient('sandbox',$token));
+   return new AsaasVerifiedSettlementSource(new FullInstallationBindingSource($db,new PgSandboxInstallationBindingSource($db,$serverOwnedSandboxAccount)),new AsaasReadOnlyPaymentClient('sandbox',$token));
   }catch(Throwable){throw new RuntimeException('Sandbox settlement dependency unavailable');}
  }
 }

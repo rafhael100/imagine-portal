@@ -1,0 +1,31 @@
+name: Sites installation release policy guard
+on:
+  push:
+    branches: ['feature/sites-full-installation-release-guard-2026-11-16']
+permissions:
+  contents: read
+jobs:
+  release-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-release-ci
+          POSTGRES_DB: portal_release_terms_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d portal_release_terms_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      SITES_RELEASE_TERMS_PG_CI: '1'
+      PGPASSWORD: synthetic-release-ci
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - run: php tests/sites-full-installation-guard-pg.php
