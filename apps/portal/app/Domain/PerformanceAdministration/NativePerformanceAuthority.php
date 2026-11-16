@@ -9,12 +9,16 @@ use Throwable;
 /** Portal-owned authority. No browser identity, inherited SEO grant or production fixture promotion. */
 final class NativePerformanceAuthority
 {
+ private function independent($db):void {
+  if($db->transactionLevel()!==0||$db->getPdo()->inTransaction()||$db->selectOne('SHOW transaction_isolation')->transaction_isolation!=='read committed')throw new RuntimeException('PERFORMANCE_CURRENT_TRANSACTION_REQUIRED');
+ }
  public function companies():array {
   // Company identifiers are navigation candidates only. lease() independently validates every selection.
   try{
    if(config('performance_admin.native_read_enabled')!==true||!PrivateDemonstrationPolicy::allowed())return [];
+   $this->independent(DB::connection());
    $admin=Auth::guard('portal-admin')->user()?->fresh();if(!$admin||!$admin->is_active)return [];
-   $db=DB::connection('performance_authority');
+   $db=DB::connection('performance_authority');$this->independent($db);
    $candidates=$db->transaction(function()use($db,$admin){
     $db->statement("SET LOCAL statement_timeout='1500ms'");
     $db->select("SELECT set_config('app.performance_actor',?,true)",[(string)$admin->id]);
@@ -34,16 +38,17 @@ final class NativePerformanceAuthority
  public function lease(string $company,string $operation,string $correlation):string {
   try{
    if(config('performance_admin.native_read_enabled')!==true||!PrivateDemonstrationPolicy::allowed()||!Str::isUuid($company)||!Str::isUuid($correlation))throw new RuntimeException;
+   $this->independent(DB::connection());
    $request=request();if(!$request->hasSession())throw new RuntimeException;
    $admin=Auth::guard('portal-admin')->user()?->fresh();$session=$request->session();$now=time();
    $mfa=$session->get('portal_admin_mfa_at');$epoch=$session->get('portal_admin_session_version');
    if(!$admin||!$admin->is_active||$session->get('portal_admin_mfa_id')!==(int)$admin->id||!is_int($epoch)||$epoch<1||$epoch!==(int)$admin->session_version||!is_int($mfa)||$mfa>$now||$mfa<=$now-900)throw new RuntimeException;
-   $db=DB::connection('performance_authority');
+   $db=DB::connection('performance_authority');$this->independent($db);
    $ci=app()->environment('testing')&&getenv('CI')==='true'&&getenv('ADMIN_PHASE4_PG_CI')==='1';
    if(!$ci&&$db->getConfig('sslmode')!=='verify-full')throw new RuntimeException;
    return $db->transaction(function()use($db,$company,$operation,$correlation,$admin,$mfa,$epoch,$now){
     $db->statement("SET LOCAL statement_timeout='1500ms'");
-    $profile=$db->selectOne("SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreaterole OR r.rolcreatedb OR r.rolreplication OR bool_or(pg_has_role(current_user,c.relowner,'MEMBER')) OR bool_or(has_any_column_privilege(current_user,c.oid,'UPDATE')) OR bool_or(has_table_privilege(current_user,c.oid,'DELETE,TRUNCATE')) OR NOT bool_and(c.relrowsecurity AND c.relforcerowsecurity) AS unsafe FROM pg_roles r CROSS JOIN pg_class c WHERE r.rolname=current_user AND c.oid IN ('portal_performance_services'::regclass,'portal_performance_grants'::regclass,'portal_performance_access_audit'::regclass) GROUP BY r.oid,r.rolsuper,r.rolbypassrls,r.rolcreaterole,r.rolcreatedb,r.rolreplication");
+    $profile=$db->selectOne("SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreaterole OR r.rolcreatedb OR r.rolreplication OR bool_or(pg_has_role(current_user,c.relowner,'MEMBER')) OR bool_or(has_any_column_privilege(current_user,c.oid,'UPDATE')) OR bool_or(CASE WHEN c.relname IN ('portal_performance_services','portal_performance_grants') THEN has_any_column_privilege(current_user,c.oid,'INSERT') ELSE false END) OR bool_or(CASE WHEN c.relname='portal_performance_access_audit' THEN has_table_privilege(current_user,c.oid,'SELECT') ELSE false END) OR bool_or(has_table_privilege(current_user,c.oid,'DELETE,TRUNCATE')) OR NOT bool_and(c.relrowsecurity AND c.relforcerowsecurity) AS unsafe FROM pg_roles r CROSS JOIN pg_class c WHERE r.rolname=current_user AND c.oid IN ('portal_performance_services'::regclass,'portal_performance_grants'::regclass,'portal_performance_access_audit'::regclass) GROUP BY r.oid,r.rolsuper,r.rolbypassrls,r.rolcreaterole,r.rolcreatedb,r.rolreplication");
     if(!$profile||$profile->unsafe)throw new RuntimeException;
     $db->select("SELECT set_config('app.performance_actor',?,true),set_config('app.performance_company',?,true)",[(string)$admin->id,$company]);
     $service=$db->table('portal_performance_services')->where('company_id',$company)->first();
@@ -62,6 +67,10 @@ final class NativePerformanceAuthority
      'correlation_id'=>$correlation,'outcome'=>$lease?'granted':'denied','lease_digest'=>$lease,'observed_at'=>$now]);
     return $lease??'';
    }) ?: throw new RuntimeException;
-  }catch(Throwable){throw new RuntimeException('PERFORMANCE_AUTHORITY_DENIED');}
+  }catch(Throwable){
+   // No unverified company/actor/header reaches the pre-authorization log. SQL audit remains grant-scoped.
+   try{PerformanceSecurityEvents::record('authority_denied',Str::isUuid($correlation)?$correlation:(string)Str::uuid());}catch(Throwable){}
+   throw new RuntimeException('PERFORMANCE_AUTHORITY_DENIED');
+  }
  }
 }

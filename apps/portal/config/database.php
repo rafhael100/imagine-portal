@@ -34,7 +34,7 @@ return [
         'performance_authority' => [
             'driver'=>'pgsql','host'=>env('DB_HOST','127.0.0.1'),'port'=>env('DB_PORT','5432'),
             'database'=>env('DB_DATABASE'),'username'=>env('PERFORMANCE_AUTHORITY_DB_USERNAME'),
-            'password'=>env('PERFORMANCE_AUTHORITY_DB_PASSWORD'),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
+            'password'=>\App\Support\PrivateStagingSecret::read(env('PERFORMANCE_AUTHORITY_PASSWORD_FILE'),env('PERFORMANCE_AUTHORITY_DB_PASSWORD')),'charset'=>'utf8','prefix'=>'','search_path'=>'public',
             'sslmode'=>env('PERFORMANCE_AUTHORITY_SSLMODE','verify-full'),'sslrootcert'=>env('PERFORMANCE_AUTHORITY_CA_FILE'),
         ],
         // Same Portal database, separate least-privilege credential. Never inherit bootstrap credentials.
@@ -105,7 +105,7 @@ return [
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'password' => \App\Support\PrivateStagingSecret::read(env('PORTAL_DB_PASSWORD_FILE'),env('DB_PASSWORD','')),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,

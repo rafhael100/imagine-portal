@@ -102,6 +102,11 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        'performance_security' => [
+            'driver'=>'monolog','level'=>'info','handler'=>StreamHandler::class,
+            'handler_with'=>['stream'=>'php://stderr'], 'formatter'=>\Monolog\Formatter\JsonFormatter::class,
+        ],
+
         'stderr' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
