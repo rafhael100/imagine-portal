@@ -1,5 +1,5 @@
 # Proposal only. No tunnel/application/DNS/credential created by this file.
-# Optional connector profile joins ONLY this candidate front/ingress after approval.
+# Explicit optional connector overlay joins ONLY this candidate front/ingress after approval.
 tunnel: REQUIRED_APPROVED_TUNNEL_UUID
 credentials-file: /run/access/tunnel_credentials.json
 ingress:

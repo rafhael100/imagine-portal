@@ -136,18 +136,6 @@ services:
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
-  access-connector:
-    <<: *locked
-    profiles: [approved-access]
-    image: '${P6_CLOUDFLARED_IMAGE:?reviewed immutable connector required if enabled}'
-    user: '65532:65532'
-    command: ['tunnel','--no-autoupdate','--config','/run/access/config.yml','run']
-    volumes: ['${P6_ACCESS_DIR:?approved access config and own credentials required}:/run/access:ro']
-    tmpfs: ['/tmp:mode=1777']
-    networks: [ingress, portal_front]
-    mem_limit: 128m
-    cpus: 0.25
-    pids_limit: 64
 networks:
   ingress: {}
   portal_front: {internal: true}

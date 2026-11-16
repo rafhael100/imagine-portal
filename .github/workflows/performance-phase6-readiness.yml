@@ -72,10 +72,13 @@ jobs:
           env=dict(os.environ)
           for key in set(re.findall(r'\$\{(P6_[A-Z_]+)',p.read_text())):
               env[key]='/tmp/phase6-config-only'
-          for key in ['P6_PORTAL_IMAGE','P6_PORTAL_WEB_IMAGE','P6_PG_IMAGE','P6_RECEIVER_IMAGE','P6_NGINX_IMAGE','P6_CLOUDFLARED_IMAGE']:
+          for key in ['P6_PORTAL_IMAGE','P6_PORTAL_WEB_IMAGE','P6_PG_IMAGE','P6_RECEIVER_IMAGE','P6_NGINX_IMAGE']:
               env[key]='example.invalid/config-only@sha256:'+'0'*64
           env.update(P6_PRIVATE_URL='https://phase6.example.invalid',P6_LOOPBACK_PORT='18092',P6_RECEIVER_IP='10.87.6.3',P6_SERVICE_SUBNET='10.87.6.0/28',P6_ENGINE_SOURCE=str(pathlib.Path('engine').resolve()),P6_ADMIN_ENABLED='false',P6_LAB_ENABLED='false',P6_S2S_ENABLED='false',P6_RECEIVER_ENABLED='0')
           subprocess.run(['docker','compose','-f',str(p),'config','--quiet'],env=env,check=True)
+          env['P6_CLOUDFLARED_IMAGE']='example.invalid/config-only@sha256:'+'0'*64
+          env['P6_ACCESS_DIR']='/tmp/phase6-access-config-only'
+          subprocess.run(['docker','compose','-f',str(p),'-f','apps/portal/deploy/phase6/compose.access.yaml','config','--quiet'],env=env,check=True)
           print('PHASE6_COMPOSE_CONFIG_ONLY_PASS; no host inventory, secrets, start or deployment')
           PYCONFIG
       - name: Observe exact CI-owned PostgreSQL instance
