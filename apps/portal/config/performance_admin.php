@@ -8,7 +8,7 @@ return [
     'synthetic_only'=>true,
     'enabled'=>env('PERFORMANCE_ADMIN_LAB_ENABLED',false),
     'engine_root'=>env('PERFORMANCE_ADMIN_LAB_ENGINE_ROOT',''),
-    'engine_sha'=>'51fc81d6d0f0d99d907a06928b223a74c065a6b3',
+    'engine_sha'=>'99300bb0259b557d0580674e37fdffe51e00d103',
     'engine_hash'=>'a34c64c1cf47f6778c3b55e561a6bf3ae00650423d3d0ed5e838793ed7eb11dc',
     'finance_hash'=>'4140213bb138e5e02b0ec2e6182ff4e0bbf79013c262a6ada61b97afaac1cb66',
 ];
