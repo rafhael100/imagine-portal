@@ -23,9 +23,9 @@ final class NativePerformanceAuthority
    $allowed=[];foreach($candidates as $company){try{$this->lease($company,'dashboard.read',(string)Str::uuid());$allowed[]=$company;}catch(Throwable){}}return $allowed;
   }catch(Throwable){return [];}
  }
- public function outcome(string $company,string $operation,string $correlation,string $outcome):void {
+ public function outcome(string $company,string $operation,string $correlation,string $outcome,?string $expectedLease=null):void {
   if(!in_array($outcome,['completed','failed'],true))throw new RuntimeException('PERFORMANCE_AUDIT_DENIED');
-  $lease=$this->lease($company,$operation,$correlation);$actor=(int)Auth::guard('portal-admin')->id();
+  $lease=$this->lease($company,$operation,$correlation);if($expectedLease!==null&&!hash_equals($expectedLease,$lease))throw new RuntimeException('PERFORMANCE_AUTHORITY_CHANGED');$actor=(int)Auth::guard('portal-admin')->id();
   DB::connection('performance_authority')->transaction(function()use($company,$operation,$correlation,$outcome,$lease,$actor){
    $db=DB::connection('performance_authority');$db->select("SELECT set_config('app.performance_actor',?,true),set_config('app.performance_company',?,true)",[(string)$actor,$company]);
    $db->table('portal_performance_access_audit')->insert(['id'=>(string)Str::uuid(),'admin_user_id'=>$actor,'company_id'=>$company,'operation'=>$operation,'correlation_id'=>$correlation,'outcome'=>$outcome,'lease_digest'=>$lease,'observed_at'=>time()]);
@@ -56,7 +56,7 @@ final class NativePerformanceAuthority
       'operator_active'=>true,'company_active'=>(bool)$service->company_active,'contract_status'=>$service->status,'service_active'=>$service->status==='active',
       'session_epoch'=>$epoch,'revoked_at'=>$grant->revoked_at??$service->revoked_at,'expires_at'=>min((int)$grant->expires_at,(int)$service->expires_at),
       'mfa_at'=>$mfa,'role'=>$grant->role,'permissions'=>['performance.admin.'.$grant->operation],'grant_version'=>(int)$grant->revision,'contract_version'=>(int)$service->contract_version],fn()=>$now);
-     try{$lease=$bridge->lease((int)$admin->id,$company,$operation,$epoch);}catch(RuntimeException){}
+     try{$base=$bridge->lease((int)$admin->id,$company,$operation,$epoch);$lease=hash('sha256',json_encode([$base,$service->contract_ref,$service->source_kind,$grant->id],JSON_THROW_ON_ERROR));}catch(RuntimeException){}
     }
     $db->table('portal_performance_access_audit')->insert(['id'=>(string)Str::uuid(),'admin_user_id'=>$admin->id,'company_id'=>$company,'operation'=>$operation,
      'correlation_id'=>$correlation,'outcome'=>$lease?'granted':'denied','lease_digest'=>$lease,'observed_at'=>$now]);

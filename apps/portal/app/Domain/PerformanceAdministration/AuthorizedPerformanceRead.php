@@ -13,6 +13,6 @@ final class AuthorizedPerformanceRead {
    throw new RuntimeException('PERFORMANCE_READ_UNAVAILABLE');
   }
   if(!hash_equals($lease,$this->authority->lease($company,$operation,$correlation)))throw new RuntimeException('PERFORMANCE_AUTHORITY_CHANGED');
-  $this->authority->outcome($company,$operation,$correlation,'completed');return $result;
+  $this->authority->outcome($company,$operation,$correlation,'completed',$lease);return $result;
  }
 }

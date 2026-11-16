@@ -49,4 +49,17 @@ final class IntegratedProductAuthorityTest extends TestCase {
    try{DB::connection($connection)->table($table)->count();$this->fail('Cross-product SQL access');}catch(\Illuminate\Database\QueryException){$this->assertTrue(true);}
   }
  }
+ public function test_contract_replacement_during_read_invalidates_the_exact_lease():void {
+  $this->performance();$id=(string)Str::uuid();
+  $reader=new AuthorizedPerformanceRead(new NativePerformanceAuthority,function(){DB::table('portal_performance_services')->where('company_id',$this->company)->update(['contract_ref'=>(string)Str::uuid()]);return ['status'=>'synthetic'];});
+  try{$reader->read($this->company,'dashboard.read',$id);$this->fail('Changed contract accepted');}catch(\RuntimeException $e){$this->assertSame('PERFORMANCE_AUTHORITY_CHANGED',$e->getMessage());}
+  $this->assertSame(0,DB::table('portal_performance_access_audit')->where('correlation_id',$id)->where('outcome','completed')->count());
+ }
+ public function test_completion_audit_cannot_substitute_a_different_authority_lease():void {
+  $this->performance();$id=(string)Str::uuid();$authority=new NativePerformanceAuthority;$lease=$authority->lease($this->company,'dashboard.read',$id);
+  DB::table('portal_performance_grants')->where('admin_user_id',$this->actor)->increment('revision');
+  try{$authority->outcome($this->company,'dashboard.read',$id,'completed',$lease);$this->fail('Completion changed authority');}catch(\RuntimeException $e){$this->assertSame('PERFORMANCE_AUTHORITY_CHANGED',$e->getMessage());}
+  $this->assertSame(0,DB::table('portal_performance_access_audit')->where('correlation_id',$id)->where('outcome','completed')->count());
+ }
+
 }
