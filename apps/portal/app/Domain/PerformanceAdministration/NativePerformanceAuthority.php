@@ -9,6 +9,20 @@ use Throwable;
 /** Portal-owned authority. No browser identity, inherited SEO grant or production fixture promotion. */
 final class NativePerformanceAuthority
 {
+ public function companies():array {
+  // Company identifiers are navigation candidates only. lease() independently validates every selection.
+  try{
+   if(config('performance_admin.native_read_enabled')!==true||!PrivateDemonstrationPolicy::allowed())return [];
+   $admin=Auth::guard('portal-admin')->user()?->fresh();if(!$admin||!$admin->is_active)return [];
+   $db=DB::connection('performance_authority');
+   $candidates=$db->transaction(function()use($db,$admin){
+    $db->statement("SET LOCAL statement_timeout='1500ms'");
+    $db->select("SELECT set_config('app.performance_actor',?,true)",[(string)$admin->id]);
+    return $db->table('portal_performance_grants')->where('admin_user_id',$admin->id)->where('operation','dashboard.read')->whereNull('revoked_at')->where('expires_at','>',time())->orderBy('company_id')->limit(25)->pluck('company_id')->all();
+   });
+   $allowed=[];foreach($candidates as $company){try{$this->lease($company,'dashboard.read',(string)Str::uuid());$allowed[]=$company;}catch(Throwable){}}return $allowed;
+  }catch(Throwable){return [];}
+ }
  public function outcome(string $company,string $operation,string $correlation,string $outcome):void {
   if(!in_array($outcome,['completed','failed'],true))throw new RuntimeException('PERFORMANCE_AUDIT_DENIED');
   $lease=$this->lease($company,$operation,$correlation);$actor=(int)Auth::guard('portal-admin')->id();

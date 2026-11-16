@@ -65,6 +65,8 @@ if(config('portal_admin.enabled')===true && \App\Domain\PerformanceAdministratio
 
 // Fase4 native authority route. Disabled independently of the synthetic lab UI.
 if(config('portal_admin.enabled')===true && config('performance_admin.native_read_enabled')===true && \App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed()){
+ Route::get('/portal-admin/performance-private',[\App\Http\Controllers\PerformancePrivateReadController::class,'index'])
+  ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.index');
  Route::get('/portal-admin/performance-private/{company}',[\App\Http\Controllers\PerformancePrivateReadController::class,'show'])
   ->whereUuid('company')->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.show');
 }

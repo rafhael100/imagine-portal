@@ -3,7 +3,7 @@ return [
     'native_read_enabled'=>env('PERFORMANCE_NATIVE_READ_ENABLED',false),
     'service_identity_file'=>env('PERFORMANCE_PRIVATE_IDENTITY_FILE',''),
     // Never exposes a production route or grants operational authorization.
-    'service_review_enabled'=>env('PERFORMANCE_PRIVATE_READ_ENABLED',false), // Deliberately unwired; no environment toggle opens transport.
+    'service_review_enabled'=>env('PERFORMANCE_PRIVATE_READ_ENABLED',false), // Explicit opt-in; native authority/private-staging gates still required.
     'service_review_url'=>env('PERFORMANCE_PRIVATE_URL',''),
     'service_review_host'=>env('PERFORMANCE_PRIVATE_HOST',''),
     'service_review_ca'=>env('PERFORMANCE_PRIVATE_CA',''),

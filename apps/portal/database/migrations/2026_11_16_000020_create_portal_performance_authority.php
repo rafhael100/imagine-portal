@@ -22,8 +22,9 @@ return new class extends Migration {
    lease_digest text, observed_at bigint NOT NULL);");
   foreach(['portal_performance_services','portal_performance_grants','portal_performance_access_audit'] as $table){
    DB::statement("ALTER TABLE $table ENABLE ROW LEVEL SECURITY");DB::statement("ALTER TABLE $table FORCE ROW LEVEL SECURITY");
-   $actor=$table==='portal_performance_services'?'':" AND admin_user_id::text=current_setting('app.performance_actor',true)";
-   DB::statement("CREATE POLICY performance_scope ON $table USING(company_id::text=current_setting('app.performance_company',true)$actor) WITH CHECK(company_id::text=current_setting('app.performance_company',true)$actor)");
+   $scope=$table==='portal_performance_grants'?"admin_user_id::text=current_setting('app.performance_actor',true)":
+    "company_id::text=current_setting('app.performance_company',true)".($table==='portal_performance_access_audit'?" AND admin_user_id::text=current_setting('app.performance_actor',true)":'');
+   DB::statement("CREATE POLICY performance_scope ON $table USING($scope) WITH CHECK($scope)");
   }
  }
  public function down():void {throw new RuntimeException('Preserve Performance authority and audit history; disable feature instead');}
