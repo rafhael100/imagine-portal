@@ -84,6 +84,9 @@ jobs:
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -c 'DROP SCHEMA IF EXISTS composite_cart_f350 CASCADE'
+          # PostgreSQL will not drop a role while it retains a DATABASE
+          # CONNECT grant. Revoke that synthetic grant before role cleanup.
+          psql -X -v ON_ERROR_STOP=1 -c 'REVOKE CONNECT ON DATABASE portal_composite_f350_ci FROM f350_tenant_a_reader,f350_tenant_b_reader'
           psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_a_reader'
           psql -X -v ON_ERROR_STOP=1 -c 'DROP ROLE IF EXISTS f350_tenant_b_reader'
           test -z "$(git status --porcelain --untracked-files=no)"
