@@ -341,6 +341,54 @@ final class UniversityCommercialEligibilityPreflightTest extends TestCase
         }
     }
 
+    public function test_sources_expiring_by_end_of_read_are_not_treated_as_current(): void
+    {
+        // A server can pass start-of-read time() immediately before a tick.
+        // End-of-read must conservatively advance that epoch for TTL checks.
+        foreach ([
+            $this->policy(expires: self::NOW + 1),
+            $this->policy(until: self::NOW + 1),
+        ] as $expiringPolicy) {
+            self::assertSame('stale_or_inactive_policy', $this->inspect(
+                [$this->contract()], $this->revisions(), $expiringPolicy,
+                [$this->coverage()],
+            )->reason);
+        }
+
+        $expiringRevocation = new UniversityServiceRevisionSnapshot(
+            $this->org(), ['svc-onepage-a' => 3], [],
+            self::NOW - 5, self::NOW + 1,
+        );
+        self::assertSame('revocation_expired_during_read', $this->inspect(
+            [$this->contract()], $expiringRevocation, $this->policy(),
+            [$this->coverage()],
+        )->reason);
+
+        $expiringContract = new UniversityContractSnapshot(
+            'svc-onepage-a', $this->org(), PortfolioProduct::Onepage,
+            UniversityContractStatus::Active, true, false, 3,
+            self::NOW - 5, self::NOW + 1,
+        );
+        self::assertSame('contract_expired_during_read', $this->inspect(
+            [$expiringContract], $this->revisions(), $this->policy(),
+            [$this->coverage()],
+        )->reason);
+
+        foreach ([
+            new UniversityServiceCoverageSnapshot(
+                'svc-onepage-a', $this->org(), PortfolioProduct::Onepage,
+                'sku-onepage-monthly', 3, 7, self::NOW - 3600,
+                self::NOW + 3600, self::NOW - 5, self::NOW + 1,
+            ),
+            $this->coverage(until: self::NOW + 1),
+        ] as $expiringCoverage) {
+            self::assertSame('stale_or_expired_coverage', $this->inspect(
+                [$this->contract()], $this->revisions(), $this->policy(),
+                [$expiringCoverage],
+            )->reason);
+        }
+    }
+
     public function test_slow_coverage_source_fails_closed_even_when_snapshots_look_fresh(): void
     {
         $contracts = new class($this->contract()) implements UniversityContractAuthority {
