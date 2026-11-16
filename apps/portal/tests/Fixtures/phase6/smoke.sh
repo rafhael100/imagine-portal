@@ -19,7 +19,7 @@ cleanup(){
  result=$?
  if [[ $result != 0 ]]; then
   "${base[@]}" ps -a || true
-  "${base[@]}" logs --tail 15 portal-db performance-db portal receiver portal-web performance-web || true
+  "${base[@]}" logs --tail 100 portal-db performance-db portal receiver portal-web performance-web || true
  fi
  "${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
  sudo rm -rf "$P6_CI_MATERIAL"
