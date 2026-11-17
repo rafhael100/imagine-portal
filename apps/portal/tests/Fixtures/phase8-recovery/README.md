@@ -54,9 +54,17 @@ remain temporary private material and are removed with the isolated project.
 The original database contents are compared again to prove the restore did not
 write to them.
 
-This establishes a two-database/session recovery property for this exact CI
-package. It does not establish external custody, a WORM/monotonic antirollback
-anchor, cross-site durability, or restoration of arbitrary files in
-`portal_storage`. The already available secret mounts are reused under isolated
-CI control; operational secret escrow and full storage recovery remain separate
-release gates. A sealed old snapshot alone never authorizes current access.
+With `ADMIN_PHASE10_STORAGE_CI=1`, the same quiesced generation also captures
+the bounded `portal_storage` tree, authenticates its metadata and content, and
+binds it to the exact paired database ciphertext. The storage restore runs into
+a new, literally empty named volume before the first Portal one-shot mounts it.
+The Phase10 fixture checks the restored digests and modes and rejects malformed
+trees and occupied targets without overwriting them; see its README for the
+size, ownership and offline-writer limits. It is not an arbitrary-volume import.
+
+This establishes recovery properties for this exact synthetic CI package. It
+does not establish external custody, a WORM/monotonic antirollback anchor,
+cross-site durability, or capacity for large operational archives. The already
+available secret mounts are reused under isolated CI control; operational
+secret escrow and external backup recovery remain separate release gates. A
+sealed old snapshot alone never authorizes current access.

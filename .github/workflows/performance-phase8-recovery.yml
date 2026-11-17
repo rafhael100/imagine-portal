@@ -1,4 +1,4 @@
-name: Performance Phase8 recovery and Phase9 maintenance
+name: Performance recovery, maintenance and storage
 on:
   push:
     branches: ['feat/admin-phase7-exact-compose-flow-2026-11-17']
@@ -14,6 +14,7 @@ jobs:
       ADMIN_PHASE8_NAVIGATION_CI: '1'
       ADMIN_PHASE8_RECOVERY_CI: '1'
       ADMIN_PHASE9_MAINTENANCE_CI: '1'
+      ADMIN_PHASE10_STORAGE_CI: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -37,7 +38,7 @@ jobs:
           npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
           npx playwright install --with-deps chromium >/dev/null
           echo "NODE_PATH=$RUNNER_TEMP/phase7-browser/node_modules" >> "$GITHUB_ENV"
-      - name: Exact six-service authenticated navigation and isolated recovery
+      - name: Exact six-service navigation, database and storage recovery
         run: bash apps/portal/tests/Fixtures/phase7/run.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
@@ -47,4 +48,5 @@ jobs:
             ${{ runner.temp }}/phase7-evidence
             ${{ runner.temp }}/phase8-recovery-evidence
             ${{ runner.temp }}/phase9-maintenance-evidence
+            ${{ runner.temp }}/phase10-storage-evidence
           retention-days: 7

@@ -105,13 +105,21 @@ if [[ "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase8-recovery/run.sh
 fi
 python3 - <<'PY'
-import json,os,pathlib,subprocess
+import hashlib,json,os,pathlib,re,subprocess
 out=pathlib.Path(os.environ['P7_EVIDENCE'])
+compose='apps/portal/deploy/phase6/compose.yaml'
+ids=subprocess.check_output(['docker','compose','-p',os.environ['P7_PROJECT'],'-f',compose,'ps','-q'],text=True).splitlines()
+assert len(ids)==6 and all(re.fullmatch('[a-f0-9]{12,64}',value) for value in ids)
+projection='{"service":{{json (index .Config.Labels "com.docker.compose.service")}},"image_reference":{{json .Config.Image}},"image_id":{{json .Image}}}'
+images=[json.loads(line) for line in subprocess.check_output(['docker','inspect','--type','container','--format',projection,*ids],text=True).splitlines()]
+assert {entry['service'] for entry in images}=={'portal','portal-web','portal-db','receiver','performance-web','performance-db'}
+assert all(re.fullmatch('sha256:[a-f0-9]{64}',entry['image_id']) for entry in images)
 manifest={'schema':'performance.phase7.sources.v1','portal_sha':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
           'engine_sha':subprocess.check_output(['git','-C','engine','rev-parse','HEAD'],text=True).strip(),
-          'compose':'apps/portal/deploy/phase6/compose.yaml','runtime_overlay':False,'source':'synthetic',
+          'compose':compose,'compose_sha256':hashlib.sha256(pathlib.Path(compose).read_bytes()).hexdigest(),
+          'tested_images':sorted(images,key=lambda item:item['service']),'registry_release_published':False,
+          'runtime_overlay':False,'source':'synthetic',
           'vps_modified':False,'deployment_authorized':False}
 (out/'sources.json').write_text(json.dumps(manifest,indent=2))
 PY
 printf 'PHASE7_EXACT_COMPOSE_PASS: native password/MFA, encrypted database sessions, least privilege, two verified TLS databases, private mTLS and revocation; disposable CI only\n'
-

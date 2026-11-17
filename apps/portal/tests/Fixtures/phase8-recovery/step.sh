@@ -27,6 +27,9 @@ case "$1" in
         done
         python3 "$fixture_dir/verify.py" manifest
         bundle seal /run/bundle/plain /run/bundle/key /run/bundle/manifest.json /run/bundle/paired.enc
+        if [[ "${ADMIN_PHASE10_STORAGE_CI:-}" == 1 ]]; then
+            bash "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/phase10-storage/run.sh" capture
+        fi
         python3 "$fixture_dir/verify.py" tamper
         if bundle open /run/bundle/tampered.enc /run/bundle/key /run/bundle/manifest.json /run/bundle/tampered-open; then exit 1; fi
         if bundle open /run/bundle/paired.enc /run/bundle/wrong-key /run/bundle/manifest.json /run/bundle/wrong-key-open; then exit 1; fi
@@ -39,6 +42,11 @@ case "$1" in
         [[ -z "$(restored ps -aq)" && -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$P8_PROJECT")" ]]
         restored config --quiet
         restored up -d --wait portal-db performance-db >/dev/null
+        # Restore the new, literally empty storage volume before the first
+        # Portal one-shot can populate it from the image's default files.
+        if [[ "${ADMIN_PHASE10_STORAGE_CI:-}" == 1 ]]; then
+            bash "$GITHUB_WORKSPACE/apps/portal/tests/Fixtures/phase10-storage/run.sh" restore
+        fi
         for tuple in 'portal portal-db portal_p6_migrator portal_p6_synthetic portal.dump' 'receiver performance-db performance_p6_migrator performance_p6_synthetic performance.dump'; do
             read -r kind service role database file <<< "$tuple"
             cluster=$(restored exec -T "$service" sh -ec 'export PGPASSWORD="$(cat /run/pg/bootstrap_password)"; psql -U "$1" -d "$2" -Atc "SELECT system_identifier FROM pg_control_system()"' sh "$role" "$database")

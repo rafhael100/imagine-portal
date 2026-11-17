@@ -8,10 +8,10 @@ const stepScript=path.join(process.env.GITHUB_WORKSPACE,'apps/portal/tests/Fixtu
 function step(action){
  try {
   const output=execFileSync('bash',[stepScript,action],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:300000});
-  for(const line of output.split('\n'))if(/^PHASE[78]_[A-Z_]+(?: |$)/.test(line))console.log(line);
+  for(const line of output.split('\n'))if(/^PHASE(?:7|8|10)_[A-Z_]+(?:[ :]|$)/.test(line))console.log(line);
  } catch(error) {
   const diagnostics=String(error.stderr||'');
-  for(const pattern of [/PHASE8_STATE_DENIED stage=[a-z-]+ type=[A-Za-z\\]+/,/PHASE8_VERIFICATION_DENIED action=[a-z]+ check=[a-z_]+/,/PHASE8_RECEIVER_PROBE_DENIED/]){
+  for(const pattern of [/PHASE8_STATE_DENIED stage=[a-z-]+ type=[A-Za-z\\]+/,/PHASE8_VERIFICATION_DENIED action=[a-z]+ check=[a-z_]+/,/PHASE8_RECEIVER_PROBE_DENIED/,/PHASE10_STORAGE_DENIED stage=[a-z-]+ check=[a-z_]+/,/PHASE10_STORAGE_ORCHESTRATION_DENIED stage=[a-z-]+ check=[a-z_]+/]){
    const safe=diagnostics.match(pattern);if(safe)console.error(safe[0]);
   }
   for(const line of diagnostics.split('\n'))if(/^PHASE8_PROFILE_DIFFERENCE kind=(portal|receiver) category=[a-z_]+ fields=[a-z_,]+ expected_rows=[0-9]+ actual_rows=[0-9]+$/.test(line))console.error(line);
