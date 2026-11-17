@@ -30,6 +30,7 @@ use App\Http\Controllers\PortalBrowserAuthController;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Identity\PostgresPortalBrowserAuthentication as Browser;
 use App\Infrastructure\Identity\PostgresPortalPermissionPreflight as Preflight;
+use App\Infrastructure\SeoReview\GoogleSearchConsoleHttpsTransportCandidate;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,7 @@ const LAB_ORIGIN='https://portal.example.test';
 const LAB_SITE='sc-domain:example.com';
 $checks=0;$failed=false;$owner=null;$db=null;$browserDb=null;$revoker=null;
 $directory=null;$fixtureOwned=false;
+$tlsMode=getenv('PORTAL_GSC_HTTP_KERNEL_HTTPS_LAB')==='1';
 function labCheck(bool $ok,string $label): void
 {
     global $checks;
@@ -67,6 +69,13 @@ function labEnvelope(string $scenario): GoogleSearchConsoleOAuthTokenPostRequest
 
 try {
     labCheck(LabFlow::enabled(),'all laboratory gates required');
+    $https=null;
+    if ($tlsMode) {
+        $caFile=getenv('PORTAL_GSC_HTTPS_CA_FILE');
+        labCheck(is_string($caFile) && $caFile!=='','TLS laboratory CA required');
+        $https=GoogleSearchConsoleHttpsTransportCandidate::forTlsLab($caFile);
+        labCheck($https!==null,'TLS laboratory factory must authorize only its fixed local sockets');
+    }
     $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false];
     $dsn='pgsql:host=127.0.0.1;port=5432;dbname=portal_gsc_f115_lab';
     $owner=new PDO($dsn,getenv('PGUSER'),getenv('PGPASSWORD'),$options);
@@ -188,9 +197,10 @@ try {
         return $json($r)['csrf_token'];
     };
     $bind=function(array $s,?Closure $after=null,?Closure $locked=null,string $site=LAB_SITE)
-        use($app,$db,$issuer,$vault):LabFlow {
+        use($app,$db,$issuer,$vault,$https,$tlsMode):LabFlow {
         config(['portal_development_auth.organization'=>$s['organization']]);
-        $flow=new LabFlow($db,$issuer,$vault,$s['organization'],$site,$after,$locked);
+        $flow=new LabFlow($db,$issuer,$vault,$s['organization'],$site,$after,$locked,$https);
+        labCheck($flow->usesHttpsLab()===$tlsMode,'configured transport mode cannot fall back silently');
         $app->instance(LabFlow::class,$flow);return $flow;
     };
     $login=function(array &$jar,array $s,int $counterOffset=0)use($http,$csrf,$owner,$app,&$forbidden):string {
@@ -319,6 +329,8 @@ try {
     $r=$http($jarA,'GET','callback',$callback);
     labCheck($r->getStatusCode()===200 && $json($r)['labCandidateAndGrantRecorded']===true,
         'callback transports exact candidate into atomic vault and synthetic grant');
+    labCheck($json($r)['tlsLabVerified']===$tlsMode,
+        'callback reports only the transport exercised in this laboratory');
     labCheck($flow->tokenAttempts===1 && $flow->propertyAttempts===1 && $lockAttempts===2,
         'one token request one property request and two post-response revocation locks');
     labCheck($consumed($callback),'state consumption remains committed');
@@ -528,6 +540,7 @@ try {
     }
 }
 if (!$failed)echo "GSC HTTP kernel: {$checks} checks; real Laravel middleware + PG18 MFA/state/vault; ".
+    ($tlsMode?'verified TLS with ephemeral laboratory CA; ':'HTTP laboratory transport; ').
     "synthetic loopback token/property only; replay, tenant/session substitution, post-response revocation, ".
     "RLS forgery and atomic rollback checked; NO GOOGLE OR OPERATIONAL ENABLEMENT\n";
 exit($failed?1:0);

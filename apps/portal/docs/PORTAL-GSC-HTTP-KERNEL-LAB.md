@@ -98,11 +98,32 @@ browser test. Assertions check the actual `Secure`, `HttpOnly`, host-only,
 `SameSite=Lax` cookie metadata and encrypted session persistence, not browser
 enforcement of those attributes.
 
-The synthetic provider side does perform real cURL network I/O, restricted to
+The default synthetic provider side does perform real cURL network I/O, restricted to
 fixed IPv4 loopback endpoints with redirects and proxies disabled and bounded
 responses/timeouts. `mock-provider.php` delegates token scenarios to the
 unchanged F116 mock and adds an exact synthetic bearer-protected sites response.
 Nothing follows the generated Google authorization URL or contacts Google.
+
+### TLS variant of the same authenticated chain
+
+The additional `PORTAL_GSC_HTTP_KERNEL_HTTPS_LAB=1` mode injects the unregistered
+`GoogleSearchConsoleHttpsTransportCandidate` into the same `LabFlow`. Its factory
+also requires the independent HTTPS-transport laboratory gates and an ephemeral
+CA supplied through `PORTAL_GSC_HTTPS_CA_FILE`. An unavailable factory fails the
+run; it never silently falls back to HTTP.
+
+The token and sites requests now exercise certificate-chain and hostname
+verification over real TLS. Their fixed Google URL hostnames are mapped only to
+the two fixed loopback sockets by the laboratory transport. The ephemeral CA
+attests the synthetic server, not Google. The same opaque candidate reaches the
+same post-response fence, encrypted vault, atomic synthetic grant and revocation
+checks. The callback reports `tlsLabVerified` only for that injected mode.
+
+The existing F118 adapter contract remains a synthetic transport review. A TLS
+result does not promote its provider-origin or customer-authorization flags.
+The explicit F116 compatibility tests at the end of the harness still use the
+original HTTP mock, which the TLS workflow also starts. The Portal side remains
+an in-process Kernel test in both modes.
 
 ## Verification
 
@@ -143,9 +164,13 @@ requests pass. Fixtures and encrypted file sessions are cleaned after the run;
 the workflow rolls migrations back in reverse order with `RESTRICT`, without
 `CASCADE`.
 
-At development handoff, PHP/Composer and PG18 were unavailable locally. The
-executable PHP/PG18 result must therefore come from the workflow; this document
-does not claim a passing run or a fixed assertion count before that evidence.
+The original HTTP version passed **3,230 assertions** in PHP 8.4.27 and
+PostgreSQL 18.7 on commit `58aa1ae4b82cc0fc2bbe8cb481d62c50c6fd136a`, including
+the rollback of six GSC and twelve identity migrations
+([CI evidence](https://github.com/rafhael100/imagine-portal/actions/runs/44195816823)).
+Those assertions include repeated privacy checks and are not 3,230 independent
+scenarios. PHP/Composer and PG18 remain unavailable locally; the additional TLS
+variant must be verified in the workflow on its own candidate SHA.
 
 ## Gates that remain external
 

@@ -10,6 +10,7 @@ use App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenPostRequest;
 use App\Domain\SeoReview\OfflinePortalGscLoopbackTokenTransportReview;
 use App\Domain\SeoReview\OfflinePortalGscOAuthStateStartReview;
 use App\Domain\SeoReview\OfflinePortalGscSiteListEvidenceReview;
+use App\Infrastructure\SeoReview\GoogleSearchConsoleHttpsTransportCandidate;
 use Closure;
 use CurlHandle;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +34,7 @@ final class LabFlow
         private readonly string $site='sc-domain:example.com',
         private readonly ?Closure $afterProviderResponse=null,
         private readonly ?Closure $whileWriteLocked=null,
+        private readonly ?GoogleSearchConsoleHttpsTransportCandidate $https=null,
     ) {}
 
     public static function enabled(): bool
@@ -66,9 +68,7 @@ final class LabFlow
             function(GoogleSearchConsoleOAuthTokenPostRequest $envelope,int $now)
                 use($reference,$callback,&$stored):?array {
                 $this->tokenAttempts++;
-                return (new OfflinePortalGscLoopbackTokenTransportReview())->inspect(
-                    $envelope,$now,
-                    function(GoogleSearchConsoleOAuthTokenCandidate $candidate)
+                $sink=function(GoogleSearchConsoleOAuthTokenCandidate $candidate)
                         use($reference,$callback,&$stored):bool {
                         // This is the SAME object parsed from the F118 envelope's
                         // HTTP response, not another fixture or reconstructed token.
@@ -79,7 +79,25 @@ final class LabFlow
                         $stored=$this->persist($reference,
                             hash('sha256',$callback['state']),$candidate,$evidence);
                         return $stored;
-                    }
+                    };
+                if ($this->https!==null) {
+                    $candidate=$this->https->exchange($envelope,$now);
+                    if ($candidate===null || !$sink($candidate))return null;
+                    // Adapt the same successful synthetic transport boundary
+                    // to F118's existing callback contract. TLS identity here
+                    // belongs to the disposable CA, never to real Google.
+                    return [
+                        'contractVersion'=>'portal-gsc-f116-local-token-transport-lab-v1',
+                        'loopbackOnly'=>true,
+                        'tokenResponseStructureVerified'=>true,
+                        'networkToGooglePerformed'=>false,
+                        'customerDisplayAuthorized'=>false,
+                        'providerOriginVerified'=>false,
+                        'tlsLabVerified'=>true,
+                    ];
+                }
+                return (new OfflinePortalGscLoopbackTokenTransportReview())->inspect(
+                    $envelope,$now,$sink
                 );
             }
         );
@@ -89,6 +107,10 @@ final class LabFlow
 
     private function propertyEvidence(GoogleSearchConsoleOAuthTokenCandidate $candidate): ?array
     {
+        if ($this->https!==null) {
+            $this->propertyAttempts++;
+            return $this->https->inspectSites($candidate,$this->site,time());
+        }
         $data=$candidate->takeForTrustedVault();
         if (($data['expiresAt']??0)<=time() ||
             !is_string($data['accessToken']??null) ||
@@ -154,6 +176,7 @@ final class LabFlow
             $now=time();$safe=$candidate->safeReview();
             if (($evidence['exactSiteUrlMatched']??null)!==true ||
                 ($evidence['providerOriginVerified']??null)!==false ||
+                ($this->https!==null && ($evidence['tlsLabVerified']??null)!==true) ||
                 ($safe['expiresAt']??0)<=$now)
                 throw new RuntimeException('Lab candidate unavailable');
             $property=$evidence['siteIdentifierFingerprint'];
@@ -176,6 +199,11 @@ final class LabFlow
             if ($this->db->inTransaction())$this->db->rollBack();
             return false;
         }
+    }
+
+    public function usesHttpsLab(): bool
+    {
+        return $this->https!==null;
     }
 
     public function revoke(#[SensitiveParameter] string $reference): bool
@@ -259,6 +287,7 @@ final readonly class LabController
         if ($reference===null || $keys!==['code','state'] || $request->getContent()!=='' ||
             !$flow->callback($reference,$query))return $this->denied();
         return response()->json(['labCandidateAndGrantRecorded'=>true,
+            'tlsLabVerified'=>$flow->usesHttpsLab(),
             'providerOriginVerified'=>false,'googleOAuthVerified'=>false,
             'tokenPersistenceAuthorized'=>false,'customerDisplayAuthorized'=>false,
             'productionAuthorized'=>false]);
