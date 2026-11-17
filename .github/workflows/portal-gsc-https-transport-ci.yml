@@ -72,7 +72,7 @@ jobs:
           composer --working-dir=apps/portal validate --strict --no-check-publish
           composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
           composer --working-dir=apps/portal dump-autoload --no-interaction --no-scripts --no-plugins
-          php -r 'echo "APP_KEY=base64:".base64_encode(random_bytes(32)).PHP_EOL;' >> "$GITHUB_ENV"
+          php -r '$key="base64:".base64_encode(random_bytes(32)); echo "::add-mask::".$key.PHP_EOL; file_put_contents(getenv("GITHUB_ENV"),"APP_KEY=".$key.PHP_EOL,FILE_APPEND);'
           php -l apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php
           php -l apps/portal/labs/gsc-https-transport/verify-https-transport.php
           python3 - <<'PY'
