@@ -1,0 +1,119 @@
+name: Onepage pending order PostgreSQL laboratory (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/onepage-buyer-pg-lab-2026-11-16']
+    paths:
+      - 'apps/portal/labs/onepage-pending-order/**'
+      - 'apps/portal/tests/Feature/OnepagePendingOrderOfflineTest.php'
+      - '.github/workflows/onepage-pending-order-pg-lab.yml'
+permissions:
+  contents: read
+jobs:
+  pending-order-laboratory:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-pending-order-pg-lab-2026-11-17' &&
+      github.event.pull_request.base.sha == 'e1424b16821ade9c27059e5a560cd0b00948e7f9'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LC_ALL: C
+      ORDER_LAB_RELEASE: disabled
+      ORDER_LAB_PSP: disabled
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/onepage-pending-order-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "ONEPAGE_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+      - name: Offline syntax and pending order evidence checks
+        working-directory: apps/portal
+        env:
+          APP_KEY: base64:QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE=
+        run: |
+          set -euo pipefail
+          for file in labs/onepage-pending-order/*.php tests/Feature/OnepagePendingOrderOfflineTest.php; do php -l "$file"; done
+          bash -n labs/onepage-pending-order/start-isolated.sh
+          bash -n labs/onepage-pending-order/run-clean.sh
+          python3 labs/onepage-pending-order/test-launcher.py
+          php vendor/bin/phpunit --no-progress --do-not-cache-result tests/Feature/OnepagePendingOrderOfflineTest.php
+      - name: Disposable PG18 with effective Laravel and SQL identity preflight
+        working-directory: apps/portal
+        env:
+          ONEPAGE_ORDER_ALLOW_LOCAL_START: SYNTHETIC_ONLY
+        run: |
+          set -euo pipefail
+          export PHP_BIN="$(command -v php)"
+          test "$ORDER_LAB_RELEASE" = disabled
+          test "$ORDER_LAB_PSP" = disabled
+          env -i PATH=/usr/bin:/bin ONEPAGE_ORDER_ALLOW_LOCAL_START=SYNTHETIC_ONLY \
+            PG_BIN="$PG_BIN" PHP_BIN="$PHP_BIN" ONEPAGE_PG_RUNTIME_LIB="$ONEPAGE_PG_RUNTIME_LIB" \
+            /bin/bash --noprofile --norc labs/onepage-pending-order/start-isolated.sh
