@@ -43,6 +43,8 @@ function checkAtomicRead(Connection $db,PDO $runtime,string $cluster,string $con
  $expected=json_decode($db->selectOne("SELECT ((to_jsonb(t)-'request_hash') || jsonb_build_object('accepted_at',to_char(accepted_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')))::text snapshot FROM onepage_buyer_lab.pending_orders t WHERE id=?",[$order])->snapshot,true,512,JSON_THROW_ON_ERROR);
  $canonical=static function(array $a):array{ksort($a);return $a;};
  $ok($canonical($row)===$canonical($expected)&&$canonical($sqlRead($own,$order))===$canonical($expected),'complete persisted snapshot positive');
+ require __DIR__.'/reserve-checks.php';
+ $checkRevokedReservation=checkChargeReservation($db,$runtime,$identity,$pinned,$own,$sameTenantOther,$otherTenant,$first);
  $acl=$db->selectOne("SELECT pg_get_userbyid(p.proowner) owner,p.prosecdef definer,
  has_function_privilege('onepage_buyer_runtime',p.oid,'EXECUTE') runtime_execute,
  EXISTS(SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') public_execute,
@@ -78,5 +80,6 @@ function checkAtomicRead(Connection $db,PDO $runtime,string $cluster,string $con
  $m=$db->selectOne('SELECT status FROM portal_memberships WHERE identity_id=? AND organization_id=?',[$row['buyer'],$row['company']]);
  $ok($m->status==='suspended'&&$principal($own)===null,'membership revocation persisted');
  $ok($sqlRead($own,$order)===null&&$reader->read($own,$order)===$deny&&$snapshot()===$before,'revoked no order writes');
+ $checkRevokedReservation();
  return $checks;
 }

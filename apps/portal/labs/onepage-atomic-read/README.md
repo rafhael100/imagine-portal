@@ -51,3 +51,25 @@ env -i PATH=/usr/bin:/bin LC_ALL=C PHP_BIN=/caminho/php PG_BIN=/caminho/pg18/bin
 Único workflow novo local: `.github/workflows/onepage-atomic-read-pg-lab.yml`. Draft do mesmo repo, head test/onepage-atomic-read-lab-2026-11-17, base branch #923 e SHA3533509746c93991a47819ff0d14c40fc80db3e5. contents:read, checkout sem credencial persistida, Ubuntu24.04 efêmero, timeout15min, release/PSP disabled; extração PG18 autenticada copiada do procedimento #923, Composer lock sem scripts/plugins. Zero credenciais de negócio/PSP e nenhum workflow anterior alterado. Não executado/publicado.
 
 Inventário consolidado: oito arquivos neste diretório (AtomicReader.php, README.md, offline.php, pg-checks.php, read.sql, fixture-tail.php.inc, run.py, test-runner.py) e o único workflow novo. Patch seleciona apenas esses nove arquivos sobre #923; não publicar o histórico local com documentos/experimentos anteriores.
+
+## Extensão local candidata: reserva antes da emissão simulada
+
+`reserve.sql` e `reserve-checks.php` só entram depois do ateste efetivo do
+runner original, do ateste SQL do runtime e da comparação do snapshot nativo
+com o pedido persistido. Não rodar ou importar a SQL isoladamente. Bootstrap
+insere o plano sintético D0/D30/D60 de d776fb em uma única transação; somente
+a fixture sabe escrever as linhas. O mesmo runtime lab/buyer, com papel nativo
+restrito, ganha só EXECUTE para CAS, e o CAS repete a verificação do pedido
+exato (inclusive revogação) antes da tentativa. Sem papel novo, sem permissão
+direta para SELECT/DML no ledger e sem tocar roles de produção. Não se propõe
+reutilizar esse papel de comprador para uma futura emissão operacional.
+
+O latch `attempted` é de mão única: só depois de COMMIT uma vitória pode contar
+um fake-send local. Perda antes de COMMIT mantém o direito de tentar; perda
+de conexão **depois** de COMMIT e antes de send não reabre tentativa. A fixture
+não faz GET, não grava recibo de criação, não dá baixa, não autoriza produção.
+Não é uma política de retry nem uma fila operacional. Resultado esperado do
+runner só sai depois do marcador da reserva, dos 16 casos originais e do
+encerramento do cluster. Use apenas o mesmo runner original, em executor
+disponível e expressamente autorizado para esta fixture, com PHP 8.4 limpo e
+PostgreSQL 18 descartável, sem PSP, segredo, serviço ou workflow novo.
