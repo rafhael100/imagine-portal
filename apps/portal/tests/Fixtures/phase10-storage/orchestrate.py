@@ -11,7 +11,7 @@ import tempfile
 
 
 stage = 'guard'
-VOLUME_PROJECTION = '{"Name":{{json .Name}},"Driver":{{json .Driver}},"Scope":{{json .Scope}},"CreatedAt":{{json .CreatedAt}},"Project":{{json (index .Labels "com.docker.compose.project")}},"LogicalName":{{json (index .Labels "com.docker.compose.volume")}},"HasOptions":{{if .Options}}true{{else}}false{{end}}'
+VOLUME_PROJECTION = '{"Name":{{json .Name}},"Driver":{{json .Driver}},"Scope":{{json .Scope}},"CreatedAt":{{json .CreatedAt}},"Project":{{json (index .Labels "com.docker.compose.project")}},"LogicalName":{{json (index .Labels "com.docker.compose.volume")}},"HasOptions":{{if .Options}}true{{else}}false{{end}}}'
 CONTAINER_PROJECTION = '{"running":{{json .State.Running}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"portal_image":{{if eq (index .Config.Labels "com.docker.compose.service") "portal"}}{{json .Image}}{{else}}null{{end}},"storage_mounts":[{{range .Mounts}}{{if eq .Destination "/var/www/html/storage"}}{"type":{{json .Type}},"name":{{json .Name}},"destination":{{json .Destination}}}{{end}}{{end}}]}'
 
 
@@ -157,6 +157,7 @@ try:
     checked(len(sys.argv) == 2 and sys.argv[1] in ['capture', 'restore'], 'action')
     action = sys.argv[1]
     source_image_id = assert_quiesced()
+    stage = 'source-volume-inspect'
     source_identity = volume_identity(inspect_volume(source_name), source_name, project, 'portal_storage')
 
     if action == 'capture':

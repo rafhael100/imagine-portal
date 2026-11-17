@@ -61,6 +61,9 @@ for service in portal receiver; do
  ! docker inspect --format '{{json .Mounts}}' "$id" | grep -q 'bootstrap/owner-password\|/run/phase7'
 done
 [[ "$("${base[@]}" ps --status running --services | wc -l)" == 6 ]]
+if [[ "${ADMIN_PHASE11_RELEASE_CI:-}" == 1 ]]; then
+ bash apps/portal/tests/Fixtures/phase11-release/run.sh
+fi
 for attempt in $(seq 1 45); do
  code=$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" --config "$P6_CI_MATERIAL/curl-auth" -o /dev/null -w '%{http_code}' "$P6_PRIVATE_URL/portal-admin/login" || true)
  [[ "$code" == 200 ]] && break
