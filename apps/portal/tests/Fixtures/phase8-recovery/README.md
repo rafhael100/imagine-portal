@@ -15,6 +15,11 @@ source SHAs, Compose digest, database filenames and dump digests together using
 XChaCha20-Poly1305. Tampering, a wrong key, a different generation and an existing
 plaintext destination are refused before any restore command.
 
+The codec is bounded to 32 MiB per dump and keeps the encoded pair in memory.
+These limits are refusal thresholds, not measured capacity: the complete
+seal/open operation can require several times the input size. This CI uses small
+synthetic databases and does not qualify the codec for large operational backups.
+
 The restore creates a separate Compose project, new PostgreSQL volumes and new
 cluster identifiers. It refuses nonempty targets. All table-content digests,
 sequences, database/schema/table/column grants, role memberships, RLS policies and

@@ -97,6 +97,12 @@ class InventoryTest(unittest.TestCase):
         self.container(configured_bindings={"443/udp": [{"HostIp": "", "HostPort": "18092"}]})
         self.assertTrue(inventory.inspect()["proposal"]["port_observed_unused"])
 
+    def test_iproute2_scoped_ipv4_and_ipv6_listeners_are_not_parse_failures(self):
+        for address in ("127.0.0.53%lo", "[fe80::1%eth0]", "[::ffff:127.0.0.1%lo]"):
+            self.listeners = f"LISTEN 0 4096 {address}:18092 *:*\n"
+            with self.subTest(address=address):
+                self.assertFalse(inventory.inspect()["proposal"]["port_observed_unused"])
+
     def test_stopped_projects_and_orphan_label_both_detect_project_collision(self):
         self.stacks = [{"Name": inventory.PROJECT, "Status": "exited(6)", "ConfigFiles": "not emitted"}]
         self.assertTrue(inventory.inspect()["proposal"]["project_name_conflict"])
@@ -148,7 +154,7 @@ class InventoryTest(unittest.TestCase):
             inventory.inspect()
 
     def test_malformed_listener_cannot_be_silently_declared_unused(self):
-        for line in ("bad output", "LISTEN 0 4096 localhost:18092 *:*", "LISTEN 0 4096 [::]:unknown *:*"):
+        for line in ("bad output", "LISTEN 0 4096 localhost:18092 *:*", "LISTEN 0 4096 [::]:unknown *:*", "LISTEN 0 4096 127.0.0.53%:18092 *:*"):
             self.listeners = line
             with self.subTest(line=line), self.assertRaises(ValueError):
                 inventory.inspect()

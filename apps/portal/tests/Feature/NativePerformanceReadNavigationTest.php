@@ -4,25 +4,27 @@ namespace Tests\Feature;
 use App\Domain\PerformanceAdministration\AuthorizedPerformanceRead;
 use App\Domain\PerformanceAdministration\NativePerformanceAuthority;
 use App\Domain\PortalAccess\Security\PortalAdminTotp;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class NativePerformanceReadNavigationTest extends TestCase
 {
- private int $actor;private string $company;private array $calls=[];
+ private int $actor;private string $company;private string $email;private string $secret;private array $calls=[];
  protected function setUp():void {
   parent::setUp();if(getenv('ADMIN_PHASE4_PG_CI')!=='1')$this->markTestSkipped('Disposable native-authority PostgreSQL required');
   config()->set('session.driver','array');config()->set('performance_admin.enabled',true);config()->set('performance_admin.mode','isolated_ci');config()->set('performance_admin.native_read_enabled',true);
-  $this->company=(string)Str::uuid();$email='navigation-'.Str::uuid().'@example.test';$secret=bin2hex(random_bytes(20));
-  $this->actor=(int)DB::table('portal_admin_users')->insertGetId(['email'=>$email,'password_hash'=>Hash::make('SyntheticNavigation#Password'),
-   'totp_secret_ciphertext'=>Crypt::encryptString($secret),'is_active'=>true,'last_totp_counter'=>-1,'session_version'=>1,'created_at'=>now(),'updated_at'=>now()]);
+  $this->company=(string)Str::uuid();$this->email='navigation-'.Str::uuid().'@example.test';$this->secret=bin2hex(random_bytes(20));
+  $this->actor=(int)DB::table('portal_admin_users')->insertGetId(['email'=>$this->email,'password_hash'=>Hash::make('SyntheticNavigation#Password'),
+   'totp_secret_ciphertext'=>Crypt::encryptString($this->secret),'is_active'=>true,'last_totp_counter'=>-1,'session_version'=>1,'created_at'=>now(),'updated_at'=>now()]);
   DB::table('portal_performance_services')->insert(['company_id'=>$this->company,'contract_ref'=>(string)Str::uuid(),'contract_version'=>1,'company_active'=>true,'status'=>'active','source_kind'=>'synthetic_persisted','expires_at'=>time()+600]);
-  $this->post('/portal-admin/login',['email'=>$email,'password'=>'SyntheticNavigation#Password'])->assertRedirect('/portal-admin/mfa');
-  $this->post('/portal-admin/mfa',['code'=>PortalAdminTotp::code(hex2bin($secret),intdiv(time(),30))])->assertRedirect('/portal-admin');
+  $this->post('/portal-admin/login',['email'=>$this->email,'password'=>'SyntheticNavigation#Password'])->assertRedirect('/portal-admin/mfa');
+  $this->post('/portal-admin/mfa',['code'=>PortalAdminTotp::code(hex2bin($this->secret),intdiv(time(),30))])->assertRedirect('/portal-admin');
   $this->app->instance(AuthorizedPerformanceRead::class,new AuthorizedPerformanceRead(new NativePerformanceAuthority,function($company,$operation,$correlation,$query){
    $this->calls[]=compact('company','operation','correlation','query');
    return ['version'=>'imagine.performance.admin.s2s.v1','company_id'=>$company,'operation'=>$operation,'correlation_id'=>$correlation,
@@ -105,11 +107,49 @@ final class NativePerformanceReadNavigationTest extends TestCase
  }
  public function test_direct_unauthorized_scope_records_only_a_sanitized_denial():void {
   $this->grant('reports.read');
-  Log::shouldReceive('channel')->once()->with('performance_security')->andReturnSelf();
-  Log::shouldReceive('info')->once()->with('performance_security',\Mockery::on(static fn(array $event)=>
-   array_keys($event)===['schema','event','correlation_id','source']&&$event['schema']==='performance.security.v1'
-   &&$event['event']==='authority_denied'&&Str::isUuid($event['correlation_id'])&&$event['source']==='portal_private_candidate'));
+  $logged=[];
+  Event::listen(MessageLogged::class,static function(MessageLogged $event)use(&$logged):void {
+   if($event->message==='performance_security')$logged[]=['level'=>$event->level,'context'=>$event->context];
+  });
   $this->get('/portal-admin/performance-private/'.Str::uuid().'/reports')->assertForbidden();
+  $this->assertSame([],$this->calls);
+  $this->assertCount(1,$logged);$this->assertSame('info',$logged[0]['level']);$event=$logged[0]['context'];
+  $this->assertSame(['schema','event','correlation_id','source'],array_keys($event));
+  $this->assertSame('performance.security.v1',$event['schema']);$this->assertSame('authority_denied',$event['event']);
+  $this->assertTrue(Str::isUuid($event['correlation_id']));$this->assertSame('portal_private_candidate',$event['source']);
+ }
+ public function test_expired_native_mfa_explains_reentry_before_inventory_without_invalidating_session():void {
+  $this->grant('reports.read');$expired=time()-901;$this->withSession(['portal_admin_mfa_at'=>$expired]);$authorityQueries=0;
+  DB::listen(static function(QueryExecuted $query)use(&$authorityQueries):void {
+   if(str_contains($query->sql,'portal_performance_'))$authorityQueries++;
+  });
+  foreach(['/portal-admin/performance-private',$this->url('reports',['period'=>'2026-11','page'=>2])] as $url){
+   $response=$this->get($url);
+   $response->assertForbidden()->assertSee('Verificação de segurança vencida')->assertSee('Entrar novamente')
+    ->assertSee('action="'.route('portal-admin.logout').'"',false)->assertSee('name="_token"',false)
+    ->assertDontSee('Nenhuma empresa disponível')->assertDontSee($this->company)
+    ->assertSessionHas('portal_admin_mfa_at',$expired)->assertSessionHas('portal_admin_session_version',1);
+   $this->assertStringContainsString('no-store',$response->headers->get('Cache-Control'));
+   $this->assertAuthenticated('portal-admin');
+  }
+  $this->assertSame(0,$authorityQueries);$this->assertSame([],$this->calls);
+ }
+ public function test_reentry_uses_existing_logout_password_and_new_totp_before_native_read():void {
+  $this->grant('reports.read');$this->withSession(['portal_admin_mfa_at'=>time()-901]);
+  $this->get($this->url('reports'))->assertForbidden()->assertSee('Entrar novamente');
+  $this->post('/portal-admin/logout')->assertRedirect('/portal-admin/login');$this->assertGuest('portal-admin');
+  $this->post('/portal-admin/login',['email'=>$this->email,'password'=>'SyntheticNavigation#Password'])->assertRedirect('/portal-admin/mfa');
+  // The existing TOTP policy accepts the adjacent step and still enforces its
+  // single-use counter. No test bypass resets the database counter or epoch.
+  $this->post('/portal-admin/mfa',['code'=>PortalAdminTotp::code(hex2bin($this->secret),intdiv(time(),30)+1)])->assertRedirect('/portal-admin');
+  $this->get('/portal-admin/performance-private')->assertOk()->assertSee('Abrir empresa '.$this->company);
+  $this->get($this->url('reports'))->assertOk()->assertSee('Dados indisponíveis')->assertSessionHas('portal_admin_session_version',1);
+  $this->assertCount(1,$this->calls);$this->assertSame('reports.read',$this->calls[0]['operation']);
+ }
+ public function test_revoked_session_is_not_presented_as_a_renewable_mfa():void {
+  $this->grant('reports.read');$this->withSession(['portal_admin_mfa_at'=>time()-901]);
+  DB::table('portal_admin_users')->where('id',$this->actor)->increment('session_version');
+  $this->get($this->url('reports'))->assertRedirect('/portal-admin/login');$this->assertGuest('portal-admin');
   $this->assertSame([],$this->calls);
  }
 }

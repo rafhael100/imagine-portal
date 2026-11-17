@@ -74,7 +74,16 @@ certutil -d "sql:$HOME/.pki/nssdb" -A -t 'C,,' -n "Imagine Phase7 ${GITHUB_RUN_I
 sudo install -m 600 -o "$(id -u)" -g "$(id -g)" "$P6_CI_MATERIAL/portal-bootstrap/browser-vault.json" "$P7_BROWSER_VAULT"
 node apps/portal/tests/Fixtures/phase7/browser.cjs
 if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 || "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
- python3 apps/portal/deploy/phase6/readonly-inventory.py --port "$P6_LOOPBACK_PORT" --subnet "$P6_SERVICE_SUBNET" --receiver-ip "$P6_RECEIVER_IP" > "$P7_EVIDENCE/ci-host-inventory.json"
+ if ! python3 apps/portal/deploy/phase6/readonly-inventory.py --port "$P6_LOOPBACK_PORT" --subnet "$P6_SERVICE_SUBNET" --receiver-ip "$P6_RECEIVER_IP" > "$P7_EVIDENCE/ci-host-inventory.json"; then
+  python3 - <<'PY'
+import json,os,pathlib
+report=json.loads((pathlib.Path(os.environ['P7_EVIDENCE'])/'ci-host-inventory.json').read_text())
+stage=report.get('stage','unknown')
+assert stage in ['candidate','compose_projects','containers','networks','routes','listeners','host_resources','named_volumes','unknown']
+print('PHASE8_CI_HOST_INVENTORY_DENIED stage='+stage)
+PY
+  exit 1
+ fi
  python3 - <<'PY'
 import json,os,pathlib
 snapshot=json.loads((pathlib.Path(os.environ['P7_EVIDENCE'])/'ci-host-inventory.json').read_text())
@@ -91,6 +100,9 @@ if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 ]]; then
 fi
 if [[ "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase8-recovery/run.sh
+fi
+if [[ "${ADMIN_PHASE9_MAINTENANCE_CI:-}" == 1 ]]; then
+ bash apps/portal/tests/Fixtures/phase9-maintenance/run.sh
 fi
 python3 - <<'PY'
 import json,os,pathlib,subprocess

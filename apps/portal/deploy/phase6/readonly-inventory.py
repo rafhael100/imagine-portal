@@ -12,6 +12,7 @@ import sys
 
 
 PROJECT = "imagine-performance-p6-staging"
+STAGE = "candidate"
 PROTECTED_PORTS = {18081, 18090}
 RFC1918 = tuple(ipaddress.ip_network(cidr) for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 # Select fields in Docker itself. Never request Config.Env, commands, credentials,
@@ -126,7 +127,13 @@ def _listeners():
         address, port = columns[3].rsplit(":", 1)
         address = address.strip("[]")
         if address != "*":
-            ipaddress.ip_address(address)
+            # iproute2 can annotate IPv4 listeners with an interface too
+            # (e.g. systemd-resolved's 127.0.0.53%lo). Python only accepts
+            # scoped literals for IPv6; validate the IP and interface separately.
+            literal, separator, interface = address.partition("%")
+            if separator and (not interface or any(not (c.isalnum() or c in "_.:@-") for c in interface)):
+                raise ValueError("Malformed listener interface")
+            ipaddress.ip_address(literal)
         if not port.isdigit() or not 1 <= int(port) <= 65535:
             raise ValueError("Malformed listener port")
         result.append({"host_ip": address, "host_port": int(port), "protocol": "tcp"})
@@ -145,6 +152,8 @@ def _host_resources():
 
 
 def inspect(port=18092, subnet="10.87.6.0/28", receiver_ip="10.87.6.3"):
+    global STAGE
+    STAGE = "candidate"
     if type(port) is not int or not 1 <= port <= 65535 or port in PROTECTED_PORTS:
         raise ValueError("Invalid or protected candidate port")
     proposal = ipaddress.ip_network(subnet, strict=True)
@@ -155,10 +164,15 @@ def inspect(port=18092, subnet="10.87.6.0/28", receiver_ip="10.87.6.3"):
     if receiver.version != 4 or receiver not in proposal or receiver in (proposal.network_address, gateway, proposal.broadcast_address):
         raise ValueError("Receiver pin is not an available candidate host")
 
+    STAGE = "compose_projects"
     stacks = json.loads(run(["docker", "compose", "ls", "--all", "--format", "json"]))
     if not isinstance(stacks, list) or any(not isinstance(s, dict) or not isinstance(s.get("Name"), str) for s in stacks):
         raise ValueError("Malformed Compose inventory")
-    containers, networks = _containers(), _networks()
+    STAGE = "containers"
+    containers = _containers()
+    STAGE = "networks"
+    networks = _networks()
+    STAGE = "routes"
     routes = json.loads(run(["ip", "-j", "-4", "route", "show", "table", "all"]))
     if not isinstance(routes, list) or any(not isinstance(route, dict) for route in routes):
         raise ValueError("Malformed route inventory")
@@ -179,6 +193,7 @@ def inspect(port=18092, subnet="10.87.6.0/28", receiver_ip="10.87.6.3"):
             if current.version == 4 and proposal.overlaps(current):
                 conflicts.append({"source": "host_route", "subnet": str(current), "table": str(route.get("table", "main"))})
 
+    STAGE = "listeners"
     port_conflicts = [{"source": "kernel_listener", **listener} for listener in _listeners() if listener["host_port"] == port]
     for container in containers:
         for field in ("configured_bindings", "active_bindings"):
@@ -187,9 +202,13 @@ def inspect(port=18092, subnet="10.87.6.0/28", receiver_ip="10.87.6.3"):
                     port_conflicts.append({"source": field, "container_id": container["id"], "container": container["name"],
                                            "status": container["status"], **binding})
 
+    STAGE = "host_resources"
+    host = _host_resources()
+    STAGE = "named_volumes"
+    volumes = run(["docker", "volume", "ls", "-q"]).splitlines()
     return {"schema": "performance.phase6.host-readonly.v2", "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            **_host_resources(), "compose_projects": [{"name": s["Name"], "status": s.get("Status")} for s in stacks],
-            "containers": containers, "networks": networks, "named_volumes": run(["docker", "volume", "ls", "-q"]).splitlines(),
+            **host, "compose_projects": [{"name": s["Name"], "status": s.get("Status")} for s in stacks],
+            "containers": containers, "networks": networks, "named_volumes": volumes,
             "proposal": {"project": PROJECT, "port": port, "port_observed_unused": not port_conflicts,
                          "port_conflicts": port_conflicts, "subnet": str(proposal), "receiver_ip": str(receiver),
                          "gateway_candidate": str(gateway), "receiver_ip_conflicts": receiver_conflicts,
@@ -208,5 +227,7 @@ if __name__ == "__main__":
     try:
         print(json.dumps(inspect(args.port, args.subnet, args.receiver_ip), sort_keys=True))
     except Exception:
-        print(json.dumps({"status": "blocked", "error": "readonly_inventory_unavailable", "installation_authorized": False}))
+        # Fixed stage names aid diagnosis without exposing subprocess output,
+        # environment, arbitrary paths, or exception messages.
+        print(json.dumps({"status": "blocked", "error": "readonly_inventory_unavailable", "stage": STAGE, "installation_authorized": False}))
         sys.exit(2)
