@@ -1,0 +1,144 @@
+name: Portal GSC - verified HTTPS transport candidate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/portal-gsc-https-transport-ci.yml'
+      - 'apps/portal/labs/gsc-https-transport/**'
+      - 'apps/portal/app/Infrastructure/SeoReview/**'
+      - 'apps/portal/app/Domain/SeoReview/**'
+      - 'apps/portal/app/Providers/**'
+      - 'apps/portal/bootstrap/**'
+      - 'apps/portal/config/**'
+      - 'apps/portal/routes/**'
+      - 'apps/portal/tests/Feature/PortalGscOAuth*Test.php'
+      - 'apps/portal/tests/Feature/PortalGscConnectionPreflightDefaultDenyTest.php'
+      - 'apps/portal/phpunit.xml'
+      - 'apps/portal/composer.json'
+      - 'apps/portal/composer.lock'
+      - 'apps/portal/docs/PORTAL-GSC-HTTPS-TRANSPORT-CANDIDATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verified-https-transport:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+      PORTAL_GSC_HTTPS_TRANSPORT_LAB: '1'
+    steps:
+      - name: Checkout exact Portal candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable GSC response and property contracts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: de3315df4e8b8c07228d76f6613c799f9c174f31
+          path: .qa/gsc-f109
+          persist-credentials: false
+      - name: Set up pinned PHP 8.4 and cURL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl,sodium,mbstring,dom,xml
+          coverage: none
+          tools: composer
+      - name: Verify source identity and authenticated kernel base
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git merge-base --is-ancestor 58aa1ae4b82cc0fc2bbe8cb481d62c50c6fd136a "$CANDIDATE_SHA"
+          test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+      - name: Install locked Laravel dependencies and validate fixture syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/portal validate --strict --no-check-publish
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer --working-dir=apps/portal dump-autoload --no-interaction --no-scripts --no-plugins
+          php -r '$key="base64:".base64_encode(random_bytes(32)); echo "::add-mask::".$key.PHP_EOL; file_put_contents(getenv("GITHUB_ENV"),"APP_KEY=".$key.PHP_EOL,FILE_APPEND);'
+          php -l apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php
+          php -l apps/portal/labs/gsc-https-transport/verify-https-transport.php
+          python3 - <<'PY'
+          from pathlib import Path
+          for file in sorted(Path('apps/portal/labs/gsc-https-transport').glob('*.py')):
+              compile(file.read_text(),str(file),'exec')
+          PY
+          openssl version
+      - name: Prove operational routes and configuration remain disabled
+        shell: bash
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          for test in \
+            tests/Feature/PortalGscOAuthRoutesClosedTest.php \
+            tests/Feature/PortalGscOAuthDefaultDenyConfigurationTest.php \
+            tests/Feature/PortalGscConnectionPreflightDefaultDenyTest.php; do
+            vendor/bin/phpunit "$test"
+          done
+      - name: Prove TLS chain hostname SNI and bounded provider responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tls_dir="$RUNNER_TEMP/gsc-https-transport-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$tls_dir"
+          mock_pid=''
+          cleanup() {
+            if test -n "$mock_pid"; then
+              kill "$mock_pid" 2>/dev/null || true
+              wait "$mock_pid" 2>/dev/null || true
+            fi
+            rm -rf -- "$tls_dir"
+          }
+          trap cleanup EXIT
+          python3 apps/portal/labs/gsc-https-transport/make-certificates.py "$tls_dir"
+          start_tls() {
+            local mode="$1"
+            local metrics="$tls_dir/$mode-metrics.json"
+            python3 apps/portal/labs/gsc-https-transport/mock-tls-provider.py \
+              "$tls_dir" "$metrics" --certificate-mode "$mode" \
+              > "$tls_dir/$mode-server.log" 2>&1 &
+            mock_pid="$!"
+            local ready=0
+            for attempt in {1..50}; do
+              kill -0 "$mock_pid"
+              if test -s "$metrics"; then ready=1; break; fi
+              sleep 0.1
+            done
+            test "$ready" = 1
+          }
+          start_tls valid
+          php apps/portal/labs/gsc-https-transport/verify-https-transport.php \
+            .qa/gsc-f109/apps/portal/app/Domain/SeoReview \
+            "$tls_dir/ca.pem" full "$tls_dir/valid-metrics.json"
+          kill "$mock_pid"
+          wait "$mock_pid"
+          mock_pid=''
+          start_tls wrong-host
+          php apps/portal/labs/gsc-https-transport/verify-https-transport.php \
+            .qa/gsc-f109/apps/portal/app/Domain/SeoReview \
+            "$tls_dir/ca.pem" wrong-host "$tls_dir/wrong-host-metrics.json"
+          kill "$mock_pid"
+          wait "$mock_pid"
+          mock_pid=''
+          test ! -s "$tls_dir/valid-server.log"
+          test ! -s "$tls_dir/wrong-host-server.log"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"

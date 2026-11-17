@@ -5,9 +5,11 @@ on:
     paths:
       - '.github/workflows/portal-gsc-http-kernel-ci.yml'
       - 'apps/portal/labs/gsc-http-kernel/**'
+      - 'apps/portal/labs/gsc-https-transport/**'
       - 'apps/portal/app/Domain/Identity/**'
       - 'apps/portal/app/Domain/SeoReview/**'
       - 'apps/portal/app/Infrastructure/Identity/**'
+      - 'apps/portal/app/Infrastructure/SeoReview/**'
       - 'apps/portal/app/Http/Controllers/PortalBrowserAuthController.php'
       - 'apps/portal/app/Http/Middleware/PortalBrowserAuthGuard.php'
       - 'apps/portal/database/migrations/**'
@@ -77,6 +79,7 @@ jobs:
       PORTAL_GSC_F118_PROVENANCE_LAB: '1'
       PORTAL_GSC_TOKEN_VAULT_LAB: '1'
       PORTAL_GSC_HTTP_KERNEL_LAB: '1'
+      PORTAL_GSC_HTTPS_TRANSPORT_LAB: '1'
     steps:
       - name: Checkout exact Portal candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -106,7 +109,7 @@ jobs:
           set -euo pipefail
           umask 077
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-          git merge-base --is-ancestor 951e02e5d8eedee93851416778027cf07d105296 "$CANDIDATE_SHA"
+          git merge-base --is-ancestor 58aa1ae4b82cc0fc2bbe8cb481d62c50c6fd136a "$CANDIDATE_SHA"
           test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
           test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
       - name: Install locked Laravel dependencies and check new harness syntax
@@ -116,9 +119,10 @@ jobs:
           composer --working-dir=apps/portal validate --strict --no-check-publish
           composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
           composer --working-dir=apps/portal dump-autoload --no-interaction --no-scripts --no-plugins
-          php -r 'echo "APP_KEY=base64:".base64_encode(random_bytes(32)).PHP_EOL;' >> "$GITHUB_ENV"
+          php -r '$key="base64:".base64_encode(random_bytes(32)); echo "::add-mask::".$key.PHP_EOL; file_put_contents(getenv("GITHUB_ENV"),"APP_KEY=".$key.PHP_EOL,FILE_APPEND);'
           php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php
           php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php
+          php -l apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php
           php -l apps/portal/labs/gsc-f116-local-token/test-transport.php
           php -l apps/portal/labs/gsc-f117-property/test-property-evidence.php
           python3 - <<'PYCODE'
@@ -128,6 +132,8 @@ jobs:
           assert files, 'HTTP kernel harness files missing'
           for path in files:
               subprocess.run(['php','-l',str(path)],check=True)
+          for path in sorted(Path('apps/portal/labs/gsc-https-transport').glob('*.py')):
+              compile(path.read_text(),str(path),'exec')
           PYCODE
       - name: Prove operational GSC routes and configuration remain disabled
         shell: bash
@@ -227,6 +233,62 @@ jobs:
             .qa/gsc-f109/apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php
           php apps/portal/labs/gsc-http-kernel/verify-http-kernel.php \
             .qa/gsc-f109/apps/portal/app/Domain/SeoReview
+      - name: Repeat authenticated kernel through verified synthetic TLS before rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tls_dir="$RUNNER_TEMP/gsc-https-kernel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$tls_dir"
+          tls_pid=''
+          http_pid=''
+          cleanup() {
+            for pid in "$tls_pid" "$http_pid"; do
+              if test -n "$pid"; then
+                kill "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+            rm -rf -- "$tls_dir"
+          }
+          trap cleanup EXIT
+          python3 apps/portal/labs/gsc-https-transport/make-certificates.py "$tls_dir"
+          python3 apps/portal/labs/gsc-https-transport/mock-tls-provider.py \
+            "$tls_dir" "$tls_dir/kernel-metrics.json" --certificate-mode valid \
+            > "$tls_dir/tls-server.log" 2>&1 &
+          tls_pid="$!"
+          # The same harness also retains the original F116 sink regressions.
+          php -S 127.0.0.1:18765 \
+            apps/portal/labs/gsc-http-kernel/mock-provider.php \
+            > "$tls_dir/http-server.log" 2>&1 &
+          http_pid="$!"
+          ready=0
+          for attempt in {1..50}; do
+            kill -0 "$tls_pid"
+            kill -0 "$http_pid"
+            status="$(curl --silent --noproxy '*' -o /dev/null \
+              -w '%{http_code}' --max-time 1 http://127.0.0.1:18765/token || true)"
+            if test -s "$tls_dir/kernel-metrics.json" && test "$status" = 404; then
+              ready=1
+              break
+            fi
+            sleep 0.1
+          done
+          test "$ready" = 1
+          PORTAL_GSC_HTTP_KERNEL_HTTPS_LAB=1 \
+          PORTAL_GSC_HTTPS_CA_FILE="$tls_dir/ca.pem" \
+            php apps/portal/labs/gsc-http-kernel/verify-http-kernel.php \
+              .qa/gsc-f109/apps/portal/app/Domain/SeoReview
+          python3 - "$tls_dir/kernel-metrics.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          metrics=json.loads(Path(sys.argv[1]).read_text())
+          assert metrics['token']>0 and metrics['sites']>0, 'Kernel never reached both TLS endpoints'
+          assert metrics['total']==metrics['token']+metrics['sites'], 'Unexpected HTTP request'
+          assert metrics['redirect_target']==metrics['unexpected']==metrics['violations']==0, 'TLS fixture contract violated'
+          print('Kernel TLS fixture: token/sites requests observed; no redirects, unexpected requests or contract violations')
+          PY
+          test ! -s "$tls_dir/tls-server.log"
       - name: Roll back six GSC and twelve identity migrations after callback fixture cleanup
         shell: bash
         run: |
