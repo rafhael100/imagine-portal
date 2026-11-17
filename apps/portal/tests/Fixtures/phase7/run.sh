@@ -52,13 +52,7 @@ bash apps/portal/tests/Fixtures/phase7/control.sh receiver prepare
 if bash apps/portal/tests/Fixtures/phase7/control.sh portal prepare > "$RUNNER_TEMP/phase7-reprepare.log" 2>&1; then exit 1; fi
 grep -q 'stage=empty-database' "$RUNNER_TEMP/phase7-reprepare.log"
 "${base[@]}" up -d portal portal-web receiver performance-web
-for attempt in $(seq 1 45); do
- code=$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" --config "$P6_CI_MATERIAL/curl-auth" -o /dev/null -w '%{http_code}' "$P6_PRIVATE_URL/portal-admin/login" || true)
- [[ "$code" == 200 ]] && break
- sleep 1
-done
-[[ "$code" == 200 ]]
-[[ "$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" -o /dev/null -w '%{http_code}' "$P6_PRIVATE_URL/portal-admin/login")" == 401 ]]
+# Diagnose real runtime credentials/TLS before an HTTP failure can obscure them.
 for service in portal receiver; do
  "${base[@]}" exec -T -e GITHUB_ACTIONS=true -e ADMIN_PHASE7_CI=1 "$service" php /dev/stdin "$service" < apps/portal/tests/Fixtures/phase7/runtime.php
  id=$("${base[@]}" ps -q "$service")
@@ -67,6 +61,13 @@ for service in portal receiver; do
  ! docker inspect --format '{{json .Mounts}}' "$id" | grep -q 'bootstrap/owner-password\|/run/phase7'
 done
 [[ "$("${base[@]}" ps --status running --services | wc -l)" == 6 ]]
+for attempt in $(seq 1 45); do
+ code=$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" --config "$P6_CI_MATERIAL/curl-auth" -o /dev/null -w '%{http_code}' "$P6_PRIVATE_URL/portal-admin/login" || true)
+ [[ "$code" == 200 ]] && break
+ sleep 1
+done
+if [[ "$code" != 200 ]]; then printf 'PHASE7_HTTP_LOGIN_DENIED status=%s\n' "$code" >&2; exit 1; fi
+[[ "$(curl --silent --cacert "$P6_CI_MATERIAL/ca.pem" -o /dev/null -w '%{http_code}' "$P6_PRIVATE_URL/portal-admin/login")" == 401 ]]
 mkdir -p "$HOME/.pki/nssdb"
 if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -d "sql:$HOME/.pki/nssdb" -N --empty-password; fi
 certutil -d "sql:$HOME/.pki/nssdb" -A -t 'C,,' -n "Imagine Phase7 ${GITHUB_RUN_ID}" -i "$P6_CI_MATERIAL/ca.pem"

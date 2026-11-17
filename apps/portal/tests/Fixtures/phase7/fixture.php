@@ -31,7 +31,9 @@ try {
             if(Illuminate\Support\Facades\Artisan::call('migrate',['--force'=>true,'--no-interaction'=>true])!==0)throw new RuntimeException('P7_MIGRATION_FAILED');
             $stage='portal-roles';
             foreach(['portal_p6_runtime'=>'portal_db_password','portal_p6_authority'=>'portal_authority_password'] as $role=>$file) {
-                $pw=$db->quote(trim(file_get_contents('/run/secrets/'.$file)));
+                $runtimePassword=trim(file_get_contents('/run/secrets/'.$file));
+                if(hash_equals(trim(file_get_contents('/run/phase7/owner-password')),$runtimePassword))throw new RuntimeException('P7_RUNTIME_OWNER_PASSWORD_REUSE_DENIED');
+                $pw=$db->quote($runtimePassword);
                 $db->exec("CREATE ROLE $role LOGIN PASSWORD $pw NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION; GRANT CONNECT ON DATABASE portal_p6_synthetic TO $role; GRANT USAGE ON SCHEMA public TO $role");
             }
             // The same minimal grants as deploy/staging/grant-runtime.sql. No

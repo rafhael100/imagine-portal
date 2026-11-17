@@ -38,6 +38,9 @@ fingerprint = hashlib.sha256(ssl.PEM_cert_to_DER_cert((p / "client.pem").read_te
 write("receiver-bootstrap", "certificate-sha256", fingerprint)
 for target, source in [("portal-bootstrap", "portal-pg"), ("receiver-bootstrap", "performance-pg")]:
     write(target, "owner-password", (p / source / "bootstrap_password").read_text())
+# Existing mountpoint under the read-only secrets directory. This harmless
+# marker is replaced by the owner file only on the disposable preparation run.
+write("portal-secrets", "phase7_owner_password", "CI_PLACEHOLDER_NOT_AN_OWNER_PASSWORD")
 
 # Only this disposable one-shot receives owner passwords. The regular services
 # never mount either bootstrap directory or this browser vault.
