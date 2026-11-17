@@ -14,6 +14,7 @@ function step(action){
   for(const pattern of [/PHASE8_STATE_DENIED stage=[a-z-]+ type=[A-Za-z\\]+/,/PHASE8_VERIFICATION_DENIED action=[a-z]+ check=[a-z_]+/,/PHASE8_RECEIVER_PROBE_DENIED/]){
    const safe=diagnostics.match(pattern);if(safe)console.error(safe[0]);
   }
+  for(const line of diagnostics.split('\n'))if(/^PHASE8_PROFILE_DIFFERENCE kind=(portal|receiver) category=[a-z_]+ fields=[a-z_,]+ expected_rows=[0-9]+ actual_rows=[0-9]+$/.test(line))console.error(line);
   throw new Error('recovery_step_'+action);
  }
 }

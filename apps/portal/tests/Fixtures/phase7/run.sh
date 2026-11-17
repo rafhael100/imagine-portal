@@ -98,11 +98,11 @@ fi
 if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase8-navigation/run.sh
 fi
-if [[ "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
- bash apps/portal/tests/Fixtures/phase8-recovery/run.sh
-fi
 if [[ "${ADMIN_PHASE9_MAINTENANCE_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase9-maintenance/run.sh
+fi
+if [[ "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
+ bash apps/portal/tests/Fixtures/phase8-recovery/run.sh
 fi
 python3 - <<'PY'
 import json,os,pathlib,subprocess

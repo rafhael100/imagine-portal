@@ -24,6 +24,11 @@ The restore creates a separate Compose project, new PostgreSQL volumes and new
 cluster identifiers. It refuses nonempty targets. All table-content digests,
 sequences, database/schema/table/column grants, role memberships, RLS policies and
 function privileges are compared before any restored application starts.
+PostgreSQL NULL ACLs are expanded to their object-specific defaults for this
+comparison; an explicit empty ACL remains distinct. This accommodates pg_dump's
+omission of redundant default ACLs without ignoring any effective privilege.
+Isolated transactions must still detect a new column grant, a new runtime-role
+membership and an explicit empty table ACL, then roll back to the baseline.
 
 After the backup, a new live read creates additional durable receipts, nonces and
 audits. The live nominal alpha administrator's session epoch and grants, and

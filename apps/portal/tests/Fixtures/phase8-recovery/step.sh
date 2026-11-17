@@ -54,6 +54,8 @@ case "$1" in
         done
         only_restore_databases
         python3 "$fixture_dir/verify.py" baseline
+        state restore receiver profile-regression
+        only_restore_databases
         live start portal receiver performance-web portal-web >/dev/null
         ;;
     revoke)

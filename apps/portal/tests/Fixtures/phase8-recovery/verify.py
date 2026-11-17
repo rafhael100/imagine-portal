@@ -33,10 +33,29 @@ def write(name, value):
     (root / name).write_text(json.dumps(value, indent=2))
 
 
+def profile_difference(before, after, kind):
+    """Report categories/field names and counts; never values, SQL or row IDs."""
+    for category in sorted(set(before) | set(after)):
+        expected = before.get(category, [])
+        actual = after.get(category, [])
+        if expected == actual:
+            continue
+        fields = set()
+        if len(expected) != len(actual):
+            fields.add('row_count')
+        for left, right in zip(expected, actual):
+            fields.update(field for field in set(left) | set(right) if left.get(field) != right.get(field))
+        safe_fields = sorted(field for field in fields if re.fullmatch('[a-z_]+', field)) or ['unknown']
+        assert re.fullmatch('[a-z_]+', category)
+        print(f'PHASE8_PROFILE_DIFFERENCE kind={kind} category={category} fields={",".join(safe_fields)} expected_rows={len(expected)} actual_rows={len(actual)}', file=sys.stderr)
+
+
 def frozen_equal(before, after, separate=False):
     assert before['kind'] == after['kind']
     assert (before['source_cluster'] != after['source_cluster']) if separate else (before['source_cluster'] == after['source_cluster'])
     for key in ['tables', 'profile', 'authority', 'append', 'sequences', 'sessions']:
+        if key == 'profile' and before[key] != after[key]:
+            profile_difference(before[key], after[key], before['kind'])
         assert before[key] == after[key], f'frozen_{key}_{before["kind"]}'
     if before['kind'] == 'portal':
         assert before['sessions']['encrypted'] and before['sessions']['count'] > 0
@@ -76,6 +95,8 @@ elif action == 'finish':
         restored = read(f'final-restored-{kind}.json')
         assert current['source_cluster'] != restored['source_cluster']
         assert current['authority'] == restored['authority']
+        if current['profile'] != restored['profile']:
+            profile_difference(current['profile'], restored['profile'], kind)
         assert current['profile'] == restored['profile']
         for table, expected in current['append'].items():
             assert all(row in restored['append'][table] for row in expected), 'persistent_current_append'
@@ -98,6 +119,10 @@ elif action == 'finish':
             'existing_decryption_destination_denied',
             'separate_new_postgresql_clusters',
             'all_table_content_sequences_rls_column_acl_memberships_preserved',
+            'postgresql_default_acls_compared_by_effective_privileges',
+            'column_acl_change_denies_restored_readiness',
+            'runtime_membership_change_denies_restored_readiness',
+            'explicit_empty_acl_remains_distinct_from_default',
             'nonempty_restore_target_denied',
             'both_stale_authorities_denied_before_application_start',
             'current_reference_outside_restored_archive',
