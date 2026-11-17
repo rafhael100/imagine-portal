@@ -38,7 +38,8 @@ def compose(tmp):
 
 REQUIRED = ['PASS ORDER_CLEAN_PHP_BEFORE_STARTUP','PASS ORDER_INVALID_CONFIG_DENIED_BEFORE_SQL',
     'PASS ORDER_BASE_PREPARATION_ATTESTED','PASS ORDER_PREFLIGHT_LARAVEL_SQL_ATTESTED',
-    'PASS ATOMIC_NATIVE_FIXTURES','PASS ATOMIC_SQL_COMPLETE: 16',
+    'PASS ATOMIC_NATIVE_FIXTURES','PASS RESERVATION_CAS: durable single attempt, guarded scope, no release',
+    'PASS ATOMIC_SQL_COMPLETE: 16',
     'PASS ORDER_RUNNER_COMPLETE_NO_RELEASE','PASS ORDER_CLUSTER_STOPPED']
 CASES = ['own pending only','complete persisted snapshot positive','catalog owner and exact ACL',
     'same tenant different active buyer control','different tenant active control','different tenant SQL null',
@@ -50,7 +51,7 @@ CASES = ['own pending only','complete persisted snapshot positive','catalog owne
 def verify_result(code, lines):
     actual = [line for line in lines if line.startswith('PASS ATOMIC_SQL_CASE: ')]
     expected = ['PASS ATOMIC_SQL_CASE: ' + case for case in CASES]
-    if code or any(marker not in lines for marker in REQUIRED) or Counter(actual) != Counter(expected):
+    if code or any(lines.count(marker) != 1 for marker in REQUIRED) or Counter(actual) != Counter(expected):
         raise ValueError('SQL_OR_CLEANUP_INCOMPLETE')
 
 def main():
