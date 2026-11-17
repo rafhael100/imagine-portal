@@ -50,12 +50,13 @@ CREATE POLICY fixture_binding_insert ON onepage_buyer_lab.fixture_charge_binding
 GRANT SELECT ON onepage_buyer_lab.fixture_binding_witnesses TO onepage_buyer_owner;
 GRANT SELECT, INSERT ON onepage_buyer_lab.fixture_charge_bindings TO onepage_buyer_owner;
 
-CREATE FUNCTION onepage_buyer_lab.fixture_bind_charge(p_session text,p_order uuid,p_line text,p_probe text)
+CREATE FUNCTION onepage_buyer_lab.fixture_bind_charge(p_session text,p_order uuid,p_line text)
 RETURNS text LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp SET row_security=on AS $$
 DECLARE old onepage_buyer_lab.fixture_charge_bindings%ROWTYPE;
         reserved onepage_buyer_lab.fixture_charge_reservations%ROWTYPE;
-        w onepage_buyer_lab.fixture_binding_witnesses%ROWTYPE;
+        total bigint;
+        eligible text[];
         own jsonb;
 BEGIN
  IF session_user<>'onepage_buyer_runtime'
@@ -71,25 +72,31 @@ BEGIN
  IF reserved.contract_scope IS DISTINCT FROM (own - ARRAY['buyer','status','quote_snapshot','terms','contract_text'])
  THEN RETURN 'conflict'; END IF;
 
- SELECT * INTO w FROM onepage_buyer_lab.fixture_binding_witnesses WHERE probe=p_probe;
- IF NOT FOUND THEN RETURN 'pending'; END IF;
- IF (w.order_id,w.line,w.contract_scope,w.account,w.environment,w.customer,w.reference,w.amount_cents,w.due_date)
- IS DISTINCT FROM
- (reserved.order_id,reserved.line,reserved.contract_scope,reserved.account,reserved.environment,
-  reserved.customer,reserved.reference,reserved.amount_cents,reserved.due_date)
- OR w.currency<>'BRL' THEN RETURN 'conflict'; END IF;
+ -- Resolve exclusively from bootstrap-owned evidence for the locked key.
+ -- Count all rows, then compare their frozen scope in the same statement;
+ -- even agreeing duplicates or malformed evidence cannot create a link.
+ SELECT count(*), array_agg(w.payment_id) FILTER (WHERE
+    (w.contract_scope,w.account,w.environment,w.customer,w.reference,w.amount_cents,w.due_date,w.currency)
+    IS NOT DISTINCT FROM
+    (reserved.contract_scope,reserved.account,reserved.environment,reserved.customer,
+     reserved.reference,reserved.amount_cents,reserved.due_date,'BRL'::text))
+ INTO total, eligible
+ FROM onepage_buyer_lab.fixture_binding_witnesses w
+ WHERE w.order_id=reserved.order_id AND w.line=reserved.line;
+ IF total=0 THEN RETURN 'pending'; END IF;
+ IF total<>1 OR coalesce(cardinality(eligible),0)<>1 THEN RETURN 'conflict'; END IF;
 
  INSERT INTO onepage_buyer_lab.fixture_charge_bindings(order_id,line,account,environment,payment_id)
- VALUES(p_order,p_line,w.account,w.environment,w.payment_id) ON CONFLICT DO NOTHING;
+ VALUES(p_order,p_line,reserved.account,reserved.environment,eligible[1]) ON CONFLICT DO NOTHING;
  IF FOUND THEN RETURN 'linked'; END IF;
  -- A new command snapshot in READ COMMITTED sees a concurrent winner.
  SELECT * INTO old FROM onepage_buyer_lab.fixture_charge_bindings
  WHERE order_id=p_order AND line=p_line;
- IF FOUND AND (old.account,old.environment,old.payment_id)=(w.account,w.environment,w.payment_id)
+ IF FOUND AND (old.account,old.environment,old.payment_id)=(reserved.account,reserved.environment,eligible[1])
  THEN RETURN 'replay'; END IF;
  RETURN 'conflict';
 END $$;
-ALTER FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text,text) OWNER TO onepage_buyer_owner;
-REVOKE ALL ON FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text,text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text,text) TO onepage_buyer_runtime;
+ALTER FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text) OWNER TO onepage_buyer_owner;
+REVOKE ALL ON FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION onepage_buyer_lab.fixture_bind_charge(text,uuid,text) TO onepage_buyer_runtime;
 COMMIT;

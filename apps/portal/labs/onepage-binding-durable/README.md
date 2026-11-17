@@ -18,6 +18,14 @@ O runtime recebe só EXECUTE de capacidade de fixture no cluster efêmero,
 sem acesso direto ou novos usuários, papéis permanentes ou grants
 operacionais.
 
+A resolução não recebe ID nem chave de testemunho: lê apenas evidência
+do bootstrap associada ao pedido/parcela exatos e confirma escopo completo.
+Mais de um testemunho, testemunho incompatível ou evidência incompleta
+jamais produz INSERT; ausência fica pendente. Os rótulos de testemunho são
+manipulados pelo bootstrap exclusivamente para controlar fases negativas,
+nunca escolhidos pelo runtime. Na reserva ainda livre, o teste instala
+dois IDs elegíveis e exige conflito, zero vínculos e latch inalterado.
+
 O vínculo é append-only com duas chaves únicas: pedido/parcela e
 conta/ambiente/ID. A função relê a identidade e a elegibilidade nativas
 na mesma transação, segura o `FOR SHARE` nas linhas de autoridade nativa
@@ -25,9 +33,15 @@ e na reserva tentada, compara testemunho completo e só então tenta inserir.
 Replay exato não altera a linha. Teste proposto: ausente/valor
 divergente/escopo errado, comprador do mesmo tenant e de outro tenant,
 linha não tentada, rollback sem visibilidade parcial, sobreposição de duas
-conexões, replay independente, ID distinto para a mesma linha e mesmo ID
+conexões (rejeição por lock timeout e nova chamada após commit, não um
+contendor bloqueado que prossegue na mesma chamada), replay independente, ID distinto para a mesma linha e mesmo ID
 em outra linha, bloqueio concorrente da revogação nativa (lock timeout) e
 recusa de link/replay após a revogação original do #925 ser confirmada.
+Também confere owner, SECURITY DEFINER, EXECUTE restrito ao runtime,
+FORCE RLS e recusa de DML direto. O teste de unicidade usa linhas distintas
+do mesmo pedido; pedidos/empresas distintos permanecem garantia de desenho
+da chave global, não caso executado. A serialização pretendida é só da
+revogação de membership nativo, não de cancelamento/alteração do pedido.
 Nenhuma baixa, POST, liberação Sites, rota, worker ou migration.
 
 `run.py --check` valida composição/pins e sintaxe PHP e shell sem banco.

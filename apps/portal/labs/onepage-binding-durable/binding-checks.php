@@ -24,9 +24,9 @@ function checkDurableFixtureBinding(Connection $db, PDO $runtime, array $identit
     $check=static function(bool $v): void { if (!$v) throw new RuntimeException('BINDING_INVARIANT'); };
     $session=static fn(Request $r): string => hash('sha256',$r->session()->get('portal.browser_auth')['reference']);
     $proof=$session($own);
-    $bind=static function(PDO $p,string $sessionHash,string $line,string $probe) use($order): string {
-        $q=$p->prepare('SELECT onepage_buyer_lab.fixture_bind_charge(?,CAST(? AS uuid),?,?)');
-        $q->execute([$sessionHash,$order,$line,$probe]);
+    $bind=static function(PDO $p,string $sessionHash,string $line) use($order): string {
+        $q=$p->prepare('SELECT onepage_buyer_lab.fixture_bind_charge(?,CAST(? AS uuid),?)');
+        $q->execute([$sessionHash,$order,$line]);
         $result=$q->fetchColumn();
         if (!in_array($result,['denied','pending','conflict','linked','replay'],true)) throw new RuntimeException('BINDING_RESULT');
         return $result;
@@ -42,35 +42,61 @@ function checkDurableFixtureBinding(Connection $db, PDO $runtime, array $identit
     $sql=file_get_contents(__DIR__.'/binding.sql');
     if ($sql===false) throw new RuntimeException('BINDING_SQL_SOURCE');
     $db->unprepared($sql);
-    $pinned();
-    $owner->beginTransaction();
-    try {
+    $acl=$db->selectOne("SELECT CASE WHEN pg_get_userbyid(p.proowner)='onepage_buyer_owner' AND p.prosecdef
+          AND has_function_privilege('onepage_buyer_runtime',p.oid,'EXECUTE')
+          AND NOT has_function_privilege('portal_browser_runtime',p.oid,'EXECUTE')
+          AND NOT EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a
+              WHERE a.privilege_type='EXECUTE' AND a.grantee NOT IN
+                    (p.proowner,(SELECT oid FROM pg_roles WHERE rolname='onepage_buyer_runtime')))
+          AND (SELECT count(*) FROM pg_class c WHERE c.oid IN
+                    ('onepage_buyer_lab.fixture_binding_witnesses'::regclass,
+                     'onepage_buyer_lab.fixture_charge_bindings'::regclass)
+                   AND c.relrowsecurity AND c.relforcerowsecurity)=2 THEN 1 ELSE 0 END AS permitted
+          FROM pg_proc p WHERE p.oid='onepage_buyer_lab.fixture_bind_charge(text,uuid,text)'::regprocedure");
+    $check($acl!==null && (int)$acl->permitted===1);
+    // Only bootstrap changes dataset between negative control phases.
+    // Keys below are test administration labels, never runtime arguments.
+    $seed=static function(string $probe,string $key,string $id,int $delta=0)use($owner,$pinned,$order,$plan,$scope): void {
+        $pinned();
         $q=$owner->prepare('INSERT INTO onepage_buyer_lab.fixture_binding_witnesses
            (probe,order_id,line,contract_scope,account,environment,customer,reference,currency,amount_cents,due_date,payment_id)
            VALUES(?,CAST(? AS uuid),?,CAST(? AS jsonb),?,?,?,?,?, ?,CAST(? AS date),?)');
-        foreach ([
-            ['probe-first','setup-1','pay_LABalpha',0],['probe-dissent','setup-1','pay_LABbeta',0],
-            ['probe-cross','setup-2','pay_LABalpha',0],['probe-fresh','setup-2','pay_LABgamma',0],
-            ['probe-amount','setup-1','pay_LABalpha',-1],['probe-untouched','setup-3','pay_LABdelta',0],
-        ] as [$probe,$key,$id,$delta]) {
-            $line=$plan->lines[$key];
-            $q->execute([$probe,$order,$key,json_encode($scope,JSON_THROW_ON_ERROR),$plan->scope['account'],
-                $plan->scope['environment'],'cus_LABreserve',$line['external_reference'],'BRL',
-                $line['amount_cents']+$delta,$line['due_date'],$id]);
-        }
-        $owner->commit();
-    } finally {
-        if ($owner->inTransaction()) $owner->rollBack();
-    }
+        $line=$plan->lines[$key];
+        $q->execute([$probe,$order,$key,json_encode($scope,JSON_THROW_ON_ERROR),$plan->scope['account'],
+            $plan->scope['environment'],'cus_LABreserve',$line['external_reference'],'BRL',
+            $line['amount_cents']+$delta,$line['due_date'],$id]);
+    };
+    $remove=static function(string $probe)use($owner,$pinned,$check): void {
+        $pinned();
+        $q=$owner->prepare('DELETE FROM onepage_buyer_lab.fixture_binding_witnesses WHERE probe=?');
+        $q->execute([$probe]);
+        $check($q->rowCount()===1);
+    };
+    $latches=static function()use($db): array {
+        return array_map(static fn($r): array => [$r->line,$r->attempted],$db->select(
+            'SELECT line,attempted FROM onepage_buyer_lab.fixture_charge_reservations ORDER BY line'));
+    };
+    $beforeLatches=$latches();
+    $check($bind($runtime,$proof,'setup-1')==='pending');
+    $seed('probe-amount','setup-1','pay_LABalpha',-1);
+    $check($bind($runtime,$proof,'setup-1')==='conflict' && $count()===0);
+    $remove('probe-amount');
 
-    $check($bind($runtime,$proof,'setup-1','probe-missing')==='pending');
-    $check($bind($runtime,$proof,'setup-1','probe-amount')==='conflict');
-    $check($bind($runtime,$proof,'setup-1','probe-fresh')==='conflict');
-    $check($bind($runtime,$proof,'setup-3','probe-untouched')==='denied');
-    foreach ([$sameCompanyOther,$foreign] as $other) $check($bind($runtime,$session($other),'setup-1','probe-first')==='denied');
+    $seed('probe-first','setup-1','pay_LABalpha');
+    $seed('probe-dissent','setup-1','pay_LABbeta');
+    $check($bind($runtime,$proof,'setup-1')==='conflict' && $count()===0 && $latches()===$beforeLatches);
+    $remove('probe-dissent'); // Restore uniquely eligible evidence, not a latch reset.
+    $seed('probe-cross','setup-2','pay_LABalpha');
+    $seed('probe-untouched','setup-3','pay_LABdelta');
+    $check($bind($runtime,$proof,'setup-3')==='denied');
+    foreach ([$sameCompanyOther,$foreign] as $other) $check($bind($runtime,$session($other),'setup-1')==='denied');
+    $expect('42883',static fn()=>$runtime->query(
+        "SELECT onepage_buyer_lab.fixture_bind_charge(NULL::text,NULL::uuid,NULL::text,NULL::text)"));
     foreach (['fixture_binding_witnesses','fixture_charge_bindings'] as $t) {
         $expect('42501',static fn()=>$runtime->query('SELECT count(*) FROM onepage_buyer_lab.'.$t));
         $expect('42501',static fn()=>$runtime->exec('DELETE FROM onepage_buyer_lab.'.$t));
+        $expect('42501',static fn()=>$runtime->exec('INSERT INTO onepage_buyer_lab.'.$t.' DEFAULT VALUES'));
+        $expect('42501',static fn()=>$runtime->exec('UPDATE onepage_buyer_lab.'.$t." SET payment_id='pay_LABdeny'"));
     }
     $check($count()===0);
 
@@ -86,7 +112,7 @@ function checkDurableFixtureBinding(Connection $db, PDO $runtime, array $identit
     try {
         $runtime->beginTransaction();
         try {
-            $check($bind($runtime,$proof,'setup-1','probe-first')==='linked');
+            $check($bind($runtime,$proof,'setup-1')==='linked');
             $check($count()===0);
             // Live membership revocation must serialize with the native read.
             $expect('55P03', static function() use($owner,$row): void {
@@ -105,15 +131,24 @@ function checkDurableFixtureBinding(Connection $db, PDO $runtime, array $identit
 
     $runtime->beginTransaction();
     try {
-        $check($bind($runtime,$proof,'setup-1','probe-first')==='linked');
-        $expect('55P03',static fn()=>$bind($b,$proof,'setup-1','probe-first'));
+        $check($bind($runtime,$proof,'setup-1')==='linked');
+        $expect('55P03',static fn()=>$bind($b,$proof,'setup-1'));
         $runtime->commit();
     } finally {
         if ($runtime->inTransaction()) $runtime->rollBack();
     }
-    $check($bind($b,$proof,'setup-1','probe-first')==='replay');
-    $check($bind($b,$proof,'setup-1','probe-dissent')==='conflict');
-    $check($bind($b,$proof,'setup-2','probe-cross')==='conflict');
+    $check($bind($b,$proof,'setup-1')==='replay');
+    $seed('probe-dissent','setup-1','pay_LABbeta');
+    $check($bind($b,$proof,'setup-1')==='conflict' && $count()===1); // ambiguity post-link
+    $remove('probe-first');
+    $check($bind($b,$proof,'setup-1')==='conflict' && $count()===1); // sole different ID
+    $remove('probe-dissent');
+    $seed('probe-first','setup-1','pay_LABalpha');
+    $check($bind($b,$proof,'setup-1')==='replay');
+    $check($bind($b,$proof,'setup-2')==='conflict'); // same ID for another line
+    $remove('probe-cross');
+    $seed('probe-fresh','setup-2','pay_LABgamma');
+    $check($latches()===$beforeLatches);
     $exact=$db->selectOne('SELECT order_id,line,account,environment,payment_id
        FROM onepage_buyer_lab.fixture_charge_bindings');
     $check($count()===1 && $exact->order_id===$order && $exact->line==='setup-1'
@@ -125,8 +160,8 @@ function checkDurableFixtureBinding(Connection $db, PDO $runtime, array $identit
     return static function()use($check,$bind,$b,$proof,$count,$pinned,$owner,$identity): void {
         $pinned();
         Guard::runtime($b,$owner,$identity,'onepage_buyer_runtime');
-        $check($bind($b,$proof,'setup-2','probe-fresh')==='denied');
-        $check($bind($b,$proof,'setup-1','probe-first')==='denied' && $count()===1);
+        $check($bind($b,$proof,'setup-2')==='denied');
+        $check($bind($b,$proof,'setup-1')==='denied' && $count()===1);
         echo "PASS BINDING_DURABLE: one exact link, rollback and revocation, no release\n";
     };
 }
