@@ -13,6 +13,11 @@
             <h2>{{ $offer[0] }}</h2>
             <p>{{ $offer[1] }}</p>
             @if($slug === 'performance')
+                @if($selectedChannel === 'google_ads')
+                    <p class="notice" data-channel-origin="google_ads">Você veio do serviço Google Ads no site Imagine. Confirme o canal e informe o orçamento: nenhum investimento foi preenchido automaticamente.</p>
+                @elseif($selectedChannel === 'meta_ads')
+                    <p class="notice" data-channel-origin="meta_ads">Você veio do serviço Meta Ads no site Imagine. Confirme o canal e informe o orçamento: nenhum investimento foi preenchido automaticamente.</p>
+                @endif
                 <p><strong>Ativação única de R$ 490 por canal selecionado.</strong> Gestão pós-paga: 20% do investimento efetivo, com <strong>mínimo mensal de R$ 170 por canal</strong> em meses completos.</p>
                 <p>O investimento mínimo em anúncios é de <strong>R$ 1.000 no Google Ads</strong> e <strong>R$ 700 na Meta</strong>, pagos diretamente a cada plataforma. Estes valores não são a taxa de gestão. O primeiro mês parcial exige revisão do contrato; esta é uma simulação sem cobrança.</p>
             @else
