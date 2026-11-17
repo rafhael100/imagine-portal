@@ -9,7 +9,7 @@ export P7_EVIDENCE="$RUNNER_TEMP/phase7-evidence" P7_BROWSER_VAULT="$RUNNER_TEMP
 export ADMIN_PHASE6_SMOKE_CI=1
 [[ ! -e "$P6_CI_MATERIAL" ]]
 mkdir -p "$P7_EVIDENCE"
-sudo --preserve-env=GITHUB_ACTIONS,ADMIN_PHASE7_CI,ADMIN_PHASE6_SMOKE_CI,P6_CI_MATERIAL python3 apps/portal/tests/Fixtures/phase7/materials.py
+sudo --preserve-env=GITHUB_ACTIONS,ADMIN_PHASE7_CI,ADMIN_PHASE6_SMOKE_CI,ADMIN_PHASE8_NAVIGATION_CI,P6_CI_MATERIAL python3 apps/portal/tests/Fixtures/phase7/materials.py
 export P6_PORTAL_IMAGE=p7-portal-ci P6_PORTAL_WEB_IMAGE=p7-web-ci P6_RECEIVER_IMAGE=p7-receiver-ci
 export P6_PG_IMAGE=postgres:18 P6_NGINX_IMAGE=nginx:1.29-alpine
 export P6_PRIVATE_URL=https://127.0.0.1:18947 P6_LOOPBACK_PORT=18947 P6_RECEIVER_IP=10.87.6.3 P6_SERVICE_SUBNET=10.87.6.0/28
@@ -73,6 +73,25 @@ if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -d "sql:$HOME/.pki/nssd
 certutil -d "sql:$HOME/.pki/nssdb" -A -t 'C,,' -n "Imagine Phase7 ${GITHUB_RUN_ID}" -i "$P6_CI_MATERIAL/ca.pem"
 sudo install -m 600 -o "$(id -u)" -g "$(id -g)" "$P6_CI_MATERIAL/portal-bootstrap/browser-vault.json" "$P7_BROWSER_VAULT"
 node apps/portal/tests/Fixtures/phase7/browser.cjs
+if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 || "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
+ python3 apps/portal/deploy/phase6/readonly-inventory.py --port "$P6_LOOPBACK_PORT" --subnet "$P6_SERVICE_SUBNET" --receiver-ip "$P6_RECEIVER_IP" > "$P7_EVIDENCE/ci-host-inventory.json"
+ python3 - <<'PY'
+import json,os,pathlib
+snapshot=json.loads((pathlib.Path(os.environ['P7_EVIDENCE'])/'ci-host-inventory.json').read_text())
+assert snapshot['status']=='NO_GO_PENDING_REVIEW_AND_APPROVAL' and snapshot['installation_authorized'] is False
+assert snapshot['proposal']['port_observed_unused'] is False and snapshot['proposal']['subnet_conflicts']
+assert any(item['source']=='configured_bindings' for item in snapshot['proposal']['port_conflicts'])
+assert any(item['ip']==os.environ['P6_RECEIVER_IP'] for item in snapshot['proposal']['receiver_ip_conflicts'])
+assert len(snapshot['containers'])>=6
+print('PHASE8_CI_HOST_INVENTORY_PASS: real disposable Docker projections, no VPS inventory or resource reservation')
+PY
+fi
+if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 ]]; then
+ bash apps/portal/tests/Fixtures/phase8-navigation/run.sh
+fi
+if [[ "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
+ bash apps/portal/tests/Fixtures/phase8-recovery/run.sh
+fi
 python3 - <<'PY'
 import json,os,pathlib,subprocess
 out=pathlib.Path(os.environ['P7_EVIDENCE'])

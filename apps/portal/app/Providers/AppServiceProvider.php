@@ -20,7 +20,7 @@ class AppServiceProvider extends ServiceProvider
                 return json_decode(file_get_contents($path),true,8,JSON_THROW_ON_ERROR);
             };
             return new \App\Domain\PerformanceAdministration\AuthorizedPerformanceRead($authority,
-                function($company,$op,$correlation)use($authority,$loadIdentity){
+                function($company,$op,$correlation,$query)use($authority,$loadIdentity){
                     $lease=$authority->lease($company,$op,$correlation);
                     $identity=function()use($authority,$loadIdentity,$company,$op,$correlation,$lease){
                         if(!hash_equals($lease,$authority->lease($company,$op,$correlation)))throw new \RuntimeException('PERFORMANCE_AUTHORITY_CHANGED');
@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
                     };
                     return (new \App\Domain\PerformanceAdministration\SignedServiceReadClient($identity,
                         static fn($event,$id)=>\App\Domain\PerformanceAdministration\PerformanceSecurityEvents::record($event,$id)))
-                        ->read($company,$op,[],$correlation);
+                        ->read($company,$op,$query,$correlation);
                 });
         });
         if (config('automation_admin.transport_enabled') === true

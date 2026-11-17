@@ -67,8 +67,8 @@ if(config('portal_admin.enabled')===true && \App\Domain\PerformanceAdministratio
 if(config('portal_admin.enabled')===true && config('performance_admin.native_read_enabled')===true && \App\Domain\PerformanceAdministration\PrivateDemonstrationPolicy::allowed()){
  Route::get('/portal-admin/performance-private',[\App\Http\Controllers\PerformancePrivateReadController::class,'index'])
   ->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.index');
- Route::get('/portal-admin/performance-private/{company}',[\App\Http\Controllers\PerformancePrivateReadController::class,'show'])
-  ->whereUuid('company')->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.show');
+ Route::get('/portal-admin/performance-private/{company}/{module?}',[\App\Http\Controllers\PerformancePrivateReadController::class,'show'])
+  ->whereUuid('company')->where('module','dashboard|clients|reports')->middleware([PortalAdminFeatureGate::class,PortalAdminMfaGuard::class])->name('performance-private.show');
 }
 // Central P0: administrative ownership metadata only, dark by default, no tenant data/effect.
 if(config('portal_admin.enabled')===true && \App\Domain\AutomationAdministration\AutomationPolicyCatalog::available()){

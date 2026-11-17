@@ -30,7 +30,8 @@ secret = secrets.token_hex(32)
 expiry = int(time.time()) + 1800
 identity = {"issuer": "portal_service", "key_id": "phase7_key_01", "active": True,
             "secret": secret, "expires_at": expiry, "companies": companies,
-            "operations": ["dashboard.read"]}
+            "operations": (["dashboard.read", "clients.read", "reports.read"]
+                           if os.environ.get("ADMIN_PHASE8_NAVIGATION_CI") == "1" else ["dashboard.read"])}
 write("portal-secrets", "portal_service_identity", json.dumps(identity))
 write("receiver-private", "service-keyring.json", json.dumps({"portal_service": {
     "phase7_key_01": {"active": True, "secret": secret, "expires_at": expiry}}}))

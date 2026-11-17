@@ -6,9 +6,9 @@ use RuntimeException;
 /** Revalidate native password/MFA/session + service + grant around each S2S read. */
 final class AuthorizedPerformanceRead {
  public function __construct(private NativePerformanceAuthority $authority,private Closure $read){}
- public function read(string $company,string $operation,string $correlation):array {
+ public function read(string $company,string $operation,string $correlation,array $query=[]):array {
   $lease=$this->authority->lease($company,$operation,$correlation);
-  try{$result=($this->read)($company,$operation,$correlation);}catch(\Throwable){
+  try{$result=($this->read)($company,$operation,$correlation,$query);}catch(\Throwable){
    try{$this->authority->outcome($company,$operation,$correlation,'failed');}catch(\Throwable){}
    throw new RuntimeException('PERFORMANCE_READ_UNAVAILABLE');
   }
