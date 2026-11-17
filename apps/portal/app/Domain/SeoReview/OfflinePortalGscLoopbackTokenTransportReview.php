@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\SeoReview;
 
+use Closure;
 use CurlHandle;
 use SensitiveParameter;
 use Throwable;
@@ -27,11 +28,18 @@ final class OfflinePortalGscLoopbackTokenTransportReview
     /**
      * Consumes the synthetic token POST envelope at most once, even when
      * the request fails. No body, header, credentials or token is returned.
+     * The optional HTTP-kernel laboratory sink receives the exact opaque
+     * parsed candidate once in server memory. It is not a production vault
+     * permission and cannot be selected by a request parameter.
      */
     public function inspect(
         GoogleSearchConsoleOAuthTokenPostRequest $envelope,
         mixed $trustedNow,
+        ?Closure $syntheticCandidateSink=null,
     ): ?array {
+        // Refuse the additional sink BEFORE consuming the one-use envelope.
+        if ($syntheticCandidateSink!==null &&
+            getenv('PORTAL_GSC_HTTP_KERNEL_LAB')!=='1')return null;
         if (PHP_SAPI!=='cli' ||
             getenv('APP_ENV')!=='testing' ||
             getenv('PORTAL_GSC_F116_LOOPBACK_LAB')!=='1' ||
@@ -145,6 +153,18 @@ final class OfflinePortalGscLoopbackTokenTransportReview
                 ($safe['customerDisplayAuthorized']??null)!==false)
                 return null;
 
+            if ($syntheticCandidateSink!==null) {
+                $synthetic=$candidate->takeForTrustedVault();
+                foreach (['accessToken','refreshToken'] as $field) {
+                    if (array_key_exists($field,$synthetic) &&
+                        !str_starts_with($synthetic[$field],'synthetic-'))
+                        return null;
+                }
+                unset($synthetic);
+                if ($syntheticCandidateSink($candidate,$trustedNow)!==true)
+                    return null;
+            }
+
             return [
                 'contractVersion'=>'portal-gsc-f116-local-token-transport-lab-v1',
                 'status'=>'SYNTHETIC_RESPONSE_SHAPE_VERIFIED_ONLY',
@@ -170,7 +190,7 @@ final class OfflinePortalGscLoopbackTokenTransportReview
             return null;
         }finally{
             if($handle instanceof CurlHandle)curl_close($handle);
-            // No secret, response body or token escapes the method.
+            // No raw response/body/secret enters the public review result.
             $response='';
         }
     }
