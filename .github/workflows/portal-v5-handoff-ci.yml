@@ -1,0 +1,75 @@
+name: Portal V5 - preserve Comercial context through account entry
+on:
+  pull_request:
+    paths:
+      - 'apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php'
+      - 'apps/portal/app/Http/Controllers/CustomerPreviewController.php'
+      - 'apps/portal/app/Http/Controllers/FullPortalPreviewController.php'
+      - 'apps/portal/resources/views/portal/preview/customer-purchase.blade.php'
+      - 'apps/portal/tests/Feature/CustomerPreviewV5HandoffTest.php'
+      - '.github/workflows/portal-v5-handoff-ci.yml'
+permissions:
+  contents: read
+jobs:
+  contextual-handoff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml,pdo_pgsql,curl,sodium
+          coverage: none
+          tools: composer
+      - name: Install locked dependencies
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/portal validate --strict --no-check-publish
+          composer --working-dir=apps/portal install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer --working-dir=apps/portal dump-autoload --no-interaction --no-scripts --no-plugins
+          php -r '$key="base64:".base64_encode(random_bytes(32)); echo "::add-mask::".$key.PHP_EOL; file_put_contents(getenv("GITHUB_ENV"),"APP_KEY=".$key.PHP_EOL,FILE_APPEND);'
+      - name: Reproduce channel loss on the immutable parent
+        run: |
+          set -euo pipefail
+          baseline="$RUNNER_TEMP/portal-v5-handoff-baseline"
+          test ! -e "$baseline"
+          mkdir -m 700 "$baseline"
+          git archive 26075ce0b409a32419bc2919270d4e25cb609772 apps/portal | tar -x -C "$baseline"
+          cp -a --reflink=auto apps/portal/vendor "$baseline/apps/portal/vendor"
+          cp apps/portal/tests/Feature/CustomerPreviewV5HandoffTest.php "$baseline/apps/portal/tests/Feature/"
+          cd "$baseline/apps/portal"
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          set +e
+          vendor/bin/phpunit --colors=never \
+            --filter 'test_(registration|login)_preserves_context_across_session_rotation' \
+            tests/Feature/CustomerPreviewV5HandoffTest.php > "$RUNNER_TEMP/v5-handoff-baseline.log" 2>&1
+          result=$?
+          set -e
+          test "$result" = 1
+          python3 - "$RUNNER_TEMP/v5-handoff-baseline.log" <<'PY'
+          import re,sys
+          from pathlib import Path
+          log=Path(sys.argv[1]).read_text()
+          assert 'ERRORS!' not in log, 'Baseline must fail assertions, not runtime setup'
+          assert re.search(r'Tests: 8,.*Failures: 4',log), 'Expected four lost-channel regressions and four site controls'
+          assert log.count('ASSERT_V5_CHANNEL_LOST:')==4, 'Expected exact registration/login channel-loss assertions'
+          print('PASS baseline: four Google/Meta context assertions fail; four site controls pass')
+          PY
+      - name: Verify corrected controllers, session rotation and rendered V5 context
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit --colors=never tests/Feature/CustomerPreviewV5HandoffTest.php
+          git diff --exit-code -- composer.json composer.lock
+      - name: Remove disposable baseline and its log
+        if: always()
+        run: |
+          rm -rf -- "$RUNNER_TEMP/portal-v5-handoff-baseline"
+          rm -f -- "$RUNNER_TEMP/v5-handoff-baseline.log"
