@@ -9,6 +9,7 @@ use App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenExchangePlan;
 use App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenPostRequest;
 use App\Domain\SeoReview\GoogleSearchConsoleOAuthTokenResponsePolicy;
 use App\Domain\SeoReview\GoogleSearchConsolePropertyIdentifier;
+use App\Domain\SeoReview\GoogleSearchConsoleRefreshTokenPostRequest;
 use App\Domain\SeoReview\GoogleSearchConsoleSiteListingReview;
 use CurlHandle;
 use LogicException;
@@ -83,6 +84,54 @@ final readonly class GoogleSearchConsoleHttpsTransportCandidate
             return $candidate;
         } catch(Throwable) {return null;}
         finally {unset($response,$data);}
+    }
+
+    /**
+     * Synthetic early refresh only. The caller's durable version claim is
+     * separate from this envelope's process-local one-use guarantee.
+     * No legacy parser, authorization rule or expired-vault read is changed.
+     */
+    public function refresh(
+        #[SensitiveParameter] GoogleSearchConsoleRefreshTokenPostRequest $envelope,
+        int $trustedNow,
+    ): ?GoogleSearchConsoleOAuthTokenCandidate {
+        if (!self::labEnabled() || getenv('PORTAL_GSC_REFRESH_LAB')!=='1' ||
+            !self::validCaFile($this->caFile) || !self::validTime($trustedNow))return null;
+        $request=$envelope->takeForTrustedHttpsTransport();
+        if (!is_array($request) || ($request['method']??null)!=='POST' ||
+            ($request['url']??null)!==GoogleSearchConsoleOAuthTokenExchangePlan::TOKEN_ENDPOINT ||
+            ($request['allowRedirects']??null)!==false || ($request['timeoutSeconds']??null)!==10 ||
+            ($request['headers']??null)!==[
+                'Content-Type'=>'application/x-www-form-urlencoded','Accept'=>'application/json',
+            ] || !is_int($request['predecessorExpiresAt']??null) ||
+            $request['predecessorExpiresAt']<=$trustedNow ||
+            $request['predecessorExpiresAt']>$trustedNow+3600 ||
+            !is_string($request['body']??null) || strlen($request['body'])>8192)return null;
+        $form=[];parse_str($request['body'],$form);
+        if (array_keys($form)!==['client_id','client_secret','refresh_token','grant_type'] ||
+            $form['client_id']!==GoogleSearchConsoleRefreshTokenPostRequest::SYNTHETIC_CLIENT_ID ||
+            $form['client_secret']!==GoogleSearchConsoleRefreshTokenPostRequest::SYNTHETIC_CLIENT_SECRET ||
+            $form['grant_type']!=='refresh_token' || !self::syntheticToken($form['refresh_token']))return null;
+        $previousRefresh=$form['refresh_token'];unset($form);
+        $response=$this->request('POST',GoogleSearchConsoleOAuthTokenExchangePlan::TOKEN_ENDPOINT,
+            $request['body'],null,self::MAX_TOKEN_BODY);
+        unset($request);
+        if ($response===null)return null;
+        try {
+            $candidate=(new GoogleSearchConsoleOAuthTokenResponsePolicy())->inspect(200,$response,$trustedNow);
+            if (!$candidate instanceof GoogleSearchConsoleOAuthTokenCandidate)return null;
+            $data=$candidate->takeForTrustedVault();
+            foreach (['accessToken','refreshToken'] as $field)
+                if (array_key_exists($field,$data) && !self::syntheticToken($data[$field]))return null;
+            if (array_key_exists('refreshToken',$data))return $candidate;
+            // Explicit composition: new access/expiry come from this validated
+            // HTTPS response; only an omitted refresh value is preserved from
+            // the predecessor's opaque vault read. Never fabricate a response.
+            return new GoogleSearchConsoleOAuthTokenCandidate([
+                'accessToken'=>$data['accessToken'],'refreshToken'=>$previousRefresh,
+            ],$data['expiresAt']);
+        } catch(Throwable) {return null;}
+        finally {unset($response,$data,$previousRefresh);}
     }
 
     /**

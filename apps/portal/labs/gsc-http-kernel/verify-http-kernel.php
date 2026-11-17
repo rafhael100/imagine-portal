@@ -42,6 +42,8 @@ const LAB_SITE='sc-domain:example.com';
 $checks=0;$failed=false;$owner=null;$db=null;$browserDb=null;$revoker=null;
 $directory=null;$fixtureOwned=false;
 $tlsMode=getenv('PORTAL_GSC_HTTP_KERNEL_HTTPS_LAB')==='1';
+$refreshMode=getenv('PORTAL_GSC_HTTP_KERNEL_REFRESH_LAB')==='1';
+if ($refreshMode)require __DIR__.'/../gsc-refresh/RefreshLab.php';
 function labCheck(bool $ok,string $label): void
 {
     global $checks;
@@ -76,6 +78,8 @@ try {
         $https=GoogleSearchConsoleHttpsTransportCandidate::forTlsLab($caFile);
         labCheck($https!==null,'TLS laboratory factory must authorize only its fixed local sockets');
     }
+    if ($refreshMode)labCheck($tlsMode && \Imagine\Portal\GscRefreshLab\RefreshFlow::enabled(),
+        'renewal requires all HTTPS and authenticated laboratory gates');
     $options=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false];
     $dsn='pgsql:host=127.0.0.1;port=5432;dbname=portal_gsc_f115_lab';
     $owner=new PDO($dsn,getenv('PGUSER'),getenv('PGPASSWORD'),$options);
@@ -149,7 +153,7 @@ try {
         'session.driver'=>'file','session.files'=>$directory,'session.encrypt'=>true,
         'session.lottery'=>[0,100],'cache.default'=>'array']);
     $app->instance(PortalBrowserAuthentication::class,$auth);
-    Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function():void {
+    Route::middleware(['web',PortalBrowserAuthGuard::class])->group(function()use($refreshMode):void {
         Route::get('/__gsc-http-lab/csrf',[PortalBrowserAuthController::class,'csrf']);
         Route::post('/__gsc-http-lab/password',[PortalBrowserAuthController::class,'password']);
         Route::post('/__gsc-http-lab/mfa',[PortalBrowserAuthController::class,'mfa']);
@@ -158,6 +162,8 @@ try {
         Route::post('/__gsc-http-lab/connect',[LabController::class,'connect']);
         Route::get('/__gsc-http-lab/callback',[LabController::class,'callback']);
         Route::post('/__gsc-http-lab/revoke',[LabController::class,'revoke']);
+        if ($refreshMode)Route::post('/__gsc-http-lab/renew',[
+            \Imagine\Portal\GscRefreshLab\RefreshController::class,'renew']);
     });
     $forbidden=['synthetic-password-only','synthetic-secret-f116-private-only',
         'synthetic-good-with-refresh','code_verifier','client_secret',
@@ -503,6 +509,8 @@ try {
         'logout denies leftover unconsumed callback');
     labCheck(!$auth->isActiveBusinessSession($refA),'original business session is inactive');
 
+    if ($refreshMode)require __DIR__.'/../gsc-refresh/scenarios.php';
+
     // Persisted browser envelopes contain no plaintext identity references or
     // credentials; response checks above also cover every denial and success.
     foreach(glob($directory.'/*')?:[] as $file) {
@@ -525,6 +533,7 @@ try {
         if ($connection instanceof PDO && $connection->inTransaction())$connection->rollBack();
     if ($fixtureOwned && $owner instanceof PDO) {
         try {
+            if ($refreshMode)$owner->exec('DELETE FROM public.portal_gsc_refresh_lab_claims');
             foreach(['portal_gsc_f115_state_session_bindings','portal_gsc_oauth_states',
                 'portal_gsc_oauth_token_candidates','portal_gsc_property_grants',
                 'portal_auth_attempt_buckets','portal_membership_grants','portal_auth_sessions',
@@ -541,6 +550,7 @@ try {
 }
 if (!$failed)echo "GSC HTTP kernel: {$checks} checks; real Laravel middleware + PG18 MFA/state/vault; ".
     ($tlsMode?'verified TLS with ephemeral laboratory CA; ':'HTTP laboratory transport; ').
+    ($refreshMode?'early renewal with durable claim and atomic successor; ':'').
     "synthetic loopback token/property only; replay, tenant/session substitution, post-response revocation, ".
     "RLS forgery and atomic rollback checked; NO GOOGLE OR OPERATIONAL ENABLEMENT\n";
 exit($failed?1:0);

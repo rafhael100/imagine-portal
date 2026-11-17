@@ -17,6 +17,7 @@ on:
       - 'apps/portal/composer.json'
       - 'apps/portal/composer.lock'
       - 'apps/portal/docs/PORTAL-GSC-HTTPS-TRANSPORT-CANDIDATE.md'
+      - 'apps/portal/docs/PORTAL-GSC-REFRESH-TRANSPORT-CONTRACT.md'
   workflow_dispatch:
 
 permissions:
@@ -62,7 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-          git merge-base --is-ancestor 58aa1ae4b82cc0fc2bbe8cb481d62c50c6fd136a "$CANDIDATE_SHA"
+          git merge-base --is-ancestor ed6a4f75c20064ae78c433ceabcac636065fc8e3 "$CANDIDATE_SHA"
           test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
           test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
       - name: Install locked Laravel dependencies and validate fixture syntax
@@ -74,7 +75,9 @@ jobs:
           composer --working-dir=apps/portal dump-autoload --no-interaction --no-scripts --no-plugins
           php -r '$key="base64:".base64_encode(random_bytes(32)); echo "::add-mask::".$key.PHP_EOL; file_put_contents(getenv("GITHUB_ENV"),"APP_KEY=".$key.PHP_EOL,FILE_APPEND);'
           php -l apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php
           php -l apps/portal/labs/gsc-https-transport/verify-https-transport.php
+          php -l apps/portal/labs/gsc-https-transport/verify-refresh-transport.php
           python3 - <<'PY'
           from pathlib import Path
           for file in sorted(Path('apps/portal/labs/gsc-https-transport').glob('*.py')):
@@ -140,5 +143,44 @@ jobs:
           mock_pid=''
           test ! -s "$tls_dir/valid-server.log"
           test ! -s "$tls_dir/wrong-host-server.log"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
+      - name: Prove synthetic refresh envelope and HTTPS response handling
+        shell: bash
+        env:
+          PORTAL_GSC_REFRESH_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          tls_dir="$RUNNER_TEMP/gsc-https-refresh-transport-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$tls_dir"
+          mock_pid=''
+          cleanup() {
+            if test -n "$mock_pid"; then
+              kill "$mock_pid" 2>/dev/null || true
+              wait "$mock_pid" 2>/dev/null || true
+            fi
+            rm -rf -- "$tls_dir"
+          }
+          trap cleanup EXIT
+          python3 apps/portal/labs/gsc-https-transport/make-certificates.py "$tls_dir"
+          python3 apps/portal/labs/gsc-https-transport/mock-tls-provider.py \
+            "$tls_dir" "$tls_dir/refresh-metrics.json" --certificate-mode valid \
+            > "$tls_dir/refresh-server.log" 2>&1 &
+          mock_pid="$!"
+          ready=0
+          for attempt in {1..50}; do
+            kill -0 "$mock_pid"
+            if test -s "$tls_dir/refresh-metrics.json"; then ready=1; break; fi
+            sleep 0.1
+          done
+          test "$ready" = 1
+          php apps/portal/labs/gsc-https-transport/verify-refresh-transport.php \
+            .qa/gsc-f109/apps/portal/app/Domain/SeoReview \
+            "$tls_dir/ca.pem" "$tls_dir/refresh-metrics.json"
+          kill "$mock_pid"
+          wait "$mock_pid"
+          mock_pid=''
+          test ! -s "$tls_dir/refresh-server.log"
           test -z "$(git status --porcelain --untracked-files=no)"
           test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
