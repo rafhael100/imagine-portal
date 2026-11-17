@@ -18,6 +18,13 @@ from urllib.parse import parse_qsl
 SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 ACCESS = "synthetic-only-access-token-1234567890"
 REFRESH = "synthetic-only-refresh-token-1234567890"
+REFRESHED_ACCESS = "synthetic-refreshed-access-token-1234567890"
+ROTATED_REFRESH = "synthetic-rotated-refresh-token-1234567890"
+REFRESH_CASES = frozenset({
+    "rotate", "invalid-grant", "redirect", "cross-origin-redirect", "bad-json",
+    "wrong-scope", "oversize", "timeout", "temporary-consent",
+    "sites-missing-property",
+})
 SITE_CASES = frozenset({
     "bad-json", "content-type", "oversize", "header-oversize", "http-500",
     "unauthenticated", "redirect", "cross-origin-redirect", "timeout",
@@ -153,18 +160,28 @@ class FixtureRequest(socketserver.BaseRequestHandler):
             pairs = parse_qsl(body.decode("ascii"), keep_blank_values=True,
                              strict_parsing=True, max_num_fields=6, encoding="ascii", errors="strict")
             form = dict(pairs)
-            if len(pairs) != 6 or len(form) != 6 or set(form) != {
-                "client_id", "client_secret", "code", "code_verifier", "redirect_uri", "grant_type",
-            }:
+            if len(pairs) != len(form):
                 raise ValueError("fields")
             if not (
-                form["client_id"] == "1234567890-f116syntheticonly.apps.googleusercontent.com"
-                and form["client_secret"] == "synthetic-secret-f116-private-only"
-                and form["redirect_uri"] == "https://portal.example.test/integrations/google/search-console/callback"
-                and form["grant_type"] == "authorization_code"
-                and re.fullmatch(r"[A-Za-z0-9_-]{43,128}", form["code_verifier"])
+                form.get("client_id") == "1234567890-f116syntheticonly.apps.googleusercontent.com"
+                and form.get("client_secret") == "synthetic-secret-f116-private-only"
             ):
                 raise ValueError("fields")
+            if form.get("grant_type") == "refresh_token":
+                if (os.environ.get("PORTAL_GSC_REFRESH_LAB") != "1" or set(form) != {
+                    "client_id", "client_secret", "refresh_token", "grant_type",
+                }):
+                    raise ValueError("refresh fields")
+                self.refresh(tls, form["refresh_token"])
+                return
+            if len(form) != 6 or set(form) != {
+                "client_id", "client_secret", "code", "code_verifier", "redirect_uri", "grant_type",
+            } or not (
+                form["grant_type"] == "authorization_code"
+                and form["redirect_uri"] == "https://portal.example.test/integrations/google/search-console/callback"
+                and re.fullmatch(r"[A-Za-z0-9_-]{43,128}", form["code_verifier"])
+            ):
+                raise ValueError("authorization code fields")
         except (UnicodeError, ValueError):
             self.reject(tls)
             return
@@ -172,7 +189,12 @@ class FixtureRequest(socketserver.BaseRequestHandler):
         scenario = form["code"]
         valid = {"access_token": ACCESS, "expires_in": 300, "scope": SCOPE,
                  "token_type": "Bearer", "refresh_token": REFRESH}
-        if scenario.startswith("synthetic-sites-") and scenario[16:] in SITE_CASES:
+        initial_refresh = "synthetic-initial-refresh-"
+        if (os.environ.get("PORTAL_GSC_REFRESH_LAB") == "1"
+                and scenario.startswith(initial_refresh)
+                and scenario[len(initial_refresh):] in REFRESH_CASES):
+            valid["refresh_token"] = "synthetic-refresh-" + scenario[len(initial_refresh):] + "-token-1234567890"
+        elif scenario.startswith("synthetic-sites-") and scenario[16:] in SITE_CASES:
             valid["access_token"] = scenario + "-access-token-1234567890"
         elif scenario == "synthetic-good-with-refresh":
             pass
@@ -237,12 +259,55 @@ class FixtureRequest(socketserver.BaseRequestHandler):
             return
         self.send(tls, 200, self.json(valid))
 
+    def refresh(self, tls: ssl.SSLSocket, refresh_token: str) -> None:
+        # The caller has already checked the exact four-field refresh form.
+        # No authorization code, verifier, redirect or bearer is accepted here.
+        valid = {"access_token": REFRESHED_ACCESS, "expires_in": 600,
+                 "scope": SCOPE, "token_type": "Bearer"}
+        if refresh_token in (REFRESH, ROTATED_REFRESH):
+            self.send(tls, 200, self.json(valid))
+            return
+        prefix = "synthetic-refresh-"
+        suffix = "-token-1234567890"
+        if not refresh_token.startswith(prefix) or not refresh_token.endswith(suffix):
+            self.reject(tls)
+            return
+        scenario = refresh_token[len(prefix):-len(suffix)]
+        if scenario == "rotate":
+            valid["refresh_token"] = ROTATED_REFRESH
+        elif scenario == "invalid-grant":
+            self.send(tls, 400, b'{"error":"invalid_grant"}')
+            return
+        elif scenario in ("redirect", "cross-origin-redirect"):
+            target = ("https://oauth2.googleapis.com/never-follow" if scenario == "redirect"
+                      else "https://www.googleapis.com/webmasters/v3/sites")
+            self.send(tls, 302, b'{}', extra={"Location": target})
+            return
+        elif scenario == "bad-json":
+            self.send(tls, 200, b'{"access_token":')
+            return
+        elif scenario == "wrong-scope":
+            valid["scope"] = "https://www.googleapis.com/auth/webmasters"
+        elif scenario == "oversize":
+            self.send(tls, 200, b"a" * 20000)
+            return
+        elif scenario == "timeout":
+            time.sleep(3)
+        elif scenario == "temporary-consent":
+            valid["refresh_token_expires_in"] = 3600
+        elif scenario == "sites-missing-property":
+            valid["access_token"] = "synthetic-sites-missing-property-access-token-1234567890"
+        else:
+            self.reject(tls)
+            return
+        self.send(tls, 200, self.json(valid))
+
     def sites(self, tls: ssl.SSLSocket, method: str, headers: dict, body: bytes) -> None:
         if method != "GET" or body:
             self.reject(tls)
             return
         bearer = headers.get("authorization", "")
-        if bearer == "Bearer " + ACCESS:
+        if bearer in ("Bearer " + ACCESS, "Bearer " + REFRESHED_ACCESS):
             scenario = "good"
         elif bearer.startswith("Bearer synthetic-sites-") and bearer.endswith("-access-token-1234567890"):
             scenario = bearer[len("Bearer synthetic-sites-"):-len("-access-token-1234567890")]

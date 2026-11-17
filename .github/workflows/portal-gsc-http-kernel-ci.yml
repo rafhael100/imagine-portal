@@ -6,6 +6,7 @@ on:
       - '.github/workflows/portal-gsc-http-kernel-ci.yml'
       - 'apps/portal/labs/gsc-http-kernel/**'
       - 'apps/portal/labs/gsc-https-transport/**'
+      - 'apps/portal/labs/gsc-refresh/**'
       - 'apps/portal/app/Domain/Identity/**'
       - 'apps/portal/app/Domain/SeoReview/**'
       - 'apps/portal/app/Infrastructure/Identity/**'
@@ -28,6 +29,7 @@ on:
       - 'apps/portal/config/**'
       - 'apps/portal/routes/**'
       - 'apps/portal/docs/PORTAL-GSC-HTTP-KERNEL-LAB.md'
+      - 'apps/portal/docs/PORTAL-GSC-REFRESH-TRANSPORT-CONTRACT.md'
   workflow_dispatch:
 
 permissions:
@@ -109,7 +111,7 @@ jobs:
           set -euo pipefail
           umask 077
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
-          git merge-base --is-ancestor 58aa1ae4b82cc0fc2bbe8cb481d62c50c6fd136a "$CANDIDATE_SHA"
+          git merge-base --is-ancestor ed6a4f75c20064ae78c433ceabcac636065fc8e3 "$CANDIDATE_SHA"
           test "$(git -C .qa/gsc-f109 rev-parse HEAD)" = de3315df4e8b8c07228d76f6613c799f9c174f31
           test -z "$(git -C .qa/gsc-f109 status --porcelain --untracked-files=no)"
       - name: Install locked Laravel dependencies and check new harness syntax
@@ -123,6 +125,7 @@ jobs:
           php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php
           php -l apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php
           php -l apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php
+          php -l apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php
           php -l apps/portal/labs/gsc-f116-local-token/test-transport.php
           php -l apps/portal/labs/gsc-f117-property/test-property-evidence.php
           python3 - <<'PYCODE'
@@ -131,6 +134,10 @@ jobs:
           files=sorted(Path('apps/portal/labs/gsc-http-kernel').rglob('*.php'))
           assert files, 'HTTP kernel harness files missing'
           for path in files:
+              subprocess.run(['php','-l',str(path)],check=True)
+          refresh_files=sorted(Path('apps/portal/labs/gsc-refresh').rglob('*.php'))
+          assert refresh_files, 'Refresh laboratory PHP files missing'
+          for path in refresh_files:
               subprocess.run(['php','-l',str(path)],check=True)
           for path in sorted(Path('apps/portal/labs/gsc-https-transport').glob('*.py')):
               compile(path.read_text(),str(path),'exec')
@@ -289,10 +296,72 @@ jobs:
           print('Kernel TLS fixture: token/sites requests observed; no redirects, unexpected requests or contract violations')
           PY
           test ! -s "$tls_dir/tls-server.log"
+      - name: Prove refresh lifecycle through authenticated kernel and TLS
+        shell: bash
+        env:
+          PORTAL_GSC_REFRESH_LAB: '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          # Apply the refresh fixture only after both original variants pass.
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-refresh/refresh-fence.sql
+          tls_dir="$RUNNER_TEMP/gsc-https-refresh-kernel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "$tls_dir"
+          tls_pid=''
+          http_pid=''
+          cleanup() {
+            for pid in "$tls_pid" "$http_pid"; do
+              if test -n "$pid"; then
+                kill "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+            rm -rf -- "$tls_dir"
+          }
+          trap cleanup EXIT
+          python3 apps/portal/labs/gsc-https-transport/make-certificates.py "$tls_dir"
+          python3 apps/portal/labs/gsc-https-transport/mock-tls-provider.py \
+            "$tls_dir" "$tls_dir/refresh-metrics.json" --certificate-mode valid \
+            > "$tls_dir/tls-server.log" 2>&1 &
+          tls_pid="$!"
+          php -S 127.0.0.1:18765 \
+            apps/portal/labs/gsc-http-kernel/mock-provider.php \
+            > "$tls_dir/http-server.log" 2>&1 &
+          http_pid="$!"
+          ready=0
+          for attempt in {1..50}; do
+            kill -0 "$tls_pid"
+            kill -0 "$http_pid"
+            status="$(curl --silent --noproxy '*' -o /dev/null \
+              -w '%{http_code}' --max-time 1 http://127.0.0.1:18765/token || true)"
+            if test -s "$tls_dir/refresh-metrics.json" && test "$status" = 404; then
+              ready=1
+              break
+            fi
+            sleep 0.1
+          done
+          test "$ready" = 1
+          PORTAL_GSC_HTTP_KERNEL_HTTPS_LAB=1 \
+          PORTAL_GSC_HTTP_KERNEL_REFRESH_LAB=1 \
+          PORTAL_GSC_HTTPS_CA_FILE="$tls_dir/ca.pem" \
+          PORTAL_GSC_TLS_METRICS="$tls_dir/refresh-metrics.json" \
+            php apps/portal/labs/gsc-http-kernel/verify-http-kernel.php \
+              .qa/gsc-f109/apps/portal/app/Domain/SeoReview
+          python3 - "$tls_dir/refresh-metrics.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          metrics=json.loads(Path(sys.argv[1]).read_text())
+          assert metrics['token']>0 and metrics['sites']>0, 'Refresh variant never reached both TLS endpoints'
+          assert metrics['total']==metrics['token']+metrics['sites'], 'Unexpected HTTP request'
+          assert metrics['redirect_target']==metrics['unexpected']==metrics['violations']==0, 'Refresh fixture contract violated'
+          print('Refresh kernel TLS fixture: no redirects, unexpected requests or contract violations')
+          PY
+          test ! -s "$tls_dir/tls-server.log"
       - name: Roll back six GSC and twelve identity migrations after callback fixture cleanup
         shell: bash
         run: |
           set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f apps/portal/labs/gsc-refresh/rollback-refresh-fence.sql
           # Table policies depend on the laboratory owner functions. Remove
           # these exact six policies before DROP OWNED; do not rely on role
           # cleanup ordering and never conceal dependencies with CASCADE.
