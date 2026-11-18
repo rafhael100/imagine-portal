@@ -156,6 +156,16 @@ final class NativeOnepageSitesPairAssertions
             Assert::assertSame('Private Site intake storage unavailable.',$error->getMessage());
         }
         Assert::assertSame(1,(int)$portal->query('SELECT count(*) FROM portal_onepage.site_intake_receipts')->fetchColumn());
+        // An attacker with the restricted SQL login cannot bypass PHP validation:
+        // the PostgreSQL function independently verifies Sites' semantic digest.
+        $rawTamper=array_replace($receipt,['commandDigest'=>str_repeat('0',64)]);
+        $rawSql=$portalRecorderConnect()->prepare(
+            'SELECT portal_onepage.record_pending_site_intake(?::jsonb)'
+        );
+        $rawSql->execute([json_encode($rawTamper,JSON_THROW_ON_ERROR)]);
+        Assert::assertSame(['status'=>'denied'],
+            json_decode((string)$rawSql->fetchColumn(),true,32,JSON_THROW_ON_ERROR));
+        Assert::assertSame(1,(int)$portal->query('SELECT count(*) FROM portal_onepage.site_intake_receipts')->fetchColumn());
         try {
             $portalRecorderConnect()->query('SELECT * FROM portal_onepage.site_intake_receipts');
             Assert::fail('Writer must not have direct table read permission.');
