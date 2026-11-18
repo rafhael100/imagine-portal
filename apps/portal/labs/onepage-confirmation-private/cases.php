@@ -2,9 +2,13 @@
 declare(strict_types=1);
 // Included inside the pinned native kernel after acceptance, before real logout.
 require_once __DIR__.'/NextStep.php';
+echo "PASS CONFIRMATION_HOOK_ENTERED\n";
 $barrier();
+echo "PASS CONFIRMATION_PRE_DDL_ATTESTED\n";
 $db->unprepared(file_get_contents(__DIR__.'/confirmation.sql'));
+echo "PASS CONFIRMATION_DDL_RETURNED\n";
 $barrier();
+echo "PASS CONFIRMATION_DDL_REATTESTED\n";
 $read=function($req,string $id)use($connect,$owner,$identity,$barrier):array{
     return (new App\Labs\OnepageConfirmation\NextStep($connect('onepage_buyer_runtime'),$owner,$identity,$barrier))->read($req,$id);
 };
@@ -25,6 +29,7 @@ $secondReview=$orders->review($resumed,$secondDraft['id']);
 $secondAcceptance=['accepted'=>true]+array_intersect_key($secondReview['review'],array_flip($fields));
 $secondOrder=$orders->accept($resumed,'native-confirmation-other-order',$secondDraft['id'],$secondAcceptance);
 $expect(($secondOrder['status']??null)==='pending_payment');
+echo "PASS CONFIRMATION_SECOND_ORDER_VERIFIED\n";
 $nativeBefore=$db->selectOne("SELECT md5(string_agg(to_jsonb(o)::text,'' ORDER BY id)) digest FROM onepage_buyer_lab.pending_orders o")->digest;
 
 // Bootstrap stages the independent synthetic feed and its exact native binding.
@@ -54,6 +59,7 @@ $profile=$writer->query("SELECT current_database() db,current_user actor,session
 $expect($profile['db']===$identity['db']&&$profile['host']==='127.0.0.1'&&(int)$profile['port']===55439
  &&$profile['actor']==='onepage_test_reconciler'&&$profile['login']===$profile['actor']
  &&(string)$profile['started']===(string)$identity['started']&&in_array($profile['unsafe'],[false,'f',0,'0'],true));
+echo "PASS CONFIRMATION_WRITER_PROFILE_VERIFIED\n";
 $observer=new PDO('pgsql:host=127.0.0.1;port=55439;dbname=portal_onepage_buyer_ci','onepage_test_observer','',
  [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]);
 $stage=static function(array $e)use($owner,$barrier):void{
@@ -79,11 +85,15 @@ $q=$owner->prepare('INSERT INTO onepage_buyer_lab.synthetic_entry_sources(source
 $q->execute([$sourceId,$entryId,json_encode($event['scope'],JSON_THROW_ON_ERROR),$stamp]);
 // The source itself must commit before observer/writer can use it.
 $owner->beginTransaction();$stage($event);
+echo "PASS CONFIRMATION_SOURCE_STAGED_UNCOMMITTED\n";
 $expect($observe($event)===null&&$append($writer,$orderId,$event)==='denied'&&$read($resumed,$orderId)===$closed);
+echo "PASS CONFIRMATION_SOURCE_UNCOMMITTED_REFUSED\n";
 $owner->rollBack();
 $expect($observe($event)===null);
+echo "PASS CONFIRMATION_SOURCE_ROLLBACK_VERIFIED\n";
 $stage($event);
 $seen=$observe($event);$expect(is_array($seen)&&$seen['version']===1);
+echo "PASS CONFIRMATION_SOURCE_COMMITTED_OBSERVED\n";
 $expect($appendToken($writer,$orderId,$event,2,$seen['digest'])==='denied');
 $expect($appendToken($writer,$orderId,$event,1,str_repeat('0',64))==='denied');
 echo "PASS CONFIRMATION_SOURCE_COMMIT_VERSION_DIGEST_REQUIRED\n";
