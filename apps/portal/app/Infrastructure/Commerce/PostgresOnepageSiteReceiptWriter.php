@@ -43,7 +43,8 @@ final readonly class PostgresOnepageSiteReceiptWriter
             PortalSitesPendingReceiptValidator::validate($originalCommand,$result);
             $left=$result;$right=$receipt;ksort($left);ksort($right);
             if ($left !== $right) throw new DomainException('Private Site intake storage unavailable.');
-            return $result;
+            // Return the source's validated wire-order representation, not JSONB's key order.
+            return $receipt;
         } catch (Throwable) {
             throw new DomainException('Private Site intake storage unavailable.');
         }
