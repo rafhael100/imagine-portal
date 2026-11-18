@@ -1,0 +1,85 @@
+-- Additive disposable fixture ONLY. Run after the unchanged #940 preflights and binding DDL.
+BEGIN;
+SET LOCAL standard_conforming_strings=on;
+DO $guard$
+BEGIN
+ IF current_database()<>'portal_onepage_buyer_ci'
+ OR current_user<>'onepage_lab_bootstrap' OR session_user<>'onepage_lab_bootstrap'
+ OR host(inet_server_addr()) IS DISTINCT FROM '127.0.0.1'
+ OR inet_server_port() IS DISTINCT FROM 55439
+ OR current_setting('data_directory') !~ '/onepage-pg-lab/data$'
+ OR current_setting('listen_addresses') IS DISTINCT FROM '127.0.0.1'
+ OR current_setting('server_version_num')::int/10000<>18
+ OR NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='onepage_buyer_owner'
+   AND NOT (rolcanlogin OR rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb OR rolreplication))
+ OR has_table_privilege('onepage_buyer_owner','onepage_buyer_lab.fixture_binding_witnesses','INSERT')
+ OR EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='onepage_buyer_lab.fixture_binding_witnesses'::regclass AND polcmd IN ('a','*'))
+ OR NOT EXISTS(SELECT 1 FROM pg_class WHERE oid='onepage_buyer_lab.fixture_binding_witnesses'::regclass
+   AND relrowsecurity AND relforcerowsecurity)
+ THEN RAISE EXCEPTION 'ADMISSION_DISPOSABLE_REQUIRED'; END IF;
+END $guard$;
+CREATE ROLE onepage_fixture_evidence_producer LOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT USAGE ON SCHEMA onepage_buyer_lab TO onepage_fixture_evidence_producer;
+-- Only additional owner capability: append to this existing synthetic witness table.
+-- No UPDATE/DELETE; existing FORCE RLS and all existing policies stay intact.
+GRANT INSERT ON onepage_buyer_lab.fixture_binding_witnesses TO onepage_buyer_owner;
+CREATE POLICY fixture_admission_insert ON onepage_buyer_lab.fixture_binding_witnesses
+ FOR INSERT TO onepage_buyer_owner WITH CHECK
+ (session_user='onepage_fixture_evidence_producer'
+  AND to_jsonb(fixture_binding_witnesses)=__ANCHOR__
+  AND encode(sha256(convert_to(to_jsonb(fixture_binding_witnesses)::text,'UTF8')),'hex')=__DIGEST__);
+
+CREATE FUNCTION onepage_buyer_lab.fixture_admit_entry(p_order uuid,p_line text,p_evidence jsonb,p_digest text)
+RETURNS text LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp SET row_security=on AS $admission_v3$
+DECLARE anchor CONSTANT jsonb := __ANCHOR__;
+ expected_digest CONSTANT text := __DIGEST__;
+ w onepage_buyer_lab.fixture_binding_witnesses%ROWTYPE;
+ r onepage_buyer_lab.fixture_charge_reservations%ROWTYPE;
+ prior onepage_buyer_lab.fixture_binding_witnesses%ROWTYPE;
+BEGIN
+ IF session_user<>'onepage_fixture_evidence_producer'
+ OR current_setting('transaction_isolation')<>'read committed'
+ OR p_line IS DISTINCT FROM 'setup-1' OR p_order IS NULL
+ OR p_order::text IS DISTINCT FROM anchor->>'order_id'
+ OR p_evidence IS DISTINCT FROM anchor
+ OR p_digest IS DISTINCT FROM expected_digest
+ OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'object'
+ OR p_digest IS DISTINCT FROM encode(sha256(convert_to(p_evidence::text,'UTF8')),'hex')
+ THEN RETURN 'denied'; END IF;
+ w:=jsonb_populate_record(NULL::onepage_buyer_lab.fixture_binding_witnesses,p_evidence);
+ -- Exact normalized schema, including durable source event identity in probe.
+ IF to_jsonb(w) IS DISTINCT FROM p_evidence
+ OR w.probe IS NULL OR w.probe !~ '^admit-v1:[a-zA-Z0-9]{1,64}$'
+ OR w.order_id IS DISTINCT FROM p_order OR w.line IS DISTINCT FROM p_line
+ OR w.payment_id IS NULL OR w.payment_id !~ '^pay_LAB[a-zA-Z0-9]{1,60}$'
+ THEN RETURN 'denied'; END IF;
+ -- One bounded fixture lock prevents same ID/event being admitted concurrently for different keys.
+ PERFORM pg_advisory_xact_lock(hashtextextended('onepage-fixture-admission-v1',0));
+ SELECT * INTO r FROM onepage_buyer_lab.fixture_charge_reservations
+ WHERE order_id=p_order AND line=p_line FOR UPDATE;
+ IF NOT FOUND OR NOT r.attempted THEN RETURN 'denied'; END IF;
+ IF (w.contract_scope,w.account,w.environment,w.customer,w.reference,w.currency,w.amount_cents,w.due_date)
+ IS DISTINCT FROM (r.contract_scope,r.account,r.environment,r.customer,r.reference,'BRL'::text,r.amount_cents,r.due_date)
+ THEN RETURN 'denied'; END IF;
+ SELECT * INTO prior FROM onepage_buyer_lab.fixture_binding_witnesses WHERE probe=w.probe;
+ IF FOUND THEN
+  IF to_jsonb(prior)=p_evidence THEN RETURN 'replay'; END IF;
+  RETURN 'conflict';
+ END IF;
+ IF EXISTS(SELECT 1 FROM onepage_buyer_lab.fixture_binding_witnesses x
+  WHERE (x.order_id=p_order AND x.line=p_line)
+     OR (x.account=w.account AND x.environment=w.environment AND x.payment_id=w.payment_id))
+ OR EXISTS(SELECT 1 FROM onepage_buyer_lab.fixture_charge_bindings b
+  WHERE (b.order_id=p_order AND b.line=p_line)
+     OR (b.account=w.account AND b.environment=w.environment AND b.payment_id=w.payment_id))
+ THEN RETURN 'conflict'; END IF;
+ INSERT INTO onepage_buyer_lab.fixture_binding_witnesses SELECT w.*;
+ RETURN 'recorded';
+EXCEPTION WHEN invalid_text_representation OR invalid_datetime_format OR datetime_field_overflow
+ OR numeric_value_out_of_range OR not_null_violation OR check_violation THEN RETURN 'denied';
+END $admission_v3$;
+ALTER FUNCTION onepage_buyer_lab.fixture_admit_entry(uuid,text,jsonb,text) OWNER TO onepage_buyer_owner;
+REVOKE ALL ON FUNCTION onepage_buyer_lab.fixture_admit_entry(uuid,text,jsonb,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION onepage_buyer_lab.fixture_admit_entry(uuid,text,jsonb,text) TO onepage_fixture_evidence_producer;
+COMMIT;
