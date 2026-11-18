@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Domain\PortalAccess\Authority\PortalSessionPurpose;
 use App\Models\PortalAuthSession;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use ValueError;
 
@@ -54,18 +55,24 @@ final class PortalTypedSessionPersistenceTest extends TestCase
         self::assertNull($session->organization_revision);
     }
 
-    public function test_unknown_or_untrimmed_database_purpose_fails_instead_of_becoming_business(): void
+    public static function invalidSessionPurposes(): array
     {
-        foreach (['oauth', 'business ', '*', '', 'Business'] as $invalid) {
-            $session = $this->syntheticRow($invalid, 1);
-            try {
-                $unused = $session->session_purpose;
-                unset($unused);
-            } catch (ValueError) {
-                continue;
-            }
-            self::fail('Unrecognized session purpose unexpectedly hydrated: '.$invalid);
-        }
+        return [
+            'unknown purpose' => ['oauth'],
+            'trailing whitespace' => ['business '],
+            'wildcard' => ['*'],
+            'empty purpose' => [''],
+            'wrong case' => ['Business'],
+        ];
+    }
+
+    #[DataProvider('invalidSessionPurposes')]
+    public function test_unknown_or_untrimmed_database_purpose_fails_instead_of_becoming_business(string $invalid): void
+    {
+        $session = $this->syntheticRow($invalid, 1);
+
+        $this->expectException(ValueError::class);
+        $session->session_purpose;
     }
 
     public function test_caller_cannot_mass_assign_session_issuer_material(): void
