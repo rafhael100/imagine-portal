@@ -53,6 +53,7 @@ final class OnepageCommerceServiceProvider extends ServiceProvider
                 Route::get('quotes/{quoteId}', [OnepageOrderController::class, 'resume']);
                 Route::get('quotes/{quoteId}/review', [OnepageOrderController::class, 'review']);
                 Route::post('quotes/{quoteId}/accept', [OnepageOrderController::class, 'accept']);
+                Route::get('orders', [OnepageOrderController::class, 'index']);
                 Route::get('orders/{orderId}', [OnepageOrderController::class, 'show']);
             });
     }

@@ -182,6 +182,12 @@ class NativeOnepageOrdersPgTest extends TestCase
         $accepted=$store->accept($session,'accept-key',$draft['id'],$yes);self::assertSame('pending_payment',$accepted['status']);
         self::assertFalse($accepted['payment_requested']);self::assertFalse($accepted['site_provisioned']);
         self::assertSame($accepted,$store->accept($session,'accept-key',$draft['id'],$yes));
+        $history=$store->listOwnedPendingOrders($session);
+        self::assertSame('ok',$history['status']);self::assertCount(1,$history['orders']);
+        self::assertSame($accepted['id'],$history['orders'][0]['id']);
+        self::assertSame('pending_payment',$history['orders'][0]['status']);
+        foreach ([$same,$other] as $notOwner) self::assertSame(['status'=>'ok','orders'=>[]],$store->listOwnedPendingOrders($notOwner));
+        foreach ([$pending,$manager] as $notAuthorized) self::assertSame('denied',$store->listOwnedPendingOrders($notAuthorized)['status']);
         self::assertSame('conflict',$store->accept($session,'different-key',$draft['id'],$yes)['status']);
         $reconnected=new PostgresOnepageOrders($this->connect('portal_onepage_runtime'),'portal_native_orders_ci');
         $order=$reconnected->findOwnedAcceptedOrder($session,$accepted['id']);self::assertNotNull($order);
@@ -207,6 +213,7 @@ class NativeOnepageOrdersPgTest extends TestCase
         $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute(['publication-onepage-v1']);
         self::assertNull($store->review($session,$draft['id']));
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
+        self::assertSame(['status'=>'ok','orders'=>[]],$store->listOwnedPendingOrders($session));
         self::assertSame('denied',$store->accept($session,'accept-key',$draft['id'],$yes)['status']);
         $this->denySql($this->admin,'DELETE FROM portal_onepage.contract_revocations',[],'P0001');
         $this->admin->prepare("UPDATE public.portal_memberships SET status='suspended' WHERE identity_id=?")->execute([$buyer]);

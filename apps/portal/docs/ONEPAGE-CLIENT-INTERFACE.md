@@ -29,9 +29,12 @@ conexões de terceiros e formulários externos.
 
 As chaves de browser são conveniências de recuperação, não poderes de negócio.
 Se a resposta da operação se perder, a próxima tentativa reutiliza a chave.
-O armazenamento tab-local não é um histórico persistente de todos os pedidos:
-a descoberta no servidor por comprador e o vínculo do recibo Sites na interface
-ainda precisam de um incremento específico.
+Agora a aba consulta GET /orders no servidor para encontrar pedidos recentes do
+comprador mesmo após abrir outra aba ou dispositivo. A consulta SQL nativa limita
+a 20 pedidos ainda utilizáveis, revalida empresa, identidade, MFA, contrato e
+revogação e não retorna informações de outras contas. Os identificadores locais
+continuam sendo conveniência apenas. O vínculo do recibo Sites na interface
+ainda requer um incremento específico.
 
 ## O que NÃO se faz
 

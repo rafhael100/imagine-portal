@@ -37,6 +37,13 @@
     <p>É necessário concluir o login e a confirmação de segurança para acessar seus pedidos.</p>
     <a class="btn primary" href="/_development/auth/login">Entrar na minha conta</a>
   </section>
+  <section id="history" class="panel" hidden aria-labelledby="history-title">
+    <p class="step">PEDIDOS ANTERIORES</p>
+    <h3 id="history-title">Meus pedidos registrados</h3>
+    <p class="muted">Lista consultada no servidor após autenticação. Ela não confirma pagamentos nem publicação.</p>
+    <div id="history-items" class="history-items"></div>
+    <button id="history-new" class="btn primary" type="button">Criar outra cotação</button>
+  </section>
   <section id="selection" class="panel" hidden aria-labelledby="selection-title">
     <p class="step">01 / SELEÇÃO</p>
     <h3 id="selection-title">Solicitar uma Onepage</h3>
@@ -91,6 +98,10 @@
       <div><dt>Briefing e publicação</dt><dd>Ainda não liberados</dd></div>
     </dl>
     <p class="fine">Quando a primeira parcela for oficialmente confirmada, o fluxo de briefing poderá ser liberado. A produção e a publicação exigem validações separadas.</p>
+    <div class="actions">
+      <button id="history-back" class="btn secondary" type="button">Ver meus pedidos</button>
+      <button id="order-new" class="btn primary" type="button">Nova cotação</button>
+    </div>
   </section>
   <noscript><p class="notice">Ative o JavaScript para consultar o pedido com segurança.</p></noscript>
 </main>

@@ -21,6 +21,7 @@ final readonly class PostgresOnepageOrders implements OnepageOrderStore
             $arguments=match($function) {
                 'command'=>'?,?,?,?,?::jsonb,?::jsonb',
                 'review_order','read_pending_order'=>'?,?::uuid',
+                'list_my_pending_orders'=>'?',
                 'accept_order'=>'?,?,?::uuid,?::jsonb',
                 default=>throw new RuntimeException('Unknown native order command.'),
             };
@@ -38,6 +39,8 @@ final readonly class PostgresOnepageOrders implements OnepageOrderStore
     { return $this->commands->review($businessReference,$quoteId); }
     public function accept(string $businessReference,string $requestKey,string $quoteId,array $acceptance):array
     { return $this->commands->accept($businessReference,$requestKey,$quoteId,$acceptance); }
+    public function listOwnedPendingOrders(string $businessReference):array
+    { return $this->commands->list($businessReference); }
     public function findOwnedAcceptedOrder(string $businessReference,string $orderId):?OnepageAcceptedOrder
     {
         try {

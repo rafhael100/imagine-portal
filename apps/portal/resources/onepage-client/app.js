@@ -7,7 +7,7 @@
   const auth = '/_development/auth/';
   const storageKey = 'imagine.onepage.private-tab.v1';
   const validId = (s) => typeof s === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(s);
-  const sections = ['loading','login-required','selection','draft','review','order'];
+  const sections = ['loading','login-required','selection','history','draft','review','order'];
   let busy = false;
   let authenticated = false;
   let review = null;
@@ -122,13 +122,37 @@
     review = null; currentQuote = null;
     show('order'); notice('');
   };
+  // The server enumerates only orders owned by the authenticated native principal.
+  const history = async () => {
+    const result = await call('orders');
+    if (!result || result.status !== 'ok' || !Array.isArray(result.orders)
+        || result.orders.length > 20) throw new Error('invalid_history');
+    const parent = el('history-items');
+    parent.replaceChildren();
+    for (const item of result.orders) {
+      if (!item || !validId(item.id) || !validId(item.quote_id) || item.status !== 'pending_payment'
+        || typeof item.accepted_at !== 'string') throw new Error('invalid_history');
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'history-item';
+      const date = new Date(item.accepted_at);
+      const stamp = Number.isNaN(date.getTime()) ? '' : ' · ' + date.toLocaleDateString('pt-BR');
+      button.textContent = 'Pedido ' + item.id + stamp + ' · Aguardando pagamento';
+      button.addEventListener('click', () => perform(async () => {
+        if (!authenticated) return;
+        const value = await call('orders/' + encodeURIComponent(item.id));
+        order(value);
+      }));
+      parent.appendChild(button);
+    }
+    show(result.orders.length ? 'history' : 'selection'); notice('');
+  };
   const resume = async () => {
     if (state.orderId) {
       try {
         order(await call('orders/' + encodeURIComponent(state.orderId)));
         return;
       } catch (error) {
-        if (error.status === 404) {clear(); show('selection'); failure(error); return;}
+        if (error.status === 404) {clear(); await history(); return;}
         throw error;
       }
     }
@@ -139,11 +163,11 @@
         quote(value.quote);
         return;
       } catch (error) {
-        if (error.status === 404) {clear(); show('selection'); failure(error); return;}
+        if (error.status === 404) {clear(); await history(); return;}
         throw error;
       }
     }
-    show('selection'); notice('');
+    await history();
   };
   const refreshSession = async () => {
     // Always hide previously seen business data before revalidating a restored tab.
@@ -156,6 +180,15 @@
     authenticated = true;
     await resume();
   };
+  const createNew = () => {
+    if (!authenticated || busy) return;
+    clear(); review = null; currentQuote = null; show('selection'); notice('');
+  };
+  el('history-new').addEventListener('click',createNew);
+  el('order-new').addEventListener('click',createNew);
+  el('history-back').addEventListener('click', () => perform(async () => {
+    if (authenticated) await history();
+  }));
   el('start').addEventListener('click', () => perform(async () => {
     if (!authenticated) return;
     const tier = el('tier').value;

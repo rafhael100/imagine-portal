@@ -71,6 +71,12 @@ final readonly class OnepageOrderCommands
             json_encode($acceptance,JSON_THROW_ON_ERROR)])??['status'=>'unavailable'];
     }
 
+    public function list(string $reference): array
+    {
+        if (!self::reference($reference)) return ['status'=>'denied'];
+        return $this->call('list_my_pending_orders',[hash('sha256',$reference)])??['status'=>'unavailable'];
+    }
+
     public function read(string $reference,string $orderId): ?array
     {
         if (!self::reference($reference)||!self::uuid($orderId)) return null;
