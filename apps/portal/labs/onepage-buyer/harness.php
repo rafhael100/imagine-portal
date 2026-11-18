@@ -2,6 +2,7 @@
 /** Proposed PostgreSQL acceptance harness. Never run in the blocked executor. */
 declare(strict_types=1);
 require __DIR__.'/../../vendor/autoload.php';
+require_once __DIR__.'/../onepage-buyer/CoreSchema.php';
 require __DIR__.'/Guard.php';
 require __DIR__.'/BuyerQuoteAdapter.php';
 use App\Labs\OnepageBuyer\Guard;
@@ -80,7 +81,7 @@ try {
         $barrier();
     }
     foreach(['database/security/portal_browser_auth.sql','database/security/portal_browser_principal_candidate.sql','labs/onepage-buyer/store.sql'] as $file)
-        $db->unprepared(file_get_contents(base_path($file)));
+        $db->unprepared(\App\Labs\OnepageBuyer\CoreSchema::read(base_path($file)));
     // Only synthetic roles in this verified fresh cluster; cluster-local trust auth.
     $db->statement('ALTER ROLE portal_browser_runtime LOGIN');
     $db->statement('ALTER ROLE onepage_buyer_runtime LOGIN');

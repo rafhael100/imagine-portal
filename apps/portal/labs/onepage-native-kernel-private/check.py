@@ -12,22 +12,7 @@ import tempfile
 sys.dont_write_bytecode=True
 here=Path(__file__).resolve().parent
 app=here.parent.parent
-paths={
-    'app/Providers/PortalDevelopmentAuthServiceProvider.php':'96bdf48a995b7c9c9953bfc7260f4df1e5fae70c',
-    'app/Http/Controllers/PortalBrowserAuthController.php':'71df8907f88f4b884ab81343227cac130a35d288',
-    'app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php':'3324642ff89846a07c2644dd9c59e9fd815590d9',
-    'app/Http/Middleware/PortalBrowserAuthGuard.php':'451d0f974ceecc4c12f660cd61eef92b86ae15d9',
-    'app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php':'35b064340d41d75c271e452eff13a7eb54690713',
-    'app/Infrastructure/Identity/PortalBrowserSecretFile.php':'b6434a077e8a19fe42e6c902eafe9ce195bfd1de',
-    'database/security/portal_browser_envelopes.sql':'b39bbcdb9156ffe884d21d1b208d842f8cb7942d',
-    'tests/Integration/PortalBrowserAuthenticationPg18Test.php':'16d7b478b5120af9ea8ad413841b257522e92843',
-    'labs/onepage-atomic-read/fixture-tail.php.inc':'86594ff780d8dd1044f4eedf75e18e7f24bc9d20',
-    'labs/onepage-atomic-read/pg-checks.php':'d2180e25074e14201e57f3e9fdcb07d49c0abb57',
-    'labs/onepage-atomic-read/run.py':'f6213d8b5759409eb93973dac232a9126db1d2f8',
-    'labs/onepage-buyer/store.sql':'c07474fbb3b645971b9eb64666fc01a171ed3366',
-    'labs/onepage-buyer/BuyerQuoteAdapter.php':'d7b9053f2f5fdbae3fba9f9cb6866457194c2c34',
-    'labs/onepage-pending-order/Adapter.php':'43830be9048cee2482fae9b226a064cfd4cb5fe9',
-}
+paths = {'app/Providers/PortalDevelopmentAuthServiceProvider.php': '96bdf48a995b7c9c9953bfc7260f4df1e5fae70c', 'app/Http/Controllers/PortalBrowserAuthController.php': '71df8907f88f4b884ab81343227cac130a35d288', 'app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php': '3324642ff89846a07c2644dd9c59e9fd815590d9', 'app/Http/Middleware/PortalBrowserAuthGuard.php': '451d0f974ceecc4c12f660cd61eef92b86ae15d9', 'app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php': '35b064340d41d75c271e452eff13a7eb54690713', 'app/Infrastructure/Identity/PortalBrowserSecretFile.php': 'b6434a077e8a19fe42e6c902eafe9ce195bfd1de', 'database/security/portal_browser_envelopes.sql': 'b39bbcdb9156ffe884d21d1b208d842f8cb7942d', 'tests/Integration/PortalBrowserAuthenticationPg18Test.php': '16d7b478b5120af9ea8ad413841b257522e92843', 'labs/onepage-atomic-read/fixture-tail.php.inc': '86594ff780d8dd1044f4eedf75e18e7f24bc9d20', 'labs/onepage-atomic-read/pg-checks.php': 'e28fa85a1a8aaea66d60ab2e974e335d3d7378ad', 'labs/onepage-atomic-read/run.py': '44b3d5b83b93cfbe6838a763fea0cb9e5de208bd', 'labs/onepage-buyer/store.sql': 'e165fd8a1f9bd7a1f95ac0dc2ce7fe6ef00fa82e', 'labs/onepage-buyer/BuyerQuoteAdapter.php': 'd7b9053f2f5fdbae3fba9f9cb6866457194c2c34', 'labs/onepage-pending-order/Adapter.php': '3db52d7a6c1eaf649062addd86cc37e3c612ed02', 'database/security/portal_onepage_orders.sql': '93fc7987ed7b1902817af95092fe195c7cfc6722', 'labs/onepage-buyer/CoreSchema.php': 'd564321a3e9c9cab6a25fab30b878e48b786e253', 'app/Infrastructure/Commerce/OnepageOrderCommands.php': '779d395699915907903c96fa71e3dbd40bfa0a75'}
 
 
 def lint(argv, env=None):
@@ -42,20 +27,18 @@ def literal(path):
 def private_draft_store(tmp,atomic):
     # Deliberately retain company-wide key uniqueness. A collision owned by
     # another buyer must not return a draft or become a second insertion.
-    reference=(app/'labs/onepage-buyer/store.sql').read_text()
-    replace=atomic.replace_once
-    changes=(
-      (" WHERE company=actor.organization_id AND request_hash=p_key;\n  IF draft.selection",
-       " WHERE company=actor.organization_id AND buyer=actor.identity_id AND request_hash=p_key;\n"
-       "  IF NOT FOUND THEN RETURN jsonb_build_object('status','denied'); END IF;\n  IF draft.selection"),
-      (" WHERE company=actor.organization_id AND id::text=p_id;",
-       " WHERE company=actor.organization_id AND buyer=actor.identity_id AND id::text=p_id;"),
-    )
-    candidate=reference
-    for old,new in changes: candidate=replace(candidate,old,new)
-    undo=candidate
-    for old,new in reversed(changes): undo=replace(undo,new,old)
-    if undo!=reference or candidate.count('buyer=actor.identity_id')!=2 \
+    wrapper=(app/'labs/onepage-buyer/store.sql').read_text()
+    core=(app/'database/security/portal_onepage_orders.sql').read_text()
+    start='-- ONEPAGE_STAGE_BUYER_BEGIN';end='-- ONEPAGE_STAGE_BUYER_END'
+    if core.count(start)!=1 or core.count(end)!=1 or wrapper.count('-- @portal-native-core BUYER')!=1:
+        raise ValueError('CANONICAL_BUYER_STAGE_REQUIRED')
+    stage=core.split(start)[1].split(end)[0]
+    for old,new in [('portal_onepage_owner','onepage_buyer_owner'),('portal_onepage_runtime','onepage_buyer_runtime'),
+                    ('portal_onepage_publisher','onepage_buyer_publisher'),('portal_onepage.','onepage_buyer_lab.'),
+                    ('SCHEMA portal_onepage;','SCHEMA onepage_buyer_lab;'),('SCHEMA portal_onepage FROM','SCHEMA onepage_buyer_lab FROM'),
+                    ('SCHEMA portal_onepage TO','SCHEMA onepage_buyer_lab TO')]: stage=stage.replace(old,new)
+    candidate=wrapper.replace('-- @portal-native-core BUYER',stage)
+    if candidate.count('buyer=actor.identity_id')!=2 \
        or candidate.count('UNIQUE(company,request_hash)')!=1 \
        or candidate.count('ON CONFLICT(company,request_hash) DO NOTHING;')!=1:
         raise ValueError('EXACT_OWN_BUYER_DERIVATION_REQUIRED')
@@ -94,8 +77,8 @@ nativeCookieToOrder($app,$db,$owner,$identity,$barrier,$connect,$proof,$key,$has
     prep_source=prep.read_text().replace('__DIR__',literal(prep.parent))
     prep_source=atomic.replace_once(prep_source,"'labs/onepage-buyer/store.sql'",
                                     literal(sql))
-    prep_source=atomic.replace_once(prep_source,'        $db->unprepared(file_get_contents(base_path($file)));',
-        '        $db->unprepared(file_get_contents($file==='+literal(sql)+' ? $file : base_path($file)));')
+    prep_source=atomic.replace_once(prep_source,'        $db->unprepared(\\App\\Labs\\OnepageBuyer\\CoreSchema::read(base_path($file)));',
+        '        $db->unprepared(\\App\\Labs\\OnepageBuyer\\CoreSchema::read($file==='+literal(sql)+' ? $file : base_path($file)));')
     derived_prep=tmp/'prepare-own-buyer.php'
     derived_prep.write_text(prep_source)
 

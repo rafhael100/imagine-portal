@@ -1,0 +1,30 @@
+{
+  "repository": "rafhael100/imagine-sites",
+  "source_commit": "9b80387fe1c580436b444a6aad2b63f3baafa37d",
+  "sha256": {
+    "apps/sites/app/Integration/PortalProjectIntakeRecorder.php": "0c2f3ef5edc6b931b665edc980adba464e23523635b5c6351ac94242e7aca15d",
+    "apps/sites/composer.lock": "c2b50d26ab282213d2ccc6619211795953d5b955f79cda8cc0c1748a97dae9e3",
+    "apps/sites/database/migrations/2026_11_14_000001_create_sites_core_foundation.php": "93044f3c607c7394765eed80cfce0a3be568a8e2c50a4d8c770ef1db97b0ed5e",
+    "apps/sites/database/migrations/2026_11_14_000002_add_tenant_bound_read_api.php": "08ed812fbba8fda7ea44fc5cd2a29d9f204f031585a9eae1646de656df17d9af",
+    "apps/sites/database/migrations/2026_11_14_000003_add_editorial_revision_api.php": "1ded1d792575e3e591f7511d41ecbaf129267a4b672f7b1af72ec6596dcb728b",
+    "apps/sites/database/migrations/2026_11_16_000004_add_private_preview_workspace.php": "d6309a9a72353c02590392ab65e00616b3fca7acafb44315f0a7957aafddc091",
+    "apps/sites/database/migrations/2026_11_17_000005_add_release_registry.php": "cec39d11b46b27f3daf4d034361a202ae975b51deb0bad71548173fc1f8ad2b0",
+    "apps/sites/database/migrations/2026_11_17_000006_allow_editorial_reopen.php": "a5b313d73b62cd2a5ef0c4735c4471a0a00a1c20f09e42f3fd04d54cf11ac642",
+    "apps/sites/database/migrations/2026_11_18_000007_add_publication_journal.php": "8679fda416e7a075d95e2f3b72208fc95a230cf2e81b825624f32e8ff58b7e97",
+    "apps/sites/database/migrations/2026_11_18_000008_add_private_preview_review_notes.php": "847cf90f9f3c69270162d8745907ea4e702012623d497c45a04e602734312996",
+    "apps/sites/database/migrations/2026_11_18_000009_add_editorial_head_read_api.php": "14e3fb5ea71153891602920c1b5dad96989073167facb4cf27e4f3c46c9952d9",
+    "apps/sites/database/migrations/2026_11_18_000010_add_release_binding_head_read_api.php": "7408b277cff67189346be250dd5e8bd73c0794126c958aa28e14ad603a37f590",
+    "apps/sites/database/migrations/2026_11_18_000011_add_portal_project_intake.php": "db0a9eda8f9478d5390b52ad97b284ee94773e87415d0b1ba47971901e579c00",
+    "contracts/editorial/002-reopen-reviewed-release-down.sql": "13c3d411014e732f25915524303b80fabcd611497ffeb247c5a7b67ad87553e4",
+    "contracts/editorial/002-reopen-reviewed-release.sql": "6f734f9ab7fa21dc89996046cb0ac9c4222a4dfc0328f402d7996380eb589479",
+    "contracts/editorial/003-read-editorial-head.sql": "44e4075df3136353fb0437906d8e8c4e731be4b7bbfdda96bdca0b6b887f4060",
+    "contracts/portal-sites/001-project-intake.sql": "1f0f25b7f810a6e6893de67480e4bad81000d29e5af3d7c0facfdda42f242ab6",
+    "contracts/portal-sites/v1/project-intake-receipt.schema.json": "2a5774591cefdc02fd595597c4905988ff948a65b653cf46ac27ec5fc3dbd56e",
+    "contracts/private-preview/001-workspace.sql": "5ecfa4e626c622b387047d51e3a672b733d5830283b4e34d847f7469df5279eb",
+    "contracts/private-preview/002-review-notes.sql": "ad7122ba7abf3183d52660d1495a7fe0e8a9a161eb2d0e24467645023192ad54",
+    "contracts/publication-journal/001-journal.sql": "30797fb9b572f5feea6f30189d45b9d177e5d3bad5e4c2ce230eb73ed223a8e0",
+    "contracts/release-registry/001-registry.sql": "8b50c348a21eb58fcd0628abd11a467f450c02557506bc521ad116951b20e259",
+    "contracts/release-registry/003-read-binding-head.sql": "c5a62ac65d4dcad98a6ef68f7c87b80f424cd0427cd262d52cdf374789bf02a1",
+    "src/Integration/SiteProjectCommand.php": "e3d9b9e955c5eeaafa0e8ce1aada39a0c941dcc2ae78cf13a5b6873a1ffefbdd"
+  }
+}

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/../onepage-buyer/CoreSchema.php';
 use App\Labs\OnepageBuyer\Guard;
 use App\Labs\OnepageAtomicRead\AtomicReader;
 use Imagine\Lab\OnepageBindingProducer\ProducerContract;
@@ -12,7 +13,7 @@ function checkRecoveryComposition($db,PDO $runtime,PDO $owner,array $identity,Cl
  if(getenv('ONEPAGE_PENDING_ORDER_LAB')!=='SYNTHETIC_ONLY')throw new RuntimeException('LAB_ONLY');
  $check=static function(bool $v):void{if(!$v)throw new RuntimeException('RECOVERY_COMPOSITION_REFUSED');};
  $pinned();Guard::runtime($runtime,$owner,$identity,'onepage_buyer_runtime');
- $db->unprepared(file_get_contents(__DIR__.'/../onepage-atomic-read/read.sql'));
+ $db->unprepared(\App\Labs\OnepageBuyer\CoreSchema::read(__DIR__.'/../onepage-atomic-read/read.sql'));
  $first=AtomicReader::guarded($runtime,$owner,$identity,$pinned)->read($own,$order);
  $plan=ProducerContract::prepare($first,'lab-cas-fixture','cus_LABreserve');$check($plan!==null);
  $scope=array_diff_key($first['snapshot'],array_flip(['buyer','status','quote_snapshot','terms','contract_text']));

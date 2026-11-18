@@ -2,6 +2,7 @@
 /** Proposed PG acceptance: requires an already prepared fresh #922 disposable cluster.
  * DO NOT run in socket-blocked executor. No startup, migration or transport fallback. */
 declare(strict_types=1);
+require_once __DIR__.'/../onepage-buyer/CoreSchema.php';
 require __DIR__.'/ProcessPreflight.php';
 App\Labs\OnepagePendingOrder\ProcessPreflight::assertClean();
 require __DIR__.'/../../vendor/autoload.php';
@@ -40,7 +41,7 @@ try {
  if($db->selectOne("SELECT to_regclass('onepage_buyer_lab.pending_orders') r")->r!==null)throw new RuntimeException('FRESH_ORDER_LAB_REQUIRED');
  $proof=$db->selectOne('SELECT secret FROM portal_browser_private.proof_key')->secret;
  if(!is_string($proof)||$proof==='')throw new RuntimeException('BASE_AUTH_FIXTURE_REQUIRED');
- $db->unprepared(file_get_contents(__DIR__.'/store.sql'));
+ $db->unprepared(\App\Labs\OnepageBuyer\CoreSchema::read(__DIR__.'/store.sql'));
  $connect=function(string $role)use($barrier,$owner,$identity):PDO {
   if(!in_array($role,['portal_browser_runtime','onepage_buyer_runtime'],true))throw new RuntimeException('ROLE_REQUIRED');
   $barrier();$p=new PDO('pgsql:host=127.0.0.1;port=55439;dbname=portal_onepage_buyer_ci',$role,'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]);
@@ -110,7 +111,7 @@ try {
  // Independent buyer owns their own quote; suspension cannot be confused with ownership denial.
  $same=requestOrder($sessions['same']);$otherDraft=$quotes->create($same,'suspension-control',$selection);$otherId=$otherDraft['id'];
  orderCheck($otherDraft['status']==='draft','suspension control own quote');
- $db->insert("INSERT INTO onepage_buyer_lab.order_terms SELECT id,quote,'lab-suspension-contract',1,'Synthetic suspension control contract.',?::jsonb FROM onepage_buyer_lab.drafts WHERE id=?",[json_encode(['scope'=>'synthetic_only']),$otherId]);
+ $db->insert("INSERT INTO onepage_buyer_lab.order_terms(quote_id,quote_snapshot,contract_ref,contract_revision,contract_text,terms) SELECT id,quote,'lab-suspension-contract',1,'Synthetic suspension control contract.',?::jsonb FROM onepage_buyer_lab.drafts WHERE id=?",[json_encode(['scope'=>'synthetic_only']),$otherId]);
  $otherReview=$fresh->review($same,$otherId);orderCheck($otherReview['status']==='review'&&$auth->isActiveBusinessSession($sessions['same']),'suspension control authorized before change');
  $otherAccept=['accepted'=>true]+array_intersect_key($otherReview['review'],array_flip(['quote_id','offer_digest','terms_digest','contract_ref','contract_revision','contract_digest']));
  $db->update("UPDATE portal_memberships SET status='suspended' WHERE identity_id=?",[$actors['same']]);

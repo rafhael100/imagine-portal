@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/../onepage-buyer/CoreSchema.php';
 require __DIR__.'/../../vendor/autoload.php';require __DIR__.'/AtomicReader.php';
 use App\Labs\OnepageAtomicRead\AtomicReader;
 use Illuminate\Http\Request;use Illuminate\Session\{Store,ArraySessionHandler};
@@ -24,7 +25,7 @@ $check($a->read($r,$id)===$first&&count($p->queries)===2&&$attest===4);
 $p->statement->row=null;$check($a->read($r,$id)['status']==='denied');
 $before=count($p->queries);$bad=new AtomicReader($p,fn()=>throw new RuntimeException('GUARD_DENIED'));$check($bad->read($r,$id)['status']==='denied'&&count($p->queries)===$before);
 $p->statement->row=['id'=>$id,'status'=>'paid'];$check($a->read($r,$id)['status']==='denied');
-$sql=file_get_contents(__DIR__.'/read.sql');$body=explode('END $$;',explode('AS $$',$sql)[1])[0];
+$sql=\App\Labs\OnepageBuyer\CoreSchema::read(__DIR__.'/read.sql');$body=explode('END $$;',explode('AS $$',$sql)[1])[0];
 $check(!preg_match('/\b(INSERT|UPDATE|DELETE|TRUNCATE|EXECUTE|accept_order)\b/i',$body));
 $check(substr_count($body,'onepage_buyer_lab.principal(p_session)')===2&&str_contains($body,'company=actor.organization_id AND buyer=actor.identity_id'));
 $check(substr_count($sql,'GRANT ')===1&&str_contains($sql,'GRANT EXECUTE ON FUNCTION onepage_buyer_lab.read_pending_order(text,uuid) TO onepage_buyer_runtime;'));
