@@ -6,6 +6,7 @@ use App\Domain\Commerce\OnepageAcceptedOrder;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\PortalSitesPendingReceiptValidator;
 use App\Infrastructure\Commerce\PostgresOnepageOrders;
+use App\Infrastructure\Commerce\PostgresOnepageSiteReceiptWriter;
 use App\Infrastructure\Commerce\PostgresPortalSiteContractSource;
 use DomainException;
 use Illuminate\Database\PostgresConnection;
@@ -121,6 +122,47 @@ final class NativeOnepageSitesPairAssertions
         $replayed=$record($wire);
         Assert::assertSame($receipt,$replayed,'Exact replay over a NEW PDO connection preserves the committed siteRef.');
         Assert::assertSame($receipt,PortalSitesPendingReceiptValidator::validate($wire,$replayed));
+
+        // The Portal consumes the REAL committed Sites receipt through its own
+        // restricted, login-scoped native ledger. This is NOT a PSP settlement.
+        $portalRecorderConnect=static function() use($port):PDO {
+            return new PDO('pgsql:host=127.0.0.1;port='.$port.';dbname=portal_native_orders_ci;connect_timeout=3',
+                'portal_onepage_intake_recorder','',[
+                    PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_EMULATE_PREPARES=>false,
+                    PDO::ATTR_STRINGIFY_FETCHES=>false,
+                ]);
+        };
+        $writer=new PostgresOnepageSiteReceiptWriter($portalRecorderConnect(),'portal_native_orders_ci');
+        $stored=$writer->record($wire,$receipt);
+        Assert::assertSame($receipt,PortalSitesPendingReceiptValidator::validate($wire,$stored));
+        $storedAgain=(new PostgresOnepageSiteReceiptWriter($portalRecorderConnect(),'portal_native_orders_ci'))
+            ->record($wire,$replayed);
+        Assert::assertSame($receipt,PortalSitesPendingReceiptValidator::validate($wire,$storedAgain));
+        $portalIntake=$orders->findOwnedSiteIntake($reference,$order->id);
+        Assert::assertIsArray($portalIntake);
+        Assert::assertSame('recorded',$portalIntake['status']);
+        Assert::assertSame($receipt['siteRef'],$portalIntake['siteRef']);
+        Assert::assertSame('awaiting_official_authority',$portalIntake['state']);
+        foreach (['authorityVerified','clientAccepted','canPublish'] as $flag) {
+            Assert::assertFalse($portalIntake[$flag]);
+        }
+        Assert::assertSame(1,(int)$portal->query('SELECT count(*) FROM portal_onepage.site_intake_receipts')->fetchColumn());
+        $forgedReceipt=array_replace($receipt,['siteRef'=>'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
+        try {
+            $writer->record($wire,$forgedReceipt);
+            Assert::fail('Conflicting site intake must not overwrite the first receipt.');
+        } catch (DomainException $error) {
+            Assert::assertSame('Private Site intake storage unavailable.',$error->getMessage());
+        }
+        Assert::assertSame(1,(int)$portal->query('SELECT count(*) FROM portal_onepage.site_intake_receipts')->fetchColumn());
+        try {
+            $portalRecorderConnect()->query('SELECT * FROM portal_onepage.site_intake_receipts');
+            Assert::fail('Writer must not have direct table read permission.');
+        } catch (\PDOException $error) {
+            Assert::assertSame('42501',$error->getCode());
+        }
+
         foreach ([['operationId'=>'another-operation'],['idempotencyKey'=>'another-key'],
             ['contractRevision'=>$order->contractRevision+1],['orderRef'=>'another-order']] as $difference) {
             try {$record(array_replace($wire,$difference));Assert::fail('Expected native Sites identity conflict.');}

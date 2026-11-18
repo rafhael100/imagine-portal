@@ -76,11 +76,12 @@ class NativeOnepageOrdersPgTest extends TestCase
         ] as $migration) {
             self::assertSame(0,Artisan::call('migrate',['--path'=>'database/migrations/'.$migration,'--force'=>true,'--no-interaction'=>true]));
         }
-        foreach (['portal_browser_auth.sql','portal_browser_principal_candidate.sql','portal_onepage_orders.sql'] as $file) {
+        foreach (['portal_browser_auth.sql','portal_browser_principal_candidate.sql','portal_onepage_orders.sql',
+            'portal_onepage_site_receipts.sql'] as $file) {
             $this->admin->exec(file_get_contents(database_path('security/'.$file)));
         }
         // These logins exist only inside this empty, independently identified disposable cluster.
-        foreach (['portal_browser_runtime','portal_onepage_runtime','portal_onepage_publisher'] as $role) {
+        foreach (['portal_browser_runtime','portal_onepage_runtime','portal_onepage_publisher','portal_onepage_intake_recorder'] as $role) {
             $this->admin->exec('ALTER ROLE '.$role.' LOGIN');
         }
         $this->proof=bin2hex(random_bytes(32));$this->key=random_bytes(32);$this->pepper=bin2hex(random_bytes(32));
@@ -199,6 +200,8 @@ class NativeOnepageOrdersPgTest extends TestCase
         self::assertSame('native-order-company',$order->companyReference);self::assertSame($accepted['accepted_at'],$order->acceptedAt);
         self::assertSame($review['offer_digest'],$order->offerDigest);self::assertSame($review['terms_digest'],$order->termsDigest);
         $this->afterAcceptedOrder($this->admin,$store,$order,$session);
+        self::assertNull($store->findOwnedSiteIntake($same,$order->id));
+        self::assertNull($store->findOwnedSiteIntake($other,$order->id));
         OnepageEntryPaymentsPgAssertions::run($this->admin,$runtime,$publisher,fn(string $role):PDO=>$this->connect($role),$order,$session,$store);
         foreach ([$same,$other,$pending] as $notOwner) self::assertNull($store->findOwnedAcceptedOrder($notOwner,$accepted['id']));
         foreach (['order_terms','pending_orders','published_contracts','contract_revocations'] as $table) {
@@ -217,6 +220,7 @@ class NativeOnepageOrdersPgTest extends TestCase
         $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute(['publication-onepage-v1']);
         self::assertNull($store->review($session,$draft['id']));
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
+        self::assertNull($store->findOwnedSiteIntake($session,$accepted['id']));
         $revokedHistory=$store->listOwnedPendingOrders($session);
         self::assertSame('ok',$revokedHistory['status']);
         self::assertSame([],$revokedHistory['orders']);

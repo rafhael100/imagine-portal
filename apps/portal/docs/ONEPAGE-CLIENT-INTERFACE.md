@@ -49,3 +49,9 @@ Este incremento mantém #941 e Sites #512 em rascunho, sem merge nem alteração
 da VPS, DNS, credenciais ou clientes reais. A sequência posterior é worker
 financeiro confiável → transporte autenticado de pedido/recibo → leitura
 segura de status → briefing/produção/aprovação/publicação cada qual com seu gate.
+
+O painel do pedido consulta GET /orders/{orderId}/site-intake quando o
+backend está ativado, retornando `not_recorded` ou `recorded` com o siteRef.
+Esse texto identifica apenas o **recebimento da solicitação** no Sites.
+O pagamento permanece pendente de confirmação oficial e nenhuma autorização
+para produção ou publicação é inferida desse vínculo.

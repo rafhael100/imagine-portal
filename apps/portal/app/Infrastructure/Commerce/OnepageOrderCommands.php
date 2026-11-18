@@ -77,6 +77,12 @@ final readonly class OnepageOrderCommands
         return $this->call('list_my_pending_orders',[hash('sha256',$reference)])??['status'=>'unavailable'];
     }
 
+    public function siteIntake(string $reference,string $orderId): ?array
+    {
+        if (!self::reference($reference)||!self::uuid($orderId)) return null;
+        return $this->call('read_my_site_intake',[hash('sha256',$reference),$orderId]);
+    }
+
     public function read(string $reference,string $orderId): ?array
     {
         if (!self::reference($reference)||!self::uuid($orderId)) return null;

@@ -94,7 +94,7 @@
       <div><dt>Pedido</dt><dd id="order-id" class="mono">—</dd></div>
       <div><dt>Data do aceite</dt><dd id="accepted-at">—</dd></div>
       <div><dt>Situação financeira</dt><dd>Aguardando confirmação oficial</dd></div>
-      <div><dt>Projeto no Sites</dt><dd>Sem recibo operacional disponível</dd></div>
+      <div><dt>Recebimento no Sites</dt><dd id="site-intake-status">Ainda não consultado</dd></div>
       <div><dt>Briefing e publicação</dt><dd>Ainda não liberados</dd></div>
     </dl>
     <p class="fine">Quando a primeira parcela for oficialmente confirmada, o fluxo de briefing poderá ser liberado. A produção e a publicação exigem validações separadas.</p>

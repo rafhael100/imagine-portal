@@ -89,6 +89,22 @@ final class OnepageOrderTransportTest extends TestCase
         self::assertSame('list',$this->store->calls[count($this->store->calls)-1][0]);
     }
 
+    public function test_site_intake_status_is_private_inert_and_never_claims_payment_or_publication(): void
+    {
+        $this->send('GET','orders/'.self::ORDER.'/site-intake')->assertOk()
+            ->assertExactJson(['status'=>'not_recorded']);
+        $this->store->intakeMode='recorded';
+        $this->send('GET','orders/'.self::ORDER.'/site-intake')->assertOk()->assertExactJson([
+            'status'=>'recorded','siteRef'=>'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'state'=>'awaiting_official_authority','authorityVerified'=>false,
+            'clientAccepted'=>false,'canPublish'=>false,
+        ]);
+        $this->store->intakeMode='forged';
+        $this->send('GET','orders/'.self::ORDER.'/site-intake')->assertStatus(503)
+            ->assertExactJson(['error'=>'order_unavailable']);
+        $this->send('GET','orders/not-an-uuid/site-intake')->assertNotFound();
+    }
+
     public function test_pending_mfa_and_missing_business_phase_never_reach_store(): void
     {
         foreach (['pending_mfa', '', 'revoked'] as $phase) {
@@ -181,6 +197,7 @@ final class OnepageTransportStore implements OnepageOrderStore
 {
     public array $calls = [];
     public string $mode = 'ok';
+    public string $intakeMode = 'not_recorded';
 
     public function createDraft(string $businessReference, string $requestKey, array $selection): array
     {
@@ -216,6 +233,22 @@ final class OnepageTransportStore implements OnepageOrderStore
     {
         $this->calls[] = ['list',$businessReference];
         return $this->mode === 'ok' ? ['status'=>'ok','orders'=>[]] : ['status'=>$this->mode];
+    }
+    public function findOwnedSiteIntake(string $businessReference,string $orderId): ?array
+    {
+        $this->calls[]=['site_intake',$businessReference,$orderId];
+        if ($this->mode !== 'ok') return null;
+        if ($this->intakeMode === 'recorded') return [
+            'status'=>'recorded','siteRef'=>'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'state'=>'awaiting_official_authority','authorityVerified'=>false,
+            'clientAccepted'=>false,'canPublish'=>false,
+        ];
+        if ($this->intakeMode === 'forged') return [
+            'status'=>'recorded','siteRef'=>'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'state'=>'awaiting_official_authority','authorityVerified'=>true,
+            'clientAccepted'=>false,'canPublish'=>false,
+        ];
+        return ['status'=>'not_recorded'];
     }
     public function findOwnedAcceptedOrder(string $businessReference, string $orderId): ?OnepageAcceptedOrder
     {
