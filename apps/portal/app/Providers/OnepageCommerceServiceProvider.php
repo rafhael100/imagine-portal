@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Domain\Commerce\OnepageOrderReader;
 use App\Domain\Commerce\OnepageOrderStore;
 use App\Http\Controllers\OnepageOrderController;
+use App\Http\Controllers\OnepageClientPageController;
 use App\Http\Middleware\EnsureOnepageCommerceEnabled;
 use App\Http\Middleware\PortalBrowserAuthGuard;
 use App\Infrastructure\Commerce\OnepagePrivateRuntime;
@@ -45,6 +46,9 @@ final class OnepageCommerceServiceProvider extends ServiceProvider
         Route::prefix('_development/commerce/onepage')
             ->middleware([EnsureOnepageCommerceEnabled::class, 'web', PortalBrowserAuthGuard::class])
             ->group(static function (): void {
+                Route::get('/', [OnepageClientPageController::class, 'index']);
+                Route::get('client.css', [OnepageClientPageController::class, 'stylesheet']);
+                Route::get('client.js', [OnepageClientPageController::class, 'script']);
                 Route::post('quotes', [OnepageOrderController::class, 'create']);
                 Route::get('quotes/{quoteId}', [OnepageOrderController::class, 'resume']);
                 Route::get('quotes/{quoteId}/review', [OnepageOrderController::class, 'review']);
