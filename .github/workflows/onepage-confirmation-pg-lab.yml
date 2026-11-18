@@ -32,7 +32,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-list --parents -n 1 "$EXPECTED_HEAD")" = "$EXPECTED_HEAD 6d73ec2e2aaec3774e54e6ebe7c5ecbaa3566fcc"
+          test "$(git rev-list --parents -n 1 "$EXPECTED_HEAD")" = "$EXPECTED_HEAD 0e0edcf4622cb02fe8ccdbff78d390d3e8886136"
           python3 - <<'PYTHON'
           import os, sys
           sys.dont_write_bytecode = True

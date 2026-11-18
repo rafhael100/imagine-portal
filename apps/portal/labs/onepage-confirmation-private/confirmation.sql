@@ -125,7 +125,7 @@ BEGIN
  OR (SELECT count(*) FROM jsonb_object_keys(p_contract))<>10
  OR p_contract->>'state' NOT IN ('confirmed','reversed')
  OR p_contract->>'state' IS NULL
- OR p_contract->>'reversal' IS DISTINCT FROM CASE WHEN p_contract->>'state'='confirmed' THEN 'clear' ELSE 'reversed' END
+ OR p_contract->>'reversal' IS DISTINCT FROM (CASE WHEN p_contract->>'state'='confirmed' THEN 'clear' ELSE 'reversed' END)
  OR jsonb_typeof(p_contract->'revision') IS DISTINCT FROM 'number'
  OR coalesce(p_contract->>'revision','') !~ '^[1-9][0-9]{0,9}$'
  OR coalesce(p_contract->>'observed_at','') !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$'
