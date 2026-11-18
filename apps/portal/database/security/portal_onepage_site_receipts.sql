@@ -69,6 +69,15 @@ BEGIN
     OR p_receipt->>'siteRef' = p_receipt->>'orderRef'
     OR coalesce(p_receipt->>'siteRef','') = '00000000-0000-0000-0000-000000000000'
     OR coalesce(p_receipt->>'commandDigest','') !~ '^[a-f0-9]{64}$'
+    -- Recompute the exact Sites v1 semantic fingerprint from six fields.
+    -- All command references are ASCII-safe, so JSON string escaping matches PHP.
+    OR p_receipt->>'commandDigest' IS DISTINCT FROM encode(sha256(convert_to(
+       '["1",'
+       ||to_json(p_receipt->>'tenantRef')::text||','
+       ||to_json(p_receipt->>'orderRef')::text||','
+       ||to_json(p_receipt->>'contractRef')::text||','
+       ||(p_receipt->>'contractRevision')||','
+       ||to_json(p_receipt->>'productCode')::text||']','UTF8')),'hex')
     OR coalesce(p_receipt->>'operationId','') !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
     OR coalesce(p_receipt->>'idempotencyKey','') !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
  THEN RETURN jsonb_build_object('status','denied'); END IF;
