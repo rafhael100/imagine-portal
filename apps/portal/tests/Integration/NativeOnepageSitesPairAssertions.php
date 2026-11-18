@@ -4,6 +4,7 @@ namespace Tests\Integration;
 
 use App\Domain\Commerce\OnepageAcceptedOrder;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
+use App\Domain\SitesIntegration\PortalSitesPendingReceiptValidator;
 use App\Infrastructure\Commerce\PostgresOnepageOrders;
 use App\Infrastructure\Commerce\PostgresPortalSiteContractSource;
 use DomainException;
@@ -93,6 +94,16 @@ final class NativeOnepageSitesPairAssertions
                 ->record(\Imagine\Sites\Integration\SiteProjectCommand::fromArray($payload));
         };
         $receipt=$record($wire);
+        Assert::assertSame($receipt,PortalSitesPendingReceiptValidator::validate($wire,$receipt));
+        foreach ([['authorityVerified'=>true],['canPublish'=>true],['clientAccepted'=>true],
+            ['tenantRef'=>'forged-tenant'],['commandDigest'=>str_repeat('0',64)],['paymentConfirmed'=>true]] as $changed) {
+            try {
+                PortalSitesPendingReceiptValidator::validate($wire,array_replace($receipt,$changed));
+                Assert::fail('Unverified Sites receipt was accepted.');
+            } catch (DomainException $error) {
+                Assert::assertSame('Unverified pending Sites intake receipt.',$error->getMessage());
+            }
+        }
         Assert::assertSame([
             'schemaVersion','tenantRef','orderRef','contractRef','contractRevision','productCode','operationId','idempotencyKey',
             'siteRef','commandDigest','status','state','authorityVerified','clientAccepted','canPublish',
@@ -107,7 +118,9 @@ final class NativeOnepageSitesPairAssertions
         Assert::assertSame('recorded',$receipt['status']);
         Assert::assertSame('awaiting_official_authority',$receipt['state']);
         foreach (['authorityVerified','clientAccepted','canPublish'] as $field) Assert::assertFalse($receipt[$field]);
-        Assert::assertSame($receipt,$record($wire),'Exact replay over a NEW PDO connection preserves the committed siteRef.');
+        $replayed=$record($wire);
+        Assert::assertSame($receipt,$replayed,'Exact replay over a NEW PDO connection preserves the committed siteRef.');
+        Assert::assertSame($receipt,PortalSitesPendingReceiptValidator::validate($wire,$replayed));
         foreach ([['operationId'=>'another-operation'],['idempotencyKey'=>'another-key'],
             ['contractRevision'=>$order->contractRevision+1],['orderRef'=>'another-order']] as $difference) {
             try {$record(array_replace($wire,$difference));Assert::fail('Expected native Sites identity conflict.');}
