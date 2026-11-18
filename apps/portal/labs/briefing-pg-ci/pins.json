@@ -1,0 +1,88 @@
+{
+  "base": "1705ca0e623c0cf5b630852ca4735a0926092d1a",
+  "native_source": "0e0ccc06755b6ddd938635e5c4c3625ff6497e2c",
+  "github_blobs": {
+    "apps/portal/AGENTS.md": {
+      "sha": "c19c84d75f0dbc3a51c930897b92ecebb9a1f1dc",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/AGENTS.md"
+    },
+    "apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php": {
+      "sha": "17bf5bd3f35b33a73b5befb2fd99addf164b62a5",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php"
+    },
+    "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php": {
+      "sha": "34778e7f40492c3602b496bc5e54f11e9e5e2773",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php"
+    },
+    "apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php": {
+      "sha": "6ae4f0ed80f5a4ca896462fcc0ba0c7b9ba66883",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php"
+    },
+    "apps/portal/app/Providers/OnepageCommerceServiceProvider.php": {
+      "sha": "31e644e3a24e6be91079dd0f3da5c10ce2137a1a",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Providers/OnepageCommerceServiceProvider.php"
+    },
+    "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php": {
+      "sha": "702612dc636a1a1310dbf47cbe4631b3c1cfdb84",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php"
+    },
+    "apps/portal/labs/onepage-confirmation-private/NextStep.php": {
+      "sha": "3fc47ad1fe1286fbf0466738a4a753e4e95f4892",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/labs/onepage-confirmation-private/NextStep.php"
+    },
+    "apps/portal/labs/onepage-confirmation-private/confirmation.sql": {
+      "sha": "794d089e315d9f967476ac2a4aaafb8c26902f2d",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/labs/onepage-confirmation-private/confirmation.sql"
+    },
+    "apps/portal/database/security/portal_onepage_orders.sql": {
+      "sha": "93fc7987ed7b1902817af95092fe195c7cfc6722",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_onepage_orders.sql"
+    },
+    "apps/portal/database/security/portal_onepage_entry_payments.sql": {
+      "sha": "d2ed493ac1227f033092b2db72cf5bb1e324d837",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_onepage_entry_payments.sql"
+    },
+    "apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php": {
+      "sha": "5b4caaf45fb352754c0731f4bc0ba1901b923d42",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php"
+    },
+    "apps/portal/tests/Integration/portal-sites-source-pins.json": {
+      "sha": "73d3642163611eae1bd4dccd4812142bbb60e518",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/portal-sites-source-pins.json"
+    },
+    "apps/portal/app/Http/Controllers/OnepageOrderController.php": {
+      "sha": "1c63f3c56cb486f139cdd19028af70c36a0c09b1",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Http/Controllers/OnepageOrderController.php"
+    },
+    "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php": {
+      "sha": "779d395699915907903c96fa71e3dbd40bfa0a75",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php"
+    },
+    "apps/portal/tests/Integration/OnepageEntryPaymentsPgAssertions.php": {
+      "sha": "060a909b0030b5b6a4fa218665ea2e92b05d2b6f",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/OnepageEntryPaymentsPgAssertions.php"
+    },
+    "apps/portal/tests/Integration/NativeOnepageOrdersPgTest.php": {
+      "sha": "b2942bdf968eaa6e5633e41e9f27e9bcf38db4a7",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/NativeOnepageOrdersPgTest.php"
+    },
+    "apps/portal/database/security/portal_browser_principal_candidate.sql": {
+      "sha": "2ea9540009989b17656e18b588f0e7a60ed3762a",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_browser_principal_candidate.sql"
+    },
+    "apps/portal/database/security/portal_browser_auth.sql": {
+      "sha": "42bb622b01e1b89f7ec99214ac104da2262c3774",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_browser_auth.sql"
+    },
+    "apps/portal/labs/briefing-ci-viability-v2/root_wrapper.py": {
+      "sha": "a676a56177cf2a358b38595fc24ce2333b9be21a"
+    },
+    "apps/portal/labs/briefing-ci-viability-v2/probe.php": {
+      "sha": "302349c3faecb2fb824cccae8c98d87ab0249fa6"
+    }
+  },
+  "preserved": {
+    "Fixture.php": "810a4e8223f5bbd0a039bfb99cb105f140f1cf67eeae0c4e9151aa2be3c55328",
+    "store.sql.in": "f397cfb7cbfb6a87b61825d9ba1b3937f1975147288692ba081b892a44eb2a98"
+  }
+}

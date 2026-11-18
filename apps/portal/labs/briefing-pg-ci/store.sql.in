@@ -1,0 +1,57 @@
+-- Disposable fixture only. Rendered by trusted bootstrap; never provider evidence.
+BEGIN;
+CREATE ROLE native_briefing_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE ROLE native_briefing_producer LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION;
+CREATE SCHEMA native_briefing_fixture;
+REVOKE ALL ON SCHEMA native_briefing_fixture FROM PUBLIC;
+GRANT USAGE ON SCHEMA native_briefing_fixture TO native_briefing_owner,native_briefing_producer,portal_onepage_runtime;
+CREATE TABLE native_briefing_fixture.evidence (
+ singleton boolean PRIMARY KEY CHECK(singleton),
+ payload jsonb NOT NULL CHECK(payload=@ANCHOR@)
+);
+REVOKE ALL ON native_briefing_fixture.evidence FROM PUBLIC;
+ALTER TABLE native_briefing_fixture.evidence ENABLE ROW LEVEL SECURITY;
+ALTER TABLE native_briefing_fixture.evidence FORCE ROW LEVEL SECURITY;
+GRANT SELECT,INSERT ON native_briefing_fixture.evidence TO native_briefing_owner;
+CREATE POLICY fixture_read ON native_briefing_fixture.evidence FOR SELECT TO native_briefing_owner
+ USING(session_user IN ('native_briefing_producer','portal_onepage_runtime') AND payload=@ANCHOR@);
+CREATE POLICY fixture_append ON native_briefing_fixture.evidence FOR INSERT TO native_briefing_owner
+ WITH CHECK(session_user='native_briefing_producer' AND singleton AND payload=@ANCHOR@);
+-- No UPDATE/DELETE/TRUNCATE, table ownership or role membership for either login.
+GRANT USAGE ON SCHEMA portal_onepage TO native_briefing_owner;
+GRANT EXECUTE ON FUNCTION portal_onepage.read_entry_payment(text,uuid,text) TO native_briefing_owner;
+CREATE FUNCTION native_briefing_fixture.admit(p_order uuid,p_event text,p_digest text) RETURNS text
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
+DECLARE a jsonb := @ANCHOR@;
+BEGIN
+ IF session_user<>'native_briefing_producer' OR current_setting('transaction_isolation')<>'read committed'
+ OR p_order::text IS DISTINCT FROM a->'binding'->>'order_ref'
+ OR p_event IS DISTINCT FROM a->>'event' OR p_digest IS DISTINCT FROM a->>'digest'
+ THEN RETURN 'denied'; END IF;
+ INSERT INTO native_briefing_fixture.evidence VALUES(true,a) ON CONFLICT DO NOTHING;
+ RETURN CASE WHEN FOUND THEN 'recorded' ELSE 'replay' END;
+END $fn$;
+ALTER FUNCTION native_briefing_fixture.admit(uuid,text,text) OWNER TO native_briefing_owner;
+REVOKE ALL ON FUNCTION native_briefing_fixture.admit(uuid,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION native_briefing_fixture.admit(uuid,text,text) TO native_briefing_producer;
+CREATE FUNCTION native_briefing_fixture.next_step(p_session text,p_order uuid) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp SET row_security=on AS $fn$
+DECLARE a jsonb := @ANCHOR@; b jsonb;
+BEGIN
+ IF session_user<>'portal_onepage_runtime' OR current_setting('transaction_isolation')<>'read committed'
+ OR p_order::text IS DISTINCT FROM a->'binding'->>'order_ref'
+ -- Test validity window only: never interpret overdue installments or remote dueDate.
+ OR (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date >= (a->>'fixture_before')::date
+ OR NOT EXISTS(SELECT FROM native_briefing_fixture.evidence WHERE singleton AND payload=a)
+ THEN RETURN NULL; END IF;
+ b=portal_onepage.read_entry_payment(p_session,p_order,a->>'account');
+ IF b IS DISTINCT FROM a->'binding' THEN RETURN NULL; END IF;
+ -- Native reader revalidates session/MFA/membership, accepted contract, account and revocation.
+ b=portal_onepage.read_entry_payment(p_session,p_order,a->>'account');
+ IF b IS DISTINCT FROM a->'binding' THEN RETURN NULL; END IF;
+ RETURN jsonb_build_object('next_step','briefing');
+END $fn$;
+ALTER FUNCTION native_briefing_fixture.next_step(text,uuid) OWNER TO native_briefing_owner;
+REVOKE ALL ON FUNCTION native_briefing_fixture.next_step(text,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION native_briefing_fixture.next_step(text,uuid) TO portal_onepage_runtime;
+COMMIT;
