@@ -1,0 +1,136 @@
+{
+  "base": "3d222e95627e8153614a44633bad69464ae16446",
+  "native_source": "0e0ccc06755b6ddd938635e5c4c3625ff6497e2c",
+  "github_blobs": {
+    "apps/portal/AGENTS.md": {
+      "sha": "c19c84d75f0dbc3a51c930897b92ecebb9a1f1dc",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/AGENTS.md"
+    },
+    "apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php": {
+      "sha": "17bf5bd3f35b33a73b5befb2fd99addf164b62a5",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php"
+    },
+    "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php": {
+      "sha": "34778e7f40492c3602b496bc5e54f11e9e5e2773",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php"
+    },
+    "apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php": {
+      "sha": "6ae4f0ed80f5a4ca896462fcc0ba0c7b9ba66883",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php"
+    },
+    "apps/portal/app/Providers/OnepageCommerceServiceProvider.php": {
+      "sha": "31e644e3a24e6be91079dd0f3da5c10ce2137a1a",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Providers/OnepageCommerceServiceProvider.php"
+    },
+    "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php": {
+      "sha": "702612dc636a1a1310dbf47cbe4631b3c1cfdb84",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php"
+    },
+    "apps/portal/labs/onepage-confirmation-private/NextStep.php": {
+      "sha": "3fc47ad1fe1286fbf0466738a4a753e4e95f4892",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/labs/onepage-confirmation-private/NextStep.php"
+    },
+    "apps/portal/labs/onepage-confirmation-private/confirmation.sql": {
+      "sha": "794d089e315d9f967476ac2a4aaafb8c26902f2d",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/labs/onepage-confirmation-private/confirmation.sql"
+    },
+    "apps/portal/database/security/portal_onepage_orders.sql": {
+      "sha": "93fc7987ed7b1902817af95092fe195c7cfc6722",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_onepage_orders.sql"
+    },
+    "apps/portal/database/security/portal_onepage_entry_payments.sql": {
+      "sha": "d2ed493ac1227f033092b2db72cf5bb1e324d837",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_onepage_entry_payments.sql"
+    },
+    "apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php": {
+      "sha": "5b4caaf45fb352754c0731f4bc0ba1901b923d42",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php"
+    },
+    "apps/portal/tests/Integration/portal-sites-source-pins.json": {
+      "sha": "73d3642163611eae1bd4dccd4812142bbb60e518",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/portal-sites-source-pins.json"
+    },
+    "apps/portal/app/Http/Controllers/OnepageOrderController.php": {
+      "sha": "1c63f3c56cb486f139cdd19028af70c36a0c09b1",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Http/Controllers/OnepageOrderController.php"
+    },
+    "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php": {
+      "sha": "779d395699915907903c96fa71e3dbd40bfa0a75",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php"
+    },
+    "apps/portal/tests/Integration/OnepageEntryPaymentsPgAssertions.php": {
+      "sha": "060a909b0030b5b6a4fa218665ea2e92b05d2b6f",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/OnepageEntryPaymentsPgAssertions.php"
+    },
+    "apps/portal/tests/Integration/NativeOnepageOrdersPgTest.php": {
+      "sha": "b2942bdf968eaa6e5633e41e9f27e9bcf38db4a7",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/NativeOnepageOrdersPgTest.php"
+    },
+    "apps/portal/database/security/portal_browser_principal_candidate.sql": {
+      "sha": "2ea9540009989b17656e18b588f0e7a60ed3762a",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_browser_principal_candidate.sql"
+    },
+    "apps/portal/database/security/portal_browser_auth.sql": {
+      "sha": "42bb622b01e1b89f7ec99214ac104da2262c3774",
+      "display_url": "https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/database/security/portal_browser_auth.sql"
+    },
+    "apps/portal/labs/briefing-ci-viability-v2/root_wrapper.py": {
+      "sha": "a676a56177cf2a358b38595fc24ce2333b9be21a"
+    },
+    "apps/portal/labs/briefing-ci-viability-v2/probe.php": {
+      "sha": "302349c3faecb2fb824cccae8c98d87ab0249fa6"
+    },
+    ".github/workflows/onepage-briefing-pg-final.yml": {
+      "sha": "9dd8857ffb66785f418e58122d20fc51414ddba7"
+    },
+    "apps/portal/labs/briefing-pg-ci/CiGate.php": {
+      "sha": "52a215b3762d87b66341f985c12b4cc9e0358ec0"
+    },
+    "apps/portal/labs/briefing-pg-ci/pins.json": {
+      "sha": "d159f7579fcddf7c8cd5ccce3c12eaa2147af2ec"
+    },
+    "apps/portal/labs/briefing-pg-ci/checks.py": {
+      "sha": "d7d965281f78efa6161dfdbbc3b6ed349ba8b5d6"
+    },
+    "apps/portal/labs/briefing-pg-ci/preflight.py": {
+      "sha": "327d6c24b46fa9e29742b13a6208015b7536c87b"
+    },
+    "apps/portal/labs/briefing-pg-ci/processes.py": {
+      "sha": "103bb7349403c09cd2f4fdf6c6c23239b5dd2aaf"
+    },
+    "apps/portal/labs/briefing-pg-ci/launch.py": {
+      "sha": "658baf8a08c95b93542166d27bd382c71b0aa74e"
+    },
+    "apps/portal/labs/briefing-pg-ci/scope.py": {
+      "sha": "50406f72582138920857fca8b7c3271a46fd53b5"
+    },
+    "apps/portal/labs/briefing-pg-ci/Fixture.php": {
+      "sha": "3a282f33d0a4fe255fe63bf4447c70acd2ef0617"
+    },
+    "apps/portal/labs/briefing-pg-ci/prepare.py": {
+      "sha": "fd1b49a19364e93c997b781966a82a6fd254a288"
+    },
+    "apps/portal/labs/briefing-pg-ci/store.sql.in": {
+      "sha": "c2f6f8547b1a1b668cd40e08558c1e31d10c06d8"
+    },
+    "apps/portal/labs/briefing-pg-ci/worker.php": {
+      "sha": "8230ddaaee6920bf3ccf111d067811e096104486"
+    },
+    "apps/portal/labs/briefing-pg-ci/README.md": {
+      "sha": "1868bbf022e099aef33eed01b53a44641257edb0"
+    },
+    "apps/portal/labs/briefing-pg-ci/root_wrapper.py": {
+      "sha": "d18f024cdd1674c60b65b2326de27af17063a6ff"
+    },
+    "apps/portal/labs/briefing-pg-ci/offline.php": {
+      "sha": "a425c3e0b3f82a8ba6df64bf59f5bf36fc517816"
+    },
+    "apps/portal/labs/briefing-pg-ci/NativeBriefingPgTest.php": {
+      "sha": "97cac220587f6bc89ca98310c4cd80604ec9503c"
+    }
+  },
+  "preserved": {
+    "Fixture.php": "810a4e8223f5bbd0a039bfb99cb105f140f1cf67eeae0c4e9151aa2be3c55328",
+    "store.sql.in": "f397cfb7cbfb6a87b61825d9ba1b3937f1975147288692ba081b892a44eb2a98"
+  }
+}
