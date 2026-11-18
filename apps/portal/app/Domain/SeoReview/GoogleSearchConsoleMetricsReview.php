@@ -129,7 +129,8 @@ final class GoogleSearchConsoleMetricsReview
             if ($row['ctr'] < 0 || $row['ctr'] > 1
                 || $row['position'] < 0 || $row['position'] > 10000
                 || $row['clicks'] < 0 || $row['impressions'] < 0
-                || ($row['impressions'] == 0 && $row['clicks'] > 0)
+                || $row['clicks'] > $row['impressions']
+                || ($row['impressions'] == 0 && $row['ctr'] != 0)
                 || ($row['impressions'] > 0
                     && abs($row['ctr'] - ($row['clicks'] / $row['impressions'])) > 0.01)) {
                 return null;
