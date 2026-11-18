@@ -33,7 +33,13 @@
 <button class="btn secondary full" type="button" id="back">Voltar</button>
 </form>
 <section id="authenticated" hidden aria-labelledby="success-title">
-<h3 id="success-title" tabindex="-1">Acesso confirmado.</h3><p class="muted">Sua identidade foi confirmada. As páginas da sua conta serão disponibilizadas após a conclusão da configuração.</p>
+<h3 id="success-title" tabindex="-1">Acesso confirmado.</h3>
+@if(config("portal_onepage.enabled") === true)
+<p class="muted">Sua identidade foi confirmada. Acompanhe sua cotação Onepage na área privada de desenvolvimento.</p>
+<a class="btn orange full" href="/_development/commerce/onepage">Ir para minha Onepage</a>
+@else
+<p class="muted">Sua identidade foi confirmada. As páginas da sua conta serão disponibilizadas após a conclusão da configuração.</p>
+@endif
 <button class="btn secondary full" type="button" id="logout">Sair com segurança</button>
 </section>
 <noscript><p class="notice">Ative o JavaScript para entrar com segurança.</p></noscript>
