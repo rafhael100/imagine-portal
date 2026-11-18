@@ -1,0 +1,19 @@
+{
+  ".github/workflows/onepage-tx-peer.yml": "0621a9e67637d985ef53a872ce7466176768b1f3511c7bf4ef10b55bfd4ddab2",
+  "apps/portal/labs/onepage-tx-peer-ci/CiGate.php": "ffe03d0073ef125c401763ab082c95a4c53fcb2ea31619e3af5bc208387703e8",
+  "apps/portal/labs/onepage-tx-peer-ci/NativeBriefingPgTest.php": "429a2bed2036ea0eb6ed66e321987fb322d19a5359ee292038292e3baf860572",
+  "apps/portal/labs/onepage-tx-peer-ci/Peer.php": "5481a92dcd56ce0766e9dd7080facf20b5972cd9a1b88afcb89eb38a4edeadbd",
+  "apps/portal/labs/onepage-tx-peer-ci/RunnerBootstrap.php": "5f4385432154c34e2103ce76c72532c8589b71a0e7d8684ce6cbc9c26c90fbd2",
+  "apps/portal/labs/onepage-tx-peer-ci/Trace.php": "3b0c153931e38b3b11f77447fac58a10cb7f64df190e84f4241f37ceade005bd",
+  "apps/portal/labs/onepage-tx-peer-ci/constructor-check.py": "399c7a120137fca2c8dc9966232e856b7d32dd4d9bcb17d7cc7b090bafc7160f",
+  "apps/portal/labs/onepage-tx-peer-ci/fixture.sql": "679b32a102a56cae9207b994f9e6ff38b97a55f203097b9eff07b7373b82bfec",
+  "apps/portal/labs/onepage-tx-peer-ci/launch.py": "e33e572c572d265bcb458c4d9724d140bf14fe6433d68c7b7831763f8e815198",
+  "apps/portal/labs/onepage-tx-peer-ci/offline.php": "532699c969240dabe72630123ca3961a8ef082ecb4c8e4d8132d9b23154ead89",
+  "apps/portal/labs/onepage-tx-peer-ci/peer-worker.php": "b062aee3510cfac9225813256ef9808576609a87f5be2a389ecc2bc0a8e16121",
+  "apps/portal/labs/onepage-tx-peer-ci/preflight.py": "88460d77f39cc5a3dd63609e9cf2021947364cd13186d2fc65908a1a8ac568f9",
+  "apps/portal/labs/onepage-tx-peer-ci/prepare.py": "e92e2c509c7db054b7e923ab6b12ed5bdf212999c8846abcc8722515c077f3a2",
+  "apps/portal/labs/onepage-tx-peer-ci/processes.py": "daa3375599ec027c205c4bcaf6ae721ac9353159798ecca9856d310dfbedbd5d",
+  "apps/portal/labs/onepage-tx-peer-ci/root_wrapper.py": "e463988aa44b16481cf04601ddc839cf1a2c275fe41606362f3e046c3687e543",
+  "apps/portal/labs/onepage-tx-peer-ci/scope.py": "32a58f36e17770b6a58fb33d587402609ac0b4db60c8214928c4f7d398e3324e",
+  "apps/portal/labs/onepage-tx-peer-ci/worker.php": "c3bd8927d698d3da8fcda5dbd9a2eceb73408b784d9cb5ed04c81ebfe5194068"
+}
