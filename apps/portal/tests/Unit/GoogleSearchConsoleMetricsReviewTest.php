@@ -91,6 +91,52 @@ final class GoogleSearchConsoleMetricsReviewTest extends TestCase
         self::assertNull($this->reviewer()->summarize($response, [], 10));
     }
 
+    public function test_clicks_above_impressions_cannot_hide_inside_ctr_rounding_tolerance(): void
+    {
+        $response = ['rows' => [[
+            'keys' => ['2026-11-08'], 'clicks' => 10001,
+            'impressions' => 10000, 'ctr' => 1, 'position' => 3,
+        ]]];
+
+        // The supplied CTR differs from clicks/impressions by only 0.0001,
+        // but accepting the row would produce a combined CTR above 100%.
+        self::assertNull($this->reviewer()->summarize($response, ['date']));
+    }
+
+    public function test_nonzero_ctr_without_impressions_is_rejected(): void
+    {
+        foreach ([0.5, 0.005] as $ctr) {
+            $response = ['rows' => [[
+                'keys' => ['2026-11-08'], 'clicks' => 0,
+                'impressions' => 0.0, 'ctr' => $ctr, 'position' => 0,
+            ]]];
+
+            self::assertNull($this->reviewer()->summarize($response, ['date']));
+        }
+    }
+
+    public function test_valid_zero_full_and_rounded_ctr_metrics_remain_accepted(): void
+    {
+        foreach ([
+            [0, 0, 0, null],
+            [0.0, 0.0, 0.0, null],
+            [10000, 10000, 1, 1.0],
+            [1.0, 3.0, 0.33, 1 / 3],
+            [4, 100, 0.0499, 0.04],
+        ] as [$clicks, $impressions, $ctr, $expectedCtr]) {
+            $response = ['rows' => [[
+                'keys' => ['2026-11-08'], 'clicks' => $clicks,
+                'impressions' => $impressions, 'ctr' => $ctr, 'position' => 3,
+            ]]];
+
+            $summary = $this->reviewer()->summarize($response, ['date']);
+            self::assertIsArray($summary);
+            self::assertSame((float)$clicks, $summary['returnedClicks']);
+            self::assertSame((float)$impressions, $summary['returnedImpressions']);
+            self::assertSame($expectedCtr, $summary['returnedCtr']);
+        }
+    }
+
     public function test_malformed_responses_are_rejected_instead_of_publishing_metrics(): void
     {
         $valid = [

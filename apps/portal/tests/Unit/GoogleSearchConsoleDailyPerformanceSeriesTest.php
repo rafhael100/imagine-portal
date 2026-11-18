@@ -72,6 +72,20 @@ final class GoogleSearchConsoleDailyPerformanceSeriesTest extends TestCase
         self::assertSame(0.0, $series['days'][0]['impressions']);
     }
 
+    public function test_incoherent_ctr_rows_cannot_enter_the_daily_series(): void
+    {
+        foreach ([[10001, 10000, 1], [0, 0, 0.5]] as [$clicks, $impressions, $ctr]) {
+            $response = ['rows' => [[
+                'keys' => ['2026-11-10'], 'clicks' => $clicks,
+                'impressions' => $impressions, 'ctr' => $ctr, 'position' => 3,
+            ]]];
+
+            self::assertNull($this->builder()->build(
+                $response, '2026-11-10', '2026-11-10',
+            ));
+        }
+    }
+
     public function test_cannot_plot_outside_requested_range_or_duplicate_date(): void
     {
         $reviewer = $this->builder();

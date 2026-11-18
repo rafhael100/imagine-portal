@@ -6,6 +6,8 @@ A F122 prepara a estrutura de requisição Search Analytics somente leitura. A F
 
 A resposta aceita apenas `rows[]` e o campo opcional `responseAggregationType`, com dimensões conhecidas, número de linhas limitado por `rowLimit` e métricas numéricas finitas. Cada linha contém cliques, impressões, CTR entre 0 e 1, posição válida e exatamente as chaves de dimensão esperadas. Linhas duplicadas, datas inválidas, dimensões extras, dados com `NaN`/`INF`, campos de token e respostas inconsistentes falham de modo fechado.
 
+Cliques não podem superar impressões; uma linha sem impressões precisa ter cliques e CTR iguais a zero. Para impressões positivas, permanece a tolerância absoluta de `0.01` entre o CTR recebido e a razão cliques/impressões, para aceitar arredondamento sem permitir CTR combinado acima de 100%.
+
 O resultado contém apenas número de linhas, somas de cliques/impressões, CTR combinado calculado sobre as linhas recebidas, posição média **ponderada por impressões** e indicação de possível truncamento quando a consulta atinge `rowLimit`. Os valores das chaves de pesquisa ou das URLs **não são devolvidos no resumo**, reduzindo exposição de consultas potencialmente sensíveis.
 
 O campo fixo `coverage=returned_rows_only_not_complete` informa que as somas **não representam automaticamente os totais de uma propriedade**. O Google explicita que a Search Analytics API é limitada e pode retornar somente as linhas de maior desempenho; também pode omitir datas sem dados quando a dimensão é data. [Documentação oficial de Search Analytics](https://developers.google.com/webmaster-tools/v1/searchanalytics/query).

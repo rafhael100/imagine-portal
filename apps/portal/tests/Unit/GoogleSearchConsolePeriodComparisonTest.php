@@ -187,4 +187,25 @@ final class GoogleSearchConsolePeriodComparisonTest extends TestCase
             $current, '2026-11-08', '2026-11-09', 1,
         ));
     }
+
+    public function test_incoherent_ctr_in_either_period_prevents_comparison(): void
+    {
+        foreach ([[10001, 10000, 1], [0, 0, 0.5]] as [$clicks, $impressions, $ctr]) {
+            foreach (['previous', 'current'] as $invalidPeriod) {
+                $previous = $this->period('2026-11-01', '2026-11-02');
+                $current = $this->period('2026-11-08', '2026-11-09');
+                $metrics = ['clicks' => $clicks, 'impressions' => $impressions, 'ctr' => $ctr];
+                if ($invalidPeriod === 'previous') {
+                    $previous['rows'][0] = array_replace($previous['rows'][0], $metrics);
+                } else {
+                    $current['rows'][0] = array_replace($current['rows'][0], $metrics);
+                }
+
+                self::assertNull($this->compare()->compare(
+                    $previous, '2026-11-01', '2026-11-02',
+                    $current, '2026-11-08', '2026-11-09', 50,
+                ));
+            }
+        }
+    }
 }
