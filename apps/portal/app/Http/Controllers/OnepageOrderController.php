@@ -79,6 +79,39 @@ final readonly class OnepageOrderController
         }
     }
 
+
+    /** Server-owned order discovery; no browser tenant or buyer selector. */
+    public function index(Request $request): JsonResponse
+    {
+        $reference = $this->reference($request);
+        if ($reference === null) return $this->error('authentication_required', 401);
+        if ($request->query->count() !== 0) return $this->error('not_found', 404);
+        try {
+            $result = $this->orders->listOwnedPendingOrders($reference);
+            if (($result['status'] ?? null) === 'denied') return $this->error('not_found', 404);
+            $orders = $result['orders'] ?? null;
+            if (($result['status'] ?? null) !== 'ok' || !is_array($orders)
+                || !array_is_list($orders) || count($orders) > 20) {
+                return $this->error('order_unavailable', 503);
+            }
+            $filtered = [];
+            foreach ($orders as $row) {
+                if (!is_array($row) || !is_string($row['id'] ?? null)
+                    || !$this->uuid($row['id']) || !is_string($row['quote_id'] ?? null)
+                    || !$this->uuid($row['quote_id'])
+                    || ($row['status'] ?? null) !== 'pending_payment'
+                    || !is_string($row['accepted_at'] ?? null)
+                    || preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z\z/D', $row['accepted_at']) !== 1) {
+                    return $this->error('order_unavailable', 503);
+                }
+                $filtered[] = array_intersect_key($row, array_flip(['id', 'quote_id', 'status', 'accepted_at']));
+            }
+            return response()->json(['status' => 'ok', 'orders' => $filtered]);
+        } catch (Throwable) {
+            return $this->error('order_unavailable', 503);
+        }
+    }
+
     public function show(Request $request, string $orderId): JsonResponse
     {
         $reference = $this->reference($request);

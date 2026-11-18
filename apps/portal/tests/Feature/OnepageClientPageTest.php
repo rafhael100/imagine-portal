@@ -39,6 +39,7 @@ final class OnepageClientPageTest extends TestCase
         $html = $response->getContent();
         self::assertStringContainsString('id="loading"', $html);
         self::assertStringContainsString('id="order"', $html);
+        self::assertStringContainsString('id="history"', $html);
         self::assertStringContainsString('client.js" defer', $html);
         self::assertStringNotContainsString(str_repeat('b', 64), $html);
         self::assertStringNotContainsString('name="company"', $html);
@@ -64,6 +65,7 @@ final class OnepageClientPageTest extends TestCase
         $script = file_get_contents(resource_path('onepage-client/app.js'));
         self::assertIsString($script);
         self::assertStringContainsString("auth + 'session'", $script);
+        self::assertStringContainsString("call('orders')", $script);
         self::assertStringContainsString("auth + 'csrf'", $script);
         self::assertStringContainsString("credentials:'same-origin'", $script);
         self::assertStringContainsString("redirect:'error'", $script);
@@ -106,7 +108,7 @@ final class OnepageClientPageTest extends TestCase
             $found[$route->uri()] = $route->gatherMiddleware();
         }
         foreach ([$target, $target.'/client.js', $target.'/client.css',
-            $target.'/quotes', $target.'/orders/{orderId}'] as $uri) {
+            $target.'/quotes', $target.'/orders', $target.'/orders/{orderId}'] as $uri) {
             self::assertArrayHasKey($uri, $found);
             self::assertContains(EnsureOnepageCommerceEnabled::class, $found[$uri]);
             self::assertContains(PortalBrowserAuthGuard::class, $found[$uri]);

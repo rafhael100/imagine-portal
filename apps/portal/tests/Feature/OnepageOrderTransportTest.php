@@ -41,6 +41,7 @@ final class OnepageOrderTransportTest extends TestCase
             Route::get('quotes/{quoteId}', [OnepageOrderController::class, 'resume']);
             Route::get('quotes/{quoteId}/review', [OnepageOrderController::class, 'review']);
             Route::post('quotes/{quoteId}/accept', [OnepageOrderController::class, 'accept']);
+            Route::get('orders', [OnepageOrderController::class, 'index']);
             Route::get('orders/{orderId}', [OnepageOrderController::class, 'show']);
         });
     }
@@ -84,6 +85,8 @@ final class OnepageOrderTransportTest extends TestCase
         $this->send('GET', 'orders/'.self::ORDER)->assertOk()->assertJsonPath('order.id', self::ORDER)
             ->assertJsonPath('order.contract_ref', 'contract-onepage-2026-v1')
             ->assertJsonPath('order.product', 'onepage');
+        $this->send('GET', 'orders')->assertOk()->assertExactJson(['status'=>'ok','orders'=>[]]);
+        self::assertSame('list',$this->store->calls[count($this->store->calls)-1][0]);
     }
 
     public function test_pending_mfa_and_missing_business_phase_never_reach_store(): void
@@ -93,6 +96,7 @@ final class OnepageOrderTransportTest extends TestCase
             $this->send('POST', 'quotes', $this->selection())->assertUnauthorized();
             $this->send('GET', 'orders/'.self::ORDER)->assertUnauthorized();
         }
+        $this->send('GET', 'orders')->assertUnauthorized();
         self::assertSame([], $this->store->calls);
     }
 
@@ -104,6 +108,7 @@ final class OnepageOrderTransportTest extends TestCase
         $this->send('POST', 'quotes', ['request_key' => [], 'selection' => []])->assertStatus(422);
         $this->send('GET', 'quotes/not-a-uuid')->assertNotFound();
         $this->send('GET', 'orders/'.self::ORDER.'?company=other')->assertNotFound();
+        $this->send('GET', 'orders?company=other')->assertNotFound();
         self::assertSame([], $this->store->calls);
     }
 
@@ -206,6 +211,11 @@ final class OnepageTransportStore implements OnepageOrderStore
         return ['status' => 'pending_payment', 'id' => '22222222-2222-4222-8222-222222222222',
             'quote_id' => $quoteId, 'accepted_at' => '2026-11-18T12:00:00.000000Z',
             'payment_requested' => false, 'site_provisioned' => false];
+    }
+    public function listOwnedPendingOrders(string $businessReference): array
+    {
+        $this->calls[] = ['list',$businessReference];
+        return $this->mode === 'ok' ? ['status'=>'ok','orders'=>[]] : ['status'=>$this->mode];
     }
     public function findOwnedAcceptedOrder(string $businessReference, string $orderId): ?OnepageAcceptedOrder
     {

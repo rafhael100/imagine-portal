@@ -157,6 +157,7 @@ CREATE TABLE portal_onepage.pending_orders (
  status text NOT NULL DEFAULT 'pending_payment' CHECK(status='pending_payment'),
  UNIQUE(company,buyer,request_hash)
 );
+CREATE INDEX pending_orders_owner_accepted_idx ON portal_onepage.pending_orders(company,buyer,accepted_at DESC,id DESC);
 ALTER TABLE portal_onepage.order_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portal_onepage.order_terms FORCE ROW LEVEL SECURITY;
 ALTER TABLE portal_onepage.pending_orders ENABLE ROW LEVEL SECURITY;
@@ -294,4 +295,38 @@ ALTER FUNCTION portal_onepage.read_pending_order(text,uuid) OWNER TO portal_onep
 REVOKE ALL ON FUNCTION portal_onepage.read_pending_order(text,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION portal_onepage.read_pending_order(text,uuid) TO portal_onepage_runtime;
 -- ONEPAGE_STAGE_READ_END
+-- ONEPAGE_STAGE_HISTORY_BEGIN
+-- Only owned orders under a still-active native business session and publication.
+-- No table grant, no payment claims, no client-selected tenant.
+CREATE FUNCTION portal_onepage.list_my_pending_orders(p_session text) RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp SET row_security=on AS $$
+DECLARE actor record; again record; rows jsonb;
+BEGIN
+ IF p_session IS NULL OR p_session !~ '^[a-f0-9]{64}$'
+ THEN RETURN jsonb_build_object('status','denied'); END IF;
+ SELECT * INTO actor FROM portal_onepage.principal(p_session);
+ IF NOT FOUND THEN RETURN jsonb_build_object('status','denied'); END IF;
+ SELECT COALESCE(jsonb_agg(p.item ORDER BY p.accepted_at DESC,p.id DESC),'[]'::jsonb)
+ INTO rows FROM (
+  SELECT o.id,o.accepted_at,
+   jsonb_build_object('id',o.id,'quote_id',o.quote_id,'status','pending_payment',
+    'accepted_at',to_char(o.accepted_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) item
+  FROM portal_onepage.pending_orders o
+  WHERE o.company=actor.organization_id AND o.buyer=actor.identity_id
+   AND o.status='pending_payment'
+   AND EXISTS(SELECT 1 FROM portal_onepage.order_terms t WHERE t.quote_id=o.quote_id
+    AND t.publication_ref IS NOT DISTINCT FROM o.publication_ref
+    AND portal_onepage.terms_usable(t))
+  ORDER BY o.accepted_at DESC,o.id DESC LIMIT 20
+ ) p;
+ SELECT * INTO again FROM portal_onepage.principal(p_session);
+ IF NOT FOUND OR again.identity_id<>actor.identity_id OR again.organization_id<>actor.organization_id
+ THEN RETURN jsonb_build_object('status','denied'); END IF;
+ RETURN jsonb_build_object('status','ok','orders',rows);
+END $$;
+ALTER FUNCTION portal_onepage.list_my_pending_orders(text) OWNER TO portal_onepage_owner;
+REVOKE ALL ON FUNCTION portal_onepage.list_my_pending_orders(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION portal_onepage.list_my_pending_orders(text) TO portal_onepage_runtime;
+-- ONEPAGE_STAGE_HISTORY_END
 COMMIT;
