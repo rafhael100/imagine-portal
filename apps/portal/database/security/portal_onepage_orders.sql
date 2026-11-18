@@ -300,11 +300,10 @@ GRANT EXECUTE ON FUNCTION portal_onepage.read_pending_order(text,uuid) TO portal
 -- No table grant, no payment claims, no client-selected tenant.
 CREATE FUNCTION portal_onepage.list_my_pending_orders(p_session text) RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path=pg_catalog,pg_temp SET row_security=on AS $
+SET search_path=pg_catalog,pg_temp SET row_security=on AS $$
 DECLARE actor record; again record; rows jsonb;
 BEGIN
- IF p_session IS NULL OR p_session !~ '^[a-f0-9]{64}
-
+ IF p_session IS NULL OR p_session !~ '^[a-f0-9]{64}$'
  THEN RETURN jsonb_build_object('status','denied'); END IF;
  SELECT * INTO actor FROM portal_onepage.principal(p_session);
  IF NOT FOUND THEN RETURN jsonb_build_object('status','denied'); END IF;
@@ -325,7 +324,7 @@ BEGIN
  IF NOT FOUND OR again.identity_id<>actor.identity_id OR again.organization_id<>actor.organization_id
  THEN RETURN jsonb_build_object('status','denied'); END IF;
  RETURN jsonb_build_object('status','ok','orders',rows);
-END $;
+END $$;
 ALTER FUNCTION portal_onepage.list_my_pending_orders(text) OWNER TO portal_onepage_owner;
 REVOKE ALL ON FUNCTION portal_onepage.list_my_pending_orders(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION portal_onepage.list_my_pending_orders(text) TO portal_onepage_runtime;
