@@ -31,10 +31,12 @@ Registrar evidências específicas do ambiente em canal administrativo restrito.
   restrita. Autorizar a Juliana a solicitar leitura pelo Cloud e validar
   timestamps, escopo de saída e permanência do bloqueio ao socket Docker.
   A publicação atômica preserva o relatório anterior se a coleta falhar.
-- Antes de liberar cada operação mutável, revisar e instalar o respectivo
-  handler separado e fazer teste da receita e do preflight. Hoje os cinco
-  handlers mutáveis não são instaláveis a partir deste PR. Sem arquivo
-  do handler, o executor recusa a solicitação.
+- Para o aceite inicial, o administrador dispara somente a coleta aprovada.
+  A conta solicitante lê o relatório já filtrado e verifica data/escopo.
+  Conferir em uma sessão nova que a conta mantém o socket Docker inacessível.
+- Manter os handlers de backup separados da coleta inicial. Implantação e
+  instalação ainda têm somente o contrato de despacho. Sem o arquivo do
+  handler o executor recusa a solicitação.
 - O administrador resolve o ID armazenado em fila confiável. O usuário SSH
   não escreve aprovações, política, handlers ou estados. O executor registra
   início/fim, serializa operações, consome aprovações mutáveis antes de executar
@@ -61,6 +63,28 @@ O responsável emite o registro confiável. Ela acompanha pelo ID e valida
 timestamp, alvo, resultado e evidência do relatório. O texto de um pedido
 não substitui um registro administrativo.
 
+## Recuperação em staging
+
+`backup-run` recebe apenas o perfil `daily` e material preparado pelo
+coletor do administrador: dump PostgreSQL em formato custom, tar de estado
+sem links e manifesto v1 com tamanhos e SHA-256. Fornecer um diretório privado
+de geração fechado, consistente e imutável enquanto o executor o lê. Antes de
+habilitar, validar a captura com dispatch suspenso e a chave custodiada
+separadamente. A chave e credenciais de clientes ficam fora do pacote.
+
+`backup-verify` e `restore-test` exigem ID completo; validam projeto, caminho
+e integridade em scratch privado. O segundo também verifica o índice do dump.
+O ensaio completo exige importar o banco e o estado em uma instância isolada
+e conferir readiness e descriptografia com credencial sintética. O código
+local não ativa esse destino nem carrega dados em um banco existente.
+
+O backend usa um repositório Restic R2 EU aprovado por projeto, credenciais
+protegidas por operação e um recibo restrito. Testes usam dados sintéticos e
+repositório local temporário. Preservar a referência INF-DEV-03: diário,
+30 dias iniciais, verificação semanal, restore mensal e simulação trimestral.
+Ativar expurgo somente depois da aprovação de escopo e política; esta entrega
+não executa prune nem grava no R2.
+
 ## Testes
 
 ```sh
@@ -70,5 +94,7 @@ sh -n ops/leaseweb/status
 
 Cobertura: despacho permitido, replay, status repetido, falha de backup,
 aprovação ausente, origem insegura, symlink, versão/alvo/ambiente divergentes,
-expiração, operação fora da lista e coleta Docker filtrada. O daemon da VPS,
+expiração, operação fora da lista, exclusão concorrente, recusa sem root
+e coleta Docker filtrada. Os testes de recuperação incluem snapshot de outro
+alvo, pacote adulterado, tar inseguro e round-trip Restic local quando disponível. O daemon da VPS,
 as permissões de bootstrap e o acesso da Juliana ainda exigem validação no host.

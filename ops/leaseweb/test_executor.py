@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -7,7 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from executor import approved, dispatch
+from executor import approved, dispatch, main, protected
 
 
 class ExecutorTest(unittest.TestCase):
@@ -55,6 +56,35 @@ class ExecutorTest(unittest.TestCase):
             return dispatch("r1", self.root, self.root / "state",
                             self.root / "handlers", os.getuid(), run)
 
+    def test_competing_execution_cannot_consume_approval(self):
+        self.write()
+        with (self.root / "state/executor.lock").open("a+b") as competing:
+            fcntl.flock(competing, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaises(BlockingIOError):
+                self.run_dispatch()
+            self.assertEqual(self.calls, [])
+            self.assertFalse((self.root / "state/r1.used").exists())
+        self.assertTrue(self.run_dispatch())
+
+    def test_cli_refuses_non_root_before_dispatch(self):
+        with patch("executor.os.geteuid", return_value=1001), \
+             patch("executor.sys.argv", ["executor.py", "r1"]), \
+             patch("executor.dispatch") as start:
+            self.assertEqual(main(), 2)
+        start.assert_not_called()
+
+    def test_relative_or_parent_paths_denied(self):
+        for path in (Path("relative"), self.root / ".." / "x"):
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                protected(path, os.getuid())
+
+    def test_lock_symlink_refused(self):
+        self.write()
+        (self.root / "state/executor.lock").symlink_to("/dev/null")
+        with self.assertRaises(OSError):
+            self.run_dispatch()
+        self.assertEqual(self.calls, [])
+
     def test_policy(self):
         self.assertEqual(self.verify(), ("install-n8n-staging", "n8n", self.digest))
 
@@ -72,7 +102,10 @@ class ExecutorTest(unittest.TestCase):
         self.write()
         self.assertTrue(self.run_dispatch())
         self.assertEqual(self.calls[0][0][1:], ["n8n", self.digest])
-        self.assertNotIn("DOCKER_HOST", self.calls[0][1]["env"])
+        args, options = self.calls[0]
+        self.assertEqual(args[0], str(self.root / "handlers/install-n8n-staging"))
+        self.assertEqual(set(options["env"]), {"PATH", "LANG"})
+        self.assertNotIn("shell", options)
         with self.assertRaises(FileExistsError):
             self.run_dispatch()
         self.assertEqual(len(self.calls), 1)

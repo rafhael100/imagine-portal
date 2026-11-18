@@ -23,6 +23,8 @@ DIGEST = re.compile(r"sha256:[a-f0-9]{64}")
 
 def protected(path, owner, directory=False):
     """Verify the full path, including ancestors, without accepting symlinks."""
+    if not path.is_absolute() or ".." in path.parts:
+        raise ValueError("untrusted_path")
     for item in reversed((path, *path.parents)):
         info = item.lstat()
         expected = stat.S_ISDIR if directory or item != path else stat.S_ISREG
