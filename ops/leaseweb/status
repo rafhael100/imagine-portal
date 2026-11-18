@@ -1,0 +1,15 @@
+#!/bin/sh
+# Install only after approval, at /usr/local/libexec/imagine-ops/status.
+set -eu
+[ "$#" -eq 2 ] && [ "$2" = current ] || exit 2
+case "$1" in
+  ''|*[!a-z0-9_-]*|[-_]*) exit 2 ;;
+esac
+umask 077
+report_dir=/var/lib/imagine-ops/reports
+tmp=$(/usr/bin/mktemp "$report_dir/.inventory.XXXXXXXX")
+trap '/usr/bin/rm -f -- "$tmp"' EXIT
+/usr/bin/python3 -I /usr/local/libexec/imagine-ops/inventory.py "$1" > "$tmp"
+/usr/bin/chgrp imagine-ops-read "$tmp"
+/usr/bin/chmod 0640 "$tmp"
+/usr/bin/mv -fT -- "$tmp" "$report_dir/$1.json"

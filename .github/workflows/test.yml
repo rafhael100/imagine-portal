@@ -30,3 +30,27 @@ jobs:
         run: npx --yes pnpm@11.25.0 install --frozen-lockfile --ignore-scripts
       - name: Testar aplicação sem credenciais ou cobranças reais
         run: npm test
+
+  leaseweb-ops:
+    name: Executor e coletor Leaseweb (isolado)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verificar scripts
+        run: |
+          for script in status backup-run backup-verify restore-test; do
+            sh -n "ops/leaseweb/$script"
+          done
+      - name: Instalar Restic no runner descartável
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y restic
+      - name: Exercitar autorizações e recuperação sintética
+        env:
+          IMAGINE_TEST_RESTIC: /usr/bin/restic
+        run: python3 -m unittest discover -s ops/leaseweb -v
