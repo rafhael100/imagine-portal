@@ -1,0 +1,71 @@
+{
+  "candidate": "82deeb0062f80f1cf979a2c0105d394c2b1adc23",
+  "native": "ecc225c3f8c17caadfb2361f471c96cdc76e74e3",
+  "receipt_reference": "74cd2d12378b2cc7ff40fbda61327edcbcf40cd4",
+  "local_base": "f9196075236be7c744c96b58653b798231976eaf",
+  "files": {
+    "apps/portal/app/Providers/PortalDevelopmentAuthServiceProvider.php": "96bdf48a995b7c9c9953bfc7260f4df1e5fae70c",
+    "apps/portal/app/Http/Controllers/PortalBrowserAuthController.php": "71df8907f88f4b884ab81343227cac130a35d288",
+    "apps/portal/app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php": "3324642ff89846a07c2644dd9c59e9fd815590d9",
+    "apps/portal/app/Http/Middleware/PortalBrowserAuthGuard.php": "451d0f974ceecc4c12f660cd61eef92b86ae15d9",
+    "apps/portal/app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php": "35b064340d41d75c271e452eff13a7eb54690713",
+    "apps/portal/app/Infrastructure/Identity/PortalBrowserSecretFile.php": "b6434a077e8a19fe42e6c902eafe9ce195bfd1de",
+    "apps/portal/database/security/portal_browser_envelopes.sql": "b39bbcdb9156ffe884d21d1b208d842f8cb7942d",
+    "apps/portal/tests/Integration/PortalBrowserAuthenticationPg18Test.php": "16d7b478b5120af9ea8ad413841b257522e92843",
+    "apps/portal/labs/onepage-atomic-read/fixture-tail.php.inc": "86594ff780d8dd1044f4eedf75e18e7f24bc9d20",
+    "apps/portal/labs/onepage-atomic-read/pg-checks.php": "d2180e25074e14201e57f3e9fdcb07d49c0abb57",
+    "apps/portal/labs/onepage-atomic-read/run.py": "f6213d8b5759409eb93973dac232a9126db1d2f8",
+    "apps/portal/labs/onepage-buyer/store.sql": "c07474fbb3b645971b9eb64666fc01a171ed3366",
+    "apps/portal/labs/onepage-buyer/BuyerQuoteAdapter.php": "d7b9053f2f5fdbae3fba9f9cb6866457194c2c34",
+    "apps/portal/labs/onepage-pending-order/Adapter.php": "43830be9048cee2482fae9b226a064cfd4cb5fe9",
+    "apps/portal/AGENTS.md": "c19c84d75f0dbc3a51c930897b92ecebb9a1f1dc",
+    "apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php": "42a44da0ab1590bcdbf644e2e30464b662ae2dcd",
+    "apps/portal/app/Homologation/Commerce/BillingSchedule.php": "951d715a4c8deec2ac12914b85dc4dab6d405852",
+    "apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php": "85b1dd8d7752139ea80c26bc0b8c1e49b94f6d29",
+    "apps/portal/bootstrap/app.php": "1085719c5683acf7fa298c8efc78fcc5d0d6005e",
+    "apps/portal/composer.json": "18e621d2557145bfc34339d229cc8be5ee002f6d",
+    "apps/portal/composer.lock": "13e6715405e4719ab5dc56b8f22dcce1c855a66d",
+    "apps/portal/config/database.php": "00445daefdb5649c75555b8376fe53e995496edc",
+    "apps/portal/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php": "f952bd64cb51be2ea18122ec232f6862bc1d522a",
+    "apps/portal/database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php": "3a5c99b8a50cf8b9473f912db6477309d7ea5fcb",
+    "apps/portal/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php": "b8dee597906106dea33fabc79ce24bcf561d5e9a",
+    "apps/portal/database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php": "7cb48e75b4de17fd7d9091f5dad81a8eed7b2b4d",
+    "apps/portal/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php": "737d43aa4271229e9c34bc2fa4759014ea11b21d",
+    "apps/portal/database/migrations/2026_11_11_000012_fence_portal_membership_revision.php": "86e75433868b1f6ecc2fd74344b70c8e256e1ec5",
+    "apps/portal/database/migrations/2026_11_11_000013_fence_portal_organization_revision.php": "7f6eb9526ed56f4306fbe0e6eda961b14142e63f",
+    "apps/portal/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php": "d00b2d0db13f788ff40b3964cb2b5b20eaf1f699",
+    "apps/portal/database/migrations/2026_11_12_000016_fence_portal_identity_revision.php": "a7528d5d461f1653efb13ecc3f4fb86ed66dbec8",
+    "apps/portal/database/security/portal_browser_auth.sql": "42bb622b01e1b89f7ec99214ac104da2262c3774",
+    "apps/portal/database/security/portal_browser_principal_candidate.sql": "2ea9540009989b17656e18b588f0e7a60ed3762a",
+    "apps/portal/labs/onepage-buyer/Guard.php": "6bde9d20f27cb489fd2595f399fdab4b9f56805c",
+    "apps/portal/labs/onepage-pending-order/ProcessPreflight.php": "d98210490d764f5ce08ed6884a8470393393574e",
+    "apps/portal/labs/onepage-pending-order/ProofChecks.php": "07a8425206f77084e4050835033e17249ea900ee",
+    "apps/portal/labs/onepage-pending-order/pg-cases.php": "ffc33c9e283a875626a1b82599c4bc5fe7b482cc",
+    "apps/portal/labs/onepage-pending-order/prepare.php": "7cb9b2fe62efb02e3b194e0ef2b4be15ccf51afa",
+    "apps/portal/labs/onepage-pending-order/run-clean.sh": "9aaa29ac96c287e9a749294462fc418b7c03bd23",
+    "apps/portal/labs/onepage-pending-order/start-isolated.sh": "af2ceca11e625c243c0ceae9148ab0c819c8addc",
+    "apps/portal/labs/onepage-pending-order/store.sql": "b4436cba552b8d56ca7df6a7733f64a8c9f623a4",
+    "apps/portal/labs/onepage-native-kernel-private/README.md": "ae77743d1f22e1aa3353fbef96909521a550d943",
+    "apps/portal/labs/onepage-native-kernel-private/check.py": "ce970a8ec0977314d84baf51958be77145cbcb1d",
+    "apps/portal/labs/onepage-native-kernel-private/kernel-check.php": "0218593e31a1d3e82569b61936cdc7343a80e9ce",
+    "apps/portal/labs/onepage-native-kernel-private/run.py": "d8fc5c569be372782d999b7c537888b2da711b06",
+    "apps/portal/labs/onepage-atomic-read/AtomicReader.php": "5ca8ec5cc05fd085f7fcbfb171da023c552f1833"
+  },
+  "review_references": [
+    {
+      "path": "apps/portal/labs/onepage-atomic-read/AtomicReader.php",
+      "sha": "5ca8ec5cc05fd085f7fcbfb171da023c552f1833",
+      "url": "https://github.com/rafhael100/imagine-portal/blob/82deeb0062f80f1cf979a2c0105d394c2b1adc23/apps/portal/labs/onepage-atomic-read/AtomicReader.php"
+    },
+    {
+      "path": "apps/portal/labs/onepage-bound-receipt-durable-private/receipt.sql.inc",
+      "sha": "23ed794d5eb888b7c78b971e135128a12b1c902d",
+      "url": "https://github.com/rafhael100/imagine-portal/blob/74cd2d12378b2cc7ff40fbda61327edcbcf40cd4/apps/portal/labs/onepage-bound-receipt-durable-private/receipt.sql.inc"
+    },
+    {
+      "path": "apps/portal/labs/onepage-bound-receipt-durable-private/checkpoint.php",
+      "sha": "1f13c97fa827afd454e85f1f3462da524db23d15",
+      "url": "https://github.com/rafhael100/imagine-portal/blob/74cd2d12378b2cc7ff40fbda61327edcbcf40cd4/apps/portal/labs/onepage-bound-receipt-durable-private/checkpoint.php"
+    }
+  ]
+}
