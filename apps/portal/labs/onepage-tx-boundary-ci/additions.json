@@ -1,0 +1,18 @@
+{
+  ".github/workflows/onepage-tx-boundary.yml": "d0fbc16ec9fd1a01011ed9a3fdc43cec99d5e8be30606b3062afd9fd095a6e61",
+  "apps/portal/labs/onepage-tx-boundary-ci/CiGate.php": "ffe03d0073ef125c401763ab082c95a4c53fcb2ea31619e3af5bc208387703e8",
+  "apps/portal/labs/onepage-tx-boundary-ci/NativeBriefingPgTest.php": "429a2bed2036ea0eb6ed66e321987fb322d19a5359ee292038292e3baf860572",
+  "apps/portal/labs/onepage-tx-boundary-ci/Peer.php": "89245463021cef7d87ac281228e099a678e40477c11f40feb3f8cada048879bb",
+  "apps/portal/labs/onepage-tx-boundary-ci/RunnerBootstrap.php": "5f4385432154c34e2103ce76c72532c8589b71a0e7d8684ce6cbc9c26c90fbd2",
+  "apps/portal/labs/onepage-tx-boundary-ci/Trace.php": "3b0c153931e38b3b11f77447fac58a10cb7f64df190e84f4241f37ceade005bd",
+  "apps/portal/labs/onepage-tx-boundary-ci/fixture.sql": "679b32a102a56cae9207b994f9e6ff38b97a55f203097b9eff07b7373b82bfec",
+  "apps/portal/labs/onepage-tx-boundary-ci/launch.py": "e33e572c572d265bcb458c4d9724d140bf14fe6433d68c7b7831763f8e815198",
+  "apps/portal/labs/onepage-tx-boundary-ci/offline.php": "532699c969240dabe72630123ca3961a8ef082ecb4c8e4d8132d9b23154ead89",
+  "apps/portal/labs/onepage-tx-boundary-ci/peer-worker.php": "b062aee3510cfac9225813256ef9808576609a87f5be2a389ecc2bc0a8e16121",
+  "apps/portal/labs/onepage-tx-boundary-ci/preflight.py": "c1326b5caf6079233daa01226d426f2b81f8e793db8390347699f8c757b5c1a9",
+  "apps/portal/labs/onepage-tx-boundary-ci/prepare.py": "d246e32c6a3103513742eac53187fd23d71d9d9822a68d31d361fe6312ad74c3",
+  "apps/portal/labs/onepage-tx-boundary-ci/processes.py": "daa3375599ec027c205c4bcaf6ae721ac9353159798ecca9856d310dfbedbd5d",
+  "apps/portal/labs/onepage-tx-boundary-ci/root_wrapper.py": "e463988aa44b16481cf04601ddc839cf1a2c275fe41606362f3e046c3687e543",
+  "apps/portal/labs/onepage-tx-boundary-ci/scope.py": "32a58f36e17770b6a58fb33d587402609ac0b4db60c8214928c4f7d398e3324e",
+  "apps/portal/labs/onepage-tx-boundary-ci/worker.php": "c3bd8927d698d3da8fcda5dbd9a2eceb73408b784d9cb5ed04c81ebfe5194068"
+}
