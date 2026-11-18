@@ -1,13 +1,17 @@
 """Event/tree admission before provisioning. No remote Git operations."""
 import json,os,pathlib,re,subprocess,sys
-BASE='1b394f9826f623dec02beffcd2528b6a17d0c51e'
+BASE='1cb443fd2a54baf0d6eca2327ab4e3bf6a65899b'
 REPOSITORY='rafhael100/imagine-portal'
-BASE_BRANCH='test/onepage-recovery-loss-composition-v1'
-HEAD_BRANCH='test/onepage-d0-anchored-admission-pg-v3'
+BASE_BRANCH='test/onepage-d0-anchored-admission-pg-v3'
+HEAD_BRANCH='test/onepage-d0-942-diagnostic-once'
 LAB='apps/portal/labs/onepage-evidence-admission-v3-private/'
 CI='apps/portal/labs/onepage-d0-admission-ci-private/'
 FILES={'AnchorDDL.php','ChildSession.php','Concurrency.php','ProducerAttestation.php','README.md','admission.sql.in','attestation-check.php','base-pins.json','cases.php','compose.py','concurrent-worker.php','offline.php','setup.php.inc'}
-ALLOWED={LAB+x for x in FILES}|{CI+x for x in ['preflight.py','runner.py','checks.py','v3-pins.json']}|{'.github/workflows/onepage-d0-anchored-admission-pg-lab.yml'}
+EXPECTED_CHANGES={LAB+'setup.php.inc':'M',**{CI+x:'M' for x in ['preflight.py','runner.py','checks.py','v3-pins.json']},'.github/workflows/onepage-d0-942-diagnostic-once.yml':'A'}
+ALLOWED=set(EXPECTED_CHANGES)
+
+def validate_attempt(attempt):
+    if attempt!='1':raise ValueError('REPEATED_RUN_REFUSED')
 
 def validate_event(event,repository,event_name):
     p=event['pull_request'];head=p['head']['sha']
@@ -22,9 +26,10 @@ def validate_diff(raw):
     chunks=raw.decode().split('\0')
     if chunks[-1]!='':raise ValueError('DIFF_REFUSED')
     chunks=chunks[:-1]
-    if len(chunks)!=2*len(ALLOWED) or set(zip(chunks[::2],chunks[1::2]))!={('A',p) for p in ALLOWED}:raise ValueError('ADDITIONS_REFUSED')
+    if len(chunks)!=2*len(ALLOWED) or set(zip(chunks[::2],chunks[1::2]))!={(status,path) for path,status in EXPECTED_CHANGES.items()}:raise ValueError('ADDITIONS_REFUSED')
 
 def verify(event,repository,event_name):
+    validate_attempt(os.environ.get('GITHUB_RUN_ATTEMPT'))
     head=validate_event(event,repository,event_name)
     git=lambda *args:subprocess.check_output(['git',*args],stderr=subprocess.DEVNULL,timeout=10).decode().strip()
     if git('rev-parse','HEAD')!=head or git('rev-list','--parents','-n','1',head)!=head+' '+BASE:raise ValueError('LINEAGE_REFUSED')
@@ -40,6 +45,6 @@ def verify(event,repository,event_name):
 if __name__=='__main__':
     try:
         verify(json.loads(pathlib.Path(os.environ['GITHUB_EVENT_PATH']).read_text()),os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_EVENT_NAME'])
-        print('PASS ADMISSION_EXACT_DRAFT_ADDITIONS')
+        print('PASS ADMISSION_EXACT_DIAGNOSTIC_DIFF')
     except Exception:
         print('ADMISSION_PREFLIGHT_REFUSED',file=sys.stderr);sys.exit(1)

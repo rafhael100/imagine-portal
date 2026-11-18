@@ -18,20 +18,26 @@
  $barrier();$db->unprepared(file_get_contents(__READ_SQL__));
  $barrier();$db->unprepared(file_get_contents(__RESERVE_SQL__));
  $barrier();$db->unprepared(file_get_contents(__BINDING_SQL__));
+ echo "PASS ADMISSION_SECOND_ORDER_BASE_DDL\n";
  $reader=App\Labs\OnepageAtomicRead\AtomicReader::guarded($runtime,$owner,$identity,$barrier);
- $owner->beginTransaction();
+ // Native attestation uses fresh observer snapshots BEFORE the fixture write transaction.
+ $prepared=[];
+ foreach([$order['id'],$second['id']] as $id){
+  $native=$reader->read($own,$id);
+  $plan=Imagine\Lab\OnepageBindingProducer\ProducerContract::prepare($native,'lab-admission-fixture','cus_LABadmission');
+  if($plan===null)throw new RuntimeException('ADMISSION_PLAN_REQUIRED');
+  $scope=array_diff_key($native['snapshot'],array_flip(['buyer','status','quote_snapshot','terms','contract_text']));
+  $prepared[]=[$id,$plan,$scope];
+ }
+ $barrier();$owner->beginTransaction();
  try {
-  foreach([$order['id'],$second['id']] as $id){
-   // Reader attests a distinct buyer connection, never the bootstrap transaction.
-   $native=$reader->read($own,$id);
-   $plan=Imagine\Lab\OnepageBindingProducer\ProducerContract::prepare($native,'lab-admission-fixture','cus_LABadmission');
-   if($plan===null)throw new RuntimeException('ADMISSION_PLAN_REQUIRED');
-   $scope=array_diff_key($native['snapshot'],array_flip(['buyer','status','quote_snapshot','terms','contract_text']));
+  foreach($prepared as [$id,$plan,$scope]){
    $q=$owner->prepare('INSERT INTO onepage_buyer_lab.fixture_charge_reservations(order_id,line,contract_scope,account,environment,customer,reference,due_date,amount_cents) VALUES(CAST(? AS uuid),?,CAST(? AS jsonb),?,?,?,?,CAST(? AS date),?)');
    foreach($plan->lines as $part)$q->execute([$id,$part['key'],json_encode($scope,JSON_THROW_ON_ERROR),$plan->scope['account'],'sandbox','cus_LABadmission',$part['external_reference'],$part['due_date'],$part['amount_cents']]);
   }
   $owner->commit();
  }finally{if($owner->inTransaction())$owner->rollBack();}
+ echo "PASS ADMISSION_PLANS_RESERVATIONS_COMMITTED\n";
  $barrier();App\Labs\OnepageBuyer\Guard::runtime($runtime,$owner,$identity,'onepage_buyer_runtime');
  $q=$runtime->prepare("SELECT onepage_buyer_lab.fixture_claim_charge(?,CAST(? AS uuid),'setup-1')");
  $q->execute([hash('sha256',$own->session()->get('portal.browser_auth')['reference']),$order['id']]);
@@ -65,6 +71,7 @@
   $attest($p,'onepage_lab_bootstrap');return $p;
  };
  $attest($producer,'onepage_fixture_evidence_producer');
+ echo "PASS ADMISSION_ANCHOR_PRODUCER_ATTESTED\n";
  $claimOther=static function()use($runtime,$owner,$identity,$barrier,$own,$second):void {
   $barrier();App\Labs\OnepageBuyer\Guard::runtime($runtime,$owner,$identity,'onepage_buyer_runtime');
   $q=$runtime->prepare("SELECT onepage_buyer_lab.fixture_claim_charge(?,CAST(? AS uuid),'setup-1')");
