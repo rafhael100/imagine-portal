@@ -1,0 +1,173 @@
+name: Native briefing PG18 runner teardown (private candidate)
+on:
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-briefing-diagnostic-v1']
+    paths: ['.github/workflows/onepage-briefing-teardown.yml']
+permissions:
+  contents: read
+jobs:
+  admission:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-briefing-teardown-v1' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-briefing-diagnostic-v1' &&
+      github.event.pull_request.base.sha == 'e5ef89b01b15c1815cfc9972961801ad470226b4'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact additive scope before provisioning
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_1" >&3; else echo "BRIEFING_WORKFLOW_STEP_1_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+          trap - EXIT
+          set -euo pipefail
+          env -i PATH=/usr/bin:/bin LC_ALL=C \
+            GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            /usr/bin/python3 -B apps/portal/labs/briefing-teardown-ci/preflight.py
+          ) 3>&-
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml, posix, pcntl
+          tools: composer:2.8.12
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_2" >&3; else echo "BRIEFING_WORKFLOW_STEP_2_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+          trap - EXIT
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/onepage-pending-order-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --max-time 30 --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "ONEPAGE_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+          ) 3>&-
+      - name: Locked dependencies and offline source regression
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          private_home=''
+          trap 'rc=$?; if [ -n "$private_home" ]; then rm -rf -- "$private_home" 3>&-; fi; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_3" >&3; else echo "BRIEFING_WORKFLOW_STEP_3_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          private_home=$(mktemp -d "$RUNNER_TEMP/onepage-composer-XXXXXXXX" 3>&-)
+          (
+          trap - EXIT
+          set -euo pipefail
+          php_bin=$(readlink -f "$(command -v php)")
+          composer_bin=$(readlink -f "$(command -v composer)")
+          run_composer() {
+            env -i PATH=/usr/bin:/bin HOME="$private_home" COMPOSER_HOME="$private_home/composer" LC_ALL=C \
+              "$php_bin" "$composer_bin" "$@"
+          }
+          run_composer --version --no-ansi | grep -E '^Composer version 2[.]8[.]12 '
+          run_composer validate --no-check-publish --no-interaction
+          run_composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+          run_composer check-platform-reqs --no-interaction
+          git diff --exit-code -- composer.json composer.lock
+          ini_dir=$(mktemp -d "$RUNNER_TEMP/briefing-php-XXXXXXXX")
+          ini="$ini_dir/php.ini"
+          env -i PATH=/usr/bin:/bin LC_ALL=C PHP_BIN="$php_bin" BRIEFING_PHP_INI="$ini" \
+            /usr/bin/python3 -B labs/briefing-teardown-ci/prepare.py
+          posix_extension=builtin
+          if ! "$php_bin" -n -r 'exit(extension_loaded("posix")?0:1);'; then
+            extension_dir=$("$php_bin" -n -r 'echo ini_get("extension_dir");')
+            posix_extension="$extension_dir/posix.so"
+            test -f "$posix_extension"
+          fi
+          echo "PHP_BIN=$php_bin" >> "$GITHUB_ENV"
+          echo "POSIX_EXTENSION=$posix_extension" >> "$GITHUB_ENV"
+          echo "BRIEFING_PHP_INI=$ini" >> "$GITHUB_ENV"
+          ) 3>&-
+      - name: Qualified isolated briefing and owned cluster teardown
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/briefing-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; grep -E "^(PASS BRIEFING_(AUTOLOAD_READY|BOOTSTRAP_READY|MAINTENANCE_CONFIG_READY|MAINTENANCE_BEFORE_DDL|DATABASE_CREATED|TEST_ENTERED|NEW_DATABASE_GATE_PASSED|LARAVEL_SQL_BEFORE_DDL|MIGRATIONS_COMPLETE|SCHEMA_COMPLETE|FIXTURES_READY|COMMIT_OWNER_REPLAY_REVOCATION|WORKER_COMPLETE|PARTIAL_START_REFUSED_AND_CLEANED|UID_TOPOLOGY|OWNED_POSTMASTER_READY|OWNED_CHILDREN_STOPPED_AND_REMOVED|RUN_COMPLETE|NAMESPACE_REAPED)|BRIEFING_WORKER_REFUSED phase=(AUTOLOAD|BOOTSTRAP|MAINTENANCE_CONFIG|MAINTENANCE_GATE|CREATE_DATABASE|TEST_BOOTSTRAP|NEW_DATABASE_GATE|ADMIN_GATE|MIGRATIONS|SECURITY_DDL|FIXTURES|CASES|TEST_TEARDOWN|FINALIZE)|BRIEFING_WORKER_CAPTURE_REFUSED|BRIEFING_RUN_REFUSED phase=(PREFLIGHT|INIT|START|WORKER) cleanup=(VERIFIED|UNVERIFIED)|BRIEFING_LAUNCH_REFUSED cleanup=UNVERIFIED)$" "$private_log" >&3 3>&- || true; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_4" >&3; else echo "BRIEFING_WORKFLOW_STEP_4_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+            trap - EXIT
+            set -euo pipefail
+            unset BASH_ENV ENV
+            env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS=true \
+              PHP_BIN="$PHP_BIN" POSIX_EXTENSION="$POSIX_EXTENSION" PG_BIN="$PG_BIN" \
+              ONEPAGE_PG_RUNTIME_LIB="$ONEPAGE_PG_RUNTIME_LIB" BRIEFING_PHP_INI="$BRIEFING_PHP_INI" \
+              /usr/bin/python3 -B apps/portal/labs/briefing-teardown-ci/launch.py --run
+          ) 3>&-
