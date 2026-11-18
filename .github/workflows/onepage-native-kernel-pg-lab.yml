@@ -1,0 +1,155 @@
+name: Onepage native buyer kernel (single synthetic draft)
+on:
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-integrated-pg-lab-2026-11-17']
+    paths: ['.github/workflows/onepage-native-kernel-pg-lab.yml']
+permissions:
+  contents: read
+jobs:
+  native-kernel:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-native-kernel-pg-lab-2026-11-18' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-integrated-pg-lab-2026-11-17' &&
+      github.event.pull_request.base.sha == '951e02e5d8eedee93851416778027cf07d105296'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LC_ALL: C
+      REVIEWED_SOURCE_TREE: eae5f7e6f813f789fe52d4f29222a17674117ac9
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify immutable source before provisioning
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base='951e02e5d8eedee93851416778027cf07d105296'
+          base_tree='cd07ea4c3feb3524692d4630d4afe659afd6c800'
+          workflow='.github/workflows/onepage-native-kernel-pg-lab.yml'
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          parent=$(git show -s --format=%P HEAD)
+          [[ "$parent" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git show -s --format=%P "$parent")" = "$base"
+          test "$(git rev-parse "$base^{tree}")" = "$base_tree"
+          test "$(git rev-parse "$parent^{tree}")" = "$REVIEWED_SOURCE_TREE"
+          test "$(git diff --name-status --no-renames "$parent" HEAD)" = "$(printf 'A\t%s' "$workflow")"
+          expected=$(printf 'A\t%s\n' "$workflow" \
+            apps/portal/labs/onepage-native-kernel-private/{README.md,check.py,kernel-check.php,run.py})
+          test "$(git diff --name-status --no-renames "$base" HEAD)" = "$expected"
+          while IFS=$'\t' read -r _ path; do
+            [[ "$(git ls-tree HEAD -- "$path")" == "100644 blob "* ]]
+          done <<< "$expected"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml, posix
+          tools: composer:2.8.12
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/onepage-pending-order-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --max-time 30 --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get -o Acquire::Retries=1 -o Acquire::https::Timeout=20 --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "ONEPAGE_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked dependencies and offline source regression
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          php_bin=$(readlink -f "$(command -v php)")
+          composer_bin=$(readlink -f "$(command -v composer)")
+          private_home=$(mktemp -d "$RUNNER_TEMP/onepage-composer-XXXXXXXX")
+          trap 'rm -rf -- "$private_home"' EXIT
+          run_composer() {
+            env -i PATH=/usr/bin:/bin HOME="$private_home" COMPOSER_HOME="$private_home/composer" LC_ALL=C \
+              "$php_bin" "$composer_bin" "$@"
+          }
+          run_composer --version --no-ansi | grep -E '^Composer version 2[.]8[.]12 '
+          run_composer validate --no-check-publish --no-interaction
+          run_composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+          run_composer check-platform-reqs --no-interaction
+          git diff --exit-code -- composer.json composer.lock
+          env -i PATH=/usr/bin:/bin LC_ALL=C PHP_BIN="$php_bin" \
+            /usr/bin/python3 labs/onepage-native-kernel-private/check.py --check
+      - name: Native buyer kernel test in a dedicated loopback-only network namespace
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          unset BASH_ENV ENV
+          uid=$(id -u); gid=$(id -g)
+          test "$uid" -ne 0
+          php_bin=$(readlink -f "$(command -v php)")
+          # Sole privileged actions: create a new private network namespace and bring up lo within it.
+          # No external interface or router is installed; no fallback if unshare is refused.
+          sudo -n /usr/bin/unshare --net -- /bin/bash --noprofile --norc -s -- \
+            "$uid" "$gid" "$php_bin" "$PG_BIN" "$ONEPAGE_PG_RUNTIME_LIB" "$EXPECTED_HEAD" "$REVIEWED_SOURCE_TREE" <<'NAMESPACE'
+          set -euo pipefail
+          /usr/sbin/ip link set lo up
+          test "$(/usr/sbin/ip -o link show | cut -d: -f2 | tr -d ' ')" = lo
+          test -z "$(/usr/sbin/ip -4 route show default)"
+          test -z "$(/usr/sbin/ip -6 route show default)"
+          exec /usr/bin/setpriv --reuid="$1" --regid="$2" --clear-groups --no-new-privs \
+            /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS=true \
+              NATIVE_KERNEL_TEST=APPROVED_SYNTHETIC_ONLY NATIVE_KERNEL_EXPECTED_HEAD="$6" \
+              NATIVE_KERNEL_CI_SOURCE_TREE="$7" PHP_BIN="$3" PG_BIN="$4" ONEPAGE_PG_RUNTIME_LIB="$5" \
+              /usr/bin/python3 apps/portal/labs/onepage-native-kernel-private/run.py --run
+          NAMESPACE
