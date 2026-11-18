@@ -1,4 +1,43 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Imagine · Performance</title>
-<style>body{margin:0;background:#faf8f4;color:#242424;font:17px/1.6 system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:40px 24px}header{display:flex;justify-content:space-between;gap:24px;align-items:center}a{color:#9c4b00}h1{font-size:clamp(32px,5vw,56px);line-height:1.1}small{color:#6b645d}section{margin:30px 0;padding:28px;border:1px solid #e5d6c5;background:white;border-radius:20px}strong{color:#9c4b00}dl{display:grid;grid-template-columns:1fr 2fr;gap:16px}dd{margin:0;overflow-wrap:anywhere}@media(max-width:600px){dl{grid-template-columns:1fr}header{align-items:start;flex-direction:column}}</style></head>
-<body><main><header><strong>imagine · Performance AI</strong><a href="{{ route('portal-admin.home') }}">← Voltar ao Portal</a></header><p><small>HOMOLOGAÇÃO PRIVADA · SOMENTE LEITURA</small></p><h1>Visão autorizada da sua operação.</h1>
-<section aria-labelledby="source"><h2 id="source">Estado da consulta</h2><dl><dt>Empresa</dt><dd>{{ $company }}</dd><dt>Fonte</dt><dd>Performance privado · integração candidata</dd><dt>Estado</dt><dd>{{ $result['status']==='unavailable'?'Dados indisponíveis':'Dados sintéticos de laboratório' }}</dd><dt>Período</dt><dd>Não informado pela fonte</dd><dt>Indicadores oficiais</dt><dd>Indisponíveis — fontes Google e Meta não conectadas</dd><dt>Correlação</dt><dd>{{ $correlation }}</dd></dl><p>Nenhuma cobrança, publicação ou alteração em campanhas está habilitada.</p></section><p><a href="{{ route('performance-admin.index') }}">Abrir os dez módulos com dados simulados do laboratório →</a></p><p><small>O laboratório local usa empresas fictícias próprias. Esses indicadores não são dados retornados pela consulta privada acima.</small></p></main></body></html>
+@extends('performance-admin.private-layout')
+@section('title', 'Imagine · Performance · '.$modules[$module]['label'])
+@section('content')
+<p><a href="{{ route('performance-private.index') }}">← Escolher outra empresa</a></p>
+<h1>{{ $modules[$module]['heading'] }}</h1>
+<nav class="modules" aria-label="Consultas Performance">
+@foreach($modules as $key=>$item)
+<a href="{{ route('performance-private.show', ['company'=>$company,'module'=>$key]+($validationErrors===[]?array_filter($filters,static fn($value)=>$value!==''):[])) }}" @if($key===$module) aria-current="page" @endif>{{ $item['label'] }}</a>
+@endforeach
+</nav>
+<section aria-labelledby="filters-title">
+<h2 id="filters-title">Filtros da consulta</h2>
+@if($validationErrors!==[])
+<div class="notice" role="alert"><strong>Revise os filtros.</strong><ul>@foreach($validationErrors as $error)<li>{{ $error }}</li>@endforeach</ul><p>A consulta não foi enviada. Corrija os campos e tente novamente.</p></div>
+@endif
+<form class="filters" method="get" action="{{ route('performance-private.show',['company'=>$company,'module'=>$module]) }}">
+<div class="field"><label for="period">Período solicitado</label><input id="period" name="period" type="month" value="{{ $filters['period'] }}" aria-describedby="filter-help"></div>
+<div class="field"><label for="page">Página solicitada</label><input id="page" name="page" type="number" min="1" max="10000" step="1" value="{{ $filters['page'] }}" aria-describedby="filter-help"></div>
+<div class="filter-actions"><button type="submit">Consultar</button><a href="{{ route('performance-private.show',['company'=>$company,'module'=>$module]) }}">Limpar filtros</a></div>
+</form>
+<p id="filter-help" class="muted">O período é opcional. A página deve ser um número inteiro entre 1 e 10000. Esses filtros identificam o que você solicitou; a fonte ainda precisa informar os dados e a quantidade de páginas.</p>
+</section>
+@if($result!==null)
+<section aria-labelledby="source">
+<h2 id="source">Estado da consulta</h2>
+<dl>
+<dt>Empresa</dt><dd>{{ $company }}</dd>
+<dt>Consulta</dt><dd>{{ $modules[$module]['label'] }}</dd>
+<dt>Fonte</dt><dd>Performance privado · integração candidata</dd>
+<dt>Estado</dt><dd>{{ $result['status']==='unavailable'?'Dados indisponíveis':'Dados sintéticos de laboratório' }}</dd>
+<dt>Período solicitado</dt><dd>{{ $filters['period']!==''?$filters['period']:'Não informado' }}</dd>
+<dt>Página solicitada</dt><dd>{{ $filters['page'] }}</dd>
+<dt>Período dos dados</dt><dd>Não informado pela fonte</dd>
+<dt>Indicadores oficiais</dt><dd>Indisponíveis — fontes Google e Meta não conectadas</dd>
+<dt>Correlação</dt><dd>{{ $correlation }}</dd>
+</dl>
+@if($result['status']==='unavailable')
+<p>A consulta foi autorizada, mas a fonte ainda não disponibilizou informações para esta operação. Esse estado não informa que os resultados sejam zero ou que não existam registros.</p>
+@endif
+<p>Nenhuma cobrança, publicação ou alteração em campanhas está habilitada.</p>
+</section>
+@endif
+@endsection

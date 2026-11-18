@@ -1,0 +1,69 @@
+name: Performance Phase8 navigation native authority PostgreSQL
+on:
+  push:
+    branches: ['feat/admin-phase7-exact-compose-flow-2026-11-17']
+    paths: ['apps/portal/**', '.github/workflows/performance-phase8-authority.yml']
+permissions:
+  contents: read
+jobs:
+  navigation-authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-phase4-ci
+          POSTGRES_DB: performance_phase4_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d performance_phase4_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      ADMIN_PHASE4_PG_CI: '1'
+      PERFORMANCE_ADMIN_PG_CI: '1'
+      PORTAL_ADMIN_AUTH_ENABLED: 'true'
+      PERFORMANCE_ADMIN_LAB_ENABLED: 'true'
+      PERFORMANCE_NATIVE_READ_ENABLED: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: performance_phase4_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: synthetic-phase4-ci
+      PERFORMANCE_AUTHORITY_DB_USERNAME: portal_performance_runtime
+      PERFORMANCE_AUTHORITY_DB_PASSWORD: SYNTHETIC_PHASE4_CI_ONLY
+      PERFORMANCE_AUTHORITY_SSLMODE: disable
+      PERFORMANCE_ADMIN_LAB_ENGINE_ROOT: ${{ github.workspace }}/engine
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 15aad7bee3ac2dbade72c5fab6808d8e3044ac59
+          path: engine
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, sodium, mbstring, dom, xml, curl
+          tools: composer:v2
+          coverage: none
+      - name: Locked dependencies and disposable native authority
+        working-directory: apps/portal
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          cp .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan migrate --force --no-interaction
+          php tests/Fixtures/phase4/authority-role.php
+      - name: Operation-specific navigation, filters, signatures and denial events
+        working-directory: apps/portal
+        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'

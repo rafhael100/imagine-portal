@@ -19,11 +19,15 @@ final class SignedServiceReadClientTest extends TestCase
    $e=$request->data()['envelope'];return Http::response(['version'=>$e['version'],'company_id'=>$e['company_id'],'operation'=>$e['operation'],'correlation_id'=>$e['correlation_id'],'status'=>'unavailable','metrics'=>null,'external_operations_enabled'=>false,'billable'=>false]);
   });
   $events=[];$client=new SignedServiceReadClient(fn()=>$identity,function($event,$id)use(&$events){$events[]=[$event,$id];});
-  $r=$client->read('company_alfa','dashboard.read',[],'request_unique_001');
+  $r=$client->read('company_alfa','dashboard.read',['period'=>'2026-11','page'=>2],'request_unique_001');
   self::assertNull($r['metrics']);self::assertCount(2,$calls);
   $first=$calls[0]->data()['envelope'];$second=$calls[1]->data()['envelope'];
   self::assertNotSame($first['nonce'],$second['nonce']);self::assertSame($first['idempotency_key'],$second['idempotency_key']);
-  foreach($calls as $request){self::assertFalse($request->hasHeader('Authorization'));self::assertFalse($request->hasHeader('Cookie'));self::assertSame(['envelope','body'],array_keys($request->data()));}
+  foreach($calls as $request){
+   self::assertFalse($request->hasHeader('Authorization'));self::assertFalse($request->hasHeader('Cookie'));self::assertSame(['envelope','body'],array_keys($request->data()));
+   self::assertSame(['period'=>'2026-11','page'=>2],json_decode($request->data()['body'],true,16,JSON_THROW_ON_ERROR));
+   self::assertSame(hash('sha256',$request->data()['body']),$request->data()['envelope']['body_sha256']);
+  }
   self::assertSame('service_retry',$events[0][0]);self::assertSame('service_read_candidate',$events[1][0]);
  }
  public function test_disabled_candidate_and_insecure_url_make_no_request():void
