@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/../onepage-buyer/CoreSchema.php';
 // Incremental hook, not a startup/fixture runner. Requires fresh, active #923 fixtures.
 require_once __DIR__.'/../onepage-buyer/Guard.php';
 require_once __DIR__.'/AtomicReader.php';
@@ -27,7 +28,7 @@ function checkAtomicRead(Connection $db,PDO $runtime,string $cluster,string $con
  $db->setReconnector(static function(){throw new RuntimeException('NO_RECONNECT');});
  $db->beforeExecuting(static function()use($pinned){$pinned();});
  Guard::runtime($runtime,$bootstrap,$identity,'onepage_buyer_runtime');
- $db->unprepared(file_get_contents(__DIR__.'/read.sql')); // Guard precedes the sole new capability.
+ $db->unprepared(\App\Labs\OnepageBuyer\CoreSchema::read(__DIR__.'/read.sql')); // Guard precedes the sole new capability.
  $reader=AtomicReader::guarded($runtime,$bootstrap,$identity,$pinned);
  $checks=0;$ok=function(bool $b,string $name)use(&$checks){if(!$b)throw new RuntimeException('FAILED '.$name);$checks++;echo "PASS ATOMIC_SQL_CASE: ".$name.PHP_EOL;};
  $snapshot=fn()=>json_encode($db->select('SELECT to_jsonb(t)::text row FROM onepage_buyer_lab.pending_orders t ORDER BY id'),JSON_THROW_ON_ERROR);

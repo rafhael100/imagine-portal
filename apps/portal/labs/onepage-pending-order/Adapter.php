@@ -10,13 +10,7 @@ final readonly class Adapter
 {
     public function __construct(private PDO $runtime) {}
     public static function matches(array $review,array $acceptance):bool {
-        $expected=['accepted'=>true];
-        foreach(['quote_id','offer_digest','terms_digest','contract_ref','contract_revision','contract_digest'] as $key) {
-            if (!array_key_exists($key,$review)) return false;
-            $expected[$key]=$review[$key];
-        }
-        ksort($expected);ksort($acceptance);
-        return $expected===$acceptance;
+        return \App\Infrastructure\Commerce\OnepageOrderCommands::matches($review,$acceptance);
     }
     public function review(Request $request,string $quote):array {
         return $this->perform($request,$quote,null,null);
