@@ -108,7 +108,8 @@ final class OnepageClientPageTest extends TestCase
             $found[$route->uri()] = $route->gatherMiddleware();
         }
         foreach ([$target, $target.'/client.js', $target.'/client.css',
-            $target.'/quotes', $target.'/orders', $target.'/orders/{orderId}'] as $uri) {
+            $target.'/quotes', $target.'/orders', $target.'/orders/{orderId}',
+            $target.'/orders/{orderId}/site-intake'] as $uri) {
             self::assertArrayHasKey($uri, $found);
             self::assertContains(EnsureOnepageCommerceEnabled::class, $found[$uri]);
             self::assertContains(PortalBrowserAuthGuard::class, $found[$uri]);

@@ -112,7 +112,7 @@
       ? value.illustrative_three_parts_cents.map(money).join(' · ') : '—';
     show('draft'); notice('');
   };
-  const order = (payload) => {
+  const order = async (payload) => {
     if (!payload || payload.status !== 'pending_payment' || !payload.order
       || !validId(payload.order.id)) throw new Error('invalid_order');
     state.orderId = payload.order.id; save();
@@ -120,7 +120,29 @@
     const dt = new Date(payload.order.accepted_at);
     el('accepted-at').textContent = Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleString('pt-BR');
     review = null; currentQuote = null;
+    el('site-intake-status').textContent = 'Conferindo registro da solicitação…';
     show('order'); notice('');
+    let intake;
+    try {
+      intake = await call('orders/' + encodeURIComponent(payload.order.id) + '/site-intake');
+    } catch (error) {
+      if (error.status === 401 || error.status === 404) {
+        show('loading');
+        throw error;
+      }
+      el('site-intake-status').textContent = 'Consulta de recebimento indisponível';
+      return;
+    }
+    if (intake.status === 'not_recorded' && Object.keys(intake).length === 1) {
+      el('site-intake-status').textContent = 'Solicitação ainda não registrada no Sites';
+    } else if (intake.status === 'recorded'
+      && validId(intake.siteRef) && intake.state === 'awaiting_official_authority'
+      && intake.authorityVerified === false && intake.clientAccepted === false
+      && intake.canPublish === false && Object.keys(intake).length === 6) {
+      el('site-intake-status').textContent = 'Solicitação recebida · ' + intake.siteRef;
+    } else {
+      el('site-intake-status').textContent = 'Consulta de recebimento indisponível';
+    }
   };
   // The server enumerates only orders owned by the authenticated native principal.
   const history = async () => {
@@ -140,7 +162,7 @@
       button.addEventListener('click', () => perform(async () => {
         if (!authenticated) return;
         const value = await call('orders/' + encodeURIComponent(item.id));
-        order(value);
+        await order(value);
       }));
       parent.appendChild(button);
     }
@@ -149,7 +171,7 @@
   const resume = async () => {
     if (state.orderId) {
       try {
-        order(await call('orders/' + encodeURIComponent(state.orderId)));
+        await order(await call('orders/' + encodeURIComponent(state.orderId)));
         return;
       } catch (error) {
         if (error.status === 404) {clear(); await history(); return;}
@@ -239,7 +261,7 @@
       {request_key:state.acceptKey,acceptance});
     if (result.status !== 'pending_payment' || !validId(result.id)) throw new Error('invalid_order');
     state.orderId = result.id;save();
-    order(await call('orders/' + encodeURIComponent(result.id)));
+    await order(await call('orders/' + encodeURIComponent(result.id)));
   }));
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && !busy) perform(refreshSession);

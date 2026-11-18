@@ -112,6 +112,37 @@ final readonly class OnepageOrderController
         }
     }
 
+    /** Read only the pending Sites receipt belonging to this exact buyer/order. */
+    public function siteIntake(Request $request, string $orderId): JsonResponse
+    {
+        $reference = $this->reference($request);
+        if ($reference === null) return $this->error('authentication_required', 401);
+        if (!$this->uuid($orderId) || $request->query->count() !== 0) {
+            return $this->error('not_found', 404);
+        }
+        try {
+            $result=$this->orders->findOwnedSiteIntake($reference,$orderId);
+            if ($result === null) return $this->error('not_found', 404);
+            if (($result['status'] ?? null) === 'not_recorded' && count($result) === 1) {
+                return response()->json(['status'=>'not_recorded']);
+            }
+            $allowed=['status','siteRef','state','authorityVerified','clientAccepted','canPublish'];
+            $keys=array_keys($result);sort($keys);sort($allowed);
+            if ($keys !== $allowed || ($result['status'] ?? null) !== 'recorded'
+                || ($result['state'] ?? null) !== 'awaiting_official_authority'
+                || !is_string($result['siteRef'] ?? null)
+                || !$this->uuid($result['siteRef'])
+                || ($result['authorityVerified'] ?? null) !== false
+                || ($result['clientAccepted'] ?? null) !== false
+                || ($result['canPublish'] ?? null) !== false) {
+                return $this->error('order_unavailable', 503);
+            }
+            return response()->json($result);
+        } catch (Throwable) {
+            return $this->error('order_unavailable', 503);
+        }
+    }
+
     public function show(Request $request, string $orderId): JsonResponse
     {
         $reference = $this->reference($request);
