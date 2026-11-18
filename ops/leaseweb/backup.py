@@ -1,14 +1,17 @@
 #!/usr/bin/python3 -I
 """Transfer and recover an administrator-sealed staging bundle through Restic."""
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import re
+import selectors
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 
 # Python -I excludes the script directory from sys.path.
 if __name__ == "__main__":
@@ -87,23 +90,41 @@ class Restic:
         self.args = [RESTIC, "--no-cache", "--repo", repository, "--password-file",
                      str(protected(Path(config["password_file"]), owner))]
 
+    def transfer(self, args, stream, limit):
+        command = [*self.args, *args]
+        deadline = time.monotonic() + 120
+        with subprocess.Popen(
+            command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, env=self.env,
+        ) as process, selectors.DefaultSelector() as ready:
+            ready.register(process.stdout, selectors.EVENT_READ)
+            try:
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0 or not ready.select(remaining):
+                        raise subprocess.TimeoutExpired(command, 120)
+                    chunk = os.read(process.stdout.fileno(), min(65536, limit + 1))
+                    if not chunk:
+                        break
+                    if len(chunk) > limit:
+                        raise ValueError("restic_output_exceeds_bound")
+                    stream.write(chunk)
+                    limit -= len(chunk)
+                result = process.wait(timeout=max(0, deadline - time.monotonic()))
+                if result:
+                    raise subprocess.CalledProcessError(result, command)
+            finally:
+                if process.poll() is None:
+                    process.kill()
+
     def metadata(self, *args):
-        result = subprocess.run(
-            [*self.args, *args], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, env=self.env, check=True, timeout=120,
-        )
-        if len(result.stdout) > 2_000_000:
-            raise ValueError("oversized_restic_metadata")
-        return result.stdout
+        stream = io.BytesIO()
+        self.transfer(args, stream, 2_000_000)
+        return stream.getvalue()
 
     def download(self, snapshot, path, destination, limit):
         with destination.open("xb") as stream:
-            subprocess.run(
-                ["/usr/bin/prlimit", f"--fsize={limit}:{limit}", "--",
-                 *self.args, "dump", snapshot, str(path)], stdin=subprocess.DEVNULL,
-                stdout=stream, stderr=subprocess.DEVNULL, env=self.env, check=True,
-                timeout=120,
-            )
+            self.transfer(("dump", snapshot, str(path)), stream, limit)
 
 
 def operate(operation, target, version, source, scratch, backend, owner):

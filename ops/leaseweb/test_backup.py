@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -130,6 +131,15 @@ class BackupTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "r2_eu"):
             Restic({"repository": "s3:https://other.invalid/bucket",
                     "password_file": "/nope", "credentials_file": "/nope"}, os.getuid())
+
+    def test_stream_limit_applies_to_output_only(self):
+        backend = object.__new__(Restic)
+        backend.args = [sys.executable, "-c", "print('too long')"]
+        backend.env = {}
+        output = io.BytesIO()
+        with self.assertRaisesRegex(ValueError, "exceeds_bound"):
+            backend.transfer((), output, 1)
+        self.assertEqual(output.getvalue(), b"")
 
     @unittest.skipUnless(os.environ.get("IMAGINE_TEST_RESTIC"), "local Restic fixture unavailable")
     def test_real_restic_round_trip_with_local_repository(self):
