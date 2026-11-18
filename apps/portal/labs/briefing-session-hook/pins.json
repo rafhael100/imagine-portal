@@ -1,0 +1,34 @@
+{
+  "head": "c8862c0f2528ba2920e91bfe5254c37b7699cd3e",
+  "lock_blob": "13e6715405e4719ab5dc56b8f22dcce1c855a66d",
+  "canonical": {
+    "app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php": {
+      "blob": "17e92fb3d3b23a7af402feeb813b7351b4618aa7",
+      "class": "App\\Infrastructure\\Commerce\\PostgresPortalSiteContractSource"
+    },
+    "app/Domain/SitesIntegration/SitesCreateProjectEncoder.php": {
+      "blob": "594df1b476f23909f3ce8277316e7e991d15e6e6",
+      "class": "App\\Domain\\SitesIntegration\\SitesCreateProjectEncoder"
+    },
+    "app/Domain/SitesIntegration/SiteContractSnapshot.php": {
+      "blob": "44cbfad8ed0c112455ccc7b862a86b57f6c5f9a9",
+      "class": "App\\Domain\\SitesIntegration\\SiteContractSnapshot"
+    },
+    "app/Domain/Commerce/OnepageOrderReader.php": {
+      "blob": "58397d9d72c8c65fd2908cc1cb69fc6015fc5b25",
+      "class": "App\\Domain\\Commerce\\OnepageOrderReader"
+    },
+    "app/Domain/SitesIntegration/PortalSiteContractSource.php": {
+      "blob": "9733da25486bc038b63a5621698b29c918f6a970",
+      "class": "App\\Domain\\SitesIntegration\\PortalSiteContractSource"
+    },
+    "app/Domain/Commerce/OnepageAcceptedOrder.php": {
+      "blob": "663e9ee3b5f3d36768f8275533f3164c40d3c8ac",
+      "class": "App\\Domain\\Commerce\\OnepageAcceptedOrder"
+    },
+    "labs/briefing-teardown-ci/Fixture.php": {
+      "blob": "3a282f33d0a4fe255fe63bf4447c70acd2ef0617",
+      "class": "NativeBriefingFixture\\Fixture"
+    }
+  }
+}
