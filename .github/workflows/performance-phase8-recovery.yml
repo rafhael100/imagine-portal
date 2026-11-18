@@ -18,6 +18,7 @@ jobs:
       ADMIN_PHASE11_RELEASE_CI: '1'
       ADMIN_PHASE12_MATERIALS_CI: '1'
       ADMIN_PHASE13_BUILD_CI: '1'
+      ADMIN_PHASE14_INVENTORY_CI: '1'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -30,7 +31,10 @@ jobs:
           path: engine
           persist-credentials: false
       - name: Read-only inventory regression
-        run: python3 apps/portal/tests/Fixtures/phase8-readiness/test_inventory.py
+        run: |
+          python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_inventory.py
+          python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_compare_inventory.py
+          python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_phase7_context_guard.py
       - name: Offline certificate and build-context regression
         run: |
           python3 -B apps/portal/tests/Fixtures/phase12-materials/test_crypto.py

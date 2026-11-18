@@ -3,6 +3,24 @@ set -euo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true && "${ADMIN_PHASE7_CI:-}" == 1 ]]
 [[ "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ && "${GITHUB_RUN_ATTEMPT:-}" =~ ^[0-9]+$ ]]
 cd "$GITHUB_WORKSPACE"
+require_local_docker(){
+ python3 -B - <<'PY'
+import importlib.util,pathlib,sys
+path=pathlib.Path('apps/portal/deploy/phase6/readonly-inventory.py')
+spec=importlib.util.spec_from_file_location('phase7_inventory_context',path)
+module=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+try:
+ module._docker_context()
+except Exception:
+ print('PHASE7_LOCAL_DOCKER_REQUIRED',file=sys.stderr)
+ sys.exit(1)
+PY
+}
+# Refuse a remote/inherited endpoint before material creation or any Compose read.
+require_local_docker
+# Pin the already validated context for child commands; never select a fallback.
+export DOCKER_CONTEXT=default
 export P7_PROJECT="imagine-performance-p7-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 export P6_CI_MATERIAL="$RUNNER_TEMP/phase7-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 export P7_EVIDENCE="$RUNNER_TEMP/phase7-evidence" P7_BROWSER_VAULT="$RUNNER_TEMP/phase7-browser-vault.json"
@@ -18,15 +36,22 @@ export P6_PORTAL_PG_DIR="$P6_CI_MATERIAL/portal-pg" P6_PERFORMANCE_PG_DIR="$P6_C
 export P6_ENGINE_SOURCE="$GITHUB_WORKSPACE/engine" P6_ADMIN_ENABLED=true P6_LAB_ENABLED=true P6_S2S_ENABLED=true P6_RECEIVER_ENABLED=1
 base=(docker compose -p "$P7_PROJECT" -f apps/portal/deploy/phase6/compose.yaml)
 [[ -z "$("${base[@]}" ps -aq)" ]]
-p13Captured=0 p13CanariesPrepared=0
+p13Captured=0 p13CanariesPrepared=0 p7ResourcesStarted=0
 cleanup(){
  result=$?
- if [[ $result != 0 ]]; then
-  "${base[@]}" ps -a || true
-  # Sanitized projections only. Never upload raw container logs or a vault.
-  "${base[@]}" logs --no-color --no-log-prefix portal-web 2>/dev/null | python3 -c 'import sys,json; [print(json.dumps(x)) for line in sys.stdin if line.startswith("{") for x in [json.loads(line)] if set(x)=={"schema","request_id","status","duration"}]' || true
+ if [[ "$p7ResourcesStarted" == 1 ]]; then
+  if require_local_docker; then
+   if [[ $result != 0 ]]; then
+    "${base[@]}" ps -a || true
+    # Sanitized projections only. Never upload raw container logs or a vault.
+    "${base[@]}" logs --no-color --no-log-prefix portal-web 2>/dev/null | python3 -c 'import sys,json; [print(json.dumps(x)) for line in sys.stdin if line.startswith("{") for x in [json.loads(line)] if set(x)=={"schema","request_id","status","duration"}]' || true
+   fi
+   "${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+  else
+   printf 'PHASE7_DOCKER_CLEANUP_REFUSED: local context no longer verified\n' >&2
+   [[ $result != 0 ]] || result=1
+  fi
  fi
- "${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
  if [[ "$p13CanariesPrepared" == 1 ]]; then
   python3 -B apps/portal/tests/Fixtures/phase13-build/context-canaries.py cleanup >/dev/null || true
  fi
@@ -39,6 +64,22 @@ cleanup(){
  exit "$result"
 }
 trap cleanup EXIT
+capture_host_inventory(){
+ local output="$1"
+ if ! python3 -B apps/portal/deploy/phase6/readonly-inventory.py --port "$P6_LOOPBACK_PORT" --subnet "$P6_SERVICE_SUBNET" --receiver-ip "$P6_RECEIVER_IP" > "$output"; then
+  python3 -B - "$output" <<'PY'
+import json,pathlib,sys
+report=json.loads(pathlib.Path(sys.argv[1]).read_text())
+stage=report.get('stage','unknown')
+assert stage in ['candidate','docker_context','compose_projects','containers','networks','routes','listeners','host_resources','named_volumes','unknown']
+print('PHASE8_CI_HOST_INVENTORY_DENIED stage='+stage)
+PY
+  return 1
+ fi
+}
+if [[ "${ADMIN_PHASE14_INVENTORY_CI:-}" == 1 ]]; then
+ capture_host_inventory "$P7_EVIDENCE/host-inventory-before.json"
+fi
 if [[ "${ADMIN_PHASE12_MATERIALS_CI:-}" == 1 ]]; then
  if ! sudo --preserve-env=GITHUB_ACTIONS,ADMIN_PHASE12_MATERIALS_CI,ADMIN_PHASE7_CI,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT,ADMIN_PHASE8_NAVIGATION_CI,P6_CI_MATERIAL \
   python3 -B apps/portal/tests/Fixtures/phase12-materials/test_materials.py > "$P7_EVIDENCE/materials-preflight.json"; then
@@ -63,6 +104,8 @@ fi
 docker build -t "$P6_PORTAL_IMAGE" "${p13PortalMetadata[@]}" --build-context performance_engine=./engine -f apps/portal/deploy/staging/Dockerfile.php apps/portal >/dev/null
 docker build -t "$P6_PORTAL_WEB_IMAGE" "${p13WebMetadata[@]}" -f apps/portal/deploy/staging/Dockerfile.nginx apps/portal >/dev/null
 docker build -t "$P6_RECEIVER_IMAGE" "${p13ReceiverMetadata[@]}" --build-arg PHP_IMAGE=php:8.4-fpm-bookworm -f engine/deploy/private-admin/Dockerfile engine >/dev/null
+# Cover partial creation by the first up; cleanup is restricted to this CI project.
+p7ResourcesStarted=1
 "${base[@]}" up -d --wait portal-db performance-db
 for tuple in 'portal-db portal_p6_migrator portal_p6_synthetic portal-bootstrap' 'performance-db performance_p6_migrator performance_p6_synthetic receiver-bootstrap'; do
  read -r service role database directory <<< "$tuple"
@@ -113,17 +156,8 @@ if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then certutil -d "sql:$HOME/.pki/nssd
 certutil -d "sql:$HOME/.pki/nssdb" -A -t 'C,,' -n "Imagine Phase7 ${GITHUB_RUN_ID}" -i "$P6_CI_MATERIAL/ca.pem"
 sudo install -m 600 -o "$(id -u)" -g "$(id -g)" "$P6_CI_MATERIAL/portal-bootstrap/browser-vault.json" "$P7_BROWSER_VAULT"
 node apps/portal/tests/Fixtures/phase7/browser.cjs
-if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 || "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 ]]; then
- if ! python3 apps/portal/deploy/phase6/readonly-inventory.py --port "$P6_LOOPBACK_PORT" --subnet "$P6_SERVICE_SUBNET" --receiver-ip "$P6_RECEIVER_IP" > "$P7_EVIDENCE/ci-host-inventory.json"; then
-  python3 - <<'PY'
-import json,os,pathlib
-report=json.loads((pathlib.Path(os.environ['P7_EVIDENCE'])/'ci-host-inventory.json').read_text())
-stage=report.get('stage','unknown')
-assert stage in ['candidate','compose_projects','containers','networks','routes','listeners','host_resources','named_volumes','unknown']
-print('PHASE8_CI_HOST_INVENTORY_DENIED stage='+stage)
-PY
-  exit 1
- fi
+if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 || "${ADMIN_PHASE8_RECOVERY_CI:-}" == 1 || "${ADMIN_PHASE14_INVENTORY_CI:-}" == 1 ]]; then
+ capture_host_inventory "$P7_EVIDENCE/ci-host-inventory.json"
  python3 - <<'PY'
 import json,os,pathlib
 snapshot=json.loads((pathlib.Path(os.environ['P7_EVIDENCE'])/'ci-host-inventory.json').read_text())
@@ -134,6 +168,14 @@ assert any(item['ip']==os.environ['P6_RECEIVER_IP'] for item in snapshot['propos
 assert len(snapshot['containers'])>=6
 print('PHASE8_CI_HOST_INVENTORY_PASS: real disposable Docker projections, no VPS inventory or resource reservation')
 PY
+fi
+if [[ "${ADMIN_PHASE14_INVENTORY_CI:-}" == 1 ]]; then
+ if ! python3 -B apps/portal/tests/Fixtures/phase8-readiness/exercise_compare_inventory.py \
+  --before "$P7_EVIDENCE/host-inventory-before.json" --after "$P7_EVIDENCE/ci-host-inventory.json" > "$P7_EVIDENCE/inventory-comparison.json"; then
+  cat "$P7_EVIDENCE/inventory-comparison.json"
+  exit 1
+ fi
+ cat "$P7_EVIDENCE/inventory-comparison.json"
 fi
 if [[ "${ADMIN_PHASE8_NAVIGATION_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase8-navigation/run.sh

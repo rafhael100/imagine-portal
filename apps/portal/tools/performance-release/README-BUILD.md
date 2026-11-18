@@ -89,14 +89,22 @@ de ambiente ou a configuração completa.
 
 O campo obrigatório `containerimage.config.digest` dos metadados deve coincidir
 com o ID da imagem usada pelo container. Esse é o digest da configuração da
-imagem. `containerimage.digest` e o digest do descriptor são observados
-separadamente, quando presentes; eles não são comparados ao ID da configuração.
-Se os dois estão presentes, devem concordar entre si. A annotation
-`config.digest`, quando presente, deve concordar com o digest da configuração.
-Essa consulta não verifica um manifest remoto nem identifica uma publicação em
-registry. O nome `manifest_digest` no recibo designa o digest de saída declarado
-pelo Buildx, que pode identificar um manifest ou um índice; o programa não lê
-nem valida os bytes desse objeto. A distinção dos campos segue o exemplo oficial de
+imagem. O campo opcional `containerimage.digest` é registrado com o nome neutro
+`reported_image_digest`. `reported_image_digest_matches_config` registra se ele
+coincide com o digest da configuração, ou fica `null` quando esse campo não foi
+observado. Essa igualdade não é obrigatória nem estabelece o tipo do objeto.
+
+O exporter observado no ensaio retornou esse valor igual ao config digest nas
+três builds, sem descriptor. Por isso o recibo não classifica o valor como
+manifest ou índice com base na chave: `reported_image_digest_type` permanece
+`not_established`. O programa não lê nem valida os bytes desse objeto.
+
+O digest do descriptor também é observado separadamente, quando presente. Se
+ele e `containerimage.digest` estão presentes, devem concordar entre si. A
+annotation `config.digest`, quando presente, deve concordar com o digest da
+configuração. Essas verificações não autenticam um manifest remoto nem
+identificam uma publicação em registry; `registry_manifest_verified` continua
+`false`. As chaves de origem estão documentadas em
 [`--metadata-file` no Docker Buildx](https://docs.docker.com/reference/cli/docker/buildx/build/#write-build-result-metadata-to-a-file---metadata-file).
 
 ## Materiais e saneamento

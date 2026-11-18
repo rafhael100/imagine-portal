@@ -1,9 +1,13 @@
 """Synthetic host conflicts; never inspect or mutate the runner's Docker host."""
 import importlib.util
+import io
 import json
 from pathlib import Path
+import runpy
 import subprocess
+import sys
 import unittest
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 
@@ -22,11 +26,17 @@ class InventoryTest(unittest.TestCase):
         self.routes = [{"dst": "default", "gateway": "192.0.2.1"}]
         self.listeners = ""
         self.commands = []
+        self.docker_context = "default\n"
+        self.docker_endpoint = json.dumps("unix:///var/run/docker.sock")
+        self.environment = patch.dict(inventory.os.environ, {key: "" for key in
+            ("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_TLS", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH")})
         self.run_mock = patch.object(inventory, "run", side_effect=self.command)
         self.host_mock = patch.object(inventory, "_host_resources", return_value={"host_fingerprint": "synthetic", "cpu_count": 2,
                                       "memory_bytes": {"MemTotal": 100, "MemAvailable": 50}, "srv_available_bytes": 1000})
+        self.environment.start()
         self.run_mock.start()
-        self.host_mock.start()
+        self.host_reads = self.host_mock.start()
+        self.addCleanup(self.environment.stop)
         self.addCleanup(self.run_mock.stop)
         self.addCleanup(self.host_mock.stop)
 
@@ -34,6 +44,8 @@ class InventoryTest(unittest.TestCase):
         self.commands.append(args)
         key = tuple(args)
         responses = {
+            ("docker", "context", "show"): self.docker_context,
+            ("docker", "context", "inspect", "default", "--format", inventory.DOCKER_CONTEXT_FORMAT): self.docker_endpoint,
             ("docker", "compose", "ls", "--all", "--format", "json"): json.dumps(self.stacks),
             ("docker", "ps", "--all", "--quiet", "--no-trunc"): "\n".join(c["id"] for c in self.containers),
             ("docker", "network", "ls", "--quiet", "--no-trunc"): "\n".join(n["id"] for n in self.networks),
@@ -65,11 +77,65 @@ class InventoryTest(unittest.TestCase):
 
     def test_empty_snapshot_stays_no_go_and_never_reserves(self):
         result = inventory.inspect()
+        self.assertEqual(self.commands[:2], [["docker", "context", "show"],
+                         ["docker", "context", "inspect", "default", "--format", inventory.DOCKER_CONTEXT_FORMAT]])
         self.assertTrue(result["proposal"]["port_observed_unused"])
         self.assertEqual(result["proposal"]["subnet_conflicts"], [])
         self.assertFalse(result["proposal"]["reservation_made"])
         self.assertFalse(result["installation_authorized"])
         self.assertEqual(result["status"], "NO_GO_PENDING_REVIEW_AND_APPROVAL")
+
+    def test_docker_endpoint_and_tls_overrides_refuse_before_any_command(self):
+        cases = (("DOCKER_HOST", "ssh://private.invalid"), ("DOCKER_HOST", "unix:///var/run/docker.sock"),
+                 ("DOCKER_CONTEXT", "remote"), ("DOCKER_TLS", "1"), ("DOCKER_TLS", "0"),
+                 ("DOCKER_TLS_VERIFY", "1"), ("DOCKER_CERT_PATH", "/private/never-emit"))
+        for key, value in cases:
+            with self.subTest(key=key, value=value), patch.dict(inventory.os.environ, {key: value}), self.assertRaises(ValueError):
+                inventory.inspect()
+            self.assertEqual(inventory.STAGE, "docker_context")
+            self.assertEqual(self.commands, [])
+            self.host_reads.assert_not_called()
+
+    def test_explicit_default_context_is_accepted(self):
+        with patch.dict(inventory.os.environ, {"DOCKER_CONTEXT": "default"}):
+            self.assertEqual(inventory.inspect()["status"], "NO_GO_PENDING_REVIEW_AND_APPROVAL")
+
+    def test_selected_nondefault_context_refuses_before_endpoint_or_resources(self):
+        for value in ("remote\n", "desktop-linux\n", ""):
+            self.docker_context = value
+            self.commands.clear()
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                inventory.inspect()
+            self.assertEqual(inventory.STAGE, "docker_context")
+            self.assertEqual(self.commands, [["docker", "context", "show"]])
+            self.host_reads.assert_not_called()
+
+    def test_nonlocal_or_malformed_context_endpoint_refuses_before_resources(self):
+        values = [json.dumps(value) for value in ("ssh://private.invalid", "tcp://192.0.2.1:2375",
+                  "unix:///run/user/1000/docker.sock", None, {}, [], True)] + ["not-json"]
+        for value in values:
+            self.docker_endpoint = value
+            self.commands.clear()
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                inventory.inspect()
+            self.assertEqual(inventory.STAGE, "docker_context")
+            self.assertEqual(len(self.commands), 2)
+            self.assertTrue(all(command[:2] == ["docker", "context"] for command in self.commands))
+            self.host_reads.assert_not_called()
+
+    def test_cli_context_refusal_emits_only_fixed_stage_without_executing_commands(self):
+        output = io.StringIO()
+        private = "sentinel-private-docker-endpoint"
+        with patch.dict(inventory.os.environ, {"DOCKER_HOST": "ssh://"+private}), \
+                patch.object(sys, "argv", [str(spec.origin)]), \
+                patch.object(subprocess, "run", side_effect=AssertionError("No subprocess allowed")) as commands, \
+                redirect_stdout(output), self.assertRaises(SystemExit) as caught:
+            runpy.run_path(spec.origin, run_name="__main__")
+        self.assertEqual(caught.exception.code, 2)
+        self.assertEqual(json.loads(output.getvalue()), {"status": "blocked", "error": "readonly_inventory_unavailable",
+                                                        "stage": "docker_context", "installation_authorized": False})
+        self.assertNotIn(private, output.getvalue())
+        commands.assert_not_called()
 
     def test_stopped_container_declared_port_blocks_even_without_listener(self):
         self.container()
@@ -141,13 +207,16 @@ class InventoryTest(unittest.TestCase):
         self.assertNotIn("{{json .}}", " ".join(" ".join(args) for args in self.commands))
 
     def test_missing_resources_malformed_output_and_command_errors_fail_closed(self):
+        original = self.command
         for bad in ("not-json", "{}", "null"):
-            with self.subTest(bad=bad), patch.object(inventory, "run", return_value=bad), self.assertRaises(ValueError):
+            def malformed(args):
+                return bad if args[:3] == ["docker", "compose", "ls"] else original(args)
+            with self.subTest(bad=bad), patch.object(inventory, "run", side_effect=malformed), self.assertRaises(ValueError):
                 inventory.inspect()
+            self.assertEqual(inventory.STAGE, "compose_projects")
         with patch.object(inventory, "run", side_effect=subprocess.CalledProcessError(1, ["docker"])), self.assertRaises(subprocess.CalledProcessError):
             inventory.inspect()
         self.container()
-        original = self.command
         def missing(args):
             return "" if args[:2] == ["docker", "inspect"] else original(args)
         with patch.object(inventory, "run", side_effect=missing), self.assertRaisesRegex(ValueError, "changed during read"):

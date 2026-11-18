@@ -117,12 +117,14 @@ class ReceiptTests(unittest.TestCase):
             self.f.verify()
         self.assertEqual(str(caught.exception), reason)
 
-    def test_positive_distinguishes_config_and_manifest_and_preserves_inputs(self):
+    def test_positive_preserves_reported_digest_without_inferred_type_and_inputs(self):
         before = {path: path.read_bytes() for path in self.f.private.iterdir()}
         result = self.f.verify()
         self.assertEqual(result["status"], "LOCAL_BUILD_ASSOCIATION_OBSERVED")
         for name, image in result["images"].items():
-            self.assertNotEqual(image["config_digest"], image["manifest_digest"])
+            self.assertNotEqual(image["config_digest"], image["reported_image_digest"])
+            self.assertFalse(image["reported_image_digest_matches_config"])
+            self.assertEqual(image["reported_image_digest_type"], "not_established")
             self.assertEqual(image["config_digest"], self.f.runtime[self.f.containers[name]]["image_id"])
             self.assertTrue(image["materials"]["expected_base_digests_observed"])
             self.assertFalse(image["registry_manifest_verified"] or image["materials"]["material_set_complete_verified"])
@@ -130,6 +132,22 @@ class ReceiptTests(unittest.TestCase):
                       "embedded_source_content_verified", "human_approval_verified", "registry_release_published", "deployment_authorized"):
             self.assertFalse(result[field])
         self.assertEqual(before, {path: path.read_bytes() for path in self.f.private.iterdir()})
+
+    def test_observed_docker_exporter_digest_equal_to_config_without_descriptor(self):
+        for metadata in self.f.metadata.values():
+            metadata["containerimage.digest"] = metadata["containerimage.config.digest"]
+            del metadata["containerimage.descriptor"]
+        self.f.write_metadata()
+        result = self.f.verify()
+        self.assertTrue(result["metadata_matches_runtime_images"])
+        for image in result["images"].values():
+            self.assertEqual(image["reported_image_digest"], image["config_digest"])
+            self.assertTrue(image["reported_image_digest_observed"] and image["reported_image_digest_matches_config"])
+            self.assertTrue(image["config_digest_matches_runtime_image"])
+            self.assertEqual(image["reported_image_digest_type"], "not_established")
+            self.assertIsNone(image["descriptor_digest"])
+            self.assertFalse(image["descriptor_digest_observed"] or image["registry_manifest_verified"])
+            self.assertNotIn("manifest_digest", image)
 
     def test_only_allowlisted_metadata_is_emitted(self):
         material = {"uri": "https://user:"+CANARY+"@private.invalid/source", "digest": {"sha256": "d"*64}}
@@ -147,8 +165,10 @@ class ReceiptTests(unittest.TestCase):
         self.f.metadata["portal"] = {"containerimage.config.digest": self.f.metadata["portal"]["containerimage.config.digest"]}
         self.f.write_metadata()
         image = self.f.verify()["images"]["portal"]
-        self.assertIsNone(image["manifest_digest"])
-        self.assertFalse(image["manifest_digest_observed"] or image["descriptor_digest_observed"])
+        self.assertIsNone(image["reported_image_digest"])
+        self.assertIsNone(image["reported_image_digest_matches_config"])
+        self.assertEqual(image["reported_image_digest_type"], "not_established")
+        self.assertFalse(image["reported_image_digest_observed"] or image["descriptor_digest_observed"])
         self.assertEqual(image["materials"]["materials_status"], "absent")
         self.assertFalse(image["materials"]["expected_base_digests_observed"])
 
@@ -182,7 +202,7 @@ class ReceiptTests(unittest.TestCase):
         self.f.metadata["portal"] = copy.deepcopy(self.f.metadata["receiver"])
         self.f.write_metadata(); self.denied("metadata_identity")
 
-    def test_conflicting_manifest_or_config_annotation_is_refused(self):
+    def test_conflicting_reported_digest_or_config_annotation_is_refused(self):
         descriptor = self.f.metadata["portal"]["containerimage.descriptor"]
         original = copy.deepcopy(descriptor)
         descriptor["digest"] = "sha256:"+"f"*64

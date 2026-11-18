@@ -25,10 +25,26 @@ CONTAINER_FORMAT = ('{"id":{{json .Id}},"name":{{json .Name}},"image":{{json .Co
                     '"active_bindings":{{json .NetworkSettings.Ports}}}')
 NETWORK_FORMAT = ('{"id":{{json .Id}},"name":{{json .Name}},"internal":{{json .Internal}},'
                   '"ipam":{{json .IPAM.Config}},"endpoints":{{json .Containers}}}')
+DOCKER_CONTEXT_FORMAT = "{{json .Endpoints.docker.Host}}"
 
 
 def run(args):
     return subprocess.run(args, capture_output=True, text=True, timeout=15, check=True).stdout
+
+
+def _docker_context():
+    # Host listeners, routes and /proc below belong to this machine. Reject
+    # inherited endpoint/TLS overrides before any Docker command can contact
+    # a daemon, then inspect only the local context configuration.
+    if any(os.environ.get(key) for key in ("DOCKER_HOST", "DOCKER_TLS", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH")):
+        raise ValueError("Local default Docker context required")
+    if os.environ.get("DOCKER_CONTEXT", "default") not in ("", "default"):
+        raise ValueError("Local default Docker context required")
+    if run(["docker", "context", "show"]).strip() != "default":
+        raise ValueError("Local default Docker context required")
+    endpoint = json.loads(run(["docker", "context", "inspect", "default", "--format", DOCKER_CONTEXT_FORMAT]))
+    if endpoint != "unix:///var/run/docker.sock":
+        raise ValueError("Local default Docker socket required")
 
 
 def _json_rows(raw):
@@ -164,6 +180,8 @@ def inspect(port=18092, subnet="10.87.6.0/28", receiver_ip="10.87.6.3"):
     if receiver.version != 4 or receiver not in proposal or receiver in (proposal.network_address, gateway, proposal.broadcast_address):
         raise ValueError("Receiver pin is not an available candidate host")
 
+    STAGE = "docker_context"
+    _docker_context()
     STAGE = "compose_projects"
     stacks = json.loads(run(["docker", "compose", "ls", "--all", "--format", "json"]))
     if not isinstance(stacks, list) or any(not isinstance(s, dict) or not isinstance(s.get("Name"), str) for s in stacks):

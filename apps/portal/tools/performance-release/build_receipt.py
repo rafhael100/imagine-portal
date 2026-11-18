@@ -158,23 +158,26 @@ def metadata_projection(raw, service, image_id):
     config_digest = metadata.get("containerimage.config.digest")
     p.need(isinstance(config_digest, str) and p.IMAGE_ID.fullmatch(config_digest), "metadata_identity")
     p.need(config_digest == image_id, "metadata_identity")
-    manifest_digest = metadata.get("containerimage.digest")
+    reported_image_digest = metadata.get("containerimage.digest")
     if "containerimage.digest" in metadata:
-        p.need(isinstance(manifest_digest, str) and p.IMAGE_ID.fullmatch(manifest_digest), "metadata")
+        p.need(isinstance(reported_image_digest, str) and p.IMAGE_ID.fullmatch(reported_image_digest), "metadata")
     descriptor_digest = None
     if "containerimage.descriptor" in metadata:
         descriptor = metadata["containerimage.descriptor"]
         p.need(isinstance(descriptor, dict), "metadata")
         descriptor_digest = descriptor.get("digest")
         p.need(isinstance(descriptor_digest, str) and p.IMAGE_ID.fullmatch(descriptor_digest), "metadata")
-        p.need(manifest_digest is None or descriptor_digest == manifest_digest, "metadata_identity")
+        p.need(reported_image_digest is None or descriptor_digest == reported_image_digest, "metadata_identity")
         annotations = descriptor.get("annotations", {})
         p.need(isinstance(annotations, dict), "metadata")
         if "config.digest" in annotations:
             p.need(annotations["config.digest"] == config_digest, "metadata_identity")
     return {"metadata_sha256": hashlib.sha256(raw).hexdigest(), "config_digest": config_digest,
             "config_digest_matches_runtime_image": True,
-            "manifest_digest": manifest_digest, "manifest_digest_observed": manifest_digest is not None,
+            "reported_image_digest": reported_image_digest,
+            "reported_image_digest_observed": reported_image_digest is not None,
+            "reported_image_digest_matches_config": None if reported_image_digest is None else reported_image_digest == config_digest,
+            "reported_image_digest_type": "not_established",
             "descriptor_digest": descriptor_digest, "descriptor_digest_observed": descriptor_digest is not None,
             "registry_manifest_verified": False, "materials": materials_projection(metadata, service)}
 
