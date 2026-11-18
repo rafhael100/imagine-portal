@@ -16,6 +16,8 @@ jobs:
       ADMIN_PHASE9_MAINTENANCE_CI: '1'
       ADMIN_PHASE10_STORAGE_CI: '1'
       ADMIN_PHASE11_RELEASE_CI: '1'
+      ADMIN_PHASE12_MATERIALS_CI: '1'
+      ADMIN_PHASE13_BUILD_CI: '1'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -29,6 +31,10 @@ jobs:
           persist-credentials: false
       - name: Read-only inventory regression
         run: python3 apps/portal/tests/Fixtures/phase8-readiness/test_inventory.py
+      - name: Offline certificate and build-context regression
+        run: |
+          python3 -B apps/portal/tests/Fixtures/phase12-materials/test_crypto.py
+          python3 -B apps/portal/tests/Fixtures/phase13-build/test_context_canaries.py
       - name: Locked browser and CI trust tools
         run: |
           set -euo pipefail
@@ -40,7 +46,7 @@ jobs:
           npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
           npx playwright install --with-deps chromium >/dev/null
           echo "NODE_PATH=$RUNNER_TEMP/phase7-browser/node_modules" >> "$GITHUB_ENV"
-      - name: Exact package, candidate preflight and complete isolated recovery
+      - name: Exact package, materials, build receipt and complete isolated recovery
         run: bash apps/portal/tests/Fixtures/phase7/run.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
@@ -52,4 +58,5 @@ jobs:
             ${{ runner.temp }}/phase9-maintenance-evidence
             ${{ runner.temp }}/phase10-storage-evidence
             ${{ runner.temp }}/phase11-release-evidence
+            ${{ runner.temp }}/phase13-build-evidence
           retention-days: 7

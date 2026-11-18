@@ -18,6 +18,7 @@ export P6_PORTAL_PG_DIR="$P6_CI_MATERIAL/portal-pg" P6_PERFORMANCE_PG_DIR="$P6_C
 export P6_ENGINE_SOURCE="$GITHUB_WORKSPACE/engine" P6_ADMIN_ENABLED=true P6_LAB_ENABLED=true P6_S2S_ENABLED=true P6_RECEIVER_ENABLED=1
 base=(docker compose -p "$P7_PROJECT" -f apps/portal/deploy/phase6/compose.yaml)
 [[ -z "$("${base[@]}" ps -aq)" ]]
+p13Captured=0 p13CanariesPrepared=0
 cleanup(){
  result=$?
  if [[ $result != 0 ]]; then
@@ -26,17 +27,42 @@ cleanup(){
   "${base[@]}" logs --no-color --no-log-prefix portal-web 2>/dev/null | python3 -c 'import sys,json; [print(json.dumps(x)) for line in sys.stdin if line.startswith("{") for x in [json.loads(line)] if set(x)=={"schema","request_id","status","duration"}]' || true
  fi
  "${base[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
+ if [[ "$p13CanariesPrepared" == 1 ]]; then
+  python3 -B apps/portal/tests/Fixtures/phase13-build/context-canaries.py cleanup >/dev/null || true
+ fi
+ if [[ "$p13Captured" == 1 ]]; then
+  bash apps/portal/tests/Fixtures/phase13-build/run.sh cleanup || true
+ fi
  certutil -d "sql:$HOME/.pki/nssdb" -D -n "Imagine Phase7 ${GITHUB_RUN_ID}" >/dev/null 2>&1 || true
  sudo rm -rf "$P6_CI_MATERIAL"
  rm -f "$P7_BROWSER_VAULT"
  exit "$result"
 }
 trap cleanup EXIT
+if [[ "${ADMIN_PHASE12_MATERIALS_CI:-}" == 1 ]]; then
+ if ! sudo --preserve-env=GITHUB_ACTIONS,ADMIN_PHASE12_MATERIALS_CI,ADMIN_PHASE7_CI,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT,ADMIN_PHASE8_NAVIGATION_CI,P6_CI_MATERIAL \
+  python3 -B apps/portal/tests/Fixtures/phase12-materials/test_materials.py > "$P7_EVIDENCE/materials-preflight.json"; then
+  cat "$P7_EVIDENCE/materials-preflight.json"
+  exit 1
+ fi
+ cat "$P7_EVIDENCE/materials-preflight.json"
+fi
 # Exact prepared services, no overlay, host DB ports or test-only runtime identity.
 "${base[@]}" config --quiet
-docker build -t "$P6_PORTAL_IMAGE" --build-context performance_engine=./engine -f apps/portal/deploy/staging/Dockerfile.php apps/portal >/dev/null
-docker build -t "$P6_PORTAL_WEB_IMAGE" -f apps/portal/deploy/staging/Dockerfile.nginx apps/portal >/dev/null
-docker build -t "$P6_RECEIVER_IMAGE" --build-arg PHP_IMAGE=php:8.4-fpm-bookworm -f engine/deploy/private-admin/Dockerfile engine >/dev/null
+p13PortalMetadata=() p13WebMetadata=() p13ReceiverMetadata=()
+if [[ "${ADMIN_PHASE13_BUILD_CI:-}" == 1 ]]; then
+ export P13_PRIVATE="$RUNNER_TEMP/phase13-build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+ bash apps/portal/tests/Fixtures/phase13-build/run.sh capture
+ p13Captured=1
+ python3 -B apps/portal/tests/Fixtures/phase13-build/context-canaries.py prepare
+ p13CanariesPrepared=1
+ p13PortalMetadata=(--metadata-file "$P13_PRIVATE/portal.metadata.json")
+ p13WebMetadata=(--metadata-file "$P13_PRIVATE/portal-web.metadata.json")
+ p13ReceiverMetadata=(--metadata-file "$P13_PRIVATE/receiver.metadata.json")
+fi
+docker build -t "$P6_PORTAL_IMAGE" "${p13PortalMetadata[@]}" --build-context performance_engine=./engine -f apps/portal/deploy/staging/Dockerfile.php apps/portal >/dev/null
+docker build -t "$P6_PORTAL_WEB_IMAGE" "${p13WebMetadata[@]}" -f apps/portal/deploy/staging/Dockerfile.nginx apps/portal >/dev/null
+docker build -t "$P6_RECEIVER_IMAGE" "${p13ReceiverMetadata[@]}" --build-arg PHP_IMAGE=php:8.4-fpm-bookworm -f engine/deploy/private-admin/Dockerfile engine >/dev/null
 "${base[@]}" up -d --wait portal-db performance-db
 for tuple in 'portal-db portal_p6_migrator portal_p6_synthetic portal-bootstrap' 'performance-db performance_p6_migrator performance_p6_synthetic receiver-bootstrap'; do
  read -r service role database directory <<< "$tuple"
@@ -61,6 +87,17 @@ for service in portal receiver; do
  ! docker inspect --format '{{json .Mounts}}' "$id" | grep -q 'bootstrap/owner-password\|/run/phase7'
 done
 [[ "$("${base[@]}" ps --status running --services | wc -l)" == 6 ]]
+if [[ "${ADMIN_PHASE13_BUILD_CI:-}" == 1 ]]; then
+ if ! python3 -B apps/portal/tests/Fixtures/phase13-build/context-canaries.py verify > "$P7_EVIDENCE/build-context-checks.json"; then
+  cat "$P7_EVIDENCE/build-context-checks.json"
+  exit 1
+ fi
+ cat "$P7_EVIDENCE/build-context-checks.json"
+ python3 -B apps/portal/tests/Fixtures/phase13-build/context-canaries.py cleanup
+ p13CanariesPrepared=0
+ bash apps/portal/tests/Fixtures/phase13-build/run.sh verify
+ printf 'PHASE13_LOCAL_BUILD_RECEIPT_PASS: three existing builds and runtime images, no registry release or authenticated provenance\n'
+fi
 if [[ "${ADMIN_PHASE11_RELEASE_CI:-}" == 1 ]]; then
  bash apps/portal/tests/Fixtures/phase11-release/run.sh
 fi

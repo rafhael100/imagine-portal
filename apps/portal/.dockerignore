@@ -1,8 +1,11 @@
 # F138: secrets, artifacts and mutable app state must never enter images.
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
 deploy/staging/.env.staging
+**/auth.json
+storage/app/**
+!storage/app/.gitignore
 storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
@@ -13,13 +16,13 @@ tests/
 labs/
 .git/
 .github/
-*.pem
-*.key
-*.p12
-*.pfx
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
 
 
-*.htpasswd
+**/*.htpasswd
 
 # Laravel package/config manifests from CI/dev must never enter a production-dependency image.
 bootstrap/cache/*.php
