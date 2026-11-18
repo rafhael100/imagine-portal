@@ -1,0 +1,63 @@
+name: Briefing CI feasibility only (no database)
+on:
+  pull_request:
+    types: [opened]
+    branches: ['feature/portal-native-onepage-sites-2026-11-18']
+    paths: ['.github/workflows/onepage-briefing-ci-viability-v2.yml']
+permissions:
+  contents: read
+jobs:
+  viability:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-briefing-ci-viability-v2' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.sha == '0e0ccc06755b6ddd938635e5c4c3625ff6497e2c'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Exact event parent and additive scope before tooling
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: python3 -B apps/portal/labs/briefing-ci-viability-v2/preflight.py
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: posix
+          coverage: none
+      - name: Offline checks then isolated PHP qualification only
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp)
+          exec 3>&1
+          trap 'rc=$?; grep -E "^(PASS PHP_UID_NAMESPACE_FACTS|PASS NAMESPACE_CHILD_REAPED|PASS VIABILITY_ONLY_NO_DATABASE|VIABILITY_REFUSED cleanup=UNVERIFIED)$" "$private_log" >&3 3>&- || true; if [ "$rc" -eq 0 ]; then echo "PASS VIABILITY_STAGE_ONLY_NO_BRIEFING" >&3; else echo "VIABILITY_STAGE_REFUSED" >&3; fi; rm -f -- "$private_log" 3>&-' EXIT
+          exec >"$private_log" 2>&1
+          (
+            trap - EXIT
+            set -euo pipefail
+            unset BASH_ENV ENV
+            lab=apps/portal/labs/briefing-ci-viability-v2
+            php_bin=$(readlink -f "$(command -v php)")
+            posix_extension=builtin
+            if ! "$php_bin" -n -r 'exit(extension_loaded("posix")?0:1);'; then
+              extension_dir=$("$php_bin" -n -r 'echo ini_get("extension_dir");')
+              posix_extension="$extension_dir/posix.so"
+              test -f "$posix_extension"
+            fi
+            "$php_bin" -n -l "$lab/probe.php"
+            "$php_bin" -n "$lab/offline.php"
+            python3 -B "$lab/checks.py"
+            python3 -c 'import ast,pathlib; ast.parse(pathlib.Path("apps/portal/labs/briefing-ci-viability-v2/root_wrapper.py").read_text())'
+            env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS=true \
+              PHP_BIN="$php_bin" POSIX_EXTENSION="$posix_extension" \
+              python3 -B "$lab/supervisor.py" --ci-probe
+          ) 3>&-
