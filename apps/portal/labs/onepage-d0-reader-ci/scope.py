@@ -9,9 +9,12 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'onepage-dual-inbox'))
 from composer import compose
 from inbox_supervisor import collect_with_inbox
 from bundle_inputs import read_inputs
+ATOMIC_DIR=Path(__file__).resolve().parents[1]/'onepage-atomic-ingress-ci'
+sys.path.insert(0,str(ATOMIC_DIR))
+from atomic_supervisor import AtomicRefused, run as run_atomic_ingress
 HERE=Path(__file__).resolve().parent
-WORKER=[b'PASS BRIEFING_AUTOLOAD_READY', b'PASS BRIEFING_BOOTSTRAP_READY', b'PASS BRIEFING_MAINTENANCE_CONFIG_READY', b'PASS BRIEFING_MAINTENANCE_BEFORE_DDL', b'PASS BRIEFING_DATABASE_CREATED', b'PASS BRIEFING_TEST_ENTERED', b'PASS BRIEFING_NEW_DATABASE_GATE_PASSED', b'PASS BRIEFING_LARAVEL_SQL_BEFORE_DDL', b'PASS BRIEFING_MIGRATIONS_COMPLETE', b'PASS BRIEFING_SCHEMA_COMPLETE', b'PASS BRIEFING_PORT_NATIVE_ORDER_READY', b'PASS BRIEFING_D0_PORT_COMPLETE', b'PASS BRIEFING_WORKER_COMPLETE']
-PHASE_COUNTS={b'AUTOLOAD': {0}, b'BOOTSTRAP': {1}, b'MAINTENANCE_CONFIG': {2}, b'MAINTENANCE_GATE': {3}, b'CREATE_DATABASE': {4}, b'TEST_BOOTSTRAP': {5}, b'NEW_DATABASE_GATE': {6}, b'ADMIN_GATE': {7}, b'MIGRATIONS': {8}, b'SECURITY_DDL': {9}, b'FIXTURES': {10}, b'CASES': {11}, b'TEST_TEARDOWN': {12}, b'FINALIZE': {12}}
+WORKER=[b'PASS ATOMIC_INGRESS_CASES']
+PHASE_COUNTS={b'ATOMIC_BOOTSTRAP': {0}, b'ATOMIC_DDL': {0}, b'ATOMIC_CATALOG': {0}, b'ATOMIC_ROLLBACK': {0}, b'ATOMIC_COMMIT_LOSS': {0}, b'ATOMIC_DUPLICATE': {0}, b'ATOMIC_CAPTURE_FIRST': {0}, b'ATOMIC_SCOPE': {0}, b'ATOMIC_REVOKE_FIRST': {0}}
 def exact(raw,expected):return raw==b'\n'.join(expected)+b'\n'
 def worker_failure(raw):
  # Accept only a complete fixed refusal and the exact positive prefix for that phase.
@@ -72,11 +75,12 @@ def main():
     'QUEUE_CONNECTION':'sync','MAIL_MAILER':'array','PORTAL_NATIVE_ORDER_TEST':'DISPOSABLE_PG18','PORTAL_NATIVE_ORDER_TEST_PORT':port,
     'PORTAL_NATIVE_ORDER_TEST_DATA':str(data),'BRIEFING_START_EPOCH':str(started),'BRIEFING_CI_SCOPE':'REVIEWED_SINGLE_OPENED_PR',
     **{'BRIEFING_NS_'+k.upper():v for k,v in ns.items()}}
-  dual=HERE.parent/'onepage-dual-inbox'
-  worker_args=[php,'-c',ini,str(HERE.parent/'onepage-d0-reader-pg/worker.php')]
-  approved,fsql=read_inputs(dual,Path(pg),Path(php),Path(ini),'496b5ef220a0a05c05009131ea028a28b59896854da2f7fe2d05a92183a3ff4e')
-  review,bridge,finance=compose(worker_args,worker_env,pg,root,cluster,approved,fsql)
-  try:ok,raw,reaped=collect_with_inbox(worker_args,worker_env,pg,root,cluster,review,bridge,finance) # old runner replaced
+  try:
+   ok=run_atomic_ingress(ATOMIC_DIR,php,ini,pg,root,cluster,worker_env)
+   raw=b'PASS ATOMIC_INGRESS_CASES\n' if ok else b''
+   reaped=ok
+  except AtomicRefused as exc:
+   print('BRIEFING_WORKER_REFUSED phase='+str(exc),flush=True);raise
   except BaseException:
    print('BRIEFING_WORKER_CAPTURE_REFUSED',flush=True);raise
   clean &= reaped
