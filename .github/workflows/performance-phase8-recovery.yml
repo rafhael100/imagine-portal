@@ -38,6 +38,7 @@ jobs:
           python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_inventory.py
           python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_compare_inventory.py
           python3 -B apps/portal/tests/Fixtures/phase8-readiness/test_phase7_context_guard.py
+          node apps/portal/tests/Fixtures/phase8-recovery/test_safe_session_diagnostic.cjs
       - name: Offline certificate and build-context regression
         run: |
           python3 -B apps/portal/tests/Fixtures/phase12-materials/test_crypto.py
