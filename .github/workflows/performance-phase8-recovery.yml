@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 7f40693e8663578b8de721d9eca2e62262f46fa8
+          ref: ae7ba74afbe972991ba7114d11118bde2111b8da
           path: engine
           persist-credentials: false
       - name: Read-only inventory regression
@@ -42,6 +42,8 @@ jobs:
         run: |
           python3 -B apps/portal/tests/Fixtures/phase12-materials/test_crypto.py
           python3 -B apps/portal/tests/Fixtures/phase13-build/test_context_canaries.py
+      - name: Verify pinned candidate engine revision (offline)
+        run: python3 -B apps/portal/tests/Fixtures/phase15-mandate-restore/test_engine_candidate_binding.py
       - name: Locked browser and CI trust tools
         run: |
           set -euo pipefail

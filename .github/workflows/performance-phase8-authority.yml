@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 7f40693e8663578b8de721d9eca2e62262f46fa8
+          ref: ae7ba74afbe972991ba7114d11118bde2111b8da
           path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -59,6 +59,11 @@ jobs:
           extensions: pdo_pgsql, sodium, mbstring, dom, xml, curl
           tools: composer:v2
           coverage: none
+      - name: Verify pinned engine candidate and offline Ads mandate boundaries
+        run: |
+          python3 -B apps/portal/tests/Fixtures/phase15-mandate-restore/test_engine_candidate_binding.py
+          php engine/tests/admin_phase11_ads_mandate_gate_test.php
+          php engine/tests/admin_phase12_ads_ref_guard_test.php
       - name: Locked dependencies and disposable native authority
         working-directory: apps/portal
         run: |
