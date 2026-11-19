@@ -1,0 +1,40 @@
+name: Onepage disabled worker build only
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+jobs:
+  build-only:
+    if: github.repository == 'rafhael100/imagine-portal' && github.event.pull_request.head.ref == 'test/onepage-worker-build-only-v1' && github.event.pull_request.draft == true && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 4dc198d2109fe1c7590b5f012e77757ed593e1d5
+          persist-credentials: false
+          path: upstream
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: d1aaab523848baf80325a023f3ebbf4998a3607f
+          persist-credentials: false
+          path: overlay954
+      - name: Check pinned source equivalence and closed inputs
+        run: python3 candidate/ops/onepage-build/prepare.py
+      - name: Build only and test disabled entry without network
+        shell: bash
+        run: |
+          set -euo pipefail
+          PHP_BASE=$(python3 -c 'import json;print(json.load(open("candidate/ops/onepage-build/sources.json"))["php_base"])')
+          COMPOSER_BASE=$(python3 -c 'import json;print(json.load(open("candidate/ops/onepage-build/sources.json"))["composer_base"])')
+          docker build --platform linux/amd64 --build-arg PHP_BASE="$PHP_BASE" --build-arg COMPOSER_BASE="$COMPOSER_BASE" -t onepage-disabled-review:local build-context
+          docker image inspect onepage-disabled-review:local --format '{{.Id}}'
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --entrypoint /bin/sh onepage-disabled-review:local -c 'cat /usr/local/share/onepage-build/php-version.txt /usr/local/share/onepage-build/php-modules.txt /usr/local/share/onepage-build/packages.txt; sha256sum /usr/local/share/onepage-build/*'
+          docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges onepage-disabled-review:local | grep -Fx ONEPAGE_DISABLED_NO_CUSTODY_NO_IO

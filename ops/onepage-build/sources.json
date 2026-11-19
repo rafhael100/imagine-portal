@@ -1,0 +1,1643 @@
+{
+  "source_commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+  "php_base": "debian@sha256:7378260c0a098d27ac206225db5e7d92b8c7c84ea7afccc86eeb513756bbd392",
+  "composer_base": "composer@sha256:0baf37e7f495f1c42cee6bdd9cf3e00e9435f193b512529e7c484d66c623773f",
+  "source_equivalence_approved": true,
+  "runtime": [
+    {
+      "path": "apps/portal/app/Console/Commands/ExportDemoPortalPreview.php",
+      "blob": "ae177a3171c9d6ec691d1e7ed47e2d3c35c42d99"
+    },
+    {
+      "path": "apps/portal/app/Console/Commands/VerifyDemoPortalPreview.php",
+      "blob": "7fefea882c61423ee34c77c3c650dc8eb3f9efbd"
+    },
+    {
+      "path": "apps/portal/app/Domain/Authorization/AuthorizationContext.php",
+      "blob": "36a30d18148dd67ef4cf6a206b5952320e26cc7f"
+    },
+    {
+      "path": "apps/portal/app/Domain/Authorization/AuthorizationDecision.php",
+      "blob": "095804721a7f4701993f3ff0f5673f59a14947dc"
+    },
+    {
+      "path": "apps/portal/app/Domain/Authorization/OrganizationAuthorizationService.php",
+      "blob": "73e0f7e22a32f2ce845cf9f505c8d670b0eed1d9"
+    },
+    {
+      "path": "apps/portal/app/Domain/Authorization/Permission.php",
+      "blob": "fa15571012cabf859abb67d0c14c48f2603b1f3f"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/CatalogAccessPolicy.php",
+      "blob": "0ad9421f50e6267951408accb82cb77eedd2531a"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/OfferingEligibility.php",
+      "blob": "2bf0a98b6fda8f59ff7aea73a6887e3f8db92c83"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/OfferingId.php",
+      "blob": "2cadc0ac41f4138de19bdd66a7b873e99b4dbb5f"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/OfferingStatus.php",
+      "blob": "857d46ef73150cb648d886d0d53771f2848dcc50"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/PerformanceChannel.php",
+      "blob": "b4b4df7a29b9dce1b53aeae901bffbcbf6b71198"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/PerformanceModality.php",
+      "blob": "2595b75a121bed2446e20485dddc118868f1aa8b"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/PerformanceOffering.php",
+      "blob": "70041adf6ea5f9bc73bbb3212f4be45fb04fbff9"
+    },
+    {
+      "path": "apps/portal/app/Domain/Catalog/ProductCode.php",
+      "blob": "5f582789b6957f43af4231b1b1a72619444fc091"
+    },
+    {
+      "path": "apps/portal/app/Domain/ClientOverview/DemoOverviewComposer.php",
+      "blob": "ecc83c734c9144c0c80d6f6a37473c7d369bb849"
+    },
+    {
+      "path": "apps/portal/app/Domain/ClientOverview/DemoOverviewResult.php",
+      "blob": "dcd04b349781870bf87bd03f2d5ef0b031fd7b72"
+    },
+    {
+      "path": "apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php",
+      "blob": "ce55320f9e1da0d2cbe6451a87f46c4741ae1290"
+    },
+    {
+      "path": "apps/portal/app/Domain/ClientOverview/DemoServiceRelationProjector.php",
+      "blob": "ee3e8d2245ad7e9c8e61ebd7ce839f4979754b46"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/D0/EntryStore.php",
+      "blob": "8aa937029bad53ff25da99860d86bc251c42b650"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/D0/FirstBriefingRelease.php",
+      "blob": "f8318d8b8ce8a620d987f1422483db2bc7eebf76"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/D0/UnavailableEntryStore.php",
+      "blob": "01ea3447a6d698ebe254117133dbc9ed9481d09e"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/OnepageAcceptedOrder.php",
+      "blob": "663e9ee3b5f3d36768f8275533f3164c40d3c8ac"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/OnepageOrderReader.php",
+      "blob": "58397d9d72c8c65fd2908cc1cb69fc6015fc5b25"
+    },
+    {
+      "path": "apps/portal/app/Domain/Commerce/OnepageOrderStore.php",
+      "blob": "eb5197de09dc12b63ea84fc8535f6f64a9daf398"
+    },
+    {
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewPreflight.php",
+      "blob": "41b64f9deb264858a46b2027b5deb566d1e0d8dd"
+    },
+    {
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewVerdict.php",
+      "blob": "dd49953f6b5801685fb26702f36e5b25bb5cca0d"
+    },
+    {
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/DeliveryReviewMetadataProjector.php",
+      "blob": "51c06aa878ac1be497370675e8d38c097d29a112"
+    },
+    {
+      "path": "apps/portal/app/Domain/Contracts/DemoContractRecord.php",
+      "blob": "242d9c6b9753b28be1ca98d7f80b4697cbe10643"
+    },
+    {
+      "path": "apps/portal/app/Domain/Contracts/DemoContractStage.php",
+      "blob": "f933d70db5879080897f9fee4f14241d439978ba"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Browser/DenyingPortalBrowserAuthentication.php",
+      "blob": "0d84f457784428a4d64e877a38b9e5a9739498a2"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Browser/PortalBrowserAuthentication.php",
+      "blob": "2f86275cd03f8aba0d25217f2059168587ac255e"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/DenyingPortalInvitationIdentitySource.php",
+      "blob": "054c69207b5717cf20aaea2640ac70d238e85dff"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalEmailVerificationSecret.php",
+      "blob": "7ac0d55dd1c821eb97db2483d17433d9852e59dd"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationActorEvidence.php",
+      "blob": "639e3ad382492de5cca61dfb429e69ea4a77354f"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationIdentitySource.php",
+      "blob": "5b7d91984b302cad8c478d63786efb8e3d5956d5"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationPreflight.php",
+      "blob": "48e43bbf3379303393030b5482eafe3f0cc9614e"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationPreflightVerdict.php",
+      "blob": "2c7e6c70f5bf34db4ad8d8d1888cc17189ad6356"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationSecret.php",
+      "blob": "ba3b873d4bacb191e7d6d079308486e6f2296f22"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/PortalActor.php",
+      "blob": "877c41d69b9a60e423054a6abba1251da0ab02a2"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/PortalUserId.php",
+      "blob": "49a3873dd17b6a1a2a999b40f6fc07aadc46ed81"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Security/PortalPasswordCredential.php",
+      "blob": "5541d59f8d2e379cb490ce0f9b9b08ffad8e2725"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Security/PortalTotpSecretCipher.php",
+      "blob": "e60c2b513253e3a4d1be70f091e60c403e3996e8"
+    },
+    {
+      "path": "apps/portal/app/Domain/Identity/Security/PortalTotpVerifier.php",
+      "blob": "42c176e3b958f36e95dea7b4429f05857a09020a"
+    },
+    {
+      "path": "apps/portal/app/Domain/Organizations/CustomerOrganization.php",
+      "blob": "4c4da854a1ce4732ef6d86b91bd8575ea641d3a4"
+    },
+    {
+      "path": "apps/portal/app/Domain/Organizations/MembershipStatus.php",
+      "blob": "a95faac97eb7504665e2257cc734e8ea28a95c40"
+    },
+    {
+      "path": "apps/portal/app/Domain/Organizations/OrganizationId.php",
+      "blob": "56c4bf326655a9b8d2bc0430e17f5d24aad40d92"
+    },
+    {
+      "path": "apps/portal/app/Domain/Organizations/OrganizationMembership.php",
+      "blob": "9ea65c10d96046b5c11e769a5d18005cd1535de5"
+    },
+    {
+      "path": "apps/portal/app/Domain/Organizations/OrganizationRole.php",
+      "blob": "3b8a2b3e9249661507e78af6b4de351548405dcf"
+    },
+    {
+      "path": "apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php",
+      "blob": "220f3e48d40dfe8d9b8a7e2d543d109a9788db7e"
+    },
+    {
+      "path": "apps/portal/app/Domain/PaymentRouting/GatewayPolicyReview.php",
+      "blob": "947cadc2195a2a27d919549bb273356ae6957a8a"
+    },
+    {
+      "path": "apps/portal/app/Domain/PaymentRouting/GatewayRoutingPreview.php",
+      "blob": "b7537482f7f53b8bab9439f3f00df2bf1b334f77"
+    },
+    {
+      "path": "apps/portal/app/Domain/PaymentRouting/PaymentIntentLifecyclePreview.php",
+      "blob": "133e93346ec5b5323c0b07fc0fd1dfd6918050ef"
+    },
+    {
+      "path": "apps/portal/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php",
+      "blob": "679ec9d391523e071e05a6ec5aedae9b2a898289"
+    },
+    {
+      "path": "apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php",
+      "blob": "d3da5ef64aaa841eb8709a050d0a8e73c58f4fde"
+    },
+    {
+      "path": "apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php",
+      "blob": "8ad8b887aa556cf37e11ea03ee3c80f61c721aad"
+    },
+    {
+      "path": "apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php",
+      "blob": "58b383b49f29028507f44fb8974c000eefb52f85"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php",
+      "blob": "bc4278f266fef9a612954ad03938eef905f0ac54"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php",
+      "blob": "b24c27fae27fd2dd2a54c839f7dfb6b6154c085a"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoCampaignCard.php",
+      "blob": "a785c467a749bd66f5792083c7d1d86e4d92578d"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoCampaignStage.php",
+      "blob": "ceedfdcc0e9caf969e9cd6cb34876e030787d6a8"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoDashboardFactory.php",
+      "blob": "af85d92f10485220090d5e85051b22afd30337d0"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoDashboardSnapshot.php",
+      "blob": "d8f8937c56a680a72f6cbb0095a1ab91925045d3"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoMetric.php",
+      "blob": "55c423509759b7d649c5090a172af39fd041fbd3"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoMetricKey.php",
+      "blob": "2873c0d4b132819fdb4888838fba632e7a70d7e2"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoRequestCard.php",
+      "blob": "c3331f7b123a5a612e875b38e7d38945ec2dd2ab"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoRequestStage.php",
+      "blob": "323f295da2cc5db1dbcb305111de461ea02de1f2"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php",
+      "blob": "510ac1cd92347df477be34279f01bcc9aa0f7bc2"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php",
+      "blob": "42758b04fb34c35a36771cf81246e3c5800cd20c"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php",
+      "blob": "ea9029540b06fdfbefdbb199b48ee9fb099c2ebc"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoAdAccount.php",
+      "blob": "878c1b96f057a7edd6cc6aa76f2b39981580184f"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoAdapterReceipt.php",
+      "blob": "ac7de653fe3e1c7694aa44ddc201f8679d1975d2"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoBusinessGoal.php",
+      "blob": "024a39feb16c607cc1a7e9786e701a8824705c2e"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingDraft.php",
+      "blob": "8d2393dae015b276605caca14b83b7c458d15908"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingFactory.php",
+      "blob": "b48101caae74217688e507eb73eed0cd5972bec4"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingId.php",
+      "blob": "2d5d98c6dc5b91779c565e09e17e6f3116d9f8ff"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingStatus.php",
+      "blob": "a59b8df97e618d54565fca778fae1b9abe9bdb66"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoPerformanceEvent.php",
+      "blob": "890e3e13cf7356d6a312ee3706ffb40a249facaa"
+    },
+    {
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/InMemoryPerformanceMockAdapter.php",
+      "blob": "a810bad7d8755f3ec02d54153eb8a154157583c3"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/DenyingPortalAuthorities.php",
+      "blob": "3b2bc348f7a63cc358bbbdef2bae20530a77df63"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalAuthorityBoundary.php",
+      "blob": "f74d29d8b3181f45efa764c765814fd4ad102113"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalBoundaryVerdict.php",
+      "blob": "c6154f70616d5d7d18f57d3094436dfb5bcf5ffe"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalMembershipAuthority.php",
+      "blob": "c5af9f9e106956f8a0cfd7c08603d5efed710b5f"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalOrganizationAuthority.php",
+      "blob": "442e440a72ce98c65547b9536fe6e74f6a3b2f27"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalOrganizationSnapshot.php",
+      "blob": "c4da9825f15442d9ba5ffccf1f26569a86b450b2"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalResourceAuthority.php",
+      "blob": "a7fb2ba195265772b059c4d7c8dc79c5227ad472"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionAuthority.php",
+      "blob": "8b2e532d0f204cb190700428ac00c0c8d39825dc"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionPurpose.php",
+      "blob": "2ba107e8dab2353ce0363ca88d9e319ffc013007"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionSnapshot.php",
+      "blob": "22c17cad9a7addaec82eaf96db716d7e3548c0a8"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/DemoAccessBlocker.php",
+      "blob": "4076894e0b75f0b693716febcb288955dd9fc02f"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/DemoNavigationPolicy.php",
+      "blob": "bb77c3065aa53101acf0addebbdda2bbf2321f05"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/DemoNavigationVerdict.php",
+      "blob": "17a0752cf1efe0832e780f44e26550d647b43ab8"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/DemoPortalSession.php",
+      "blob": "c2adae0dd19d4200704d3f4faed74a8d9103d48c"
+    },
+    {
+      "path": "apps/portal/app/Domain/PortalAccess/DemoPortalSessionState.php",
+      "blob": "d403dbf60ce167e6576382a3ca74698f31590554"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoAcceptance.php",
+      "blob": "7167049fdc5da2e2aa8c3c8291fb19e84f874fbc"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoAcceptanceService.php",
+      "blob": "3eee1388985e73ccb11bb5631cd77f9e4a95d1ce"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoAddonSelection.php",
+      "blob": "c791ddb7f489e1b93535d02f5cca86b9651bd802"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalId.php",
+      "blob": "2be5bee3995780e531226c9cfea127f133b2fc39"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalSimulator.php",
+      "blob": "8b820d896b89a0ada9f50428ea24816d72014c65"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalSnapshot.php",
+      "blob": "1f8d14dd779e40dacdf721ca43beda69eb27cebf"
+    },
+    {
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalStatus.php",
+      "blob": "c22e479f76619df05f2c9459979f06d8dbd48052"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleAuthorizationUrl.php",
+      "blob": "07b402c6c1d3d77de766b4b54a1ca5e50f35dbdc"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleCallbackParser.php",
+      "blob": "8d132549ea1dd050c926567eef21f2f12c6fa17e"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleConnectionPreflight.php",
+      "blob": "f214b35c98b13b8418f885b988bd075abd2bdefa"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleConnectionReview.php",
+      "blob": "9a4d200e67437d016df9528344265e77a9b71c92"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleDailyPerformanceSeries.php",
+      "blob": "ce638bcd88f30007dddd7ddd63c1da2667a0378d"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleIamWitness.php",
+      "blob": "4b64aecd83e2ae11764b19b0fd3b5344155a3a5b"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleIamWitnessReview.php",
+      "blob": "9c4a9f7a8fadca88b4e4b8d3308a6112b91650da"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleMetricsReview.php",
+      "blob": "ba541fb3909fe2718178f245819908eb5e3bf666"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePeriodComparison.php",
+      "blob": "7d82929d005367b6f622a6adb838467f7c364db7"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+      "blob": "531ef39976a5a3a08fa410d3b508618881dd41ed"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+      "blob": "ba85d066a4efa071cfd097dd60fd06f5e3cdd25d"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleReadOnlyTokenResponse.php",
+      "blob": "714d0af41d8629ffc93274bdf2397159651fd1bd"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php",
+      "blob": "46d8a20d54d1f68274e862edfb88c865dbdaddf3"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+      "blob": "667ff871ce486292e4464edff3e3135e03c3c696"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSiteListingReview.php",
+      "blob": "f4b8839295ddad2d4ac20cd4a95be468552a8560"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscDailyComparisonPreview.php",
+      "blob": "de679b94e4880378e80bf3354db9e6ba6daabaef"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+      "blob": "19b1e691003decf212e482c2d13590fa155016f7"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+      "blob": "02d083607b430e84750b9b67ff9849c82020b339"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscWorkflowPreview.php",
+      "blob": "29e8d3174ea681176efbf49b472a6b03f9e41f0d"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php",
+      "blob": "b0db34d3faca2274cd32b7c1455b08897df9618e"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+      "blob": "d2c345cf5b8085717ef3a9d5f04ec73b0280d39c"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php",
+      "blob": "811281241c9d597509bcadb2a27acec0293c962c"
+    },
+    {
+      "path": "apps/portal/app/Domain/SeoReview/OfflineSeoHandoffPreview.php",
+      "blob": "7b9fb8f43069da81c116c8b6e3ff5d3952d08bcc"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/BenefitServiceFixture.php",
+      "blob": "5ba8542325fc954b0d3c1c151e74364d5d8c92ff"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/BenefitServiceState.php",
+      "blob": "6d854fdf48f0559a16752f773da915edf1d727fb"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioKind.php",
+      "blob": "05bebaa2cbe574ae8e13e9ded4155ca0dd2e8b2a"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioPreviewItem.php",
+      "blob": "4bb1fd564cd155592337e61781d3693cd2beb145"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioProduct.php",
+      "blob": "ea5e7096b9dbd2d9c095e9090f3f06ba63cd5586"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/UniversityBenefitPreviewPolicy.php",
+      "blob": "663ea44e738cb59d842af6a9cd3a0f23da157703"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServicePortfolio/UniversityBenefitPreviewResult.php",
+      "blob": "03a7e59acb6d48c152c197fa0ad17a36d8f158d4"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestCommand.php",
+      "blob": "6339962abd483c4fb26919d2f1f9971f3ab1a2ef"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestJournal.php",
+      "blob": "60bd1ddad08be6dd3bba0d20dd9e017b030acb3a"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestJournalOutcome.php",
+      "blob": "cf9c0a2631500930d0cde1fa9b8243235ded1155"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/RequestInboxPreview.php",
+      "blob": "e431e779bd8e74210bd9c8fe76c72f838735b826"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/RequestInboxPreviewResult.php",
+      "blob": "fa6b71bf686eeed6d4f746d0690bd270bc516212"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestAction.php",
+      "blob": "2b853f7e6e470bad894f43306e1dfce6b56dba17"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestActorKind.php",
+      "blob": "dd9d51454f86dc12f80c032c9925f7d7d9925e1f"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestSnapshot.php",
+      "blob": "63b43e2a6a9931ce82b4baeb9aa13dcfed1ed415"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestStatus.php",
+      "blob": "8b553f45fcc89259e0f241902e04bb0ca5a5275a"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestTransitionPreview.php",
+      "blob": "1f7c5f4f62e7de0cb8db70ecbb46dd1843f25015"
+    },
+    {
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestWorkflowPreview.php",
+      "blob": "326750b2a218f15ae12d86f41b908b2dd6b403ea"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/DemoSiteReviewJournal.php",
+      "blob": "d6ea019a60756c04442648aa2292c5cc4736fdc3"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php",
+      "blob": "a956ef024111bdd47b0667057d8746a69c8b3d9b"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefPreview.php",
+      "blob": "cd757ae3c57a8924350c50134d78bc3a521a5b60"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefPreviewResult.php",
+      "blob": "542295c19b80f8e9e9750d2b7bfd8ea6fa9dbecd"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteContentCandidate.php",
+      "blob": "72cb18cd3f162ab497cae41f0ba2400b9899f722"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineContractVocabulary.php",
+      "blob": "a836c7e802fd97f4f71ed954ac545c1d6d909ee4"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineCreateProjectCandidateValidator.php",
+      "blob": "779a5d2108658287d8ab668ceea69814240a7ca2"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineCreateProjectDemoComposer.php",
+      "blob": "f706a912c99d116a852bf132ba2c7ef8dc2b9f09"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineEnvelopeSchemaDriftGate.php",
+      "blob": "bc33726a1d4cec1f082f458b546134291847166c"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffDemoContractValidator.php",
+      "blob": "8a379c8e00d50a7f22da6e7b1f50dbb4825851f8"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffDemoValidationResult.php",
+      "blob": "cc4c8342886c5ad8800c27ca12440ffda678403e"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewBuilder.php",
+      "blob": "d38b43c4c87e615824f915cc3996647065f28a77"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php",
+      "blob": "2d9139731afe4d6ef5be3ad0077cb340e59b3fd6"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewResult.php",
+      "blob": "ac36857b845c28577154578d828280a7c7c66168"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php",
+      "blob": "8d066aacc150a52abe9920f3e0025b4ba7f01be5"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineSyntheticEnvelopePreview.php",
+      "blob": "e6c7b6d3042c5073b863511888650fe429be3235"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewCommand.php",
+      "blob": "6237039a1b326533774a165d538ccb04eee02c30"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewDecision.php",
+      "blob": "9bd4f6fc318ff214322e78b5881b020c1ec560e3"
+    },
+    {
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewOutcome.php",
+      "blob": "7c8d3be032a6290d3bc81e2fe91971a264056113"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasDenyingBindingSource.php",
+      "blob": "d10b8de09ac3be3d8ce3554e3a36865572683590"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasDenyingPaymentReader.php",
+      "blob": "6c93febe1418c7f1786edb67e8bd691f563b6fc9"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasOfficialPaymentReader.php",
+      "blob": "518ab7877bd313fc3a160d7f836aa3d495e812d0"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasReadOnlyPaymentClient.php",
+      "blob": "3c66653394dfcc889764a948cff7ca705a1f38b3"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasTrustedPaymentBinding.php",
+      "blob": "989f2f4f067b7c6b79f101f1de294eec7b0ac22c"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasTrustedPaymentBindingSource.php",
+      "blob": "59b238e22026da1691c586e0f1a761bc7c9d746a"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php",
+      "blob": "17bf5bd3f35b33a73b5befb2fd99addf164b62a5"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalRevocationEpochSource.php",
+      "blob": "c02b342d6c384bb0edc1086606fd78974b0cd300"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalSettlementSource.php",
+      "blob": "1e16ca9bc1efc8f92c88b32f12e5b62baafdd567"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteContractSource.php",
+      "blob": "0b4d0fec947f72a404dff34968574972060e945b"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php",
+      "blob": "34778e7f40492c3602b496bc5e54f11e9e5e2773"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentTerms.php",
+      "blob": "1c634af1b9301a9a071f718991eea5ee07f2c87e"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php",
+      "blob": "c70b22f3a146ddfc4e26cf38ca42de53bd1b1bd5"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php",
+      "blob": "927a8654612ae38ccf28b8766c10ac46e977cc25"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php",
+      "blob": "59f2e4b4ca6f7be8ba55c1b718d2e5478bea8ff7"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php",
+      "blob": "6ae4f0ed80f5a4ca896462fcc0ba0c7b9ba66883"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSiteContractSource.php",
+      "blob": "9733da25486bc038b63a5621698b29c918f6a970"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+      "blob": "cdb26e8e5b8ebe6349f6f29fba183fd78bc54710"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php",
+      "blob": "44cbfad8ed0c112455ccc7b862a86b57f6c5f9a9"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php",
+      "blob": "594df1b476f23909f3ce8277316e7e991d15e6e6"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php",
+      "blob": "42a44da0ab1590bcdbf644e2e30464b662ae2dcd"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/AsaasSandboxGateway.php",
+      "blob": "fff49769b304c21001b8c7904b32c2a0da8a9b36"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/BillingSchedule.php",
+      "blob": "951d715a4c8deec2ac12914b85dc4dab6d405852"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/CommercialSelectionIntent.php",
+      "blob": "67e442a1d0307631d19ad973f24019fbecb71680"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php",
+      "blob": "85b1dd8d7752139ea80c26bc0b8c1e49b94f6d29"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php",
+      "blob": "f09a1e2d68c6ccdcea8a08953ec71d0c53e08c91"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/OnepageQuoteJourneyPlan.php",
+      "blob": "a8cca9481a0ab40ca8ab15f05d4d34b55a43c800"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php",
+      "blob": "c23aeee843a60e15b6e97c0d6678986695a28d4b"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/PerformanceSettlement.php",
+      "blob": "2ce5a1b244f3813a8f60262165096fceb91de1d0"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php",
+      "blob": "21cf8a3f51cfd736be373c4e66b4a8b8361ebacb"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/SandboxFutureBilling.php",
+      "blob": "88da8ca7476697d763b759b14cb0daa85995e783"
+    },
+    {
+      "path": "apps/portal/app/Homologation/Commerce/approved-catalog.json",
+      "blob": "f4c3cec8d8eaf2c50d53829dd605013fb04136ea"
+    },
+    {
+      "path": "apps/portal/app/Homologation/CustomerPreviewStore.php",
+      "blob": "cd25e71b0fe48d5e6e5a8c7c13c287ca3167e3e2"
+    },
+    {
+      "path": "apps/portal/app/Homologation/CustomerWorkPreview.php",
+      "blob": "f0cf05ffddc8d9e97c35ae516d75c34c0b03f577"
+    },
+    {
+      "path": "apps/portal/app/Homologation/PersistedTestPurchase.php",
+      "blob": "6ecb6caa4b7468b36a202a846c1bf6d6c3f0c372"
+    },
+    {
+      "path": "apps/portal/app/Homologation/PreviewOrderListing.php",
+      "blob": "585144b8c48ee02fc6ff1d348e59bf7701ac3248"
+    },
+    {
+      "path": "apps/portal/app/Homologation/PreviewProfiles.php",
+      "blob": "f3fca5c45415fd98657b6a91a2904a081afe8ddf"
+    },
+    {
+      "path": "apps/portal/app/Homologation/PurchaseRehearsalScope.php",
+      "blob": "0a008507488fa87af3a8de27c84ebb2d91cd25b7"
+    },
+    {
+      "path": "apps/portal/app/Homologation/RoleBoundTestPurchase.php",
+      "blob": "ef37ebb66fdaa4b27bd9b126a331f6a4d1a038f8"
+    },
+    {
+      "path": "apps/portal/app/Homologation/SyntheticPurchaseOwnership.php",
+      "blob": "ef2cc3f2cba3aa1dd6a4e0e3c714aaeee871af41"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/CustomerPreviewController.php",
+      "blob": "d89e956b0ea2579dc0db5927b7c625b1d11e0279"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/CustomerWorkPreviewController.php",
+      "blob": "8010708461ad5a26020af9dcb5701ace42a71ddd"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/FullPortalPreviewController.php",
+      "blob": "092536a3bdf46dc5a6be96fa71595b270b78672d"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/OnepageClientPageController.php",
+      "blob": "89953d6c20a3bc15a467aa33160d7503012194b6"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/OnepageFirstBriefingController.php",
+      "blob": "8d62417971258a6cfae2feed0403f9bbc8634189"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/OnepageOrderController.php",
+      "blob": "749f9866b6a604593978607600b3a57fb8f589e8"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/PortalBrowserAuthController.php",
+      "blob": "71df8907f88f4b884ab81343227cac130a35d288"
+    },
+    {
+      "path": "apps/portal/app/Http/Controllers/PurchaseRehearsalController.php",
+      "blob": "6603a60f93d69172c6c85ac30f10726688e172ed"
+    },
+    {
+      "path": "apps/portal/app/Http/Middleware/EnsureOnepageCommerceEnabled.php",
+      "blob": "f0e4e9ee5aabf225c2b5723fee6f2a40d29baa18"
+    },
+    {
+      "path": "apps/portal/app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php",
+      "blob": "3324642ff89846a07c2644dd9c59e9fd815590d9"
+    },
+    {
+      "path": "apps/portal/app/Http/Middleware/PortalBrowserAuthGuard.php",
+      "blob": "451d0f974ceecc4c12f660cd61eef92b86ae15d9"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/ConfiguredSandboxD0Reader.php",
+      "blob": "5b630f65a8dc515e7f03c725da451517604d5158"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+      "blob": "7bf3be1d3d95a276795654fc913704d99a2780c9"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/OnepagePrivateRuntime.php",
+      "blob": "b1753a9d7db676ba5c5e09a4f4a43b1ace51be9b"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresD0EntryStore.php",
+      "blob": "508a6b4aaa6f8769b583ef2eeeebdbbf58141458"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageEntryPayments.php",
+      "blob": "5dd6d312ff8bad542eee9d31ca0dc4ed98dc2ad1"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+      "blob": "183f84f99abb7a6e3c6244504529d57da0d6b248"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+      "blob": "f84ee07e704a83d8c997f8ad558b977bac8f0798"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php",
+      "blob": "17e92fb3d3b23a7af402feeb813b7351b4618aa7"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/EncryptedPostgresPortalSessionFactory.php",
+      "blob": "4567b7f8675d72dff1f3b95c777975e6bcfe0c16"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/EncryptedPostgresPortalSessionHandler.php",
+      "blob": "ad991940ac443fa2ea06c8d9dcb5dcc68d89fdd3"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php",
+      "blob": "35b064340d41d75c271e452eff13a7eb54690713"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/PortalBrowserSecretFile.php",
+      "blob": "b6434a077e8a19fe42e6c902eafe9ce195bfd1de"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php",
+      "blob": "b86f7be0aee3bfc885cfb6207e6fc0d0c38d3d52"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php",
+      "blob": "f7a2b8ea4749db6e759fefb5c04117c9ae8b9b78"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php",
+      "blob": "7fa685c51a1c1bf5a93efaa605625665bc8da562"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php",
+      "blob": "4dd9a3b000e95105e973a283d2c3741eaff680f6"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php",
+      "blob": "3cc797d373037e2646371694278c24472b6a2850"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/FencedPortalSessionReadCandidate.php",
+      "blob": "e90a83b7f8f51619d8481b858e8e0d5110d9e8c8"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php",
+      "blob": "a68a2aca5387a4b23d1d06312cd6934e97c9746b"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php",
+      "blob": "ab02461a092fcb1abdc332252c007a029666324c"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php",
+      "blob": "af010bc5c168374713b53414aed4f822dae2af47"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/NonceBoundHttpsWitnessReadCandidate.php",
+      "blob": "e6582391ee0990918802fe34411f2184645e3df3"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php",
+      "blob": "7a1efb91e4fba84f811f98c7fd99f1bcadd92abe"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php",
+      "blob": "f0f5d8250f31184998d7d7e91b6490b394f9313f"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php",
+      "blob": "5b82566b6d463c897d69c5a3a085d1fbaac40ea1"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/PortalLiveRecoveryEpochSourceCandidate.php",
+      "blob": "c7630910c9a7711ae3744682150bbee8346e63a7"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/PortalOnlineWitnessSource.php",
+      "blob": "471be2d64507238b53ea76f368c322aebe64dd1c"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php",
+      "blob": "e413ac33149e96512a48900aa8e221f914471116"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php",
+      "blob": "3e07ec7b23f9b03ee0cbe6bb2b2373849ec57537"
+    },
+    {
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalPerfAuthorityFacts.php",
+      "blob": "00921798708ca67a66fd1edcad0bf6d1b7d741b8"
+    },
+    {
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalPerfSqlAuthorityResolver.php",
+      "blob": "674f0ff550f57dbdb6bc0cc445a9a01cc000e4ea"
+    },
+    {
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalSqlBackedCapabilityIssuer.php",
+      "blob": "90fbac1dabf0c107492b8c019dcfca5b2890c73f"
+    },
+    {
+      "path": "apps/portal/app/Labs/AuthPerfF61/SyntheticCapabilityIssuer.php",
+      "blob": "495a1ddf413c813a861f771e72afd96ac1246298"
+    },
+    {
+      "path": "apps/portal/app/Labs/F22/SyntheticPgServiceReadAdapter.php",
+      "blob": "670ba35d6d4325110dd60f027b41a4e0c0029ea4"
+    },
+    {
+      "path": "apps/portal/app/Labs/F24/F24LabSessionProof.php",
+      "blob": "9251ef3a8ddca1494f9ccd8c0f3862dd1bb3ae42"
+    },
+    {
+      "path": "apps/portal/app/Labs/F24/F24SyntheticAuthorizedReader.php",
+      "blob": "74262a01a37911295ea7587e8e7a6863313af8b0"
+    },
+    {
+      "path": "apps/portal/app/Labs/F26/F26AuthorityReadRehearsal.php",
+      "blob": "ba78a66bff538c4f051d072027cd6a85ce286065"
+    },
+    {
+      "path": "apps/portal/app/Labs/F28/F28RevocationFenceInspector.php",
+      "blob": "dfe8f7bdefb50727a3dd89c82824d9416c52bbd4"
+    },
+    {
+      "path": "apps/portal/app/Labs/F29/F29SyntheticRlsPolicyInspector.php",
+      "blob": "abe9089e1eb1023d5036325bf3de44384e667424"
+    },
+    {
+      "path": "apps/portal/app/Labs/F30/F30SyntheticViewSchemaInspector.php",
+      "blob": "9c585bd61e4719b44858251c9310e0663a502632"
+    },
+    {
+      "path": "apps/portal/app/Labs/F31/F31ExternalFloorSnapshot.php",
+      "blob": "cf09afb71636bd267711b1c98dd20c1456778507"
+    },
+    {
+      "path": "apps/portal/app/Labs/F31/F31ExternalWitnessReader.php",
+      "blob": "f13d372b404fa63be148f38385261acdc1b1bd30"
+    },
+    {
+      "path": "apps/portal/app/Labs/F31/F31RollbackAwareLabReader.php",
+      "blob": "454656607e12ca65c94ea874aa50a5a16ef14cfd"
+    },
+    {
+      "path": "apps/portal/app/Labs/F33/F33SyntheticRevocationEvent.php",
+      "blob": "f7b7b5287dd7d138b05c6d8f6fdfc3440c40d091"
+    },
+    {
+      "path": "apps/portal/app/Labs/F33/F33WitnessFirstRevocationPublisher.php",
+      "blob": "a4cf0a92e5452016f42b53decf77d2140db6d8cb"
+    },
+    {
+      "path": "apps/portal/app/Labs/F34/F34ReconciliationRunner.php",
+      "blob": "bf910656c73b1634fbfef1ff666e50b643e9db28"
+    },
+    {
+      "path": "apps/portal/app/Labs/F34/F34ReplayOutcome.php",
+      "blob": "76717c034000d985be61841f5190532bd4318ba9"
+    },
+    {
+      "path": "apps/portal/app/Labs/F34/F34SyntheticLedgerReader.php",
+      "blob": "658b67d9521e243b605fdc8730d5c144decb4695"
+    },
+    {
+      "path": "apps/portal/app/Labs/F35/F35AcknowledgedReconciliationRunner.php",
+      "blob": "9f90dcdb1c386bd25bc1427efde1b321dc521db2"
+    },
+    {
+      "path": "apps/portal/app/Labs/F35/F35PrimaryStateVerifier.php",
+      "blob": "f9a6cd8c0341f9c88a9e35174563d91c929e7fe9"
+    },
+    {
+      "path": "apps/portal/app/Labs/F35/F35WitnessAcknowledgementWriter.php",
+      "blob": "36322d39b7b69375fdaede59cdf41bb8cd142d53"
+    },
+    {
+      "path": "apps/portal/app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php",
+      "blob": "7692488959e69c44521a481ddc461bf13f7d3eb8"
+    },
+    {
+      "path": "apps/portal/app/Labs/F38/F38SyntheticRequestWriter.php",
+      "blob": "95ea6012cc8db08cbda9e3e8aff6c825fef5a74c"
+    },
+    {
+      "path": "apps/portal/app/Labs/F38/F38SyntheticWriteResult.php",
+      "blob": "90cc762a4a46d0257c231f8f373681044cd8ff07"
+    },
+    {
+      "path": "apps/portal/app/Labs/F40/F40FakeRelayOutcome.php",
+      "blob": "36aa47b2da9ccd1d8ee5d19a3612a92ae72e36d5"
+    },
+    {
+      "path": "apps/portal/app/Labs/F40/F40InMemoryFakeSink.php",
+      "blob": "59667f18647e3cda0c548ecd62925576c0d35099"
+    },
+    {
+      "path": "apps/portal/app/Labs/F40/F40SyntheticOutboxRelay.php",
+      "blob": "ebc66c421ded61f7a20ca140febbb48c56c4a4a5"
+    },
+    {
+      "path": "apps/portal/app/Labs/F44/F44SyntheticReviewWriteResult.php",
+      "blob": "629cc77a54ccd2ad9dbdaa4f58dee37d9b598d8e"
+    },
+    {
+      "path": "apps/portal/app/Labs/F44/F44SyntheticSiteReviewWriter.php",
+      "blob": "4b91c14c6249c9021a114d7368c7f6b78e67030e"
+    },
+    {
+      "path": "apps/portal/app/Labs/F45/F45EditorialConsistencyResult.php",
+      "blob": "ec3ab9ee6d1f606f141e9c5deefabebf4acb7407"
+    },
+    {
+      "path": "apps/portal/app/Labs/F45/F45SyntheticReleaseConsistencyReader.php",
+      "blob": "f3db6e4ae6040e1911fbde451dd771bdca583298"
+    },
+    {
+      "path": "apps/portal/app/Labs/IdentityF70/PortalMfaReplayFence.php",
+      "blob": "ff689c1db100f159e6e31fe2967eee1f39fca748"
+    },
+    {
+      "path": "apps/portal/app/Labs/IdentityF71/PortalSyntheticMfaSessionCompleter.php",
+      "blob": "84b09b14bf618f886dccf6bcaf5d859ee78f418a"
+    },
+    {
+      "path": "apps/portal/app/Labs/IdentityF75/PortalEnrolledMfaSessionCompleter.php",
+      "blob": "f4f6f39b31e35fb5214c1451c0b929916f9ced28"
+    },
+    {
+      "path": "apps/portal/app/Labs/IdentityF81/PortalOrgRevisionMfaCompleter.php",
+      "blob": "b45e190ac230245f65328be278b0e90a75700376"
+    },
+    {
+      "path": "apps/portal/app/Labs/IdentityF82/PortalSyntheticPasswordSessionIssuer.php",
+      "blob": "f01459473f8ee18ddf670a50ddbf8ece4423f0a0"
+    },
+    {
+      "path": "apps/portal/app/Models/PortalAuthSession.php",
+      "blob": "32df47c45954df82c09b89f2f4b4f100b6917ca0"
+    },
+    {
+      "path": "apps/portal/app/Models/PortalIdentity.php",
+      "blob": "e76038454a0c9dd06819706c05855ed60f7d8fe2"
+    },
+    {
+      "path": "apps/portal/app/Models/PortalMembership.php",
+      "blob": "38f883b566ffa2586e8829b57e46c5fa2be89711"
+    },
+    {
+      "path": "apps/portal/app/Models/PortalMembershipGrant.php",
+      "blob": "21f40a1b957e2daa9f154082942077a1493a5ee1"
+    },
+    {
+      "path": "apps/portal/app/Models/PortalOrganization.php",
+      "blob": "a108ae9acfd9daf4fb4ed39924841d9586eb0f13"
+    },
+    {
+      "path": "apps/portal/app/Presentation/ClientSection.php",
+      "blob": "caa6cbb0563adf852a3cd749d12c28c50a744917"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoClientOverview.php",
+      "blob": "495d48e8c780b2ee11c5279185ae4b9fff80b845"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoCommercialDeliveryReview.php",
+      "blob": "393b815b4d56cf9d01d2cce05aea7df8deed4848"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoContractOverview.php",
+      "blob": "d67067a8c7d55ea646e4fd73a8ec5574bbb121f7"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoHelpCatalog.php",
+      "blob": "7dcb5e551fe9ddd7687baf95410433bd2c2766c8"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoNotice.php",
+      "blob": "6a0e9a4bd34cbdc0e5c2467148bbbae266cb438e"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoNoticeCatalog.php",
+      "blob": "b970726ff0adeb29ab28e2b780bc5e5a69f81698"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoPortalArtifactManifest.php",
+      "blob": "70bb954071433618e9fdfe2abc03231edb39c190"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoPortalNavigationAudit.php",
+      "blob": "f4bc61d617ba79dcca3c358310a931c3a633b8cf"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoPortalOfflineExtras.php",
+      "blob": "9c29c398a4c696ed06299b44fd1399800917151b"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoPortalReviewWalkthrough.php",
+      "blob": "bbaf14d52a7180629f0aa331dc5f0ec0c7f2f65e"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoPortalStaticExporter.php",
+      "blob": "3c2c64e974839196b0816eb755bdf444843f90fd"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoRequestInbox.php",
+      "blob": "52b7473b3ab3ccc414d9cc17a9563ced9b93f079"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoRequestInboxStatusBoard.php",
+      "blob": "362c356e306f1a876834fce8ae797ed2d64fee29"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoRequestWorkflowMap.php",
+      "blob": "1ae23cdede299817d49a740affc6221c361e5f33"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoServicePortfolio.php",
+      "blob": "c353ae778da190667113846267f29364ed0f4bbd"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoServiceRelationPreview.php",
+      "blob": "c2978bc1eec82bc4af419afe35ab921ef386bc76"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoServiceRequests.php",
+      "blob": "b2abca916abcb8e6fbb2b474aac8eb0b26bc5c27"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoSitesEditorialPreview.php",
+      "blob": "3988a3537fd27d233fa84a3ff1f17e18e1f3a158"
+    },
+    {
+      "path": "apps/portal/app/Presentation/DemoUniversityBenefitRequirements.php",
+      "blob": "733748a496b214cda497321f0aa6a1e6bf2c9f7b"
+    },
+    {
+      "path": "apps/portal/app/Presentation/HelpCategory.php",
+      "blob": "3ceaa6eb29546673f2b7d7a65b780b49061790ab"
+    },
+    {
+      "path": "apps/portal/app/Presentation/HelpTopic.php",
+      "blob": "3d7090541e1240a6d386e1d44b755e62da9d2458"
+    },
+    {
+      "path": "apps/portal/app/Presentation/IllustrativeUpdate.php",
+      "blob": "89caaffea245bd6349b71514a71d7da966f3ed87"
+    },
+    {
+      "path": "apps/portal/app/Presentation/JourneyState.php",
+      "blob": "50ebe80ad1f32153790a87023a9bcfdb655b60ff"
+    },
+    {
+      "path": "apps/portal/app/Presentation/NoticeCategory.php",
+      "blob": "8a572f3bf0fe9bcc2fce12760a75ac0e728566ba"
+    },
+    {
+      "path": "apps/portal/app/Presentation/RequestSummary.php",
+      "blob": "d31ad1f4dcb64019033f9c8b3cbcb0904d361d41"
+    },
+    {
+      "path": "apps/portal/app/Presentation/ServiceFollowUp.php",
+      "blob": "12bbfee622919a6543da91f6aa9b4df596cfc196"
+    },
+    {
+      "path": "apps/portal/app/Providers/AppServiceProvider.php",
+      "blob": "b99521c6841d51d899ba6399df285e19ab1a86d0"
+    },
+    {
+      "path": "apps/portal/app/Providers/FullPortalPreviewServiceProvider.php",
+      "blob": "6f1872761ec7c1bbe1d9fb80460e23a6332ed952"
+    },
+    {
+      "path": "apps/portal/app/Providers/OnepageCommerceServiceProvider.php",
+      "blob": "aed7a1b111dee6dec0d49549902c8f7272e6097e"
+    },
+    {
+      "path": "apps/portal/app/Providers/OnepageD0CandidateServiceProvider.php",
+      "blob": "92a467b0b2d042b77da1ca17ad35caad7db60346"
+    },
+    {
+      "path": "apps/portal/app/Providers/PortalDevelopmentAuthServiceProvider.php",
+      "blob": "96bdf48a995b7c9c9953bfc7260f4df1e5fae70c"
+    },
+    {
+      "path": "apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php",
+      "blob": "a9c1e9fc93ba5b6b380f313fd591f37783c89efc"
+    },
+    {
+      "path": "apps/portal/artisan",
+      "blob": "c35e31d6a29f62921a8621944eb20ad162f5b2bb"
+    },
+    {
+      "path": "apps/portal/bootstrap/app.php",
+      "blob": "1085719c5683acf7fa298c8efc78fcc5d0d6005e"
+    },
+    {
+      "path": "apps/portal/bootstrap/cache/.gitignore",
+      "blob": "d6b7ef32c8478a48c3994dcadc86837f4371184d"
+    },
+    {
+      "path": "apps/portal/bootstrap/providers.php",
+      "blob": "0d24992f40ede898a75125a1e7fa485be8a15390"
+    },
+    {
+      "path": "apps/portal/composer.json",
+      "blob": "18e621d2557145bfc34339d229cc8be5ee002f6d"
+    },
+    {
+      "path": "apps/portal/composer.lock",
+      "blob": "13e6715405e4719ab5dc56b8f22dcce1c855a66d"
+    },
+    {
+      "path": "apps/portal/config/app.php",
+      "blob": "12a57234acbf6aafbb9de2a17d02dfceb207108f"
+    },
+    {
+      "path": "apps/portal/config/cache.php",
+      "blob": "4efdd3bf47a8b3171c965e68f0e205e1ef98bb1a"
+    },
+    {
+      "path": "apps/portal/config/database.php",
+      "blob": "00445daefdb5649c75555b8376fe53e995496edc"
+    },
+    {
+      "path": "apps/portal/config/filesystems.php",
+      "blob": "c7c5026709a75719a693028aef8edf980a7dfa8a"
+    },
+    {
+      "path": "apps/portal/config/google_search_console.php",
+      "blob": "628c1bfdcde9bc3813a091db231d683f5c3902a9"
+    },
+    {
+      "path": "apps/portal/config/logging.php",
+      "blob": "17c3bd249c3712d5131829a0b8460fe3b9ef28de"
+    },
+    {
+      "path": "apps/portal/config/mail.php",
+      "blob": "e32e88da2cc82d4139c032c28b03005afc6008c6"
+    },
+    {
+      "path": "apps/portal/config/portal_development_auth.php",
+      "blob": "18ba5fdb75fe51f875470b842ed44aaa7e9d7a6c"
+    },
+    {
+      "path": "apps/portal/config/portal_onepage.php",
+      "blob": "ba923b10ed8f5b7e3959591c594d63c795a26e87"
+    },
+    {
+      "path": "apps/portal/config/portal_onepage_d0.php",
+      "blob": "d6a78f1d73b27825a84ec73e2260e11c7996e630"
+    },
+    {
+      "path": "apps/portal/config/queue.php",
+      "blob": "d0e0f50e56e5916e7de6284ce828414342fa4cb2"
+    },
+    {
+      "path": "apps/portal/config/services.php",
+      "blob": "ec226a406664750084d2e49b32fa3b7d03a31ff4"
+    },
+    {
+      "path": "apps/portal/config/session.php",
+      "blob": "9dcb9600c1471a3d9ce98c3a8105fcc220793743"
+    },
+    {
+      "path": "apps/portal/public/.htaccess",
+      "blob": "a165eb1fb39bf08883ea61b91e543c871b7b8b64"
+    },
+    {
+      "path": "apps/portal/public/index.php",
+      "blob": "ee8f07e993802c29e166435e55e302ebfff1c12b"
+    },
+    {
+      "path": "apps/portal/resources/onepage-client/app.css",
+      "blob": "e54114d513f7ee53007321e095b980edde037202"
+    },
+    {
+      "path": "apps/portal/resources/onepage-client/app.js",
+      "blob": "37c748e4421044998924567eff9d280bfe65baf7"
+    },
+    {
+      "path": "apps/portal/resources/portal-auth/logo.png",
+      "blob": "678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77"
+    },
+    {
+      "path": "apps/portal/resources/portal-auth/ui.css",
+      "blob": "a63b6ff62452c97a86c362b28b634d0c8015761d"
+    },
+    {
+      "path": "apps/portal/resources/portal-auth/ui.js",
+      "blob": "25e509533d164cae70bd1273fd0188b586553d8b"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/badge.blade.php",
+      "blob": "1c3835bcdbc3c8dc82a5bff9a253e3e8a883888f"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/brand.blade.php",
+      "blob": "06bf55a4b54aace0982c909fe7222630a70187f6"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/empty-state.blade.php",
+      "blob": "b5080c2793317f13546acccfd6b7e11550b652c1"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/header.blade.php",
+      "blob": "c21da1861359ddca783e132b5eab4c444ba5ad42"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/help-context.blade.php",
+      "blob": "00981689122d4288c15f034c054f58f736e5f9e5"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/help-topic-list.blade.php",
+      "blob": "3caf3495fcfbdfa8c9752e483cd2b9f11b56cf48"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/help-topic.blade.php",
+      "blob": "2bb4526f609927b9da96a301dcc591c3b7bf9289"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/indicator.blade.php",
+      "blob": "edca64d90a7fc3498a7985161ad71a9f50c2c856"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/journey.blade.php",
+      "blob": "626f5f54319d5d75b396174fdb313fb403707935"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/layout.blade.php",
+      "blob": "047aad909b5a7c7d5fb838d06e3459188ac6cfa0"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/list.blade.php",
+      "blob": "3c7736c71ff355829eaf9ee8e2370989a222a3ab"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/loading.blade.php",
+      "blob": "6dda47d770aa7a7fcff6360ca947533046b8c2cb"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/message.blade.php",
+      "blob": "2758ff4905a98f4c794e8b3e40d15d2a135e72ee"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/next-stage.blade.php",
+      "blob": "295fb9b238c44fc3f5db58370b754482785f22b0"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/notice-card.blade.php",
+      "blob": "95fb2d4efde17d08d6f8e710b715988de5f56256"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/notice-context.blade.php",
+      "blob": "29a3b5ae2ec0fd5c57221c913ebb051c26d6659c"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/notice-list.blade.php",
+      "blob": "def0c26dbc26e5dccd360db0f9c0c88f5068d34f"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/panel.blade.php",
+      "blob": "c48e7f931f04c6a9cb098798bfcd6bdffbece4c1"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/pending-notice.blade.php",
+      "blob": "d620656db49f6ea682914498531a98f5fefb3f6f"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/request-list.blade.php",
+      "blob": "9a5bcae17c83a638b92a0bdb5610884979e2c047"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/request-summary.blade.php",
+      "blob": "cf5d6f28aa8e7fca68068833efbf2f3680199b90"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/service-card.blade.php",
+      "blob": "df5860afc9436bceac68a73648f26a1b364b837d"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/service-follow-up.blade.php",
+      "blob": "e0a82dd690f4c5eb733ee347354dcad32d94f01f"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/service-status.blade.php",
+      "blob": "dc535391fa77bbb2cdb471a69a13b3580e2f9c9c"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/service-tracking.blade.php",
+      "blob": "52f730e14ab33aad6d750a622e538d5c24e0ffe6"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/sidebar.blade.php",
+      "blob": "97330b9b89af5efdfd5dcf316601b7246761fcff"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/styles.blade.php",
+      "blob": "fee11cbd9210114f872fc7b99696b75eaa9fbf07"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/table.blade.php",
+      "blob": "39d1ee4e782721bd1afb503d632bdf05360ba74d"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/unavailable.blade.php",
+      "blob": "1b1efcaafe2b5f682bc0b92e700984cf4fecae1e"
+    },
+    {
+      "path": "apps/portal/resources/views/components/portal/update-history.blade.php",
+      "blob": "f0a2fabac06d2c21f4e7d78e5d05a83b17d819ec"
+    },
+    {
+      "path": "apps/portal/resources/views/performance/demo-dashboard.blade.php",
+      "blob": "2554f6192d78fe8cb2fdcb2e674ee9c9c78dcb36"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/auth/private-login.blade.php",
+      "blob": "822adf99c6627c3c934fc324959fe25615a01a24"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/commerce/onepage.blade.php",
+      "blob": "ed00d0681623fe852bedde420dbb69996704778b"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/available.blade.php",
+      "blob": "6cc042cde3dfbc9c1a7babdd0cf0d8d1f648e63e"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/contracts.blade.php",
+      "blob": "7e915e9870adebf92fcf329aa118122fc1479f6d"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/delivery-review.blade.php",
+      "blob": "1f694704449da2ba5c727cb86f8c82f67289243f"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/gateway-routing.blade.php",
+      "blob": "c646efea0195ac890d7333f437a618934209900f"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/help.blade.php",
+      "blob": "8cbfc3ec8c9c7534f8f2728f4af1496bdf84a0b3"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/journey.blade.php",
+      "blob": "067197f4e4561ab4e196c7674933cf54ba3176ec"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/modules.blade.php",
+      "blob": "817e62d8a23551e5744cdf3b0d8535020cebd7d0"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/notices.blade.php",
+      "blob": "eb397905d8ce6abb5682a1266b57c9e9c5538857"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/overview.blade.php",
+      "blob": "5c99223a05a0f70f8d22c7c6b65d3d05e1852883"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/requests.blade.php",
+      "blob": "2b655a00cc2d47ca29fc96881d7b8df6ad48a8a8"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/demo/services.blade.php",
+      "blob": "08f63ff12f2de20187d088a33ce4e9d8555f1cc0"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/admin.blade.php",
+      "blob": "94b574d94b3b562372bbbdf2dd431a461ac0e975"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/client-extra.blade.php",
+      "blob": "e6c710cc89e7b10edaafbb7107bb17b0e9cd0e77"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/client-orders.blade.php",
+      "blob": "a9651e2d884797c9cb916fb5f870e11c17e88316"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/customer-panel.blade.php",
+      "blob": "29e6ce0cdc01ad602db0fdf693944b570dff4e0a"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/customer-purchase.blade.php",
+      "blob": "d0f24336684b78e397fa913e2e2f57905dcc6fe2"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/customer-work.blade.php",
+      "blob": "e2069562fc22d208e16d13ff273476660f4367a4"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/gateway-routing.blade.php",
+      "blob": "54f8bee11c75c9657790d80d4dbf5d54793039d2"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/login.blade.php",
+      "blob": "1fd6c121dd7e4e36130c279886535e34d49a8166"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/offer-summary.blade.php",
+      "blob": "fa156d1eb37a131fd2dee4c3800fc1244b4ba040"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/performance-settlement.blade.php",
+      "blob": "5e70d47a775d487cc339db83231555b9c467326d"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/personal-required.blade.php",
+      "blob": "c08ac7af560e947efda9dcc759a66e407c45cb70"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/preview/register.blade.php",
+      "blob": "e60250bc36cb66d3d26db738da497cc013c70e27"
+    },
+    {
+      "path": "apps/portal/resources/views/portal/rehearsal/purchase.blade.php",
+      "blob": "27acf61b47bc1cd0a3dd67483fe76de0b3fef8cb"
+    },
+    {
+      "path": "apps/portal/routes/console.php",
+      "blob": "9694214c32413635af28397df3bf374b4d49d122"
+    },
+    {
+      "path": "apps/portal/routes/web.php",
+      "blob": "c3175fa30731efe3663436e881dee17c3fc2b65c"
+    }
+  ],
+  "reuse": {
+    "Financial.php": [
+      "apps/portal/labs/onepage-finance-integrated/Financial.php",
+      "df330f740adc9f4cb909b10e042735a1b5946610"
+    ],
+    "PdoFinancialPort.php": [
+      "apps/portal/labs/onepage-finance-integrated/PdoFinancialPort.php",
+      "3bdb21ca028d86f6e8fd870e460cd962aec54416"
+    ],
+    "Consumer.php": [
+      "apps/portal/labs/onepage-dual-inbox/Consumer.php",
+      "57ce83cd8b4a15a1f20799b1b69cf3cec19435d2"
+    ],
+    "ServiceAuthorityPort.php": [
+      "apps/portal/labs/onepage-service-receipt-ci/ServiceAuthorityPort.php",
+      "2a451d7a7a06b6af5a5cde26a15c328a3a40c46e"
+    ]
+  },
+  "overlay_commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+  "overlay_paths": [
+    "apps/portal/resources/onepage-client/app.js",
+    "apps/portal/resources/onepage-client/app.css",
+    "apps/portal/resources/views/portal/auth/private-login.blade.php",
+    "apps/portal/resources/views/portal/commerce/onepage.blade.php",
+    "apps/portal/app/Providers/OnepageCommerceServiceProvider.php",
+    "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+    "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+    "apps/portal/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+    "apps/portal/app/Domain/Commerce/OnepageOrderStore.php",
+    "apps/portal/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+    "apps/portal/app/Http/Controllers/OnepageOrderController.php",
+    "apps/portal/app/Http/Controllers/OnepageClientPageController.php"
+  ],
+  "source_equivalence_basis": "Explicit 12-file #954 overlay on #982; not plain #982 equivalence",
+  "build_mode": "first-online-signed-apt-not-offline-reproducible"
+}
