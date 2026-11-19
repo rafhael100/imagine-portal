@@ -46,3 +46,21 @@ verifica que as três constraints sobrevivem à recuperação em outro banco.
 Isso não prova consentimento humano nem habilita S2S real. Permanecem
 `source_kind=synthetic_candidate`, `operational_enabled=false`, nenhum
 GRANT ao runtime e nenhuma credencial operacional.
+
+## Bloqueio de pré-inserção de evento de revisão futura (candidato)
+
+A migração incremental `2026_11_19_000024` rejeita via trigger SQLSTATE
+`23514` eventos cuja `revision` não corresponda **à revisão atual do mandato**
+com a mesma empresa e principal. Sem ela, um escritor com INSERT na tabela
+de auditoria poderia pré-registrar uma revisão futura; o evento automático
+colidiria mais tarde com a UNIQUE `(mandate_id, revision)` e impediria uma
+rotação/revogação legítima. O teste prova recusa de pré-inserção **antes** de
+uma alteração válida, e a geração normal do evento na revisão seguinte.
+O restore PostgreSQL descartável verifica a existência do trigger e o mesmo
+bloqueio de evento futuro após recuperação. Nenhum GRANT é concedido.
+
+**Limites:** o esquema ainda não identifica a autoria humana da alteração.
+SQL proprietário/superusuário, GUCs de escopo, ausência de cofre IAM, consentimento
+real e vínculo SQL001→S2S continuam sem homologação e não devem ser usados para
+emitir mandatos operacionais. A prova é de um banco sintético descartável, não
+de um backup externo, de Ads ou da VPS.
