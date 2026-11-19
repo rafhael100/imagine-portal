@@ -15,3 +15,10 @@ Implementar uma fonte persistente com transação própria, identidade nominal M
 ## Testes
 
 `NativePerformanceAccountMandateStoreTest` executa em PostgreSQL descartável (`CI=true`, `ADMIN_PHASE4_PG_CI=1`, `performance_phase4_ci`), comprova schema FORCE RLS, ausência de grants do runtime, restrições dos campos, proibição de promoção, FK/auditoria append-only e falha de leitura pela role runtime. A base de CI é descartada ao fim da execução. CI verde não é homologação da VPS.
+
+
+## Eventos automáticos no mesmo commit de banco
+
+A migração `2026_11_19_000022` adiciona trigger `AFTER INSERT OR UPDATE` que grava `created`, `revised`, `suspended` ou `revoked` junto à alteração correspondente, dentro da mesma transação PostgreSQL. Uma falha ao registrar o evento impede confirmar a alteração. DELETE de mandato e TRUNCATE de qualquer uma das duas tabelas são recusados por trigger, além das restrições e do histórico já existente. O trigger é `SECURITY INVOKER`: **não concede privilégios**, e o runtime existente segue sem SELECT/INSERT/UPDATE. Para futuras credenciais restritas, a capacidade de inserir eventos terá de ser explicitamente revisada, sem elevar o runtime do receiver.
+
+Os registros gerados incluem identificadores de correlação sintéticos; não representam aprovação humana, consentimento externo ou identidade certificada. Testes em PostgreSQL descartável confirmam um evento por alteração aceita, nenhum evento extra por alteração recusada, bloqueio de DELETE/TRUNCATE, revisionamento e irreversibilidade da revogação. Não habilitar essa estrutura em VPS sem gate operacional.

@@ -56,13 +56,12 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
         $this->assertSame('candidate', DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('status'));
         $this->assertFalse((bool)DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('operational_enabled'));
 
-        $event=(string)Str::uuid();
-        DB::table('portal_performance_account_mandate_events')->insert([
-            'id'=>$event,'mandate_id'=>$mandate,'company_id'=>$company,
-            'service_principal'=>$principal,'revision'=>1,'event_kind'=>'created',
-            'correlation_id'=>(string)Str::uuid(),
-        ]);
+        // The INSERT must itself create an event; no separate application command.
+        $event=DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('event_kind','created')->value('id');
+        $this->assertTrue(Str::isUuid($event));
         $this->assertSame(1, DB::table('portal_performance_account_mandate_events')->where('id',$event)->count());
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')->where('mandate_id',$mandate)->count());
 
         foreach ([
             ['provider'=>'meta_ads'],
@@ -111,6 +110,9 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
             DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('credential_ref'));
         $this->assertSame(2,
             (int)DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('revision'));
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',2)->where('event_kind','revised')->count());
+        $this->assertSame(2, DB::table('portal_performance_account_mandate_events')->where('mandate_id',$mandate)->count());
 
         // Once revoked, the candidate cannot be silently reactivated.
         DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
@@ -126,5 +128,27 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
         }
         $this->assertSame('revoked',
             DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('status'));
+        // Rejected mutations leave no event; the three accepted transitions
+        // each generate an immutable event in the same SQL transaction.
+        $this->assertSame(3, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->count());
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',3)->where('event_kind','revoked')->count());
+        foreach (['portal_performance_account_mandates','portal_performance_account_mandate_events'] as $table) {
+            try {
+                DB::statement('TRUNCATE TABLE '.$table);
+                $this->fail('History truncation accepted: '.$table);
+            } catch (QueryException) {
+                $this->assertTrue(true);
+            }
+        }
+        try {
+            DB::table('portal_performance_account_mandates')->where('id',$mandate)->delete();
+            $this->fail('Mandate deletion accepted');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+        $this->assertSame(3, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->count());
     }
 }
