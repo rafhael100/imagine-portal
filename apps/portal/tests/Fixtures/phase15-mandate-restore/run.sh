@@ -39,6 +39,7 @@ docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-
 [[ "$(sha256sum "$archive" | awk '{print $1}')" == "$digest" ]]
 [[ "$(fingerprint "$target_db")" == "$original" ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND relrowsecurity AND relforcerowsecurity")" == 2 ]]
+[[ "$(query "$target_db" "SELECT count(*) FROM pg_constraint WHERE conname IN ('account_mandate_consent_reference_shape','account_mandate_credential_reference_shape','account_mandate_event_revision_unique')")" == 3 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "

@@ -151,4 +151,81 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
         $this->assertSame(3, DB::table('portal_performance_account_mandate_events')
             ->where('mandate_id',$mandate)->count());
     }
+
+
+    public function test_opaque_references_rejected_on_insert_not_only_by_revision_trigger(): void
+    {
+        $company=(string)Str::uuid();
+        $principal='imagine_portal_s2s';
+        DB::table('portal_performance_services')->insert([
+            'company_id'=>$company,'contract_ref'=>(string)Str::uuid(),
+            'contract_version'=>1,'company_active'=>true,'status'=>'active',
+            'source_kind'=>'synthetic_persisted','expires_at'=>time()+600,
+        ]);
+        $base=[
+            'company_id'=>$company,'provider'=>'google_ads',
+            'service_principal'=>$principal,'operation'=>'reports.read',
+            'purpose'=>'ads_reporting_read','status'=>'candidate',
+            'source_kind'=>'synthetic_candidate','operational_enabled'=>false,
+            'revision'=>1,'expires_at'=>time()+600,
+        ];
+        // Boundaries match the strictly ASCII, 8..128 byte engine contract.
+        foreach ([
+            ['account_id'=>'2234567890','consent_reference'=>'refABCDE','credential_ref'=>str_repeat('X',128)],
+            ['account_id'=>'2234567891','consent_reference'=>str_repeat('A',128),'credential_ref'=>'vault001'],
+        ] as $valid) {
+            $id=(string)Str::uuid();
+            DB::table('portal_performance_account_mandates')->insert(array_merge($base,$valid,['id'=>$id]));
+            $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+                ->where('mandate_id',$id)->where('revision',1)->where('event_kind','created')->count());
+        }
+
+        // Each attempt has a fresh id and unused account id; failure cannot be
+        // explained by UNIQUE/FK or an UPDATE revision trigger.
+        $invalidRefs=[
+            ['consent_reference','short'],
+            ['consent_reference','../unsafe'],
+            ['consent_reference','https://token.example'],
+            ['consent_reference',"line\nbreak"],
+            ['consent_reference',str_repeat('a',129)],
+            ['credential_ref','x'],
+            ['credential_ref','vault/other-tenant'],
+            ['credential_ref','contains space'],
+            ['credential_ref',"\nsynthetic"],
+            ['credential_ref',str_repeat('b',129)],
+        ];
+        foreach ($invalidRefs as $index=>$entry) {
+            [$field,$value]=$entry;
+            $id=(string)Str::uuid();
+            $row=array_merge($base,[
+                'id'=>$id,'account_id'=>'34'.str_pad((string)$index,8,'0',STR_PAD_LEFT),
+                'consent_reference'=>'synthetic-consent-001',
+                'credential_ref'=>'synthetic-vault-001',
+            ],[$field=>$value]);
+            try {
+                DB::table('portal_performance_account_mandates')->insert($row);
+                $this->fail('Invalid reference inserted: '.$field.' case '.$index);
+            } catch (QueryException $e) {
+                $this->assertSame('23514',(string)$e->getCode(),'Must fail a PostgreSQL CHECK, not a duplicate/FK');
+            }
+            $this->assertSame(0, DB::table('portal_performance_account_mandates')->where('id',$id)->count());
+            $this->assertSame(0, DB::table('portal_performance_account_mandate_events')->where('mandate_id',$id)->count());
+        }
+
+        // A writer may not forge another event for an already-audited revision.
+        $mandateId=DB::table('portal_performance_account_mandates')
+            ->where('company_id',$company)->where('account_id','2234567890')->value('id');
+        try {
+            DB::table('portal_performance_account_mandate_events')->insert([
+                'id'=>(string)Str::uuid(),'mandate_id'=>$mandateId,
+                'company_id'=>$company,'service_principal'=>$principal,'revision'=>1,
+                'event_kind'=>'created','correlation_id'=>(string)Str::uuid(),
+            ]);
+            $this->fail('Duplicate event for the same mandate revision was accepted');
+        } catch (QueryException $e) {
+            $this->assertSame('23505',(string)$e->getCode(),'Must fail revision UNIQUE');
+        }
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandateId)->where('revision',1)->count());
+    }
 }
