@@ -1,6 +1,6 @@
 # Delta público proposto, ainda privado
 
-Publicar apenas estes arquivos em `ops/onepage-rehearsal/`, em commit/draft separado com aprovação explícita. Nenhuma imagem, application, segredo, credencial, IP, caminho privado ou workflow novo. A publicação pode acionar checks herdados do repositório; não autoriza execução/deploy. Os dez arquivos em new/ são bytes já revisados do bundle privado; seis PHP são a peça nova de OneShot/harness, não nova regra financeira.
+Publicar apenas estes arquivos em `ops/onepage-rehearsal/`, em commit/draft separado com aprovação explícita. Nenhuma imagem, application, segredo, credencial, IP, caminho privado ou workflow novo. A publicação pode acionar checks herdados do repositório; não autoriza execução/deploy. Os dez arquivos em new/ derivam do bundle privado; Dockerfile e admin-once.py recebem somente o delta de permissões/diagnóstico descrito abaixo; seis PHP são a peça nova de OneShot/harness, não nova regra financeira.
 
 381 arquivos vêm dos três SHAs públicos declarados em plan.json: 380 idênticos e ServiceAuthorityPort com a transformação literal já usada no #986. inputs.json é regenerado exatamente. O novo manifesto montado preserva todos os 388 bytes de arquivos runtime e os quatro arquivos operacionais. Exclui somente APPROVAL.md/proveniência com caminhos locais; não representa mudança funcional. O bundle anterior permanece intacto.
 
@@ -15,3 +15,6 @@ Build único: daemon Docker local Linux amd64, legacy builder com memória1GiB/C
 
 ## Transporte privado e bloqueios restantes
 Não há SFTP/SCP/upload privado ao host comprovado. Library/arquivo local não prova entrega na VPS. O caminho público resolve o transporte sem segredo somente se a publicação específica for aprovada e HTTPS público estiver acessível na sessão do destino; não sondamos o destino. Sessão admin efêmera e destino novo continuam necessários, sem ampliar codex-imagine. Python3 e Docker legacy utilizáveis no destino são pré-condições, não fatos observados. O Docker do pacote não foi construído/executado. A prova financeira local anterior não prova esta embalagem.
+
+## Correção mínima sobre #990
+Base pública exata 61a56b740dce87154f8ea4302cd15a2b60719ef3. O ensaio anterior falhou antes do harness: stat recebeu PermissionError porque COPY preservou diretórios privados. Apenas dentro da imagem, diretórios runtime passam a0755 e arquivos perdem escrita de grupo/outros; ownership root permanece. Novo RUN sob USER postgres abre run.php e verifica legibilidade/travessia e ausência de escrita em toda a árvore. Não muda umask077/permissões do host, schema, regras ou isolamento. admin-once adiciona somente fase fixa e returncode numérico ao recibo; mantém logs protegidos fora da saída saneada. Nova imagem precisa passar esse build; não foi construída localmente.
