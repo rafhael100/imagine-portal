@@ -1,0 +1,527 @@
+{
+  "absent": [
+    "additional_user_schemas",
+    "additional_user_relations",
+    "additional_user_functions",
+    "additional_user_defaults_or_extensions",
+    "additional_user_constraints_or_indexes",
+    "table_triggers",
+    "table_rules",
+    "table_inheritance",
+    "acl_grant_options_to_fixture_roles",
+    "effective_nonexpected_fixture_privileges"
+  ],
+  "added_database_acl": {
+    "portal_asaas_ci": {
+      "asaas_reconcile_worker": [
+        "CONNECT"
+      ],
+      "asaas_webhook_runtime": [
+        "CONNECT"
+      ]
+    }
+  },
+  "phase": "F392",
+  "phase_roles": {
+    "asaas_reconcile_worker": {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": false,
+      "login": true,
+      "memberships": [],
+      "replication": false,
+      "superuser": false
+    },
+    "asaas_webhook_runtime": {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": false,
+      "login": true,
+      "memberships": [],
+      "replication": false,
+      "superuser": false
+    },
+    "postgres": {
+      "bypassrls": false,
+      "createdb": false,
+      "createrole": false,
+      "inherit": false,
+      "login": false,
+      "memberships": [],
+      "replication": false,
+      "superuser": false
+    }
+  },
+  "schema_acl": {
+    "portal_psp": {
+      "asaas_reconcile_worker": [
+        "USAGE"
+      ],
+      "asaas_webhook_runtime": [
+        "USAGE"
+      ],
+      "postgres": [
+        "CREATE",
+        "USAGE"
+      ]
+    }
+  },
+  "schema_owners": {
+    "portal_psp": "postgres",
+    "public": "pg_database_owner"
+  },
+  "source_head": "563e281c0e789e6bcd772aa1095a7ec33490b544",
+  "table": {
+    "checks": {
+      "asaas_inbox_attempts_check": [
+        "closed_int_range",
+        "attempts",
+        0,
+        8
+      ],
+      "asaas_inbox_event_id_check": [
+        "regex",
+        [
+          "column",
+          "event_id"
+        ],
+        [
+          "text",
+          "^evt_[A-Za-z0-9_&-]{8,128}$"
+        ]
+      ],
+      "asaas_inbox_event_type_check": [
+        "regex",
+        [
+          "column",
+          "event_type"
+        ],
+        [
+          "text",
+          "^PAYMENT_[A-Z_]{3,64}$"
+        ]
+      ],
+      "asaas_inbox_payload_sha256_check": [
+        "regex",
+        [
+          "column",
+          "payload_sha256"
+        ],
+        [
+          "text",
+          "^[a-f0-9]{64}$"
+        ]
+      ],
+      "asaas_inbox_payment_id_check": [
+        "regex",
+        [
+          "column",
+          "payment_id"
+        ],
+        [
+          "text",
+          "^pay_[A-Za-z0-9_]{6,64}$"
+        ]
+      ],
+      "asaas_inbox_state_check": [
+        "ordered_text_in",
+        "state",
+        [
+          "pending_reconciliation",
+          "reconciled",
+          "disputed",
+          "claimed",
+          "retry_wait",
+          "observed_psp_received",
+          "manual_review"
+        ]
+      ],
+      "asaas_lease_shape": [
+        "or",
+        [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "state"
+            ],
+            [
+              "text",
+              "claimed"
+            ]
+          ],
+          [
+            "is_not_null",
+            "lease_token"
+          ],
+          [
+            "is_not_null",
+            "lease_expires_at"
+          ]
+        ],
+        [
+          "and",
+          [
+            "ne",
+            [
+              "column",
+              "state"
+            ],
+            [
+              "text",
+              "claimed"
+            ]
+          ],
+          [
+            "is_null",
+            "lease_token"
+          ],
+          [
+            "is_null",
+            "lease_expires_at"
+          ]
+        ]
+      ]
+    },
+    "columns": [
+      {
+        "default": null,
+        "name": "account_ref",
+        "not_null": true,
+        "type": "uuid"
+      },
+      {
+        "default": null,
+        "name": "event_id",
+        "not_null": true,
+        "type": "text"
+      },
+      {
+        "default": null,
+        "name": "event_type",
+        "not_null": true,
+        "type": "text"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "not_null": true,
+        "type": "text"
+      },
+      {
+        "default": null,
+        "name": "payload_sha256",
+        "not_null": true,
+        "type": "text"
+      },
+      {
+        "default": [
+          "current_timestamp"
+        ],
+        "name": "received_at",
+        "not_null": true,
+        "type": "timestamp with time zone"
+      },
+      {
+        "default": [
+          "text",
+          "pending_reconciliation"
+        ],
+        "name": "state",
+        "not_null": true,
+        "type": "text"
+      },
+      {
+        "default": [
+          "int",
+          0
+        ],
+        "name": "attempts",
+        "not_null": true,
+        "type": "integer"
+      },
+      {
+        "default": null,
+        "name": "lease_token",
+        "not_null": false,
+        "type": "uuid"
+      },
+      {
+        "default": null,
+        "name": "lease_expires_at",
+        "not_null": false,
+        "type": "timestamp with time zone"
+      },
+      {
+        "default": null,
+        "name": "retry_after",
+        "not_null": false,
+        "type": "timestamp with time zone"
+      },
+      {
+        "default": null,
+        "name": "last_checked_at",
+        "not_null": false,
+        "type": "timestamp with time zone"
+      }
+    ],
+    "explicit_column_acl": {
+      "attempts": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      },
+      "last_checked_at": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      },
+      "lease_expires_at": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      },
+      "lease_token": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      },
+      "retry_after": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      },
+      "state": {
+        "asaas_reconcile_worker": [
+          "UPDATE"
+        ]
+      }
+    },
+    "force_rls": true,
+    "indexes": {
+      "asaas_inbox_pending_ci_idx": {
+        "am": "btree",
+        "keys": [
+          "account_ref",
+          "retry_after",
+          "received_at",
+          "event_id"
+        ],
+        "predicate": [
+          "ordered_text_in",
+          "state",
+          [
+            "pending_reconciliation",
+            "retry_wait",
+            "claimed"
+          ]
+        ],
+        "primary": false,
+        "unique": false
+      },
+      "asaas_inbox_pkey": {
+        "am": "btree",
+        "keys": [
+          "account_ref",
+          "event_id"
+        ],
+        "predicate": null,
+        "primary": true,
+        "unique": true
+      }
+    },
+    "kind": "ordinary",
+    "name": "asaas_inbox",
+    "not_null_constraints": [
+      "account_ref",
+      "event_id",
+      "event_type",
+      "payment_id",
+      "payload_sha256",
+      "received_at",
+      "state",
+      "attempts"
+    ],
+    "owner": "portal_native_test_bootstrap",
+    "persistence": "permanent",
+    "policies": {
+      "asaas_inbox_ci_scope": {
+        "check": [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "account_ref"
+            ],
+            [
+              "uuid",
+              "1fcc491f-96d9-4efe-8ec5-b8b09de750dd"
+            ]
+          ],
+          [
+            "eq",
+            [
+              "current_user"
+            ],
+            [
+              "name",
+              "asaas_webhook_runtime"
+            ]
+          ]
+        ],
+        "command": "ALL",
+        "permissive": true,
+        "role": "asaas_webhook_runtime",
+        "using": [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "account_ref"
+            ],
+            [
+              "uuid",
+              "1fcc491f-96d9-4efe-8ec5-b8b09de750dd"
+            ]
+          ],
+          [
+            "eq",
+            [
+              "current_user"
+            ],
+            [
+              "name",
+              "asaas_webhook_runtime"
+            ]
+          ]
+        ]
+      },
+      "asaas_worker_read_ci": {
+        "check": null,
+        "command": "SELECT",
+        "permissive": true,
+        "role": "asaas_reconcile_worker",
+        "using": [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "account_ref"
+            ],
+            [
+              "uuid",
+              "1fcc491f-96d9-4efe-8ec5-b8b09de750dd"
+            ]
+          ],
+          [
+            "eq",
+            [
+              "current_user"
+            ],
+            [
+              "name",
+              "asaas_reconcile_worker"
+            ]
+          ]
+        ]
+      },
+      "asaas_worker_update_ci": {
+        "check": [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "account_ref"
+            ],
+            [
+              "uuid",
+              "1fcc491f-96d9-4efe-8ec5-b8b09de750dd"
+            ]
+          ],
+          [
+            "eq",
+            [
+              "current_user"
+            ],
+            [
+              "name",
+              "asaas_reconcile_worker"
+            ]
+          ]
+        ],
+        "command": "UPDATE",
+        "permissive": true,
+        "role": "asaas_reconcile_worker",
+        "using": [
+          "and",
+          [
+            "eq",
+            [
+              "column",
+              "account_ref"
+            ],
+            [
+              "uuid",
+              "1fcc491f-96d9-4efe-8ec5-b8b09de750dd"
+            ]
+          ],
+          [
+            "eq",
+            [
+              "current_user"
+            ],
+            [
+              "name",
+              "asaas_reconcile_worker"
+            ]
+          ]
+        ]
+      }
+    },
+    "primary_key": {
+      "columns": [
+        "account_ref",
+        "event_id"
+      ],
+      "name": "asaas_inbox_pkey"
+    },
+    "rls": true,
+    "rows_before_fixtures": 0,
+    "schema": "portal_psp",
+    "table_acl": {
+      "asaas_reconcile_worker": [
+        "SELECT"
+      ],
+      "asaas_webhook_runtime": [
+        "INSERT",
+        "SELECT"
+      ],
+      "portal_native_test_bootstrap": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ]
+    }
+  },
+  "unchanged_anchored": [
+    "databases",
+    "database_owners",
+    "unaffected_database_acl",
+    "baseline_database_acl",
+    "baseline_roles",
+    "baseline_memberships",
+    "public_schema_acl"
+  ]
+}

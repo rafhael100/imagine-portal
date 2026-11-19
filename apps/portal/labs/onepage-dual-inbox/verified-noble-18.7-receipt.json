@@ -1,0 +1,83 @@
+{
+  "architecture": "amd64",
+  "index": {
+    "path": "main/binary-amd64/Packages.gz",
+    "sha256": "d50d06124c8119fb1f38e617c95e6cdc74d18157c38869e9ba4b754bd08c1848",
+    "size": 1482895
+  },
+  "packages": {
+    "libpq5": {
+      "architecture": "amd64",
+      "filename": "pool/main/p/postgresql-18/libpq5_18.7-1.pgdg24.04+2_amd64.deb",
+      "files": {
+        "usr/lib/x86_64-linux-gnu/libpq.so.5": {
+          "resolved": "usr/lib/x86_64-linux-gnu/libpq.so.5.18",
+          "sha256": "c223559f65f0b94f5d16740a3ff567041bd98fc8e61291513fa4833166644eac",
+          "size": 387248
+        }
+      },
+      "sha256": "c982d16d81c3dacba5b85797af37c5e6b34a73e20ddbbf41a61098276db53a3d",
+      "size": 265004,
+      "version": "18.7-1.pgdg24.04+2"
+    },
+    "postgresql-18": {
+      "architecture": "amd64",
+      "filename": "pool/main/p/postgresql-18/postgresql-18_18.7-1.pgdg24.04+2_amd64.deb",
+      "files": {
+        "usr/lib/postgresql/18/bin/initdb": {
+          "resolved": "usr/lib/postgresql/18/bin/initdb",
+          "sha256": "38f1570736e01a446310d168395d7b7c21a61069afc166d715c27ce3914e8a55",
+          "size": 122592
+        },
+        "usr/lib/postgresql/18/bin/pg_controldata": {
+          "resolved": "usr/lib/postgresql/18/bin/pg_controldata",
+          "sha256": "c56df04491bb6f067adae6ec86e65132828da2fe82340370d5a9770488fbf2f9",
+          "size": 51624
+        },
+        "usr/lib/postgresql/18/bin/postgres": {
+          "resolved": "usr/lib/postgresql/18/bin/postgres",
+          "sha256": "66fa073eeb66e62e0a8f3da04af481dc3b07fbc3b7b7cd3a0740e98e5251e8bd",
+          "size": 11475816
+        },
+        "usr/share/postgresql/18/postgres.bki": {
+          "resolved": "usr/share/postgresql/18/postgres.bki",
+          "sha256": "360718603dc060a1bfefe67c4e898d16eff18580a48b8fa3b6680e8b21de2e05",
+          "size": 974051
+        },
+        "usr/share/postgresql/18/system_functions.sql": {
+          "resolved": "usr/share/postgresql/18/system_functions.sql",
+          "sha256": "e5b61e70663b9dd55e2e6397ecb1ff3084f4f9afbf12907529b6e565a75f254f",
+          "size": 24879
+        }
+      },
+      "sha256": "902e12bad8a7527199712b9f502b5ce14054289a8e138d1df9e85e86cecdaf1e",
+      "size": 7660020,
+      "version": "18.7-1.pgdg24.04+2"
+    },
+    "postgresql-client-18": {
+      "architecture": "amd64",
+      "filename": "pool/main/p/postgresql-18/postgresql-client-18_18.7-1.pgdg24.04+2_amd64.deb",
+      "files": {
+        "usr/lib/postgresql/18/bin/psql": {
+          "resolved": "usr/lib/postgresql/18/bin/psql",
+          "sha256": "80c61cb077779abb2fc81189631df19d151752f27998517ca27abb9c79b9e47c",
+          "size": 958040
+        }
+      },
+      "sha256": "2c102e1d6ab4ae0abf5bb1e55240feb2a2b7d81a2d0f78b29614611d88ed746e",
+      "size": 2119684,
+      "version": "18.7-1.pgdg24.04+2"
+    }
+  },
+  "pgdg_primary_fingerprint": "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
+  "portal_base": "e95baafac952e5fb8577bd4407de76263d11500e",
+  "portal_head": "8887b84cff0cbcf46999f6da22bf028ce936aa97",
+  "schema": "imagine.pgdg-noble-receipt.v1",
+  "signed_release": {
+    "date": "Tue, 17 Nov 2026 10:47:21 UTC",
+    "payload_sha256": "db988955f33fd26906fb5178b65c2db70c6e09f15718e552292dcbf6f7685275",
+    "sha256": "80210da21e9cb7c43b2ac145817e2f6c72645d4c9707ca3d7f5ca79dd197949f"
+  },
+  "suite": "noble-pgdg",
+  "version": "18.7-1.pgdg24.04+2"
+}
