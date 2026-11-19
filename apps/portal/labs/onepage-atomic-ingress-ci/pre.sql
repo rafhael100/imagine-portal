@@ -21,7 +21,7 @@ CREATE TABLE onepage_ingress_lab.inbox (
 REVOKE ALL ON TABLE onepage_ingress_lab.admissions,onepage_ingress_lab.inbox FROM PUBLIC;
 -- Single immutable case. No runtime registration/rearm/replacement/deletion.
 INSERT INTO onepage_ingress_lab.admissions VALUES
- ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','pay_synthetic_only','r1','sandbox',true);
+ ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','pay_SyntheticOnly','r1','sandbox',true);
 ALTER TABLE onepage_ingress_lab.admissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onepage_ingress_lab.admissions FORCE ROW LEVEL SECURITY;
 ALTER TABLE onepage_ingress_lab.inbox ENABLE ROW LEVEL SECURITY;
@@ -31,16 +31,16 @@ GRANT SELECT,INSERT ON onepage_ingress_lab.inbox TO onepage_ingress_owner;
 CREATE POLICY admissions_owner ON onepage_ingress_lab.admissions TO onepage_ingress_owner USING (true) WITH CHECK (true);
 CREATE POLICY admissions_exact ON onepage_ingress_lab.admissions AS RESTRICTIVE TO onepage_ingress_owner USING (
  account_ref='11111111-1111-4111-8111-111111111111' AND order_id='22222222-2222-4222-8222-222222222222'
- AND payment_id='pay_synthetic_only' AND revision='r1' AND environment='sandbox'
+ AND payment_id='pay_SyntheticOnly' AND revision='r1' AND environment='sandbox'
 ) WITH CHECK (
  account_ref='11111111-1111-4111-8111-111111111111' AND order_id='22222222-2222-4222-8222-222222222222'
- AND payment_id='pay_synthetic_only' AND revision='r1' AND environment='sandbox'
+ AND payment_id='pay_SyntheticOnly' AND revision='r1' AND environment='sandbox'
 );
 CREATE POLICY inbox_owner ON onepage_ingress_lab.inbox TO onepage_ingress_owner USING (true) WITH CHECK (true);
 CREATE POLICY inbox_exact ON onepage_ingress_lab.inbox AS RESTRICTIVE TO onepage_ingress_owner USING (
  account_ref='11111111-1111-4111-8111-111111111111' AND order_id='22222222-2222-4222-8222-222222222222'
- AND payment_id='pay_synthetic_only' AND revision='r1'
+ AND payment_id='pay_SyntheticOnly' AND revision='r1'
 ) WITH CHECK (
  account_ref='11111111-1111-4111-8111-111111111111' AND order_id='22222222-2222-4222-8222-222222222222'
- AND payment_id='pay_synthetic_only' AND revision='r1'
+ AND payment_id='pay_SyntheticOnly' AND revision='r1'
 );

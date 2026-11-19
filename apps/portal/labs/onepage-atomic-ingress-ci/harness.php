@@ -6,7 +6,7 @@ use PrivateAtomicIngressFixture\Fixture;
 use PrivateOnepageIngress\{AtomicInboxPort,ApprovedCase};
 const A='11111111-1111-4111-8111-111111111111';
 const O='22222222-2222-4222-8222-222222222222';
-const P='pay_synthetic_only';
+const P='pay_SyntheticOnly';
 const R='r1';
 const C='onepage_ingress_capture';
 const V='onepage_ingress_revoker';
@@ -115,12 +115,14 @@ function countInbox(PDO $p):int{return (int)$p->query('SELECT count(*) FROM onep
 function positive():array{
  global $atomicPhase;
  $w=readone(STDIN);
- need(array_keys($w)===['cluster','pid','epoch','data','ini']&&$w['data']===getenv('PORTAL_NATIVE_ORDER_TEST_DATA')
-   &&$w['ini']===php_ini_loaded_file()&&permit());
+ need(array_keys($w)===['cluster','pid','epoch','data','ini','memberships']&&$w['data']===getenv('PORTAL_NATIVE_ORDER_TEST_DATA')
+   &&$w['ini']===php_ini_loaded_file()&&is_array($w['memberships'])&&count($w['memberships'])===3&&permit());
+ $atomicPhase='ATOMIC_GATE_MAINT';
  config(['database.default'=>'pgsql']);$main=slot('pgsql',cfg('postgres',B));
  $native=CiGate::beforeWrites('postgres');need($native['pdo']===$main[3]
        &&$native['identity']['cluster_id']===$w['cluster']&&permit(facts($main)['pid']));
  $main[3]->exec('CREATE DATABASE portal_native_orders_ci');
+ $atomicPhase='ATOMIC_GATE_NATIVE';
  $main=slot('pgsql',cfg('portal_native_orders_ci',B));
  $n=CiGate::beforeWrites('portal_native_orders_ci');need($n['pdo']===$main[3]&&$n['identity']['cluster_id']===$w['cluster']
      &&permit(facts($main)['pid']));
@@ -128,8 +130,9 @@ function positive():array{
  $exp=['cluster'=>$w['cluster'],'started'=>(string)$n['identity']['started'],'pid'=>(string)$w['pid'],
    'data'=>$w['data'],'port'=>'55491','address'=>'127.0.0.1','database'=>DB,'login'=>B,'actor'=>B,
    'major'=>'18','listen'=>'127.0.0.1','sockets'=>'',
-   'roles'=>[[B,true,true,true,true,true,true,true]],'memberships'=>[],
+   'roles'=>[[B,true,true,true,true,true,true,true]],'memberships'=>$w['memberships'],
    'databases'=>[DB,'portal_native_orders_ci','postgres','template0','template1'],'empty'=>true,'postgres_safe'=>null];
+ $atomicPhase='ATOMIC_GATE_INBOX';
  $anchor=['phase'=>'asaas_empty_before_owner','nonce'=>bin2hex(random_bytes(32)),'expected'=>$exp];
  $gate=DualDbGate::bind($anchor,static function()use($anchor):array{CiGate::topology();need(permit());return $anchor;});
  $admin=$gate->beforeDdl();need(permit((int)$admin->query('SELECT pg_backend_pid()')->fetchColumn()));
@@ -183,7 +186,7 @@ function positive():array{
  need(race($admin,$exp,$cf['pid'],V,['op'=>'revoke'],static fn()=>need($c->commit()),false)===['value'=>true]&&countInbox($admin)===4);
  $atomicPhase='ATOMIC_SCOPE';
  // Wrong authorities before terminal revocation.
- foreach([[O,P,'r2'],['33333333-3333-4333-8333-333333333333',P,R],[O,'pay_synthetic_other',R]] as [$o,$p,$revision])
+ foreach([[O,P,'r2'],['33333333-3333-4333-8333-333333333333',P,R],[O,'pay_SyntheticOther',R]] as [$o,$p,$revision])
    need($port->captureCommitted(new ApprovedCase(A,$o,$p,$revision),ev('wrong'))==='unarmed');
  need($port->captureCommitted(new ApprovedCase('33333333-3333-4333-8333-333333333333',O,P,R),ev('wrong'))==='unarmed');
  $atomicPhase='ATOMIC_REVOKE_FIRST';

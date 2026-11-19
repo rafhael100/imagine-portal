@@ -11,7 +11,7 @@ final class Fixture
 {
     public const DB='portal_asaas_ci';
     public const PINS=[
-      'pre.sql'=>'22f6a7db366e69d2a3d37216f38f088ea3ff747799aeb587b131f323c1b8d76c',
+      'pre.sql'=>'56601e585c9431c971336fc3b5ccac90f0f531d787f7ebd12e58a9e2bcfbc379',
       'atomic-capture.candidate.sql'=>'69252f1e50e1a20a2f1aa1d9e9d9985de3adab63742f7d27419035387a713775',
       'post.sql'=>'8545612528bd0fdbac3a01de62f7675ec71ad04a7d047a431e9ec6f6cfefb999',
       'AtomicInboxPort.php'=>'615152bfc015b04c39fe23a0109eba51c8f6ba0bb6c24f68d0e6fb63c448e612',
