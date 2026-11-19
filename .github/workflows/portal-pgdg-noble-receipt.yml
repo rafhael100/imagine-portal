@@ -1,0 +1,227 @@
+name: Portal PostgreSQL 18 Noble tooling receipt
+'on':
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-d0-finance-pg-v2']
+    paths: ['.github/workflows/portal-pgdg-noble-receipt.yml']
+permissions:
+  contents: read
+jobs:
+  receipt:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-pgdg-noble-receipt-v1' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-d0-finance-pg-v2' &&
+      github.event.pull_request.base.sha == 'e95baafac952e5fb8577bd4407de76263d11500e'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check exact scope, verify signed PGDG inputs and report extraction receipt
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" RUNNER_TEMP="$RUNNER_TEMP" \
+            /usr/bin/python3 -I -B - <<'PY'
+          from datetime import datetime, timezone
+          from email.utils import parsedate_to_datetime
+          import gzip
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import tempfile
+
+          REPO = 'rafhael100/imagine-portal'
+          BASE = 'e95baafac952e5fb8577bd4407de76263d11500e'
+          BASE_TREE = '0b22a8efeb696bb38e6494fedd85a35381f4fe3f'
+          BASE_REF = 'test/onepage-d0-finance-pg-v2'
+          HEAD_REF = 'test/onepage-pgdg-noble-receipt-v1'
+          PATH = '.github/workflows/portal-pgdg-noble-receipt.yml'
+          REPO_URL = 'https://apt.postgresql.org/pub/repos/apt/'
+          DIST = 'noble-pgdg'
+          ARCH = 'amd64'
+          VERSION = '18.7-1.pgdg24.04+2'
+          FINGERPRINT = 'B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8'
+          INDEX = 'main/binary-amd64/Packages.gz'
+          ENV = {'PATH':'/usr/bin:/bin','LC_ALL':'C'}
+
+          def need(value):
+              if not value:
+                  raise ValueError('RECEIPT_REFUSED')
+
+          def run(argv, seconds=12, env=None):
+              child = subprocess.run(argv, env=ENV if env is None else env, stdin=subprocess.DEVNULL,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=seconds)
+              return child.stdout
+
+          def tree(commit):
+              out = {}
+              for entry in run(['git','ls-tree','-rz',commit]).split(b'\0'):
+                  if not entry:
+                      continue
+                  meta, key = entry.split(b'\t',1)
+                  mode, kind, blob = meta.split()
+                  need(key not in out)
+                  out[key] = (mode,kind,blob)
+              return out
+
+          def gate():
+              need(os.environ.get('GITHUB_ACTIONS')=='true' and
+                   os.environ.get('GITHUB_EVENT_NAME')=='pull_request' and
+                   os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_RUN_ATTEMPT')=='1')
+              event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+              p = event['pull_request']
+              need(event['action']=='opened' and event['repository']['full_name']==REPO and
+                   p['draft'] is True and p['state']=='open')
+              need(p['base']['sha']==BASE and p['base']['ref']==BASE_REF and p['head']['ref']==HEAD_REF)
+              need(p['base']['repo']['full_name']==p['head']['repo']['full_name']==REPO)
+              head=p['head']['sha']
+              need(re.fullmatch(r'[0-9a-f]{40}',head) is not None)
+              need(run(['git','rev-parse','HEAD']).strip().decode()==head)
+              need(run(['git','rev-list','--parents','-n','1',head]).decode().split()==[head,BASE])
+              need(run(['git','rev-parse',BASE+'^{tree}']).strip().decode()==BASE_TREE)
+              need(run(['git','status','--porcelain=v1','--untracked-files=all'])==b'')
+              old,new=tree(BASE),tree(head)
+              key=PATH.encode()
+              need(key not in old and key in new and new[key][:2]==(b'100644',b'blob'))
+              need({k:v for k,v in new.items() if k!=key}==old)
+              raw=Path(PATH)
+              need(raw.is_file() and not raw.is_symlink())
+              b=raw.read_bytes()
+              need(hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest().encode()==new[key][2])
+              need(run(['dpkg','--print-architecture']).strip()==ARCH.encode())
+              release=Path('/etc/os-release').read_text()
+              need(re.search(r'^ID=ubuntu$',release,re.M) and re.search(r'^VERSION_CODENAME=noble$',release,re.M))
+              return head
+
+          def digest(path):
+              with path.open('rb') as stream:
+                  return hashlib.file_digest(stream,'sha256').hexdigest()
+
+          def download(url,dest,maximum):
+              run(['curl','--proto','=https','--tlsv1.2','--silent','--show-error','--fail','--connect-timeout','8',
+                   '--max-time','40','--max-filesize',str(maximum),'--output',str(dest),url],42)
+              need(dest.is_file() and not dest.is_symlink() and 0<dest.stat().st_size<=maximum)
+
+          def fields(text):
+              values={}
+              for line in text.splitlines():
+                  if not line or line[:1].isspace():
+                      continue
+                  k,sep,v=line.partition(':')
+                  need(sep==':' and k not in values)
+                  values[k]=v.strip()
+              return values
+
+          def release_data(temp):
+              key=temp/'pgdg.asc';ring=temp/'pgdg.gpg';homedir=temp/'gnupg';homedir.mkdir(mode=0o700)
+              download('https://www.postgresql.org/media/keys/ACCC4CF8.asc',key,65536)
+              genv=ENV|{'GNUPGHOME':str(homedir)}
+              listings=run(['gpg','--batch','--no-options','--with-colons','--show-keys','--fingerprint',str(key)],env=genv).decode().splitlines()
+              csv=[line.split(':') for line in listings]
+              need(sum(v[0]=='pub' for v in csv)==1 and next(v[9] for v in csv if v[0]=='fpr')==FINGERPRINT)
+              run(['gpg','--batch','--no-options','--dearmor','--output',str(ring),str(key)],env=genv)
+              signed=temp/'InRelease';clear=temp/'Release'
+              download(REPO_URL+'dists/'+DIST+'/InRelease',signed,524288)
+              status=run(['gpgv','--homedir',str(homedir),'--keyring',str(ring),'--status-fd','1',
+                          '--output',str(clear),str(signed)],env=genv).decode().splitlines()
+              valid=[l.split() for l in status if l.startswith('[GNUPG:] VALIDSIG ')]
+              need(len(valid)==1 and (valid[0][2]==FINGERPRINT or valid[0][-1]==FINGERPRINT))
+              need(not any(re.match(r'^\[GNUPG:\] (BAD|ERR|EXP|REV|NO_PUBKEY|KEYEXPIRED|SIGEXPIRED)',l) for l in status))
+              contents=clear.read_text()
+              f=fields(contents)
+              need(f['Origin']=='apt.postgresql.org' and f['Suite']==DIST and f['Codename']==DIST
+                   and ARCH in f['Architectures'].split() and 'main' in f['Components'].split())
+              now=datetime.now(timezone.utc)
+              need(parsedate_to_datetime(f['Date'])<=now)
+              if 'Valid-Until' in f:
+                  need(now<=parsedate_to_datetime(f['Valid-Until']))
+              sha_segment=contents.split('\nSHA256:\n',1)[1].split('\nSHA512:',1)[0]
+              rows=[l.split() for l in sha_segment.splitlines()]
+              m=[r for r in rows if len(r)==3 and r[2]==INDEX]
+              need(len(m)==1 and re.fullmatch(r'[0-9a-f]{64}',m[0][0]) is not None and m[0][1].isdigit())
+              return signed,clear,f,m[0][0],int(m[0][1])
+
+          wanted={
+              'postgresql-18':[
+                  'usr/lib/postgresql/18/bin/postgres','usr/lib/postgresql/18/bin/initdb',
+                  'usr/lib/postgresql/18/bin/pg_controldata','usr/share/postgresql/18/postgres.bki',
+                  'usr/share/postgresql/18/system_functions.sql'],
+              'postgresql-client-18':['usr/lib/postgresql/18/bin/psql'],
+              'libpq5':['usr/lib/x86_64-linux-gnu/libpq.so.5'],
+          }
+
+          def packages(temp,index_sha,index_size):
+              index=temp/'Packages.gz'
+              need(0<index_size<=4194304)
+              download(REPO_URL+'dists/'+DIST+'/'+INDEX,index,index_size)
+              need(index.stat().st_size==index_size and digest(index)==index_sha)
+              with gzip.open(index,'rb') as f:
+                  text=f.read(16777217)
+              need(0<len(text)<=16777216)
+              entries={}
+              for part in text.decode('utf-8').split('\n\n'):
+                  e=fields(part)
+                  pkg=e.get('Package')
+                  if pkg in wanted and e.get('Architecture')==ARCH and e.get('Version')==VERSION:
+                      need(pkg not in entries);entries[pkg]=e
+              need(set(entries)==set(wanted))
+              result={}
+              for pkg,pathlist in wanted.items():
+                  e=entries[pkg]
+                  name=f'{pkg}_{VERSION}_{ARCH}.deb'
+                  location='pool/main/p/postgresql-18/'+name
+                  need(e['Filename']==location and re.fullmatch(r'[0-9a-f]{64}',e['SHA256']) is not None
+                       and e['Size'].isdigit() and 0<int(e['Size'])<=12000000)
+                  deb=temp/name
+                  # Quote '+' only in URL. The signed index path is checked unescaped.
+                  download(REPO_URL+location.replace('+','%2B'),deb,int(e['Size']))
+                  need(deb.stat().st_size==int(e['Size']) and digest(deb)==e['SHA256'])
+                  actual=fields(run(['dpkg-deb','-f',str(deb)]).decode())
+                  need([actual[k] for k in ('Package','Version','Architecture')]==[pkg,VERSION,ARCH])
+                  dest=temp/pkg;dest.mkdir()
+                  run(['dpkg-deb','-x',str(deb),str(dest)],20)
+                  files={}
+                  for rel in pathlist:
+                      file=dest/rel;target=file.resolve(strict=True)
+                      need(target.is_relative_to(dest) and stat.S_ISREG(target.stat().st_mode))
+                      files[rel]={'resolved':str(target.relative_to(dest)),'size':target.stat().st_size,'sha256':digest(target)}
+                  result[pkg]={'version':VERSION,'architecture':ARCH,'filename':location,
+                               'sha256':e['SHA256'],'size':deb.stat().st_size,'files':files}
+              return result
+
+          try:
+              head=gate()
+              scratch=Path(os.environ['RUNNER_TEMP']).resolve(strict=True)
+              workspace=Path.cwd().resolve()
+              need(not scratch.is_relative_to(workspace))
+              with tempfile.TemporaryDirectory(prefix='pgdg-receipt-',dir=scratch) as d:
+                  temp=Path(d)
+                  sig,clear,metadata,index_sha,index_size=release_data(temp)
+                  receipt={'schema':'imagine.pgdg-noble-receipt.v1','portal_head':head,'portal_base':BASE,
+                           'suite':DIST,'architecture':ARCH,'version':VERSION,'pgdg_primary_fingerprint':FINGERPRINT,
+                           'signed_release':{'sha256':digest(sig),'payload_sha256':digest(clear),
+                                             'date':metadata['Date']},
+                           'index':{'path':INDEX,'sha256':index_sha,'size':index_size},
+                           'packages':packages(temp,index_sha,index_size)}
+              print(json.dumps(receipt,separators=(',',':'),sort_keys=True),flush=True)
+          except Exception:
+              raise SystemExit('PGDG_NOBLE_RECEIPT_REFUSED')
+          PY
