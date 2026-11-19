@@ -22,13 +22,13 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
     public function test_schema_is_isolated_non_operational_and_append_only(): void
     {
         foreach (['portal_performance_account_mandates','portal_performance_account_mandate_events'] as $table) {
-            $flags = DB::selectOne('SELECT relrowsecurity AS rls,relforcerowsecurity AS forced FROM pg_class WHERE oid=?::regclass', [$table]);
+            $flags = DB::selectOne('SELECT CASE WHEN relrowsecurity THEN 1 ELSE 0 END AS rls, CASE WHEN relforcerowsecurity THEN 1 ELSE 0 END AS forced FROM pg_class WHERE oid=CAST(? AS regclass)', [$table]);
             $this->assertNotNull($flags);
-            $this->assertTrue((bool)$flags->rls);
-            $this->assertTrue((bool)$flags->forced);
+            $this->assertSame(1, (int)$flags->rls);
+            $this->assertSame(1, (int)$flags->forced);
             foreach (['SELECT','INSERT','UPDATE','DELETE','TRUNCATE'] as $priv) {
-                $allowed = DB::selectOne('SELECT has_table_privilege(?, ?, ?) AS allowed', ['portal_performance_runtime',$table,$priv]);
-                $this->assertFalse((bool)$allowed->allowed, 'Runtime must not have '.$priv.' on '.$table);
+                $allowed = DB::selectOne('SELECT CASE WHEN has_table_privilege(?, ?, ?) THEN 1 ELSE 0 END AS allowed', ['portal_performance_runtime',$table,$priv]);
+                $this->assertSame(0, (int)$allowed->allowed, 'Runtime must not have '.$priv.' on '.$table);
             }
         }
 
