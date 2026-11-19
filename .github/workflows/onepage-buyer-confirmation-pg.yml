@@ -1,0 +1,106 @@
+name: Onepage buyer MFA confirmation after financial observation
+on:
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-service-receipt-pg-v1']
+    paths: ['.github/workflows/onepage-buyer-confirmation-pg.yml']
+permissions:
+  contents: read
+jobs:
+  buyer-confirmation:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' && github.run_attempt == 1 &&
+      github.event.pull_request.draft == true && github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-buyer-confirmation-pg-v1' &&
+      github.event.pull_request.base.ref == 'test/onepage-service-receipt-pg-v1' &&
+      github.event.pull_request.base.sha == '611f435769c497fd3a0679daa2bda9d1b13ea40d'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: portal_native_test_bootstrap
+          POSTGRES_DB: portal_native_orders_ci
+          POSTGRES_HOST_AUTH_METHOD: trust
+          PGDATA: /var/lib/postgresql/18/docker
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U portal_native_test_bootstrap -d portal_native_orders_ci"
+          --health-interval 5s --health-timeout 4s --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      PORTAL_NATIVE_ORDER_TEST: DISPOSABLE_PG18
+      PORTAL_NATIVE_ORDER_TEST_PORT: '5432'
+      PORTAL_NATIVE_ORDER_TEST_DATA: /var/lib/postgresql/18/docker
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: 'null'
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Admit exact new child before tooling
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' 9ef2330859198edcde5ca3fe1409afc7af057d023879b73ea95f9846f0cdaf9f apps/portal/labs/onepage-service-receipt-ci/buyer-preflight.py | sha256sum -c --status
+          python3 -B apps/portal/labs/onepage-service-receipt-ci/buyer-preflight.py
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:2.8.12
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,sodium,posix
+      - name: Locked dependencies without scripts or plugins
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          composer dump-autoload --no-interaction --no-scripts --no-plugins
+          git diff --exit-code -- composer.lock
+          test ! -e .env
+          test ! -e .env.testing
+          test ! -e bootstrap/cache/config.php
+      - name: Attest only this job's service before any DDL
+        env:
+          PORTAL_TEST_PG_SERVICE_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          witness="$RUNNER_TEMP/onepage-service-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
+          export PORTAL_TEST_PHP_BIN="$(readlink -f "$(command -v php)")"
+          sum=$(python3 -B apps/portal/labs/onepage-service-receipt-ci/attest_service.py "$witness")
+          printf '%s\n' "PORTAL_TEST_PG_WITNESS=$witness" "PORTAL_TEST_PG_WITNESS_SHA=$sum" >> "$GITHUB_ENV"
+          php -n -r 'echo "SERVICE_PHP_EFFECTIVE ".PHP_VERSION.PHP_EOL;'
+          echo 'PASS SERVICE_CONTAINER_SQL_WITNESS'
+      - name: Same order financial observation then explicit buyer MFA command
+        env:
+          PORTAL_TEST_PG_SERVICE_ID: ${{ job.services.postgres.id }}
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          php -d allow_url_fopen=0 -d allow_url_include=0 -d display_errors=0 -d log_errors=0 \
+            -d disable_functions=curl_exec,curl_multi_exec,curl_multi_socket_action,fsockopen,pfsockopen,stream_socket_client,stream_socket_server,socket_create,socket_connect,socket_bind \
+            vendor/bin/phpunit --no-configuration --no-output --do-not-cache-result \
+            --fail-on-risky --fail-on-warning --fail-on-skipped --fail-on-incomplete \
+            labs/onepage-service-receipt-ci/ServiceReceiptPgTest.php
+          echo 'PASS BUYER_MFA_CONFIRMATION_TEST_COMPLETE_NOT_AUTOMATIC_RELEASE'
+      - name: Remove only this job's witnessed service
+        if: always()
+        env:
+          PORTAL_TEST_PG_SERVICE_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "${#PORTAL_TEST_PG_SERVICE_ID}" -eq 64
+          case "$PORTAL_TEST_PG_SERVICE_ID" in *[!0-9a-f]*) exit 1;; esac
+          docker rm --force --volumes "$PORTAL_TEST_PG_SERVICE_ID" >/dev/null
+          if docker inspect --type container "$PORTAL_TEST_PG_SERVICE_ID" >/dev/null 2>&1; then exit 1; fi
+          echo 'PASS SERVICE_OWNED_CONTAINER_REMOVED'
