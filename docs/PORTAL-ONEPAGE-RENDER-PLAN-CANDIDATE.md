@@ -96,6 +96,14 @@ de operação, pedido, contrato e payload fora da gramática fechada.
 Oito casos negativos usam hashes recalculados, portanto não dependem apenas
 de um teste trivial de SHA inválido.
 
+O compositor também recompõe o par usando o `OnepageBriefSnapshotCandidateEncoder`
+local, com os **bytes originais** da fonte rica: um JSON inválido, campos
+desconhecidos, material marcado como disponível, serviços vazios ou contato
+inválido continuam recusados mesmo após novo SHA-256 do corpo e do manifesto.
+Uma alteração legítima de LF para CRLF produz novo compromisso pelo próprio
+exportador e é aceita como entrada sintética distinta. A serialização do
+manifesto do exportador deve permanecer canônica, sem repacotamento.
+
 Essas recusas previnem o envio de planos que seriam inevitavelmente negados
 pelo `BriefSnapshotInput` fixado. **Não constituem atestação de origem,
 aprovação do cliente, identidade nem autorização para publicar**. Toda
