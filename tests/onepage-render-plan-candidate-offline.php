@@ -168,6 +168,48 @@ foreach ([
     ), 're-hashed manifest: '.$label);
 }
 
+// Re-hashing both the source and manifest does not turn invalid rich
+// source bytes into a legitimate output of the candidate export adapter.
+$repackagedSource = static function (string $bytes) use ($pair, $json): array {
+    $manifest = json_decode($pair['manifestBytes'], true, 8, JSON_THROW_ON_ERROR);
+    $manifest['payload']['sizeBytes'] = strlen($bytes);
+    $manifest['payload']['sha256'] = hash('sha256', $bytes);
+    $manifestBytes = $json($manifest);
+    return array_replace($pair, [
+        'sourceBytes' => $bytes,
+        'payloadSha256' => hash('sha256', $bytes),
+        'manifestBytes' => $manifestBytes,
+        'manifestSha256' => hash('sha256', $manifestBytes),
+    ]);
+};
+$originalSource = json_decode($source, true, 8, JSON_THROW_ON_ERROR);
+foreach ([
+    'malformed but consistently digested source'=>"{invalid JSON",
+    'unknown rich body field'=>$json(array_replace($originalSource,['unknownField'=>'synthetic'])),
+    'source with materials enabled'=>$json(array_replace($originalSource,['logo_unavailable'=>false])),
+    'source with blank services'=>$json(array_replace($originalSource,['services'=>'   '])),
+    'source with invalid contact address'=>$json(array_replace($originalSource,['email'=>'not-an-email'])),
+] as $label => $bytes) {
+    $deny(static fn()=>Plan::build(
+        $repackagedSource($bytes), $editorialBytes, $renderSelection, $expected,
+    ), 're-hashed rich source: '.$label);
+}
+$noncanonicalManifest = substr($pair['manifestBytes'], 0, -1)."\r\n";
+$deny(static fn()=>Plan::build(array_replace($pair, [
+    'manifestBytes'=>$noncanonicalManifest,
+    'manifestSha256'=>hash('sha256',$noncanonicalManifest),
+]),$editorialBytes,$renderSelection,$expected),
+    're-hashed but noncanonical snapshot exporter manifest');
+// This is intentionally permitted: the original exporter validates and binds
+// different valid source bytes without rewriting those bytes.
+$validAlternate = Snapshot::build(
+    $contract,$selection,substr($source,0,-1)."\r\n",
+);
+$alternatePlan = Plan::build($validAlternate,$editorialBytes,$renderSelection,$expected);
+$ok($alternatePlan['planSha256']!==$plan['planSha256'] &&
+    $alternatePlan['authorityVerified']===false,
+    'changed valid source from canonical exporter remains unprivileged');
+
 foreach ([
     'release path'=>['releaseRef'=>'../untrusted'],
     'output URL'=>['renderInputRef'=>'https://bad.example/'],
