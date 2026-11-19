@@ -43,6 +43,7 @@ docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_event_current_revision_guard' AND tgenabled='O'")" == 1 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_revoked_immutable' AND tgenabled='O'")" == 1 ]]
+[[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_initial_state' AND tgenabled='O'")" == 1 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
 INSERT INTO public.portal_performance_account_mandates
@@ -51,6 +52,20 @@ SELECT gen_random_uuid(),company_id,'google_ads','5555555555','imagine_portal_s2
        'synthetic-restore-probe-001','synthetic-vault-restore-001','candidate',1,extract(epoch from now())::bigint+600
 FROM public.portal_performance_services LIMIT 1" >/dev/null
 [[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id WHERE m.account_id='5555555555' AND e.event_kind='created'")" == 1 ]]
+
+# The restored INSERT guard must not permit invented history by importing
+# a candidate directly at revision 2. Inputs otherwise pass FK/shape checks.
+if query "$target_db" "INSERT INTO public.portal_performance_account_mandates
+  (id,company_id,provider,account_id,service_principal,consent_reference,credential_ref,status,revision,expires_at)
+SELECT gen_random_uuid(),company_id,'google_ads','6666666666','imagine_portal_s2s',
+       'synthetic-restore-birth-001','synthetic-vault-birth-001','candidate',2,extract(epoch from now())::bigint+600
+FROM public.portal_performance_services LIMIT 1" >/dev/null 2>&1; then
+    echo "FAIL: restored schema accepted an initial mandate at revision two" >&2
+    exit 1
+fi
+[[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE account_id='6666666666'")" == 0 ]]
+[[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id WHERE m.account_id='6666666666'")" == 0 ]]
+
 # Verify that the restored guard blocks a forged future event despite a
 # valid parent, and leaves the automatically generated current event intact.
 if docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
