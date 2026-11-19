@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - feature/portal-onepage-brief-snapshot-export-candidate-2026-11-19
+      - feature/portal-onepage-render-plan-candidate-2026-11-19
     paths:
       - '.github/workflows/onepage-render-plan-candidate.yml'
       - 'apps/portal/app/Domain/SitesIntegration/OnepageRenderPlanCandidateEncoder.php'
@@ -25,8 +25,8 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'feature/portal-onepage-render-plan-candidate-2026-11-19' &&
-      github.event.pull_request.base.sha == '75af738356f26f1eb2430dd6a4c1dfc050fd39e0'
+      github.event.pull_request.head.ref == 'review/portal-onepage-render-plan-manifest-deny-2026-11-19' &&
+      github.event.pull_request.base.sha == 'e7c15a93660acb946e8ce7ac2e6a9ebf92050d70'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     strategy:
