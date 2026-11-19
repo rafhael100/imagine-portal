@@ -27,3 +27,22 @@ Os registros gerados incluem identificadores de correlação sintéticos; não r
 ## Recuperação com conteúdo sintético preenchido
 
 O workflow de autoridade também executa `tests/Fixtures/phase15-mandate-restore/run.sh` em PostgreSQL 18 descartável. Ele exige mandato revogado e eventos reais de laboratório, captura `pg_dump -Fc` local, restaura em segundo banco novo no mesmo contêiner e compara SHA256 do arquivo, conteúdo das tabelas, RLS, triggers e privilégios da identidade runtime. Prova ainda que um novo INSERT no banco restaurado produz seu evento automaticamente, sem alterar a origem. O arquivo e o banco auxiliar são removidos no encerramento. Isto **não é** backup externo, R2, restauração entre servidores, criptografia do dump nem homologação da VPS.
+
+## Integridade SQL das referências e revisões (candidato)
+
+A migração incremental `2026_11_19_000023` restringe `consent_reference` e
+`credential_ref` a ASCII, primeiro caractere alfanumérico, demais caracteres
+`[A-Za-z0-9_.:-]`, comprimento de 8 a 128 bytes. O banco e o gate PHP
+passam a aceitar os mesmos formatos; não basta confiar no validador de request.
+A constraint UNIQUE `(mandate_id, revision)` impede duplicação do evento
+gerado para a mesma revisão.
+
+Os testes executam INSERTs inválidos com FK, status, escopo e revisão válidos,
+exigindo SQLSTATE `23514` em vez de conflito de chave ou erro de trigger.
+Verificam que não foi criado evento; INSERTs válidos em ambos os limites
+passam; evento de revisão duplicada falha com `23505`. O restore sintético
+verifica que as três constraints sobrevivem à recuperação em outro banco.
+
+Isso não prova consentimento humano nem habilita S2S real. Permanecem
+`source_kind=synthetic_candidate`, `operational_enabled=false`, nenhum
+GRANT ao runtime e nenhuma credencial operacional.
