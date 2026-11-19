@@ -108,7 +108,7 @@ foreach ([
     'CTA only whitespace'=>['callToAction'=>"   "],
     'description too long'=>['description'=>str_repeat('z',601)],
     'brand too long'=>['brand'=>str_repeat('Z',121)],
-    'benefit only blank'=>['benefits'=>['\u{00A0}',"   "]],
+    'benefit only blank'=>['benefits'=>["\u{00A0}","   "]],
     'too many benefits'=>['benefits'=>array_fill(0,9,'synthetic')],
     'no benefits'=>['benefits'=>[]],
     'wrong product'=>['productCode'=>'landing_page'],
@@ -160,6 +160,6 @@ foreach ([
         $renderSelection,array_replace($expected,$delta)),$label);
 }
 $deny(static fn()=>Plan::build($pair,
-    str_repeat(' ', Plan::MAX_BYTES + 1),$renderSelection,$expected),
+    str_repeat(' ', 32769),$renderSelection,$expected),
     'oversized editorial input');
 echo "PORTAL ONEPAGE RENDER PLAN CANDIDATE OFFLINE PASS: {$checks} checks; no publishing authority.\n";
