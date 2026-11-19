@@ -90,3 +90,21 @@ sem mudança na classificação `synthetic_candidate`.
 A migração `000025` protege o estado terminal: após `status=revoked`, nem uma alteração mantendo esse status pode atualizar `credential_ref`, `consent_reference`, prazo ou revisão. Antes, uma UPDATE com revisão nova poderia reescrever referências de um mandato revogado e gerar outro evento `revoked`, reduzindo a utilidade forense da auditoria. Uma transição inicial `candidate→revoked` continua possível com evento automático transacional; alterações posteriores falham com SQLSTATE `23514`.
 
 Os testes PostgreSQL18 descartáveis cobrem a transição permitida, quatro mutações proibidas e contagem de eventos inalterada; a restauração sintética repete uma mutação pós-revogação adversarial no banco restaurado. São fixtures, não prova de backups R2/Leaseweb, autenticidade de consentimento, IAM/cofre ou permissão Google/Meta. Nenhum GRANT à role runtime e nenhum caminho operacional foi criado. Revisão AppSec/DBA/LGPD e gate Leaseweb continuam obrigatórios.
+
+## Guarda de nascimento do mandato (candidato, migração `000026`)
+
+A trilha de auditoria pressupõe que cada mandato nasce como `candidate`
+com `revision=1` e evento automático `created`. Antes deste incremento,
+um INSERT direto podia nascer `suspended`, `revoked` ou com revisão superior
+a 1, saltando a cronologia sem passar pelas transições auditadas.
+O novo trigger `BEFORE INSERT` (`SECURITY INVOKER`) rejeita esses
+estados com SQLSTATE `23514`, mantendo a possibilidade de suspensão e
+revogação **posteriores**, ambas com evento automático por revisão.
+
+A prova PostgreSQL descartável usa IDs e contas distintas para quatro
+negações sem conflito UNIQUE/FK, verifica zero linha/evento em cada tentativa,
+e comprova que um mandato `candidate` legítimo nasce na revisão 1 e pode
+ser suspenso na revisão 2 com os dois eventos preservados. O ensaio de
+restauração verifica o trigger e repete a recusa de um INSERT de revisão 2 no
+banco restaurado. Não há GRANT ao runtime, aceite humano, cofre,
+`SQL001→S2S`, ativação de conta Ads ou backup Leaseweb demonstrados.
