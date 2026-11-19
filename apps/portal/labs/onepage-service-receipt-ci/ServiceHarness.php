@@ -22,7 +22,7 @@ final class ServiceHarness {
   }
   self::need((int)$p->query('SELECT count(*) FROM portal_psp.asaas_inbox')->fetchColumn()===0);return $p;
  }
- public static function run(ServiceGate $g,array $ctx):void{
+ public static function run(ServiceGate $g,array $ctx,?\Closure $continuation=null):void{
   $native=$ctx['native'];$inbox=$ctx['inbox'];$dir=__DIR__.'/../onepage-dual-inbox';$finance=__DIR__.'/../onepage-finance-integrated';
   $sql=file_get_contents($finance.'/finance.sql');self::need(hash('sha256',$sql)==='da176ef9c16e5d32059456bccedbf344cfdc7dc5a6c6aad60c597feaab6e4c91');
   $g->beforeDdl($native);$native->exec($sql);$g->beforeDdl($native);$native->exec('ALTER ROLE onepage_finance_lab_verifier LOGIN');
@@ -51,6 +51,7 @@ final class ServiceHarness {
   self::need((int)$native->query('SELECT count(*) FROM portal_onepage.entry_confirmations')->fetchColumn()===0);
   self::auditRoles($inbox);
   fwrite(STDOUT,"PASS SERVICE_RECEIPT_FINANCE_CASES_4\n");
+  if($continuation!==null)$continuation($ctx,$ports,$gate,$f,$capture);
  }
  private static function auditRoles(PDO $p):void{
   $rows=$p->query("SELECT rolname,rolcanlogin,rolsuper,rolinherit,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname IN ('onepage_ingress_owner','onepage_ingress_capture','onepage_ingress_revoker') ORDER BY rolname")->fetchAll(PDO::FETCH_NUM);

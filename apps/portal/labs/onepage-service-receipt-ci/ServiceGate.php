@@ -12,7 +12,7 @@ final class ServiceGate {
  public const DATA='/var/lib/postgresql/18/docker';
  private const PORT=5432;
  private const ROLES=[
-  self::NATIVE=>[self::BOOT,'portal_browser_runtime','portal_onepage_psp_registrar','portal_onepage_runtime','portal_onepage_publisher','portal_onepage_d0_verifier','onepage_finance_lab_owner','onepage_finance_lab_verifier'],
+  self::NATIVE=>[self::BOOT,'portal_browser_runtime','portal_onepage_psp_registrar','portal_onepage_runtime','portal_onepage_publisher','portal_onepage_d0_verifier','onepage_finance_lab_owner','onepage_finance_lab_verifier','onepage_d0_service_b'],
   self::INBOX=>[self::BOOT,'postgres','asaas_reconcile_worker','asaas_webhook_runtime','onepage_ingress_owner','onepage_ingress_capture','onepage_ingress_revoker'],
  ];
  private const STOCK=['pg_checkpoint','pg_create_subscription','pg_database_owner','pg_execute_server_program','pg_maintain','pg_monitor','pg_read_all_data','pg_read_all_settings','pg_read_all_stats','pg_read_server_files','pg_signal_autovacuum_worker','pg_signal_backend','pg_stat_scan_tables','pg_use_reserved_connections','pg_write_all_data','pg_write_server_files',self::BOOT];
