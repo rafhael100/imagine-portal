@@ -9,13 +9,13 @@
     },
     {
       "path": "Dockerfile",
-      "bytes": 2623,
-      "sha256": "d3d7f11e19c40dbbf7b789baaf70c62a4fdb08f624b03b02b04990c78410fd59"
+      "bytes": 3351,
+      "sha256": "b8d8ba87c160c9b886449779d7fc1530cca3964d19c809e5234cfc30a8014bbf"
     },
     {
       "path": "admin-once.py",
-      "bytes": 5286,
-      "sha256": "edb2ef24f4b9842c2975bb377824d5651627b48e25aa0c088368d1b3cf448d3f"
+      "bytes": 5516,
+      "sha256": "f7bb310d38ca6c565658f122a214e8099888b8b6478e83aa6145d08e70d170c3"
     },
     {
       "path": "runtime/application/app/Console/Commands/ExportDemoPortalPreview.php",

@@ -23,5 +23,9 @@ RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --no-scripts --no-plugi
  && composer check-platform-reqs --no-dev \
  && find vendor -type f -exec sha256sum '{}' ';' | sort > /opt/onepage/evidence/vendor.sha256
 COPY supervisor.py /opt/onepage/supervisor.py
+# Host stays private (umask 077); only immutable image directories become traversable.
+RUN find /opt/onepage/runtime -type d -exec chmod 0755 '{}' ';' \
+ && find /opt/onepage/runtime -type f -exec chmod go-w '{}' ';'
 USER postgres
+RUN python3 -c 'import os,pathlib,pwd; r=pathlib.Path("/opt/onepage/runtime"); h=r/"local-harness/run.php"; assert pwd.getpwuid(os.geteuid()).pw_name=="postgres"; h.open("rb").read(1); paths=[r]; [(paths.extend(pathlib.Path(d)/n for n in dirs+files)) for d,dirs,files in os.walk(r,onerror=lambda e: (_ for _ in ()).throw(e))]; assert all(not os.access(p,os.W_OK) for p in paths); assert all(os.access(p,os.R_OK | (os.X_OK if p.is_dir() else 0)) for p in paths); print("PASS IMAGE_POSTGRES_READ_ONLY_RUNTIME")' 
 ENTRYPOINT ["python3", "/opt/onepage/supervisor.py"]

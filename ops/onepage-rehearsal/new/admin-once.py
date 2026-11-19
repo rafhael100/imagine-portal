@@ -27,23 +27,27 @@ def main():
     if arch not in ['linux x86_64','linux amd64']:raise RuntimeError('DAEMON_PLATFORM_REFUSED')
     storage=call(['info','--format','{{.DockerRootDir}}']).stdout.strip()
     if not storage or shutil.disk_usage(storage).free<4*1024**3:raise RuntimeError('DOCKER_FREE_SPACE_BELOW_4G')
-    result={'manifest':digest,'pass':False,'cleanup':False,'scope':'synthetic-disposable-no-asaas'}
+    result={'phase':'build','manifest':digest,'pass':False,'cleanup':False,'scope':'synthetic-disposable-no-asaas'}
     image=None
     try:
         env=dict(os.environ);env['DOCKER_BUILDKIT']='0'
         # Legacy builder enforces these resource flags; if unavailable, abort, do not fallback.
         r=call(['build','--force-rm','--rm','--memory','1073741824','--memory-swap','1073741824','--cpu-period','100000','--cpu-quota','100000','--label','imagine.rehearsal.bundle='+digest,'-t',tag,'.'],cwd=ROOT,env=env,timeout=900)
         (out/'build.log').write_text(r.stdout+r.stderr)
+        result['phase']='image_receipt'
         meta=json.loads(call(['image','inspect',tag]).stdout)[0];image=meta['Id']
         if meta['Config'].get('Labels',{}).get('imagine.rehearsal.bundle')!=digest or meta['Size']>1536*1024**2:raise RuntimeError('IMAGE_RECEIPT_REFUSED')
         result['image_id']=image
+        result['phase']='container_run'
         r=call(['run','--name',name,'--label','imagine.rehearsal.bundle='+digest,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--cpus','1','--memory','536870912','--memory-swap','536870912','--pids-limit','128','--shm-size','128m','--tmpfs','/tmp:rw,nosuid,nodev,size=256m,mode=1777','--tmpfs','/var/lib/postgresql:rw,nosuid,nodev,size=1m',image],timeout=240)
         (out/'functional.log').write_text(r.stdout+r.stderr)
+        result['phase']='functional_receipt'
         status=json.loads(r.stdout)
         if status.get('exit')!=0 or status.get('stop')!=0 or not status.get('removed') or 'PASS ONE_SHOT_SAME_ORDER_OBSERVATION_AND_CONFIRMATION' not in status.get('stdout',''):raise RuntimeError('FUNCTIONAL_RECEIPT_REFUSED')
         result['pass']=True
     except Exception as e:
         result['error_type']=type(e).__name__
+        if isinstance(e,subprocess.CalledProcessError):result['returncode']=e.returncode
         if isinstance(e,subprocess.CalledProcessError):(out/'failure.log').write_text((e.stdout or '')+(e.stderr or ''))
     finally:
         cleanup=True

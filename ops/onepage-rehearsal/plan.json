@@ -3060,7 +3060,7 @@
     {
       "source": "new/Dockerfile",
       "destination": "Dockerfile",
-      "sha256": "d3d7f11e19c40dbbf7b789baaf70c62a4fdb08f624b03b02b04990c78410fd59"
+      "sha256": "b8d8ba87c160c9b886449779d7fc1530cca3964d19c809e5234cfc30a8014bbf"
     },
     {
       "source": "new/supervisor.py",
@@ -3070,7 +3070,7 @@
     {
       "source": "new/admin-once.py",
       "destination": "admin-once.py",
-      "sha256": "edb2ef24f4b9842c2975bb377824d5651627b48e25aa0c088368d1b3cf448d3f"
+      "sha256": "f7bb310d38ca6c565658f122a214e8099888b8b6478e83aa6145d08e70d170c3"
     },
     {
       "source": "new/runtime/local-harness/Bootstrap.php",
