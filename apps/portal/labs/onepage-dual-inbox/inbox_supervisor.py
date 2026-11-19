@@ -19,6 +19,7 @@ PIN_SQL = {
 }
 LIBS = {"protocol_worker.php", "DualDbGate.php", "InboxInstall.php", "Compare.php",
         "Audit.php", "catalog.sql", "F391.semantic.json", "F392.semantic.json"}
+LIBS |= {'delta.sql', 'SharedCatalog.php', 'shared-pre.sql', 'shared-post.sql', 'shared-functions.sql'}
 EXPECTED_MARK = b"PASS INBOX_INSTALLED\n"
 TIMEOUT = 20
 MAX_FRAME = 262144
@@ -229,7 +230,7 @@ def collect_with_inbox(args,env,pg,root,postmaster,review,bridge,finance):
     stage=root/"inbox-bridge";stage.mkdir(mode=0o700)
     frozen=root/"inbox-frozen";frozen.mkdir(mode=0o700)
     records=verify_library_set(source,review["pins"],frozen)
-    witness=json.dumps({"model":model,"bridge":bridge,"finance":finance},separators=(",",":")).encode()+b"\n"
+    witness=json.dumps({"model":model,"bridge":bridge,"finance":finance,"shared":{"phase":"AFTER_FINANCE_TO_SHARED","files":{'pre.sql': '06c1b2041d08c95d55e6f3b4e83690251d12eb53c6b55d6af6da7e08bece1078', 'functions.sql': '4ba6386d076331a97966966cfd07f1e948d774180811a084d93b94e1bf197162', 'post.sql': '6f15b0abb1d254a63ecfb0529314d1e507b3128f64139e199924d880cb4611ac'}}},separators=(",",":")).encode()+b"\n"
     need(len(witness)<=262144)
     witness_pin=store(stage/"supervisor-review.json",witness)
     child=Owned(args,dict(env,DUAL_INBOX_STAGE=str(stage),DUAL_INBOX_REVIEW_SHA=sha(witness)))
@@ -294,3 +295,4 @@ def collect_with_inbox(args,env,pg,root,postmaster,review,bridge,finance):
         # independently verifies all registered children and destroys only its root.
         t.join(130)
         need(cleanup and not t.is_alive())
+

@@ -32,10 +32,18 @@ return static function(array $ctx):void{
  $pdo=$ports['financial'];
  $financial=new PdoFinancialPort($pdo,static fn(PDO $p):bool=>$p===$pdo&&$gate('financial',$p)===true,
   ['database'=>'portal_native_orders_ci','port'=>(int)getenv('PORTAL_NATIVE_ORDER_TEST_PORT')]);
- $fixture=new PgFixture($ctx,$ports,$gate,$financial);
+ $shared=__DIR__;
+ foreach(['Ingress.php','SharedInboxPort.php','SharedCatalog.php','InstallConnected.php','CaptureHarness.php'] as $f)require_once $shared.'/'.$f;
+ $fragments=[];foreach(['pre.sql','functions.sql','post.sql'] as $f)$fragments[$f]=file_get_contents($shared.'/shared-'.$f);
+ \PrivateSharedIngress\InstallConnected::run($ctx,$ctx['qualification']['shared'], $fragments,
+  file_get_contents(__DIR__.'/catalog.sql'),file_get_contents($shared.'/delta.sql'),file_get_contents(__DIR__.'/F392.semantic.json'));
+ $qualified=$provider('SHARED_INSTALLED',$ctx);$gate=$qualified['gate'];$ports=$qualified['ports'];
+ $capture=new \PrivateSharedIngress\CaptureHarness($ports['inbox_audit'],$ports['ingress_capture'],$gate,$financial);
+ $fixture=new PgFixture($ctx,$ports,$gate,$financial,$capture);
  $result=\PrivateD0DualDbCases\cases($fixture);
  $need($result===['reap_skip_lock','claim_skip_lock','expired_ack_and_alias','lost_financial_result']);
  } finally {
   if(is_array($before)&&($before['cleanup']??null) instanceof Closure)($before['cleanup'])();
  }
 };
+

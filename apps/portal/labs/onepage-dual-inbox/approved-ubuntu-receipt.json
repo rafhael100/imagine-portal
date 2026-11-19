@@ -6,9 +6,14 @@
     "F391.semantic.json": "3efabeccc3df221dd88af27661216a51860d2d810464f66737d6a0bc604a9efa",
     "F392.semantic.json": "d0dceed8d6be174283a80edfee2d7a41b7b85da7fcca5f32922c10f0468028c9",
     "InboxInstall.php": "c0d3bfa929b83444ba612262294df28e9bd9b4c6a8606a89eeadf57feed211fd",
+    "SharedCatalog.php": "737fabf31f0a9b7e209b45016f83cf138eadea717db78232f5580d01516284ed",
     "catalog.sql": "808aa9b6f8273a81787b798f6a03b58f2eace9ec2d480af3da356fcfb9bd7734",
-    "observer.php": "34b8124dc9bc90fb0568ead0b29d367172685048aa56e55ce9999ef5d357ad2d",
-    "protocol_worker.php": "65f9809fa1c2372847ed5e69ba320f2c6236c056e9330f9b9f040837e189854f"
+    "delta.sql": "3498953f9a8175e9ea92a857866bbc8e0730d4d5e59df56375d237dd5c8d5cd3",
+    "observer.php": "2481fbece1c0273cb2213fc24a8a6cac2e46e7b79f213e755141c81b156b1592",
+    "protocol_worker.php": "65f9809fa1c2372847ed5e69ba320f2c6236c056e9330f9b9f040837e189854f",
+    "shared-functions.sql": "4ba6386d076331a97966966cfd07f1e948d774180811a084d93b94e1bf197162",
+    "shared-post.sql": "6f15b0abb1d254a63ecfb0529314d1e507b3128f64139e199924d880cb4611ac",
+    "shared-pre.sql": "06c1b2041d08c95d55e6f3b4e83690251d12eb53c6b55d6af6da7e08bece1078"
   },
   "binaries": {
     "pg_controldata": "c56df04491bb6f067adae6ec86e65132828da2fe82340370d5a9770488fbf2f9",

@@ -57,11 +57,19 @@ SQL);
     $local();
     if($c['mode']==='POST'){
         foreach(['DualDbGate.php','InboxInstall.php','Compare.php','Audit.php'] as $f)require __DIR__.'/'.$f;
-        $m=$ok['model'];need(is_array($m)&&array_keys($m)===['anchor','baseline','phaseAnchors','globalExpected']);
-        $audit=new Audit(file_get_contents(__DIR__.'/catalog.sql'),[
-           'F391'=>file_get_contents(__DIR__.'/F391.semantic.json'),'F392'=>file_get_contents(__DIR__.'/F392.semantic.json'),
-        ],$m['baseline'],$m['phaseAnchors'],$m['globalExpected']);
-        need(($audit->forSetupBridge())('F392',$p));
+        $payload=$ok['model'];need(is_array($payload)&&array_keys($payload)===['base','finance']);
+        $m=$payload['base'];$fm=$payload['finance'];
+        require __DIR__.'/SharedCatalog.php';
+        $norm=static function($v)use(&$norm){if(!is_array($v))return $v;if(!array_is_list($v))ksort($v);return array_map($norm,$v);};
+        $r=$p->query(\PrivateDualDb\DualDbGate::SQL)->fetch(PDO::FETCH_ASSOC);
+        need(in_array($r['fresh']??null,[true,'t',1,'1'],true)&&$norm(json_decode($r['facts'],true,64,JSON_THROW_ON_ERROR))===$norm($fm['SHARED_INSTALLED']['inbox']));
+        $fragments=[];foreach(['pre.sql','functions.sql','post.sql'] as $n)$fragments[$n]=file_get_contents(__DIR__.'/shared-'.$n);
+        \PrivateSharedIngress\SharedCatalog::matches(\PrivateSharedIngress\SharedCatalog::expectedAfterCases($fragments),json_decode($p->query(file_get_contents(__DIR__.'/delta.sql'))->fetchColumn(),true,64,JSON_THROW_ON_ERROR));
+        $base=array_replace($m['baseline'],$m['phaseAnchors']['POST_BINDING']);
+        $base['roles'][]=['onepage_finance_lab_owner',false,false,false,false,false,false,false];
+        $base['roles'][]=['onepage_finance_lab_verifier',true,false,false,false,false,false,false];
+        $cat=json_decode($p->query(\PrivateSharedIngress\SharedCatalog::projection(file_get_contents(__DIR__.'/catalog.sql')))->fetchColumn(),true,64,JSON_THROW_ON_ERROR);
+        \PrivateInboxSemantic\Compare::matches('F392',file_get_contents(__DIR__.'/F392.semantic.json'),\PrivateSharedIngress\SharedCatalog::baseline($base),\PrivateSharedIngress\SharedCatalog::afterCasesProjection($cat));
     } else {need($ok['model']===null);}
     $local();
     need($p->query('SELECT pg_backend_pid()')->fetchColumn()===$identity['backend']);

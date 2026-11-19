@@ -21,7 +21,7 @@ final class PgFixture implements Fixture {
  private const ACCOUNT='1fcc491f-96d9-4efe-8ec5-b8b09de750dd';
  private const NATIVE='native-entry-sandbox';
  private array $events=[],$used=[];private string $payment='';private mixed $order=null;private int $calls=0,$sequence=0;
- public function __construct(private array $ctx,private array $ports,private Closure $gate,private FinancialPort $financial){
+ public function __construct(private array $ctx,private array $ports,private Closure $gate,private FinancialPort $financial,private \PrivateSharedIngress\CaptureHarness $capture){
   $identities=[];
   foreach(['inbox_a','inbox_b','inbox_audit','native_audit','financial'] as $name){
    $p=$this->db($name);
@@ -71,12 +71,11 @@ final class PgFixture implements Fixture {
   $s=$this->financial->inspect_binding(self::NATIVE,'sandbox',$this->payment);
   self::need($s!==null&&$s->binding->orderRef===$this->order->id&&$s->binding->tenantRef===$this->order->companyReference);
   $this->events=['target'=>'evt_dual_target_'.$i,'alias'=>'evt_dual_alias_'.$i,'neighbor'=>'evt_dual_neighbor_'.$i];
+  foreach(['neighbor','target','alias'] as $name){
+   $this->capture->receive(self::ACCOUNT,self::NATIVE,$this->events[$name],$name==='neighbor'?$np:$this->payment);
+  }
   $p=$this->db('inbox_audit');self::need(!$p->inTransaction());$p->beginTransaction();
   try{
-   foreach(['neighbor','target','alias'] as $name){
-    $event=$this->events[$name];$payment=$name==='neighbor'?$np:$this->payment;
-    $this->q($p,"INSERT INTO portal_psp.asaas_inbox(account_ref,event_id,event_type,payment_id,payload_sha256,received_at) VALUES(?::uuid,?,'PAYMENT_RECEIVED',?,?,clock_timestamp())",[self::ACCOUNT,$event,$payment,hash('sha256','synthetic:'.$event)]);
-   }
    if($scenario==='scoped_lock')$this->q($p,"UPDATE portal_psp.asaas_inbox SET state='claimed',attempts=8,lease_token='11111111-1111-4111-8111-111111111111',lease_expires_at=clock_timestamp()-interval '1 second' WHERE account_ref=?::uuid AND event_id=?",[self::ACCOUNT,$this->events['target']]);
    self::need($p->commit());
   }catch(Throwable $e){if($p->inTransaction())$p->rollBack();throw $e;}
@@ -133,3 +132,4 @@ final class PgFixture implements Fixture {
  }
  public function gets():int{return $this->calls;}
 }
+
