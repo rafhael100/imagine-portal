@@ -138,6 +138,36 @@ foreach ([
     $deny(static fn()=>Plan::build(array_replace($pair,$delta),
         $editorialBytes,$renderSelection,$expected),$label);
 }
+// The digest alone is not an attestation of the manifest's internal
+// metadata. A self-consistently re-hashed, invalid revision or selector
+// must fail here before the downstream Sites candidate receives a plan.
+$mutatedSnapshot = static function (array $delta) use ($pair, $json): array {
+    $manifest = json_decode($pair['manifestBytes'], true, 8, JSON_THROW_ON_ERROR);
+    foreach ($delta as $field => $value) {
+        if ($field === 'payloadRef') $manifest['payload']['payloadRef'] = $value;
+        else $manifest[$field] = $value;
+    }
+    $bytes = $json($manifest);
+    return array_replace($pair, [
+        'manifestBytes' => $bytes,
+        'manifestSha256' => hash('sha256', $bytes),
+    ]);
+};
+foreach ([
+    'revision does not follow expected revision'=>['expectedBriefRevision'=>1],
+    'contract revision below minimum'=>['contractRevision'=>0],
+    'source version below minimum'=>['sourceVersion'=>-1],
+    'source version above maximum'=>['sourceVersion'=>9007199254740992],
+    'invalid original operation selector'=>['operationId'=>'../bad'],
+    'invalid original order selector'=>['orderRef'=>'bad order'],
+    'invalid original contract selector'=>['contractRef'=>'bad/contract'],
+    'invalid original payload selector'=>['payloadRef'=>'https://bad.example'],
+] as $label => $delta) {
+    $deny(static fn()=>Plan::build(
+        $mutatedSnapshot($delta), $editorialBytes, $renderSelection, $expected,
+    ), 're-hashed manifest: '.$label);
+}
+
 foreach ([
     'release path'=>['releaseRef'=>'../untrusted'],
     'output URL'=>['renderInputRef'=>'https://bad.example/'],
