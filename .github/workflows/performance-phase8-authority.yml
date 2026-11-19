@@ -70,3 +70,9 @@ jobs:
       - name: Operation-specific navigation, filters, signatures and denial events
         working-directory: apps/portal
         run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|NativePerformanceAccountMandateStoreTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
+      - name: Restore populated synthetic mandate and event tables in disposable PostgreSQL
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          DOCKER_HOST: ''
+          DOCKER_CONTEXT: ''
+        run: bash apps/portal/tests/Fixtures/phase15-mandate-restore/run.sh
