@@ -175,4 +175,9 @@ def finance_manifest(model, finance_sql):
             if r[0]=="onepage_finance_lab_verifier" and phase=="AFTER_FINANCE":r[1]=True
         inbox=base|{"roles":sorted(base["roles"]+extra)}
         out[phase]={"native":inbox|{"database":NATIVE},"inbox":inbox}
+    shared={side:dict(facts) for side,facts in out['AFTER_FINANCE'].items()}
+    for facts in shared.values():
+        facts['roles']=sorted(facts['roles']+[[n,n!='onepage_ingress_owner',False,False,False,False,False,False] for n in ('onepage_ingress_capture','onepage_ingress_owner','onepage_ingress_revoker')])
+    out['SHARED_INSTALLED']=shared
     return out
+

@@ -15,7 +15,7 @@ $bytes=file_get_contents($file);clearstatcache(true,$file);$after=lstat($file);
 $need(is_string($bytes)&&is_array($after)&&$after['ino']===$before['ino']&&$after['dev']===$before['dev']
  &&$after['size']===$before['size']&&hash_equals($hash,hash('sha256',$bytes)));
 $review=json_decode($bytes,true,64,JSON_THROW_ON_ERROR);
-$need(is_array($review)&&array_keys($review)===['model','bridge','finance']);
+$need(is_array($review)&&array_keys($review)===['model','bridge','finance','shared']);
 $model=$review['model'];$anchor=$model['anchor'];
 DualDbGate::validateAnchor($anchor);
 $audit=new Audit(file_get_contents(__DIR__.'/catalog.sql'),[
@@ -23,7 +23,7 @@ $audit=new Audit(file_get_contents(__DIR__.'/catalog.sql'),[
 ],$model['baseline'],$model['phaseAnchors'],$model['globalExpected']);
 $finance=json_encode($review['finance'],JSON_THROW_ON_ERROR);
 $financeSha=hash('sha256',$finance);
-$q=static function(PDO $admin,PDO $inbox,Closure $nativeRecheck,array $nativeGate)use($need,$anchor,$finance,$financeSha):array {
+$q=static function(PDO $admin,PDO $inbox,Closure $nativeRecheck,array $nativeGate)use($need,$anchor,$finance,$financeSha,$review):array {
  $identity=array_intersect_key($anchor['expected'],array_flip(['cluster','pid','data','port','started','address','major','listen','sockets']));
  $identity['nonce']=$anchor['nonce'];
  $native=app('db')->connection('pgsql');$aux=app('db')->connection(DualDbGate::NAME);
@@ -39,6 +39,7 @@ $q=static function(PDO $admin,PDO $inbox,Closure $nativeRecheck,array $nativeGat
   return $identity; // Pool also compares the facts read from BOTH exact PDOs for every phase.
  };
  return ['admin_pdo'=>$admin,'inbox_pdo'=>$inbox,'native_pdo'=>$np,'anchor'=>$identity,
-      'native_config'=>$nc,'inbox_config'=>$ac,'manifest_json'=>$finance,'manifest_sha256'=>$financeSha,'recheck'=>$recheck];
+      'native_config'=>$nc,'inbox_config'=>$ac,'manifest_json'=>$finance,'manifest_sha256'=>$financeSha,'recheck'=>$recheck,'shared'=>['model'=>$review['model'],'finance'=>$review['finance'],'shared'=>$review['shared'],'recheck'=>static function()use($recheck,$ap):PDO{$recheck();return $ap;}]];
 };
 return [$review['bridge'],$audit->forSetupBridge(),$q];
+

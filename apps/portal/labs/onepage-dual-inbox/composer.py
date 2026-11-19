@@ -78,7 +78,7 @@ def compose(args,env,pg,root,postmaster,approved,finance_sql):
                     "actor":"portal_native_test_bootstrap","major":18,"listen":"127.0.0.1","sockets":""}
             need(all(type(r[k]) is type(v) and r[k]==v for k,v in expect.items()))
             need(type(r["backend"]) is int and r["backend"]>1 and re.fullmatch(str(epoch)+r"\.[0-9]{6}",r["started"]))
-            if model is not None:need(r["started"]==model["anchor"]["expected"]["started"])
+            if model is not None:need(r["started"]==model["base"]["anchor"]["expected"]["started"])
             witness=attest_backend(r["backend"]);files()
             child.send(json.dumps({"permit":True,"nonce":salt,"backend":r["backend"],"model":model},
                                   separators=(",",":")).encode()+b"\n",deadline)
@@ -97,7 +97,8 @@ def compose(args,env,pg,root,postmaster,approved,finance_sql):
     def post_audit():
         nonlocal used
         need(not used);used=True
-        return observe("POST",model)==started
+        return observe("POST",{"base":model,"finance":finance_manifest(model,finance_sql)})==started
     return dict(model=model,source=frozen,pins={n:pins[n] for n in LIBS},psql_sha=approved["psql_sha"],
                 cluster_identity=sid,start_epoch=epoch,post_audit=post_audit,
                 pg_control_sha=approved["pg_control_sha"],php_sha=approved["php_sha"]),bridge,finance_manifest(model,finance_sql)
+

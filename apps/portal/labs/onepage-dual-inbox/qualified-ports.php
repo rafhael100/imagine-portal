@@ -13,6 +13,7 @@ final class Pool {
  'inbox_b'=>['portal_asaas_ci','asaas_reconcile_worker'],
  'inbox_audit'=>['portal_asaas_ci','portal_native_test_bootstrap'],
  'native_audit'=>['portal_native_orders_ci','portal_native_test_bootstrap'],
+ 'ingress_capture'=>['portal_asaas_ci','onepage_ingress_capture'],
  'financial'=>['portal_native_orders_ci','onepage_finance_lab_verifier']];
  private const SELF_SQL="SELECT pg_backend_pid()::text pid,current_database() db,session_user login,current_user actor,host(inet_server_addr()) host,inet_server_port()::text port,extract(epoch FROM pg_postmaster_start_time())::text started,(current_setting('server_version_num')::int/10000)::text major,(SELECT backend_start::text FROM pg_stat_activity WHERE pid=pg_backend_pid()) born";
  private static function need(bool $v):void{if(!$v)throw new RuntimeException('QUALIFIED_PORTS_REFUSED');}
@@ -21,7 +22,7 @@ final class Pool {
  public static function manifest(string $bytes,string $hash):array{
   self::need(preg_match('/\A[a-f0-9]{64}\z/D',$hash)===1&&hash_equals($hash,hash('sha256',$bytes)));
   $m=json_decode($bytes,true,64,JSON_THROW_ON_ERROR);
-  self::need(is_array($m)&&array_keys($m)===['BEFORE_FINANCE','FINANCE_INSTALLED','AFTER_FINANCE']);
+  self::need(is_array($m)&&array_keys($m)===['BEFORE_FINANCE','FINANCE_INSTALLED','AFTER_FINANCE','SHARED_INSTALLED']);
   foreach($m as $phase=>$pair){
    self::need(is_array($pair)&&array_keys($pair)===['native','inbox']);
    foreach($pair as $side=>$f){
@@ -41,7 +42,15 @@ final class Pool {
    $expected['roles'][]=['onepage_finance_lab_verifier',$phase==='AFTER_FINANCE',false,false,false,false,false,false];
    usort($expected['roles'],fn($a,$b)=>strcmp($a[0],$b[0]));
    self::need(self::same($expected,$m[$phase]['native']));
-  }return $m;
+  }
+  $expected=$m['AFTER_FINANCE']['native'];
+  foreach(['onepage_ingress_capture','onepage_ingress_owner','onepage_ingress_revoker'] as $n){
+   foreach($expected['roles'] as $r)self::need($r[0]!==$n);
+   $expected['roles'][]=[$n,$n!=='onepage_ingress_owner',false,false,false,false,false,false];
+  }
+  usort($expected['roles'],fn($a,$b)=>strcmp($a[0],$b[0]));
+  self::need(self::same($expected,$m['SHARED_INSTALLED']['native']));
+  return $m;
  }
  public function __construct(array $ctx){
   $this->ctx=$ctx;$this->q=$ctx['qualification']??[];
@@ -112,6 +121,9 @@ final class Pool {
   if($phase==='BEFORE_FINANCE'){
    self::need($this->phase==='BEFORE_FINANCE'&&$this->slots===[]);
    $this->add('installer',$ctx['native']);
+  }elseif($phase==='SHARED_INSTALLED'){
+   self::need($this->phase==='AFTER_FINANCE');$this->phase='SHARED_INSTALLED';$this->control();
+   $this->add('ingress_capture');
   }else{
    self::need($phase==='AFTER_FINANCE'&&$this->phase==='FINANCE_INSTALLED');
    $this->phase='AFTER_FINANCE';$this->control();
@@ -138,3 +150,4 @@ return static function(string $phase,array $ctx)use(&$pool):array{
   return $pool->provide($phase,$ctx);
  }catch(Throwable $e){if($pool!==null)$pool->close();throw new RuntimeException('QUALIFIED_PORTS_REFUSED');}
 };
+
