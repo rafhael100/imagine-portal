@@ -68,11 +68,9 @@ $ok($siteInput->productCode === 'onepage' &&
     $export['canAcceptRealOrders'] === false,
     'Portal candidate never claims publication or customer acceptance');
 
-$newSource = str_replace(
-    'Somente exemplo sintético.',
-    "Somente exemplo sintético.\n",
-    $source,
-);
+$newSource = str_ends_with($source, "\n")
+    ? substr($source, 0, -1)."\r\n"
+    : $source."\r\n";
 $ok($newSource !== $source,'synthetic whitespace alteration is observable');
 $changed = Exporter::build($contract,
     array_replace($selection,[
