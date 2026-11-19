@@ -1,0 +1,315 @@
+name: Portal Noble HTTP archive metadata receipt only
+'on':
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-d0-finance-pg-v2']
+    paths: ['.github/workflows/portal-noble-http-apt-receipt.yml']
+permissions:
+  contents: read
+jobs:
+  receipt:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-noble-http-apt-receipt-v2' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-d0-finance-pg-v2' &&
+      github.event.pull_request.base.sha == 'e95baafac952e5fb8577bd4407de76263d11500e'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check exact scope and emit signed Ubuntu index receipt (no package execution)
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" RUNNER_TEMP="$RUNNER_TEMP" \
+            /usr/bin/python3 -I -B - <<'PY'
+          from datetime import datetime, timezone
+          from email.utils import parsedate_to_datetime
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import tempfile
+
+          REPO = 'rafhael100/imagine-portal'
+          BASE = 'e95baafac952e5fb8577bd4407de76263d11500e'
+          BASE_TREE = '0b22a8efeb696bb38e6494fedd85a35381f4fe3f'
+          BASE_REF = 'test/onepage-d0-finance-pg-v2'
+          HEAD_REF = 'test/onepage-noble-http-apt-receipt-v2'
+          PATH = '.github/workflows/portal-noble-http-apt-receipt.yml'
+          ARCH = 'amd64'
+          ENV = {'PATH':'/usr/bin:/bin','LC_ALL':'C'}
+
+          def need(value):
+              if not value:
+                  raise ValueError('RECEIPT_REFUSED')
+
+          def run(argv, seconds=12, env=None):
+              child = subprocess.run(argv, env=ENV if env is None else env, stdin=subprocess.DEVNULL,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=seconds)
+              return child.stdout
+
+          def tree(commit):
+              out = {}
+              for entry in run(['git','ls-tree','-rz',commit]).split(b'\0'):
+                  if not entry:
+                      continue
+                  meta, key = entry.split(b'\t',1)
+                  mode, kind, blob = meta.split()
+                  need(key not in out)
+                  out[key] = (mode,kind,blob)
+              return out
+
+          def gate():
+              need(os.environ.get('GITHUB_ACTIONS')=='true' and
+                   os.environ.get('GITHUB_EVENT_NAME')=='pull_request' and
+                   os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_RUN_ATTEMPT')=='1')
+              event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+              p = event['pull_request']
+              need(event['action']=='opened' and event['repository']['full_name']==REPO and
+                   p['draft'] is True and p['state']=='open')
+              need(p['base']['sha']==BASE and p['base']['ref']==BASE_REF and p['head']['ref']==HEAD_REF)
+              need(p['base']['repo']['full_name']==p['head']['repo']['full_name']==REPO)
+              head=p['head']['sha']
+              need(re.fullmatch(r'[0-9a-f]{40}',head) is not None)
+              need(run(['git','rev-parse','HEAD']).strip().decode()==head)
+              need(run(['git','rev-list','--parents','-n','1',head]).decode().split()==[head,BASE])
+              need(run(['git','rev-parse',BASE+'^{tree}']).strip().decode()==BASE_TREE)
+              need(run(['git','status','--porcelain=v1','--untracked-files=all'])==b'')
+              old,new=tree(BASE),tree(head)
+              key=PATH.encode()
+              need(key not in old and key in new and new[key][:2]==(b'100644',b'blob'))
+              need({k:v for k,v in new.items() if k!=key}==old)
+              raw=Path(PATH)
+              need(raw.is_file() and not raw.is_symlink())
+              b=raw.read_bytes()
+              need(hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest().encode()==new[key][2])
+              need(run(['dpkg','--print-architecture']).strip()==ARCH.encode())
+              release=Path('/etc/os-release').read_text()
+              need(re.search(r'^ID=ubuntu$',release,re.M) and re.search(r'^VERSION_CODENAME=noble$',release,re.M))
+              return head
+
+          # Exact candidates observed in Ubuntu Noble public amd64 catalog. Drift refuses.
+          EXPECTED = {
+              'libnginx-mod-http-js':'0.8.2-1ubuntu1',
+              'nginx':'1.24.0-2ubuntu7.19',
+              'nginx-common':'1.24.0-2ubuntu7.19',
+              'libnginx-mod-stream':'1.24.0-2ubuntu7.19',
+              'php8.3-fpm':'8.3.6-0ubuntu0.24.04.13',
+              'php8.3-common':'8.3.6-0ubuntu0.24.04.13',
+              'php8.3-cli':'8.3.6-0ubuntu0.24.04.13',
+              'php8.3-opcache':'8.3.6-0ubuntu0.24.04.13',
+          }
+          ORIGINS={
+              'noble':'https://archive.ubuntu.com/ubuntu/',
+              'noble-updates':'https://archive.ubuntu.com/ubuntu/',
+              'noble-security':'https://security.ubuntu.com/ubuntu/',
+          }
+          KEY='F6ECB3762474EDA9D21B7022871920D1991BC93C'
+          RING=Path('/usr/share/keyrings/ubuntu-archive-keyring.gpg')
+          HEX=r'[a-f0-9]{64}'
+
+          def digest(p):
+              with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+
+          def fields(lines):
+              result={}
+              for line in lines:
+                  if not line or line[:1].isspace():continue
+                  k,sep,v=line.partition(':')
+                  need(sep==':' and re.fullmatch(r'[A-Za-z0-9-]+',k) and k not in result)
+                  result[k]=v.strip()
+              return result
+
+          def selected(f,expected):
+              p=f.get('Package')
+              if p not in expected or f.get('Version')!=expected[p]:return None
+              need(f.get('Architecture') in (ARCH,'all') and re.fullmatch(HEX,f.get('SHA256',''))
+                   and f.get('Size','').isdecimal() and int(f['Size'])>0
+                   and re.fullmatch(r'pool/(?:main|universe)/[a-z0-9]+/[A-Za-z0-9.+-]+/[A-Za-z0-9.+~_-]+[.]deb',f.get('Filename','')))
+              return {k:f[k] for k in ('Package','Version','Architecture','SHA256','Size','Filename')}|{
+                  k:f[k] for k in ('Depends','Pre-Depends','Provides') if k in f}
+
+          def records(index):
+              # Stream after archive size/hash verification; no binary payload parsing.
+              rows=[];block=[];expanded=0
+              with index.open('rt',encoding='utf-8') as f:
+                  for line in f:
+                      expanded+=len(line)
+                      need(expanded<=536870912)
+                      if line.strip():
+                          block.append(line.rstrip('\n'));need(len(block)<4096)
+                      elif block:
+                          row=selected(fields(block),EXPECTED)
+                          if row is not None:rows.append(row)
+                          block=[]
+                  if block:
+                      row=selected(fields(block),EXPECTED)
+                      if row is not None:rows.append(row)
+              return rows
+
+          def reduce(found):
+              need(set(found)==set(EXPECTED))
+              result={}
+              for k,items in sorted(found.items()):
+                  ranked=sorted(items,key=lambda x:(x['suite'],x['index']))
+                  need(len({(x['suite'],x['index']) for x in ranked})==len(ranked))
+                  comparable=[{a:b for a,b in x.items() if a not in ('suite','index')} for x in ranked]
+                  need(all(x==comparable[0] for x in comparable))
+                  result[k]={'record':comparable[0],'origins':[{k:x[k] for k in ('suite','index')} for x in ranked]}
+              need('nginx-abi-1.24.0-1' in result['nginx']['record'].get('Provides','').split(', ') and
+                   'nginx-abi-1.24.0-1' in result['libnginx-mod-http-js']['record'].get('Depends',''))
+              return result
+
+          def make_config(root,suites):
+              for name in ('lists/partial','cache/archives/partial','etc','state','log'):
+                  (root/name).mkdir(parents=True,mode=0o700)
+              (root/'state/status').touch()
+              parts=[]
+              for suite in suites:
+                  parts.append(f'Types: deb\nURIs: {ORIGINS[suite]}\nSuites: {suite}\n'
+                               f'Components: main universe\nArchitectures: amd64\nTargets: Packages\n'
+                               f'Signed-By: {RING} {KEY}!\nInRelease-Path: InRelease\n'
+                               'Check-Date: yes\nDate-Max-Future: 300\nCheck-Valid-Until: yes\n'
+                               +('Valid-Until-Max: 172800\n' if suite!='noble' else ''))
+              (root/'etc/fixed.sources').write_text('\n'.join(parts))
+              settings={
+                  'Dir::Etc':str(root/'etc')+'/', 'Dir::Etc::main':'-','Dir::Etc::parts':'-',
+                  'Dir::Etc::sourcelist':'fixed.sources','Dir::Etc::sourceparts':'-',
+                  'Dir::Etc::trusted':'-','Dir::Etc::trustedparts':'-',
+                  'Dir::Etc::preferences':'-','Dir::Etc::preferencesparts':'-',
+                  'Dir::Etc::netrc':'-','Dir::Etc::netrcparts':'-',
+                  'Dir::State':str(root/'state')+'/', 'Dir::State::status':str(root/'state/status'),
+                  'Dir::State::lists':str(root/'lists')+'/', 'Dir::Cache':str(root/'cache')+'/',
+                  'Dir::Cache::pkgcache':'','Dir::Cache::srcpkgcache':'','Dir::Log':str(root/'log')+'/',
+                  'APT::Architecture':ARCH,'Acquire::Languages::':'none','Acquire::PDiffs':'false',
+                  'Acquire::IndexTargets::deb::Packages::KeepCompressed':'false',
+                  'Acquire::https::Timeout':'15','Acquire::Retries':'1','Acquire::https::Proxy':'DIRECT',
+                  'Acquire::https::AllowRedirect':'false','Acquire::https::Verify-Peer':'true',
+                  'Acquire::https::Verify-Host':'true','Acquire::AllowInsecureRepositories':'false',
+                  'Acquire::AllowWeakRepositories':'false','Acquire::AllowDowngradeToInsecureRepositories':'false',
+                  'APT::Get::AllowUnauthenticated':'false','APT::Update::Error-Mode':'any',
+              }
+              conf=root/'apt.conf'
+              conf.write_text(''.join(f'{k} "{v}";\n' for k,v in settings.items()))
+              env=ENV|{'APT_CONFIG':str(conf),'HOME':str(root)}
+              return env,settings
+          
+          def check_config(env,settings):
+              dump=run(['/usr/bin/apt-config','dump'],env=env).decode().splitlines()
+              need(all(f'{k} "{v}";' in dump for k,v in settings.items()))
+              need(not any(re.search(r'Invoke|Pre-Install-Pkgs|Proxy-Auto-Detect',line,re.I) for line in dump))
+          
+          def signed_index(root,suite):
+              host=ORIGINS[suite].split('/')[2]
+              prefix=root/'lists'/f'{host}_ubuntu_dists_{suite}'
+              signed=Path(str(prefix)+'_InRelease')
+              clear=root/(suite+'.Release')
+              need(signed.is_file() and not signed.is_symlink() and 0<signed.stat().st_size<=2**20)
+              status=run(['/usr/bin/gpgv','--homedir',str(root),'--keyring',str(RING),'--status-fd','1',
+                          '--output',str(clear),str(signed)]).decode('ascii')
+              matches=[l.split() for l in status.splitlines() if l.startswith('[GNUPG:] VALIDSIG ')]
+              need(len(matches)==1 and matches[0][2]==matches[0][-1]==KEY)
+              lines=clear.read_text().splitlines(); f=fields(lines)
+              need(f['Origin']=='Ubuntu' and f['Suite']==suite and f['Codename']=='noble'
+                   and ARCH in f['Architectures'].split())
+              now=datetime.now(timezone.utc)
+              age=(now-parsedate_to_datetime(f['Date'])).total_seconds()
+              need(age>=-300 and (suite=='noble' or age<=172800))
+              if 'Valid-Until' in f: need(now<=parsedate_to_datetime(f['Valid-Until']))
+              sha={}
+              for line in lines[lines.index('SHA256:')+1:]:
+                  if not line.startswith(' '): break
+                  h,n,name=line.split()
+                  need(re.fullmatch(HEX,h) and n.isdecimal() and name not in sha)
+                  sha[name]=(h,int(n))
+              archive={'origin':ORIGINS[suite],'signed_sha256':digest(signed),
+                       'date':f['Date'],'indexes':{}}
+              result=[]
+              for component in ('main','universe'):
+                  for arch in (ARCH,'all'):
+                      key=f'{component}/binary-{arch}/Packages'
+                      index=Path(str(prefix)+'_'+key.replace('/','_'))
+                      if arch=='all' and key not in sha:
+                          need(not index.exists())
+                          continue
+                      h,n=sha[key]
+                      need(index.is_file() and not index.is_symlink() and 0<n<=536870912
+                           and index.stat().st_size==n and digest(index)==h)
+                      archive['indexes'][key]={'sha256':h,'size':n}
+                      result.extend(row|{'suite':suite,'index':key} for row in records(index))
+              return archive,result
+          
+          def pocket(root,suites):
+              phase='CONFIG'
+              try:
+                  env,settings=make_config(root,suites)
+                  check_config(env,settings)
+                  phase='SIGNED_UPDATE'
+                  run(['/usr/bin/apt-get','--error-on=any','update','-qq'],seconds=100,env=env)
+                  phase='EXACT_INDEX'
+                  archives={};found={};all_local=[]
+                  for suite in suites:
+                      archives[suite],rows=signed_index(root,suite)
+                      all_local.extend(rows)
+                  phase='EXACT_CACHE'
+                  for p in sorted({r['Package'] for r in all_local}):
+                      cached=run(['/usr/bin/apt-cache','show',p+':amd64='+EXPECTED[p]],seconds=20,env=env).decode()
+                      observed=[selected(fields(b.splitlines()),EXPECTED) for b in cached.strip().split('\n\n')]
+                      local=[{k:v for k,v in r.items() if k not in ('suite','index')} for r in all_local if r['Package']==p]
+                      need(bool(observed) and all(row in local for row in observed))
+                  for row in all_local:
+                      found.setdefault(row['Package'],[]).append(row)
+                  return archives,found,None
+              except subprocess.TimeoutExpired:
+                  return {},{},phase+'_TIMEOUT'
+              except Exception:
+                  return {},{},phase+'_REFUSED'
+          
+          phase='SCOPE'
+          try:
+              head=gate()
+              phase='ARCHIVE_KEY'
+              need(RING.is_file() and not RING.is_symlink())
+              with tempfile.TemporaryDirectory(dir=os.environ['RUNNER_TEMP'],prefix='noble-http-apt-') as tmp:
+                  root=Path(tmp)
+                  outcomes=[(group,pocket(root/group,suites)) for group,suites in (
+                      ('ARCHIVE',('noble','noble-updates')),('SECURITY',('noble-security',)))]
+                  if any(error for _,(_,_,error) in outcomes):
+                      for group,(_,_,error) in outcomes:
+                          print('NOBLE_HTTP_APT_PHASE '+group+' '+(error or 'VERIFIED'))
+                      raise SystemExit(1)
+                  phase='PACKAGE_SELECTION'
+                  archives={}; found={}
+                  for _,(a,f,_) in outcomes:
+                      archives.update(a)
+                      for name,rows in f.items():found.setdefault(name,[]).extend(rows)
+                  need(set(found)==set(EXPECTED))
+                  phase='PACKAGE_CONFLICT_OR_ABI'
+                  packages=reduce(found)
+                  print('D0_NOBLE_HTTP_INDEX_RECEIPT '+json.dumps({
+                      'schema':'imagine.noble-http-index-receipt.v2','mode':'apt_metadata_only','portal_base':BASE,
+                      'portal_head':head,'arch':ARCH,'key_fingerprint':KEY,'keyring_sha256':digest(RING),
+                      'archives':archives,'packages':packages,'runtime_qualification':'unproven',
+                      'binary_bytes_received':False,'listener_started':False,
+                  },separators=(',',':'),sort_keys=True))
+          except Exception:
+              print('NOBLE_HTTP_APT_REFUSED phase='+phase)
+              raise SystemExit(1)
+          PY
