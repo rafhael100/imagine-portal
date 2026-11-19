@@ -1,0 +1,347 @@
+name: Portal isolated Onepage HTTP synthetic witness
+'on':
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-d0-finance-pg-v2']
+    paths: ['.github/workflows/portal-onepage-http-oci-wire.yml']
+permissions:
+  contents: read
+jobs:
+  receipt:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-http-oci-wire-v1' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-d0-finance-pg-v2' &&
+      github.event.pull_request.base.sha == 'e95baafac952e5fb8577bd4407de76263d11500e'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check exact scope; qualify OCI and run isolated HTTP fixture
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" RUNNER_TEMP="$RUNNER_TEMP" \
+            /usr/bin/python3 -I -B - <<'PY'
+          from datetime import datetime, timezone
+          from email.utils import parsedate_to_datetime
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import stat
+          import subprocess
+          import tempfile
+
+          REPO = 'rafhael100/imagine-portal'
+          BASE = 'e95baafac952e5fb8577bd4407de76263d11500e'
+          BASE_TREE = '0b22a8efeb696bb38e6494fedd85a35381f4fe3f'
+          BASE_REF = 'test/onepage-d0-finance-pg-v2'
+          HEAD_REF = 'test/onepage-http-oci-wire-v1'
+          PATH = '.github/workflows/portal-onepage-http-oci-wire.yml'
+          ARCH = 'amd64'
+          ENV = {'PATH':'/usr/bin:/bin','LC_ALL':'C'}
+
+          def need(value):
+              if not value:
+                  raise ValueError('RECEIPT_REFUSED')
+
+          def run(argv, seconds=12, env=None):
+              child = subprocess.run(argv, env=ENV if env is None else env, stdin=subprocess.DEVNULL,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=seconds)
+              return child.stdout
+
+          def tree(commit):
+              out = {}
+              for entry in run(['git','ls-tree','-rz',commit]).split(b'\0'):
+                  if not entry:
+                      continue
+                  meta, key = entry.split(b'\t',1)
+                  mode, kind, blob = meta.split()
+                  need(key not in out)
+                  out[key] = (mode,kind,blob)
+              return out
+
+          def gate():
+              need(os.environ.get('GITHUB_ACTIONS')=='true' and
+                   os.environ.get('GITHUB_EVENT_NAME')=='pull_request' and
+                   os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_RUN_ATTEMPT')=='1')
+              event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+              p = event['pull_request']
+              need(event['action']=='opened' and event['repository']['full_name']==REPO and
+                   p['draft'] is True and p['state']=='open')
+              need(p['base']['sha']==BASE and p['base']['ref']==BASE_REF and p['head']['ref']==HEAD_REF)
+              need(p['base']['repo']['full_name']==p['head']['repo']['full_name']==REPO)
+              head=p['head']['sha']
+              need(re.fullmatch(r'[0-9a-f]{40}',head) is not None)
+              need(run(['git','rev-parse','HEAD']).strip().decode()==head)
+              need(run(['git','rev-list','--parents','-n','1',head]).decode().split()==[head,BASE])
+              need(run(['git','rev-parse',BASE+'^{tree}']).strip().decode()==BASE_TREE)
+              need(run(['git','status','--porcelain=v1','--untracked-files=all'])==b'')
+              old,new=tree(BASE),tree(head)
+              key=PATH.encode()
+              need(key not in old and key in new and new[key][:2]==(b'100644',b'blob'))
+              need({k:v for k,v in new.items() if k!=key}==old)
+              raw=Path(PATH)
+              need(raw.is_file() and not raw.is_symlink())
+              b=raw.read_bytes()
+              need(hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest().encode()==new[key][2])
+              need(run(['dpkg','--print-architecture']).strip()==ARCH.encode())
+              release=Path('/etc/os-release').read_text()
+              need(re.search(r'^ID=ubuntu$',release,re.M) and re.search(r'^VERSION_CODENAME=noble$',release,re.M))
+              return head
+
+
+          OCI={
+            'nginx':('docker.io/library/nginx','901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a'),
+            'fpm':('docker.io/library/php','d7677e2a3c1579fbe52848cc446bc24860187c876c383a43b7d4b8e06dce537e'),
+          }
+          HEX=re.compile(r'sha256:[0-9a-f]{64}')
+          NGINX='/usr/sbin/nginx'
+          FPM='/usr/local/sbin/php-fpm'
+          MODULE='/usr/lib/nginx/modules/ngx_http_js_module.so'
+          PORT=28181
+          COMMON='/fixture-shared/socket'
+          SAFE_ENV={'PATH':'/usr/bin:/bin','LC_ALL':'C'}
+
+          class Refused(ValueError): pass
+
+          def require(flag,code):
+              if not flag: raise Refused(code)
+
+          def blob(body,digest):
+              require(HEX.fullmatch(digest) is not None,'MANIFEST_BINDING')
+              if not body or len(body)>2**20: raise Refused('MANIFEST_SIZE')
+              for b in (body,body[:-1] if body.endswith(b'\n') else b''):
+                  if 'sha256:'+hashlib.sha256(b).hexdigest()==digest:
+                      return json.loads(b)
+              raise Refused('MANIFEST_BINDING')
+
+          def image_binding(repo,reviewed,inspect):
+              want='sha256:'+reviewed
+              idx=blob(inspect(f'{repo}@{want}'),want)
+              require(idx.get('schemaVersion')==2,'INDEX_SCHEMA')
+              # #514 references are platform indexes; no other platform/tags tolerated.
+              rows=[m for m in idx.get('manifests',[]) if m.get('platform',{}).get('os')=='linux'
+                    and m.get('platform',{}).get('architecture')=='amd64'
+                    and not m.get('platform',{}).get('variant')]
+              require(len(rows)==1,'AMD64_MANIFEST')
+              row=rows[0]; child=row.get('digest','')
+              require(HEX.fullmatch(child) is not None,'AMD64_MANIFEST')
+              mf=blob(inspect(f'{repo}@{child}'),child)
+              cfg=mf.get('config',{}).get('digest','')
+              require(mf.get('schemaVersion')==2 and HEX.fullmatch(cfg) is not None,'CONFIG_DIGEST')
+              return f'{repo}@{child}',cfg
+
+          def check_local(obj,ref,config):
+              pinned=re.fullmatch(r'docker\.io/library/(nginx|php)@(sha256:[0-9a-f]{64})',ref)
+              require(pinned is not None,'LOCAL_IMAGE_BINDING')
+              name,child=pinned.groups()
+              aliases={f'{prefix}{name}@{child}' for prefix in ('docker.io/library/','library/','')}
+              digests=obj.get('RepoDigests')
+              require(obj.get('Id')==config and obj.get('Os')=='linux' and
+                      obj.get('Architecture')=='amd64' and isinstance(digests,list)
+                      and any(isinstance(x,str) and x in aliases for x in digests),'LOCAL_IMAGE_BINDING')
+
+          def module_receipt(version,checksum):
+              require(re.fullmatch(rb'nginx-module-njs-[0-9A-Za-z._+~-]+\n?',version) is not None,'NJS_MISSING')
+              h=checksum.split()
+              require(len(h)==2 and re.fullmatch(rb'[a-f0-9]{64}',h[0]) and h[1]==MODULE.encode(),'NJS_MODULE_HASH')
+              return version.decode().strip(),h[0].decode()
+
+          def inspect_container(obj,config,cfgroot,shared,uidgid):
+              h=obj['HostConfig']; mounts=obj['Mounts']
+              require(obj['Image']==config and obj['Config']['User']==uidgid and h['NetworkMode']=='none'
+                      and h['ReadonlyRootfs'] is True and h['Privileged'] is False
+                      and not h.get('PortBindings') and not h.get('PublishAllPorts')
+                      and not any((obj.get('NetworkSettings',{}).get('Ports') or {}).values())
+                      and h.get('CapDrop')==['ALL']
+                      and 'no-new-privileges' in h.get('SecurityOpt',[]),'CONTAINMENT')
+              expected={(str(cfgroot),'/fixture-config',False),(str(shared),'/fixture-shared',True)}
+              require(all(m['Type']=='bind' or m['Type']=='tmpfs' and m['Destination']=='/fixture-work' for m in mounts)
+                      and {(m['Source'],m['Destination'],m['RW']) for m in mounts if m['Type']=='bind'}==expected
+                      and set(h.get('Tmpfs') or {})=={'/fixture-work'},'MOUNTS')
+
+          def nginx_preflight(stdout):
+              seen=set(stdout.splitlines())
+              if b'ONEPAGE_PREFLIGHT_NJS_MISSING' in seen: return 'NJS_MISSING'
+              if b'ONEPAGE_PREFLIGHT_NGINX_CONFIG_REFUSED' in seen: return 'NGINX_CONFIG_REFUSED'
+              if {b'ONEPAGE_PREFLIGHT_NJS_PRESENT',b'ONEPAGE_PREFLIGHT_NGINX_CONFIG_OK'}<=seen:
+                  return 'NGINX_CONFIG_OK'
+              return 'PENDING'
+
+          def tcp_listeners(raw):
+              require(b'local_address' in raw,'SOCKET_OBSERVATION')
+              out=[]
+              for line in raw.decode('ascii').splitlines():
+                  fields=line.split()
+                  if fields and re.fullmatch(r'[0-9]+:',fields[0]):
+                      require(len(fields)>=4,'SOCKET_OBSERVATION')
+                      if fields[3]=='0A':
+                          out.append(fields[1])
+              return sorted(out)
+
+          def response(data):
+              m=re.match(rb'HTTP/1\.[01] ([0-9]{3}) [^\r\n]*\r\n',data)
+              require(m is not None,'HTTP_PROTOCOL')
+              return int(m[1])
+
+          def witness(http,arrivals):
+              require(arrivals()==b'','INITIAL_COUNTER')
+              # Exact, bounded benign fixtures; public synthetic value only.
+              headers=b'POST /_synthetic_fixture HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: 2\r\n'
+              key=b'X-Lab-Fixture-Key: synthetic-onepage-fixture\r\n'
+              require(response(http(headers+key+b'\r\n{}'))==204 and arrivals()==b'1\n','HTTP_POSITIVE')
+              for case in (b'',key+key):
+                  require(response(http(headers+case+b'\r\n{}'))==403 and arrivals()==b'1\n','HTTP_NEGATIVE')
+
+          def work(root):
+              import stat, time
+              config=root/'cfg'; config.mkdir(mode=0o700)
+              shared=root/'socket'; shared.mkdir(mode=0o700)
+              docker_config=root/'docker'; docker_config.mkdir(mode=0o700)
+              uid,gid=os.getuid(),os.getgid()
+              require(uid>0 and gid>0,'NONROOT')
+              uidgid=f'{uid}:{gid}'
+              # Direct official Docker Hub references only, no custom auth config,
+              # proxy, token, Git checkout, mounted daemon/socket or hosted secrets.
+              env=SAFE_ENV|{'DOCKER_CONFIG':str(docker_config),'HOME':str(root)}
+              def cli(*args,timeout=12,data=None):
+                  p=subprocess.run(['/usr/bin/docker',*args],env=env,input=data,
+                      stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout,check=True,cwd=root)
+                  return p.stdout
+              def object_for(kind,ref):
+                  rows=json.loads(cli(kind,'inspect',ref))
+                  require(type(rows) is list and len(rows)==1,'INSPECT')
+                  return rows[0]
+              def acquire():
+                  mirrors=json.loads(cli('info','--format','{{json .RegistryConfig.Mirrors}}'))
+                  require(mirrors in (None,[]),'REGISTRY_MIRROR')
+                  result={}
+                  for key,(repo,ref) in OCI.items():
+                      child,config_id=image_binding(repo,ref,
+                          lambda x:cli('buildx','imagetools','inspect','--raw',x,timeout=30))
+                      cli('pull','--platform','linux/amd64',child,timeout=75)
+                      check_local(object_for('image',child),child,config_id)
+                      result[key]=(child,config_id)
+                  return result
+              global phase
+              phase='OCI_IMAGE_BINDING'
+              imgs=acquire()
+              for k,v in CONFIGS.items(): (config/k).write_text(v)
+              names={}; marker=root.name
+              def create(lab,entry,args):
+                  ref,id_=imgs[lab]
+                  label='onepage-http-'+marker+'-'+lab
+                  names[lab]=label                 # tracks partially completed creates
+                  cli('create','--name',label,'--label','imagine.fixture='+marker,
+                      '--pull=never','--network=none','--read-only','--user',uidgid,'--cap-drop=ALL',
+                      '--security-opt=no-new-privileges','--env','PHP_INI_SCAN_DIR=','--pids-limit=32','--memory=128m',
+                      '--tmpfs',f'/fixture-work:rw,nosuid,nodev,noexec,size=8m,uid={uid},gid={gid},mode=0700',
+                      '--mount',f'type=bind,src={config},dst=/fixture-config,readonly',
+                      '--mount',f'type=bind,src={shared},dst=/fixture-shared',
+                      '--entrypoint',entry,ref,*args)
+                  obj=object_for('container',label)
+                  inspect_container(obj,id_,config,shared,uidgid)
+                  require(obj['Config']['Labels'].get('imagine.fixture')==marker,'OWNERSHIP')
+                  cli('start',label)
+                  return label
+              try:
+                  # These are sanitized sentinels only, not runtime attestation.
+                  script=('set -eu; if ! /sbin/apk info -e nginx-module-njs >/dev/null 2>&1 || ! test -r '
+                          +MODULE+'; then echo ONEPAGE_PREFLIGHT_NJS_MISSING; exit 41; fi; '
+                          'echo ONEPAGE_PREFLIGHT_NJS_PRESENT; if ! '+NGINX+
+                          ' -t -p /fixture-work -c /fixture-config/nginx.conf >/dev/null 2>&1; '
+                          'then echo ONEPAGE_PREFLIGHT_NGINX_CONFIG_REFUSED; exit 42; fi; '
+                          'echo ONEPAGE_PREFLIGHT_NGINX_CONFIG_OK; exec '+NGINX+
+                          ' -p /fixture-work -c /fixture-config/nginx.conf')
+                  phase='FPM_CONFIG'
+                  fpm_args=' -c /fixture-config/php.ini -y /fixture-config/fpm.conf'
+                  fpm=create('fpm','/bin/sh',['-c','set -eu; '+FPM+' -tt'+fpm_args+'; exec '+FPM+' -F'+fpm_args])
+                  deadline=time.monotonic()+5
+                  while not (shared/'socket').is_socket() and time.monotonic()<deadline: time.sleep(.1)
+                  require((shared/'socket').is_socket() and stat.S_IMODE((shared/'socket').stat().st_mode)==0o600,'FPM_SOCKET')
+                  phase='NGINX_PREFLIGHT'
+                  gateway=create('nginx','/bin/sh',['-c',script])
+                  deadline=time.monotonic()+6
+                  while True:
+                      status=nginx_preflight(cli('logs',gateway))
+                      if status=='NGINX_CONFIG_OK': break
+                      if status!='PENDING': raise Refused(status)
+                      require(time.monotonic()<deadline,'NGINX_PREFLIGHT_INCOMPLETE')
+                      time.sleep(.1)
+                  phase='NJS_RECEIPT'
+                  try:
+                      ver=cli('exec',gateway,'/sbin/apk','-v','info','nginx-module-njs')
+                      sha=cli('exec',gateway,'/bin/busybox','sha256sum',MODULE)
+                      pkg,module=module_receipt(ver,sha)
+                  except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as e:
+                      raise Refused('NJS_MISSING') from e
+                  phase='LISTENERS'
+                  def observe_tcp(name):
+                      socket_tables='for f in /proc/net/tcp /proc/net/tcp6; do if test -r "$f"; then cat "$f"; fi; done'
+                      return tcp_listeners(cli('exec',name,'/bin/sh','-c',socket_tables))
+                  require(observe_tcp(fpm)==[] and observe_tcp(gateway)==[f'0100007F:{PORT:04X}'],'TCP_LISTENERS')
+                  phase='HTTP_WIRE'
+                  def http(body):
+                      return cli('exec','-i',gateway,'/bin/busybox','nc','-w','2','127.0.0.1',str(PORT),timeout=5,data=body)
+                  def arrivals():
+                      return cli('exec',fpm,'/bin/sh','-c','if test -f /fixture-work/fpm-arrivals; then cat /fixture-work/fpm-arrivals; fi')
+                  witness(http,arrivals)
+                  require(observe_tcp(fpm)==[] and observe_tcp(gateway)==[f'0100007F:{PORT:04X}'],'TCP_LISTENERS')
+                  for lab,name in names.items():
+                      seen=object_for('container',name)
+                      inspect_container(seen,imgs[lab][1],config,shared,uidgid)
+                      require(seen['State']['Running'] is True,'RUNNING')
+              finally:
+                  try:
+                      for lab,name in reversed(list(names.items())):
+                          data=cli('container','ls','-aq','--filter','label=imagine.fixture='+marker,
+                                   '--filter','name=^/'+name+'$').strip()
+                          if data:
+                              require(re.fullmatch(rb'[a-f0-9]+',data) is not None,'CLEANUP')
+                              cli('container','stop','--time','2',name)
+                              cli('container','rm','-f',name)
+                      require(not cli('container','ls','-aq','--filter','label=imagine.fixture='+marker).strip(),'CLEANUP')
+                      sock=shared/'socket'
+                      if sock.exists():
+                          require(sock.is_socket() and not sock.is_symlink(),'SOCKET_CLEANUP')
+                          sock.unlink() # only after both containers are proved absent
+                      require(not sock.exists(),'SOCKET_CLEANUP')
+                  except Exception as e:
+                      raise Refused('CLEANUP_UNVERIFIED') from e
+              return {'nginx_njs_package':pkg,'module_sha256':module,
+                      'image_config_ids':{k:v[1] for k,v in imgs.items()},'mode':'SYNTHETIC_ONLY'}
+
+          CONFIGS={'nginx.conf': 'load_module /usr/lib/nginx/modules/ngx_http_js_module.so;\ndaemon off;\nworker_processes 1;\npid /fixture-work/nginx.pid;\nlock_file /fixture-work/nginx.lock;\nerror_log /fixture-work/nginx-error.log crit;\n\nevents { worker_connections 16; }\n\nhttp {\n    access_log off;\n    server_tokens off;\n    client_body_temp_path /fixture-work/nginx-body;\n    fastcgi_temp_path /fixture-work/nginx-fastcgi;\n    proxy_temp_path /fixture-work/nginx-proxy;\n    uwsgi_temp_path /fixture-work/nginx-uwsgi;\n    scgi_temp_path /fixture-work/nginx-scgi;\n    client_header_timeout 2s;\n    client_body_timeout 2s;\n    send_timeout 2s;\n    keepalive_timeout 0;\n    js_import fixture from /fixture-config/gate.mjs;\n    js_set $fixture_ok fixture.check;\n\n    server {\n        listen 127.0.0.1:28181;\n        server_name 127.0.0.1;\n\n        location = /_synthetic_fixture {\n            if ($request_uri != "/_synthetic_fixture") { return 404; }\n            if ($request_method != POST) { return 405; }\n            if ($fixture_ok != "admitted") { return 403; }\n\n            client_max_body_size 16;\n            fastcgi_pass_request_headers off;\n            fastcgi_pass_request_body on;\n            fastcgi_request_buffering on;\n            fastcgi_next_upstream off;\n            fastcgi_connect_timeout 1s;\n            fastcgi_send_timeout 2s;\n            fastcgi_read_timeout 2s;\n            fastcgi_param SCRIPT_FILENAME /fixture-config/probe.php;\n            fastcgi_param REQUEST_METHOD POST;\n            fastcgi_param CONTENT_TYPE application/json;\n            fastcgi_param CONTENT_LENGTH 2;\n            fastcgi_param LAB_SYNTHETIC_GATE admitted;\n            fastcgi_param REDIRECT_STATUS 200;\n            fastcgi_pass unix:/fixture-shared/socket;\n        }\n        location / { return 404; }\n    }\n}\n', 'fpm.conf': '[global]\npid = /fixture-work/fpm.pid\nerror_log = /fixture-work/fpm-error.log\nlog_level = alert\ndaemonize = no\n\n[synthetic]\nuser = www-data\ngroup = www-data\nlisten = /fixture-shared/socket\nlisten.mode = 0600\npm = static\npm.max_children = 1\npm.max_requests = 16\nrequest_terminate_timeout = 3s\nclear_env = yes\nsecurity.limit_extensions = .php\nchdir = /fixture-work\n', 'gate.mjs': '/* Public fake fixture credential; never use this file for real authentication. */\nfunction check(r) {\n    var token = 0, kind = 0, length = 0;\n    try {\n        var fields = r.rawHeadersIn;\n        if (!Array.isArray(fields)) return "refused";\n        for (var i = 0; i < fields.length; i++) {\n            var key = fields[i][0].toLowerCase(), value = fields[i][1];\n            if (key === "x-lab-fixture-key") {\n                token++;\n                if (value !== "synthetic-onepage-fixture") return "refused";\n            } else if (key === "content-type") {\n                kind++;\n                if (value !== "application/json") return "refused";\n            } else if (key === "content-length") {\n                length++;\n                if (value !== "2") return "refused";\n            } else if (key === "transfer-encoding") {\n                return "refused";\n            }\n        }\n        return token === 1 && kind === 1 && length === 1 ? "admitted" : "refused";\n    } catch (e) {\n        return "refused";\n    }\n}\nexport default {check};\n', 'php.ini': 'cgi.fix_pathinfo=0\ncgi.force_redirect=1\nexpose_php=0\ndisplay_errors=0\nlog_errors=0\nenable_dl=0\nallow_url_fopen=0\nallow_url_include=0\nauto_prepend_file=\nauto_append_file=\nvariables_order=SG\n', 'probe.php': '<?php\ndeclare(strict_types=1);\n\n// Entry counter only. Never records a header, credential, request body or identifier.\nif (file_put_contents(\'/fixture-work/fpm-arrivals\', "1\\n", FILE_APPEND | LOCK_EX) !== 2) {\n    http_response_code(500);\n    exit;\n}\nif (($_SERVER[\'LAB_SYNTHETIC_GATE\'] ?? null) !== \'admitted\'\n    || ($_SERVER[\'REQUEST_METHOD\'] ?? null) !== \'POST\'\n    || ($_SERVER[\'CONTENT_TYPE\'] ?? null) !== \'application/json\'\n    || ($_SERVER[\'CONTENT_LENGTH\'] ?? null) !== \'2\'\n    || array_filter(array_keys($_SERVER), static fn ($k) => str_starts_with($k, \'HTTP_\'))\n    || file_get_contents(\'php://input\') !== \'{}\') {\n    http_response_code(400);\n    exit;\n}\nhttp_response_code(204);\n'}
+
+          phase='SCOPE'
+          try:
+              gate()
+              with tempfile.TemporaryDirectory(dir=os.environ['RUNNER_TEMP'],prefix='onepage-wire-') as path:
+                  receipt=work(Path(path))
+              print('ONEPAGE_OCI_WIRE_RECEIPT '+json.dumps(receipt,sort_keys=True,separators=(',',':')))
+          except Refused as e:
+              print('ONEPAGE_OCI_WIRE_REFUSED phase='+phase+' code='+str(e))
+              raise SystemExit(1)
+          except subprocess.TimeoutExpired:
+              print('ONEPAGE_OCI_WIRE_REFUSED phase='+phase+' code=DEADLINE')
+              raise SystemExit(1)
+          except Exception:
+              print('ONEPAGE_OCI_WIRE_REFUSED phase='+phase+' code=UNQUALIFIED')
+              raise SystemExit(1)
+          PY
