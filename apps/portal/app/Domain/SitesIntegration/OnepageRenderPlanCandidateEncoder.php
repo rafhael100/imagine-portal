@@ -108,6 +108,30 @@ final class OnepageRenderPlanCandidateEncoder
                 $manifest->payload->sha256 !== $snapshotPair['payloadSha256']) {
                 throw new RuntimeException();
             }
+            // The pair is promised to come from our local candidate exporter,
+            // not from an arbitrary re-hashed JSON object. Rebuild it with the
+            // same source bytes to validate the entire rich-body profile and
+            // reject non-canonical/repackaged manifests before plan generation.
+            // This verifies structure ONLY; it is not origin authentication.
+            $reconstructed = OnepageBriefSnapshotCandidateEncoder::build(
+                new SiteContractSnapshot(
+                    $manifest->tenantRef, $manifest->orderRef,
+                    $manifest->contractRef, $manifest->contractRevision, 'onepage',
+                ),
+                [
+                    'siteRef' => $manifest->siteRef,
+                    'snapshotRef' => $manifest->snapshotRef,
+                    'operationId' => $manifest->operationId,
+                    'idempotencyKey' => $manifest->idempotencyKey,
+                    'sourceVersion' => $manifest->sourceVersion,
+                    'expectedBriefRevision' => $manifest->expectedBriefRevision,
+                    'payloadRef' => $manifest->payload->payloadRef,
+                ],
+                $sourceBytes,
+            );
+            if (!hash_equals($manifestBytes, $reconstructed['manifestBytes'])) {
+                throw new RuntimeException();
+            }
             self::keys($selection, [
                 'operationId', 'idempotencyKey', 'releaseRef', 'renderInputRef',
             ]);
