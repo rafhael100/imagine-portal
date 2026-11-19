@@ -365,4 +365,60 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
         $this->assertSame(0,DB::table('portal_performance_account_mandates')
             ->whereIn('id',[$mandateA,$mandateB])->where('operational_enabled',true)->count());
     }
+
+    public function test_revoked_candidate_is_terminal_even_if_status_stays_revoked(): void
+    {
+        $company=(string)Str::uuid();
+        $mandate=(string)Str::uuid();
+        DB::table('portal_performance_services')->insert([
+            'company_id'=>$company,'contract_ref'=>(string)Str::uuid(),
+            'contract_version'=>1,'company_active'=>true,'status'=>'active',
+            'source_kind'=>'synthetic_persisted','expires_at'=>time()+600,
+        ]);
+        DB::table('portal_performance_account_mandates')->insert([
+            'id'=>$mandate,'company_id'=>$company,'provider'=>'google_ads',
+            'account_id'=>'8765432109','service_principal'=>'imagine_portal_s2s',
+            'operation'=>'reports.read','purpose'=>'ads_reporting_read',
+            'consent_reference'=>'synthetic-consent-final-001',
+            'credential_ref'=>'synthetic-vault-final-001','status'=>'candidate',
+            'source_kind'=>'synthetic_candidate','operational_enabled'=>false,
+            'revision'=>1,'expires_at'=>time()+600,
+        ]);
+
+        // Terminal transition is allowed and audited atomically.
+        DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
+            'status'=>'revoked','revoked_at'=>time(),'revision'=>2,
+        ]);
+        $this->assertSame(2,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->count());
+
+        // Before the new trigger, UPDATE revoked -> revoked with revision+1
+        // rewrote consent/credential/expiration and appended another "revoked"
+        // event. This must be denied even without an attempt to reactivate.
+        foreach ([
+            ['revision'=>3,'credential_ref'=>'synthetic-vault-final-999'],
+            ['revision'=>3,'consent_reference'=>'synthetic-consent-final-999'],
+            ['revision'=>3,'expires_at'=>time()+3600],
+            ['revision'=>3,'status'=>'revoked'],
+        ] as $fields) {
+            try {
+                DB::table('portal_performance_account_mandates')->where('id',$mandate)->update($fields);
+                $this->fail('Terminal revoked mandate was mutated: '.json_encode($fields));
+            } catch (QueryException $e) {
+                $this->assertSame('23514',(string)$e->getCode(),
+                    'Terminal mutation must be blocked by SQL guard');
+            }
+        }
+        $stored=DB::table('portal_performance_account_mandates')->where('id',$mandate)->first();
+        $this->assertSame('revoked',$stored->status);
+        $this->assertSame(2,(int)$stored->revision);
+        $this->assertSame('synthetic-vault-final-001',$stored->credential_ref);
+        $this->assertSame('synthetic-consent-final-001',$stored->consent_reference);
+        $this->assertFalse((bool)$stored->operational_enabled);
+        $this->assertSame(2,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->count());
+        $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',2)
+            ->where('event_kind','revoked')->count());
+    }
 }
