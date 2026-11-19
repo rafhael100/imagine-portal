@@ -149,7 +149,7 @@ $deny(static fn() => Exporter::build(
 
 $selectionNegatives = [
     'wrong UUID' => ['siteRef' => 'not-a-uuid'],
-    'uppercase UUID' => ['snapshotRef' => strtoupper($selection['snapshotRef'])],
+    'uppercase UUID' => ['snapshotRef' => 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA'],
     'negative sourceVersion' => ['sourceVersion' => -1],
     'string sourceVersion' => ['sourceVersion' => '12'],
     'overflow sourceVersion' => ['sourceVersion' => 9007199254740992],
