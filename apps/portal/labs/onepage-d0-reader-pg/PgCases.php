@@ -9,7 +9,7 @@ use PDO;use Closure;use PHPUnit\Framework\Assert as A;
 final class ConfiguredReaderPgCases
 {
  private static function q(PDO $db,string $sql,array $args=[]):mixed{$q=$db->prepare($sql);$q->execute($args);return $q->fetchColumn();}
- public static function run(PDO $admin,PDO $runtime,Closure $connect,PostgresOnepageOrders $orders,OnepageAcceptedOrder $a,string $session,array $wrongSessions):void{
+ public static function run(PDO $admin,PDO $runtime,Closure $connect,PostgresOnepageOrders $orders,OnepageAcceptedOrder $a,string $session,array $wrongSessions,Closure $revoke,Closure $login,Closure $financeGate):void{
   // Called only by ConfiguredReaderPgTest after the original Laravel/admin/topology gates.
   require_once __DIR__.'/../onepage-d0-configured-reader/CurlFixture.php';
   A::assertTrue(extension_loaded('curl'));A::assertFalse(function_exists('curl_exec'));
@@ -44,6 +44,8 @@ final class ConfiguredReaderPgCases
   A::assertSame($snapshot,$store->inspect($session,$a->id));
   A::assertSame(0,Wire::$calls);
   A::assertSame(0,(int)self::q($admin,'SELECT count(*) FROM portal_onepage.entry_confirmations'));
+  require_once __DIR__.'/../onepage-finance-integrated/Harness.php';
+  $session=\PrivateD0IntegratedLab\Harness::run($admin,$connect,$a,$session,$store,$revoke,$login,$financeGate);
   Wire::reset();Wire::$response=['id'=>$snapshot['binding']['payment_id'],'customer'=>$snapshot['binding']['customer_id'],'externalReference'=>$snapshot['binding']['external_reference'],'billingType'=>$snapshot['binding']['billing_type'],'status'=>'RECEIVED','value'=>'330.00'];
   $configuration=static function()use($store,$session,$a){$s=$store->inspect($session,$a->id);return ['account'=>$s['account'],'environment'=>$s['environment'],'configuration'=>$s['account_authorization']['configuration'],'generation'=>$s['account_authorization']['generation']];};
   $leaseCalls=0;$lease=static function(array $c)use(&$leaseCalls){$leaseCalls++;return $c+['token'=>'synthetic-fixture-token-not-credential'];};
