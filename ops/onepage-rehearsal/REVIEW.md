@@ -1,0 +1,17 @@
+# Delta público proposto, ainda privado
+
+Publicar apenas estes arquivos em `ops/onepage-rehearsal/`, em commit/draft separado com aprovação explícita. Nenhuma imagem, application, segredo, credencial, IP, caminho privado ou workflow novo. A publicação pode acionar checks herdados do repositório; não autoriza execução/deploy. Os dez arquivos em new/ são bytes já revisados do bundle privado; seis PHP são a peça nova de OneShot/harness, não nova regra financeira.
+
+381 arquivos vêm dos três SHAs públicos declarados em plan.json: 380 idênticos e ServiceAuthorityPort com a transformação literal já usada no #986. inputs.json é regenerado exatamente. O novo manifesto montado preserva todos os 388 bytes de arquivos runtime e os quatro arquivos operacionais. Exclui somente APPROVAL.md/proveniência com caminhos locais; não representa mudança funcional. O bundle anterior permanece intacto.
+
+## Aplicação única pela equipe, não pelo proprietário
+1. Após aprovação separada de publicação, ler de volta commit público exato, blobs e TRANSFER-MANIFEST.json, fixando seu SHA256 nesta aprovação. Não usar branch/tag móvel.
+2. Na sessão administrativa efêmera autorizada, o agente baixa somente os 15 paths declarados do delta por HTTPS `raw.githubusercontent.com/rafhael100/imagine-portal/<COMMIT_EXATO>/ops/onepage-rehearsal/<PATH>` a diretório novo fora do webroot. O commit ainda não existe; não inventar URL pronta. Conferir manifesto e todos os hashes antes de executar qualquer Python. Nunca curl|sh, token, URL assinada ou segredo em VNC.
+3. O agente executa `python3 materialize.py <SHA_TRANSFER_APROVADO> <DIRETORIO_NOVO_BUNDLE>`. Apenas leitura HTTPS pública por SHA, validação de blobs e escrita no diretório novo; sem SQL/build. Archives não são extraídos: só os membros regulares permitidos são lidos. Redirecionamento, path inesperado selecionado, limite de bytes e divergências abortam.
+4. Conferir o SHA emitido igual ao bundle-manifest aprovado. Só na mesma autorização administrativa executar `python3 admin-once.py <SHA_BUNDLE_APROVADO>` dentro do bundle. Nenhum passo é pedido para o dono colar ou carregar. Sucesso anterior com cleanup impede repetição; falha exige revisão.
+
+## Limites preservados
+Build único: daemon Docker local Linux amd64, legacy builder com memória1GiB/CPU1/15min; sem fallback se indisponível. APT oficial assinado PHP8.4.28 exato ou aborta. Execução: network none, read-only, CPU1, RAM512MiB,4min, pids128, tmpfs256MiB, sem portas/mounts de host/capabilities/serviços. PG e Worker no mesmo container e somente loopback; nenhum trust no host. Rollback só container e tag próprios com label exata; não prune nem apagar cache/bases compartilhadas. >=4GiB livres; limite imagem1.5GiB; cache Docker não possui quota global garantida por este script. Não é instalação persistente, Sandbox, fluxo web ou tráfego real.
+
+## Transporte privado e bloqueios restantes
+Não há SFTP/SCP/upload privado ao host comprovado. Library/arquivo local não prova entrega na VPS. O caminho público resolve o transporte sem segredo somente se a publicação específica for aprovada e HTTPS público estiver acessível na sessão do destino; não sondamos o destino. Sessão admin efêmera e destino novo continuam necessários, sem ampliar codex-imagine. Python3 e Docker legacy utilizáveis no destino são pré-condições, não fatos observados. O Docker do pacote não foi construído/executado. A prova financeira local anterior não prova esta embalagem.

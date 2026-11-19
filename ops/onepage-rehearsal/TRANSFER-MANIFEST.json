@@ -1,0 +1,75 @@
+{
+  "purpose": "approval-only-public-source-delta",
+  "files": [
+    {
+      "path": "materialize.py",
+      "bytes": 4510,
+      "sha256": "09fe1e6cdca294f7c3022312b030fe7bf3fc234252dd84f32c5042c86b95efac"
+    },
+    {
+      "path": "plan.json",
+      "bytes": 160359,
+      "sha256": "64e5282d2ce6806fdac3e630756094c190c9ababc509580faa3dddc332ae21ab"
+    },
+    {
+      "path": "bundle-manifest.json",
+      "bytes": 79934,
+      "sha256": "33fb212099fe1c38a19879485779f2df3beb7881d9f79c11d00422eac1cf2f80"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 3559,
+      "sha256": "0d205006bcb7db1c22f47b26f143da64b751911b6cfe946d663174c1d940cd9c"
+    },
+    {
+      "path": "new/.dockerignore",
+      "bytes": 51,
+      "sha256": "e4e72a9a9b3cdbb1563989f2a32e9bc9c6678b3864e2611d6b5d6afd1c05e79a"
+    },
+    {
+      "path": "new/Dockerfile",
+      "bytes": 2623,
+      "sha256": "d3d7f11e19c40dbbf7b789baaf70c62a4fdb08f624b03b02b04990c78410fd59"
+    },
+    {
+      "path": "new/admin-once.py",
+      "bytes": 5286,
+      "sha256": "edb2ef24f4b9842c2975bb377824d5651627b48e25aa0c088368d1b3cf448d3f"
+    },
+    {
+      "path": "new/runtime/local-harness/Bootstrap.php",
+      "bytes": 10407,
+      "sha256": "498ca4b91998bcd6d976b23016f483167d41f5a2a0999e827f06023f2ce91c16"
+    },
+    {
+      "path": "new/runtime/local-harness/LocalGate.php",
+      "bytes": 7185,
+      "sha256": "c418e2626df10a60b80125fc7aeccb7d251cc1c7300002b3cd6d2be39a3d3ede"
+    },
+    {
+      "path": "new/runtime/local-harness/run.php",
+      "bytes": 5861,
+      "sha256": "15b1af928b7f999157be80a3bf3b6f9e41ec618096f1235ed81a20c6f5fff259"
+    },
+    {
+      "path": "new/runtime/oneshot/OneShot.php",
+      "bytes": 6173,
+      "sha256": "ebf89b0604225693e74fb93e90aae7e9e4017a558808a827a6199abb14bf2cb3"
+    },
+    {
+      "path": "new/runtime/oneshot/QualifiedLabContext.php",
+      "bytes": 634,
+      "sha256": "ea3dca505f460b01f814e5b3043b19fdc253343eeb11d831a1cda1c84210e316"
+    },
+    {
+      "path": "new/runtime/oneshot/entry.php",
+      "bytes": 433,
+      "sha256": "e5467c1326203868912c9686b726231173e0ebeb3b6aae0d5a10b64b972600bd"
+    },
+    {
+      "path": "new/supervisor.py",
+      "bytes": 4073,
+      "sha256": "282630718d8965769c2c09cd7435a5cac228c8de01a5e4ce2ff30d22f379e4f4"
+    }
+  ]
+}

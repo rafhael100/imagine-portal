@@ -1,0 +1,3106 @@
+{
+  "repository": "rafhael100/imagine-portal",
+  "public": [
+    {
+      "destination": "runtime/application/app/Console/Commands/ExportDemoPortalPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Console/Commands/ExportDemoPortalPreview.php",
+      "blob": "ae177a3171c9d6ec691d1e7ed47e2d3c35c42d99",
+      "sha256": "a11a06b7879feb794f4d48b32d4ba4e31cbabba3805c566545326c23e456fff3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Console/Commands/VerifyDemoPortalPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Console/Commands/VerifyDemoPortalPreview.php",
+      "blob": "7fefea882c61423ee34c77c3c650dc8eb3f9efbd",
+      "sha256": "db7b863de2d600d256afac2843d0a019b6d2df4a5a189b550a05255c22e165bf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Authorization/AuthorizationContext.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Authorization/AuthorizationContext.php",
+      "blob": "36a30d18148dd67ef4cf6a206b5952320e26cc7f",
+      "sha256": "97805136cd67f38053fcadb84382a84819f1324c778bd971bb1d480ff8a3104d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Authorization/AuthorizationDecision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Authorization/AuthorizationDecision.php",
+      "blob": "095804721a7f4701993f3ff0f5673f59a14947dc",
+      "sha256": "120c86d84cbecaef4d55be6bcba1b92d7a4372e1a6139dadff78ae6a8f0fc208",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Authorization/OrganizationAuthorizationService.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Authorization/OrganizationAuthorizationService.php",
+      "blob": "73e0f7e22a32f2ce845cf9f505c8d670b0eed1d9",
+      "sha256": "0949c3304c122c614caa792599c3dfaa3d4be8d83ecd42305a966ffe7d438ac3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Authorization/Permission.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Authorization/Permission.php",
+      "blob": "fa15571012cabf859abb67d0c14c48f2603b1f3f",
+      "sha256": "4fba7afa9d9b720b57512d34ec8308d1b3883efd14c5e06504ce441af0b6577e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/CatalogAccessPolicy.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/CatalogAccessPolicy.php",
+      "blob": "0ad9421f50e6267951408accb82cb77eedd2531a",
+      "sha256": "eb04c92b0fa6eff14bd8a4ec4c56361e7377f537bf687b54531003550febc9de",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/OfferingEligibility.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/OfferingEligibility.php",
+      "blob": "2bf0a98b6fda8f59ff7aea73a6887e3f8db92c83",
+      "sha256": "ee2746cdcd6537ed657b6c97dc33685104eff5013cd45681401face006a64d6a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/OfferingId.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/OfferingId.php",
+      "blob": "2cadc0ac41f4138de19bdd66a7b873e99b4dbb5f",
+      "sha256": "cd6b3b9e866722175d3b006d980276f839452869e7161b16cbfa7a0db3df332a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/OfferingStatus.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/OfferingStatus.php",
+      "blob": "857d46ef73150cb648d886d0d53771f2848dcc50",
+      "sha256": "457ead782c370585082dde363ef21d9a0786d1622d04d6d8c18fe5421b5b0b11",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/PerformanceChannel.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/PerformanceChannel.php",
+      "blob": "b4b4df7a29b9dce1b53aeae901bffbcbf6b71198",
+      "sha256": "f42016cd56a51d59df06b4b7aa23053dbffddb3583b939c61e0b5810c446c59e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/PerformanceModality.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/PerformanceModality.php",
+      "blob": "2595b75a121bed2446e20485dddc118868f1aa8b",
+      "sha256": "074612739764e71b688af54b5bba1e4d00d2da7f037522081fd8750d941d19cb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/PerformanceOffering.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/PerformanceOffering.php",
+      "blob": "70041adf6ea5f9bc73bbb3212f4be45fb04fbff9",
+      "sha256": "898658fdc5f23fcbe63e6251a566afe82eca122389ce76f3af620a714753490d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Catalog/ProductCode.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Catalog/ProductCode.php",
+      "blob": "5f582789b6957f43af4231b1b1a72619444fc091",
+      "sha256": "65363bd672999a9b9eac35d36b2daec51126bf5b7cc12f984cb32225c4b46bd9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ClientOverview/DemoOverviewComposer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ClientOverview/DemoOverviewComposer.php",
+      "blob": "ecc83c734c9144c0c80d6f6a37473c7d369bb849",
+      "sha256": "d1d912745a331e557a34a9300bf552d504052bf0ed4ae29aeede93b50737f207",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ClientOverview/DemoOverviewResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ClientOverview/DemoOverviewResult.php",
+      "blob": "dcd04b349781870bf87bd03f2d5ef0b031fd7b72",
+      "sha256": "dc325bdc0b4a561d500c492db41eac31c00b956b7f81122d8971a06fc554587e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ClientOverview/DemoServiceRelationPage.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ClientOverview/DemoServiceRelationPage.php",
+      "blob": "ce55320f9e1da0d2cbe6451a87f46c4741ae1290",
+      "sha256": "61a1177548d443362b77d363574bc73857e6eb618108029d55cc316646b76898",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ClientOverview/DemoServiceRelationProjector.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ClientOverview/DemoServiceRelationProjector.php",
+      "blob": "ee3e8d2245ad7e9c8e61ebd7ce839f4979754b46",
+      "sha256": "16005fce4b1716c8b880b0b6f0a0a43136fb70e393f2cbf7d105059aaded4a8d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/D0/EntryStore.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Commerce/D0/EntryStore.php",
+      "blob": "8aa937029bad53ff25da99860d86bc251c42b650",
+      "sha256": "0ff9164ce71bd35ccd644f88d23d671ec4d7f4e749f214d07242721a7c492c73",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/D0/FirstBriefingRelease.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Commerce/D0/FirstBriefingRelease.php",
+      "blob": "f8318d8b8ce8a620d987f1422483db2bc7eebf76",
+      "sha256": "f334a5561a50fdadece0de59683af639a81365f49684f992b90dc1ddb28c4a7e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/D0/UnavailableEntryStore.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Commerce/D0/UnavailableEntryStore.php",
+      "blob": "01ea3447a6d698ebe254117133dbc9ed9481d09e",
+      "sha256": "7b65ad6887aac905ad017cbb1788209e19b0367b6360855b7bfb0083d5636a57",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/OnepageAcceptedOrder.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Commerce/OnepageAcceptedOrder.php",
+      "blob": "663e9ee3b5f3d36768f8275533f3164c40d3c8ac",
+      "sha256": "04a3b80e6faec0686858d46e220e2f2140e6d86feb0788003602ed71cc7cc483",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/OnepageOrderReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Commerce/OnepageOrderReader.php",
+      "blob": "58397d9d72c8c65fd2908cc1cb69fc6015fc5b25",
+      "sha256": "6c856135f5f545a3167e31ed9c44d7a95953711d102c8016b8337d117fdae246",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Commerce/OnepageOrderStore.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Domain/Commerce/OnepageOrderStore.php",
+      "blob": "eb5197de09dc12b63ea84fc8535f6f64a9daf398",
+      "sha256": "21973653104f706f76af2426128622b5839aead378d8b85cf406b6c66b5769e2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewPreflight.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewPreflight.php",
+      "blob": "41b64f9deb264858a46b2027b5deb566d1e0d8dd",
+      "sha256": "d0e145779755ed4db0beb83b4d2849e9db7c28fdb0f2d2929a6712cc1033fb8f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewVerdict.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewVerdict.php",
+      "blob": "dd49953f6b5801685fb26702f36e5b25bb5cca0d",
+      "sha256": "9a1373ebca38471b31760bc7050b8b59a6b922696247899cb373c50afa8eb3a2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/CommercialDeliveryReview/DeliveryReviewMetadataProjector.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/CommercialDeliveryReview/DeliveryReviewMetadataProjector.php",
+      "blob": "51c06aa878ac1be497370675e8d38c097d29a112",
+      "sha256": "1b5605d401d1f31e6058156f6d3444de93451ded12ce5201212b76f1e62766b5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Contracts/DemoContractRecord.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Contracts/DemoContractRecord.php",
+      "blob": "242d9c6b9753b28be1ca98d7f80b4697cbe10643",
+      "sha256": "bb38e356ea6fae0fa0cd8d8f80c31050f624f7477cc68c2cbdf57758d7fadec8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Contracts/DemoContractStage.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Contracts/DemoContractStage.php",
+      "blob": "f933d70db5879080897f9fee4f14241d439978ba",
+      "sha256": "3ea00d9854499ef85999232b01e49bc4628f7b0d27e53c004daf792a46581f0f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Browser/DenyingPortalBrowserAuthentication.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Browser/DenyingPortalBrowserAuthentication.php",
+      "blob": "0d84f457784428a4d64e877a38b9e5a9739498a2",
+      "sha256": "2ee68ca882bfa27689345b3a5571a11595ccf02bce3e82d41cba71b9fa7a0419",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Browser/PortalBrowserAuthentication.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Browser/PortalBrowserAuthentication.php",
+      "blob": "2f86275cd03f8aba0d25217f2059168587ac255e",
+      "sha256": "50e5154fb30674ca42302c7b1211f1dfaa5303a8c9da413c6d3e8fa18df5a881",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/DenyingPortalInvitationIdentitySource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/DenyingPortalInvitationIdentitySource.php",
+      "blob": "054c69207b5717cf20aaea2640ac70d238e85dff",
+      "sha256": "d7dbc36bbd37098c12b3e255d078aa83ee4069945dc6f5d1e7f32faa10f57c5c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalEmailVerificationSecret.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalEmailVerificationSecret.php",
+      "blob": "7ac0d55dd1c821eb97db2483d17433d9852e59dd",
+      "sha256": "4aabf73df0c2950b6fc12366f7650b69ebc6e52f890ffd6e6562a3b26047fff1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationActorEvidence.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationActorEvidence.php",
+      "blob": "639e3ad382492de5cca61dfb429e69ea4a77354f",
+      "sha256": "82823f3e385387673b91321b45ca2fabc1f6d8b1924feb9d5ce8fa08a59a72b2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationIdentitySource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationIdentitySource.php",
+      "blob": "5b7d91984b302cad8c478d63786efb8e3d5956d5",
+      "sha256": "f3931f83f200161fdd505dcd3e77d00dc4b17ab088416311ed259bee9a78ff57",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationPreflight.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationPreflight.php",
+      "blob": "48e43bbf3379303393030b5482eafe3f0cc9614e",
+      "sha256": "93a111fc4b3ff3817f7c055c902afa68ee0b725ac408ad5a6713c2e9d08a1510",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationPreflightVerdict.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationPreflightVerdict.php",
+      "blob": "2c7e6c70f5bf34db4ad8d8d1888cc17189ad6356",
+      "sha256": "132833260393152307614d5baf3a7d386838d684f9f8848600448fabe075473b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationSecret.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Invitations/PortalInvitationSecret.php",
+      "blob": "ba3b873d4bacb191e7d6d079308486e6f2296f22",
+      "sha256": "35d1b7bca4cf1de1695ac1b6ec6e40042cc6c3f1e04fdca14177f3a211a5d9b9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/PortalActor.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/PortalActor.php",
+      "blob": "877c41d69b9a60e423054a6abba1251da0ab02a2",
+      "sha256": "2ea85b3a15c6e841c59148668d138aef750324854ac2294cdaa057a037263074",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/PortalUserId.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/PortalUserId.php",
+      "blob": "49a3873dd17b6a1a2a999b40f6fc07aadc46ed81",
+      "sha256": "7b45a18a1b13cd080e020f2de833ba82a1f591d2c5a58760a6c2dc67fa1906ff",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Security/PortalPasswordCredential.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Security/PortalPasswordCredential.php",
+      "blob": "5541d59f8d2e379cb490ce0f9b9b08ffad8e2725",
+      "sha256": "660895ff150dd0fe70a75b0f906d78ffdbc2330d23f1ddd768162aca943eeed7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Security/PortalTotpSecretCipher.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Security/PortalTotpSecretCipher.php",
+      "blob": "e60c2b513253e3a4d1be70f091e60c403e3996e8",
+      "sha256": "bfe633f2fd70cceb9b9e92260ede4f6d575dfe24eca316aeb3f0d310f9dc8247",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Identity/Security/PortalTotpVerifier.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Identity/Security/PortalTotpVerifier.php",
+      "blob": "42c176e3b958f36e95dea7b4429f05857a09020a",
+      "sha256": "c7ede6f554dfc1f5de06ba2aec03ce85f089ea93e4162e38475efbf95fdbc306",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Organizations/CustomerOrganization.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Organizations/CustomerOrganization.php",
+      "blob": "4c4da854a1ce4732ef6d86b91bd8575ea641d3a4",
+      "sha256": "ee9838a2dc707fc8ca4e95edbc839156141663db8c8ef89ba8ef2c06bc2461c0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Organizations/MembershipStatus.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Organizations/MembershipStatus.php",
+      "blob": "a95faac97eb7504665e2257cc734e8ea28a95c40",
+      "sha256": "033d6be678d02e72441473a0c37d7968db7568cc5fe6c0db22a0a1f6031a1556",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Organizations/OrganizationId.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Organizations/OrganizationId.php",
+      "blob": "56c4bf326655a9b8d2bc0430e17f5d24aad40d92",
+      "sha256": "0747fdaf8d2670239a7a38531aa954e7738c92c4bcf93cecbcf3d9da376f2b74",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Organizations/OrganizationMembership.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Organizations/OrganizationMembership.php",
+      "blob": "9ea65c10d96046b5c11e769a5d18005cd1535de5",
+      "sha256": "59855f039506d5e1edb1b98d6c6f3f9774263f054e2482b8f158962d51b67cbc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Organizations/OrganizationRole.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Organizations/OrganizationRole.php",
+      "blob": "3b8a2b3e9249661507e78af6b4de351548405dcf",
+      "sha256": "4fd2e53011a6c1a2583ba9d724d7733b1cbc069d1f59de97a2dede9ebbb12537",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php",
+      "blob": "220f3e48d40dfe8d9b8a7e2d543d109a9788db7e",
+      "sha256": "0e6a1594e5ebfda9db4475059b77c447eefd651ca70b74f51e451b6c84e06453",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PaymentRouting/GatewayPolicyReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PaymentRouting/GatewayPolicyReview.php",
+      "blob": "947cadc2195a2a27d919549bb273356ae6957a8a",
+      "sha256": "69f40af98f4da0b4e0beaae35f33d5967401cf006b6a6f1603b2321e1ca58b7d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PaymentRouting/GatewayRoutingPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PaymentRouting/GatewayRoutingPreview.php",
+      "blob": "b7537482f7f53b8bab9439f3f00df2bf1b334f77",
+      "sha256": "7e52cd73f1b5a525ce68b8811dc1b6861bbc1d5061e19d14437fe0b20a2b0b2d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PaymentRouting/PaymentIntentLifecyclePreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PaymentRouting/PaymentIntentLifecyclePreview.php",
+      "blob": "133e93346ec5b5323c0b07fc0fd1dfd6918050ef",
+      "sha256": "2d16cc547e1cc15a8ba8eec8d0033d623bb7223e5bf447a81f89e46a073484dd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php",
+      "blob": "679ec9d391523e071e05a6ec5aedae9b2a898289",
+      "sha256": "642daec6ff32518c8bb45b9109896efb42cc8e9ab1e45b6f98b57a3a283c8413",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Performance/ActivationGatewayReviewLab.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Performance/ActivationGatewayReviewLab.php",
+      "blob": "d3da5ef64aaa841eb8709a050d0a8e73c58f4fde",
+      "sha256": "0640781aaf4658de7b44dcb249b18a30d62a034e691d378e3081871b86cd269f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Performance/ActivationPostpaidPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Performance/ActivationPostpaidPreview.php",
+      "blob": "8ad8b887aa556cf37e11ea03ee3c80f61c721aad",
+      "sha256": "6d5d3d2b78b13aed56a178c2cec4488f89dc55ee1af67b8ce7964f7d13c63844",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Performance/PerformanceChannelReviewEnvelope.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Performance/PerformanceChannelReviewEnvelope.php",
+      "blob": "58b383b49f29028507f44fb8974c000eefb52f85",
+      "sha256": "1c17bc90b4e7fab97f86a47985be37adb63f707f3cba229782c28fc6a4151a60",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php",
+      "blob": "bc4278f266fef9a612954ad03938eef905f0ac54",
+      "sha256": "506cbd183ab168b5e5660aa962e3ed9e1ca411b8a0a14f268f37afb0a8c08e20",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php",
+      "blob": "b24c27fae27fd2dd2a54c839f7dfb6b6154c085a",
+      "sha256": "316b8b924faea7b1f453eecd851bbefc07859f2bb9a85c99311286416fdd5f44",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoCampaignCard.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoCampaignCard.php",
+      "blob": "a785c467a749bd66f5792083c7d1d86e4d92578d",
+      "sha256": "eb2d5716335dd87d13b6cc6d1114f5e65d4bfa4a1079b1947cb2f85c27077b64",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoCampaignStage.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoCampaignStage.php",
+      "blob": "ceedfdcc0e9caf969e9cd6cb34876e030787d6a8",
+      "sha256": "28f0467073b26aea3912b3fb18069f9ebd826a6176a7cdea76be059a618fd5d2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoDashboardFactory.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoDashboardFactory.php",
+      "blob": "af85d92f10485220090d5e85051b22afd30337d0",
+      "sha256": "1c52d0498d66d551d585f5c6346323c13c473118f42e91493f141ac7a2e2b052",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoDashboardSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoDashboardSnapshot.php",
+      "blob": "d8f8937c56a680a72f6cbb0095a1ab91925045d3",
+      "sha256": "22d391d8f3db2e8aa93eaab5bf1b8fa1fca6e2a9eab0b4df2dd1ffe598092457",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoMetric.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoMetric.php",
+      "blob": "55c423509759b7d649c5090a172af39fd041fbd3",
+      "sha256": "889d56aec89cc5dd419800444b5af832df81e9aa3a70d22cad9682784d5a41b9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoMetricKey.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoMetricKey.php",
+      "blob": "2873c0d4b132819fdb4888838fba632e7a70d7e2",
+      "sha256": "273cc856161c9e5aaee42d463b6eeeccb032de419b2b796145354e7b813b7494",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoRequestCard.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoRequestCard.php",
+      "blob": "c3331f7b123a5a612e875b38e7d38945ec2dd2ab",
+      "sha256": "17241393ce893014391efa592e27ca5bc1917e5aca25c0ab793997f83067e4ac",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/DemoRequestStage.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/DemoRequestStage.php",
+      "blob": "323f295da2cc5db1dbcb305111de461ea02de1f2",
+      "sha256": "72ad2a13c1ffdc3627cfcab0ff17a5e273b804feee565014ea86a6350e17ccfa",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php",
+      "blob": "510ac1cd92347df477be34279f01bcc9aa0f7bc2",
+      "sha256": "ce48b1418ed7a313b68cdf613620511a6b3890224c9f6ae0ff3938022dbcf726",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php",
+      "blob": "42758b04fb34c35a36771cf81246e3c5800cd20c",
+      "sha256": "aad5f81a46b73cd366672d0e61835b9adcaa80827b06137e16f0d06c908326de",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php",
+      "blob": "ea9029540b06fdfbefdbb199b48ee9fb099c2ebc",
+      "sha256": "533e00768dddcfb2a82822bfe357528478eec53380c0985a46b5827eca6bcc84",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoAdAccount.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoAdAccount.php",
+      "blob": "878c1b96f057a7edd6cc6aa76f2b39981580184f",
+      "sha256": "dde66259ee8d3aca5b580299137bf7c3898c484ffbf3f4be129077aa9a863bd7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoAdapterReceipt.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoAdapterReceipt.php",
+      "blob": "ac7de653fe3e1c7694aa44ddc201f8679d1975d2",
+      "sha256": "9a421a4685d264d91ad5c0da9c40627143df8741fd3adb30461b1aaa609af4bd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoBusinessGoal.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoBusinessGoal.php",
+      "blob": "024a39feb16c607cc1a7e9786e701a8824705c2e",
+      "sha256": "0dc87de3f3df7d25681d2b54d20359fcde9d0d0eeeaa636fed472b815530337b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingDraft.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingDraft.php",
+      "blob": "8d2393dae015b276605caca14b83b7c458d15908",
+      "sha256": "39e15b4bd9493139ef6fa98408968b03585586cdcb8efe16dda45e9e991e04db",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingFactory.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingFactory.php",
+      "blob": "b48101caae74217688e507eb73eed0cd5972bec4",
+      "sha256": "217b8c452a07a26c876a91060b04a14dd95e7f0eae2b33376530fb4442220d82",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingId.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingId.php",
+      "blob": "2d5d98c6dc5b91779c565e09e17e6f3116d9f8ff",
+      "sha256": "2ccd67fb2cbdd1b5ab6fc0fe7dffe24115ddca75b016f04aecb7c5b681982953",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingStatus.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoOnboardingStatus.php",
+      "blob": "a59b8df97e618d54565fca778fae1b9abe9bdb66",
+      "sha256": "413e2b388637a7393ce0e30171badc5a56164c8a0d3a2cff21fd01e5bc644fac",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/DemoPerformanceEvent.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/DemoPerformanceEvent.php",
+      "blob": "890e3e13cf7356d6a312ee3706ffb40a249facaa",
+      "sha256": "439391768517c31ab08892e7e40fd143fc6371893fa7fbfc4d71c41227f06263",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PerformanceOnboarding/InMemoryPerformanceMockAdapter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PerformanceOnboarding/InMemoryPerformanceMockAdapter.php",
+      "blob": "a810bad7d8755f3ec02d54153eb8a154157583c3",
+      "sha256": "ee397cdb817d11b0a042908ceb3f6645ae1e589361a665ee6a746d3ed2394404",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/DenyingPortalAuthorities.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/DenyingPortalAuthorities.php",
+      "blob": "3b2bc348f7a63cc358bbbdef2bae20530a77df63",
+      "sha256": "851845227fd6c4ae0d0765b8cd6436bbe449b42d66c614b3473cf19beb629233",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalAuthorityBoundary.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalAuthorityBoundary.php",
+      "blob": "f74d29d8b3181f45efa764c765814fd4ad102113",
+      "sha256": "096480a4fd87b0abf5164f00a419e436da7ecd42b3fb091eb870ee301140631f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalBoundaryVerdict.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalBoundaryVerdict.php",
+      "blob": "c6154f70616d5d7d18f57d3094436dfb5bcf5ffe",
+      "sha256": "530385292df85aebba6b89cfbd141f851f8fbb3d6975dc852c252b3ad49771d9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalMembershipAuthority.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalMembershipAuthority.php",
+      "blob": "c5af9f9e106956f8a0cfd7c08603d5efed710b5f",
+      "sha256": "f8e0223fd20b046e9a0c8751db7be76fa3898dec97779fdc9aaedfa7e33f4818",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalOrganizationAuthority.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalOrganizationAuthority.php",
+      "blob": "442e440a72ce98c65547b9536fe6e74f6a3b2f27",
+      "sha256": "627af6d4241bc62835e2aa7a543907c9a4799b05d795defd8c625e38472b79a7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalOrganizationSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalOrganizationSnapshot.php",
+      "blob": "c4da9825f15442d9ba5ffccf1f26569a86b450b2",
+      "sha256": "31cdf4488db61ecd06dad10ba92988a7d05dde604155a9c625d165035015e5f1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalResourceAuthority.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalResourceAuthority.php",
+      "blob": "a7fb2ba195265772b059c4d7c8dc79c5227ad472",
+      "sha256": "cf364b30dbf847dbe36d70b4329aaf30a4222d7ae5ad47b8471168793dec9c93",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionAuthority.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionAuthority.php",
+      "blob": "8b2e532d0f204cb190700428ac00c0c8d39825dc",
+      "sha256": "68a694ca74be8fe67dd171971c1efb1f14b6c8060a72c3e1d9332748d63c297f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionPurpose.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionPurpose.php",
+      "blob": "2ba107e8dab2353ce0363ca88d9e319ffc013007",
+      "sha256": "814c0d3f6c72dc3a97c5f7677f386f2a9ea0f217fd008757685ae39ebc8b7c34",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/Authority/PortalSessionSnapshot.php",
+      "blob": "22c17cad9a7addaec82eaf96db716d7e3548c0a8",
+      "sha256": "db47cfa11b4896573e5e6415ab825a3aa6b7ce8682ea32c5b95d1e7f0ed6216d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/DemoAccessBlocker.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/DemoAccessBlocker.php",
+      "blob": "4076894e0b75f0b693716febcb288955dd9fc02f",
+      "sha256": "c1b23c9bd09b9f59d4a209d45feac8a287cb924e7c3b9a4d8ed8161cb90f6aaf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/DemoNavigationPolicy.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/DemoNavigationPolicy.php",
+      "blob": "bb77c3065aa53101acf0addebbdda2bbf2321f05",
+      "sha256": "9b3d732c3325e8bb295c2203814ae24698c845ecd451fb7f18285fa656f9fb3f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/DemoNavigationVerdict.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/DemoNavigationVerdict.php",
+      "blob": "17a0752cf1efe0832e780f44e26550d647b43ab8",
+      "sha256": "07bde5fedc56d695fece1a6181c1d3e2b6454c3cb88e06186601cb7e5ad83a1a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/DemoPortalSession.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/DemoPortalSession.php",
+      "blob": "c2adae0dd19d4200704d3f4faed74a8d9103d48c",
+      "sha256": "10de4725d009cc792c95f2daf8d1e06f1344509c34cc7c30dc6a5884b65a5bef",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/PortalAccess/DemoPortalSessionState.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/PortalAccess/DemoPortalSessionState.php",
+      "blob": "d403dbf60ce167e6576382a3ca74698f31590554",
+      "sha256": "581784efe4e9108b5a6cc29c30f6582e4d70f0b7f5955df7196cf93d64f2296c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoAcceptance.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoAcceptance.php",
+      "blob": "7167049fdc5da2e2aa8c3c8291fb19e84f874fbc",
+      "sha256": "a42d310f7e3d318298a86e6e8804810c471c6d399abe7b5590d843816ea8c639",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoAcceptanceService.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoAcceptanceService.php",
+      "blob": "3eee1388985e73ccb11bb5631cd77f9e4a95d1ce",
+      "sha256": "1164a4ace89ef5144a2767d31a64f478360747c452b586b5d080d8dc2f7b7b02",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoAddonSelection.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoAddonSelection.php",
+      "blob": "c791ddb7f489e1b93535d02f5cca86b9651bd802",
+      "sha256": "ef010cf0b2e15c54c37209371fe139dccc279430cf2d58fbdfd888b541f681b5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoProposalId.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalId.php",
+      "blob": "2be5bee3995780e531226c9cfea127f133b2fc39",
+      "sha256": "4f159641fbb07d78fd2669e9dd6b8c0f10e87ce4f35f17f3d2ac3775f3e9bf62",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoProposalSimulator.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalSimulator.php",
+      "blob": "8b820d896b89a0ada9f50428ea24816d72014c65",
+      "sha256": "66f1a7e9bdb36bbbd6f4e5233079bed1647256b6cfaacb1963d3a63bf295a387",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoProposalSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalSnapshot.php",
+      "blob": "1f8d14dd779e40dacdf721ca43beda69eb27cebf",
+      "sha256": "58550bc56a40ae49480db7e61bf61e8a34df13dc3578d0cf77e7f61dfa2f65dc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/Proposals/DemoProposalStatus.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/Proposals/DemoProposalStatus.php",
+      "blob": "c22e479f76619df05f2c9459979f06d8dbd48052",
+      "sha256": "2f53ddf36ffb4bcd1c5b4b9450049c618668beea4c37d8e3db3dad3840ed1916",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleAuthorizationUrl.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleAuthorizationUrl.php",
+      "blob": "07b402c6c1d3d77de766b4b54a1ca5e50f35dbdc",
+      "sha256": "a396e86b793dad4115965efa35cf9ae56b1a2d24faed7ea7326c6144fddad633",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleCallbackParser.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleCallbackParser.php",
+      "blob": "8d132549ea1dd050c926567eef21f2f12c6fa17e",
+      "sha256": "abf2559aab12fb90bd5fa5ba6bb8f242f7d6470d272fa3614ef36ae3ab4110f1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleConnectionPreflight.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleConnectionPreflight.php",
+      "blob": "f214b35c98b13b8418f885b988bd075abd2bdefa",
+      "sha256": "109c258204bcfb8bf4394fbc87189105bbfc95a86dab940f9aed6bd2992ee793",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleConnectionReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleConnectionReview.php",
+      "blob": "9a4d200e67437d016df9528344265e77a9b71c92",
+      "sha256": "f8f828a99278538fec1bf43a351c2029d751f6f0c07e3ed5d57d07d9d778a2a8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleDailyPerformanceSeries.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleDailyPerformanceSeries.php",
+      "blob": "ce638bcd88f30007dddd7ddd63c1da2667a0378d",
+      "sha256": "7ec428864d67540f8bac96b2655f2ec9da7e6251cc1d78fd3c3a3c5e7679ea7a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleIamWitness.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleIamWitness.php",
+      "blob": "4b64aecd83e2ae11764b19b0fd3b5344155a3a5b",
+      "sha256": "cf2b83933313d43bec44f7f0ff7e644901e99c205ad8b722fb46c53e02cd1fbd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleIamWitnessReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleIamWitnessReview.php",
+      "blob": "9c4a9f7a8fadca88b4e4b8d3308a6112b91650da",
+      "sha256": "4e3bd9a7c96208da676fbf3d37db9fc5716a7d3e62afd665e18fb3ffe156c661",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleMetricsReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleMetricsReview.php",
+      "blob": "ba541fb3909fe2718178f245819908eb5e3bf666",
+      "sha256": "d04176474430e47dba576e51c2601af034f028dbbcd6251c8e5aae168ff59611",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsolePeriodComparison.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePeriodComparison.php",
+      "blob": "7d82929d005367b6f622a6adb838467f7c364db7",
+      "sha256": "5ffaef2810449aead4bdda63b595ee60c228eac9717371059f3823a8f97b3394",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+      "blob": "531ef39976a5a3a08fa410d3b508618881dd41ed",
+      "sha256": "8617099843cee9a481ad53db19f259b94560f28433d6a5a12f42996f5e48efe9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+      "blob": "ba85d066a4efa071cfd097dd60fd06f5e3cdd25d",
+      "sha256": "db77d8ae4a52ed39a614e2fa63ac1b2f9004b0331235d20c98791bd93460df99",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleReadOnlyTokenResponse.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleReadOnlyTokenResponse.php",
+      "blob": "714d0af41d8629ffc93274bdf2397159651fd1bd",
+      "sha256": "d6fe1e78a7ee5e0aeb2a5bca01cfc92e675ab25a733c8bc2401e054286caea5f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php",
+      "blob": "46d8a20d54d1f68274e862edfb88c865dbdaddf3",
+      "sha256": "bfe55f865405873074f736b357c4ba34bd3ec14d7010f64b2497d84855614ccd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+      "blob": "667ff871ce486292e4464edff3e3135e03c3c696",
+      "sha256": "03c126e0ba0bc9a36f5920979267285dbc3625572d615656be69d6f63488b173",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleSiteListingReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/GoogleSearchConsoleSiteListingReview.php",
+      "blob": "f4b8839295ddad2d4ac20cd4a95be468552a8560",
+      "sha256": "5d171b50e472700dce4842cf788da47cb5236b0540e97a78dd7806a3cdd7072a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflineGscDailyComparisonPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscDailyComparisonPreview.php",
+      "blob": "de679b94e4880378e80bf3354db9e6ba6daabaef",
+      "sha256": "161b3ceafd33f2c3aa139846435da4c6a1840a88010ba3bf8dc0050d3ff07795",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+      "blob": "19b1e691003decf212e482c2d13590fa155016f7",
+      "sha256": "61e042fc8c769852d3bc15c903ac116ba50a7e313ae15f93b77be9ddd063a869",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+      "blob": "02d083607b430e84750b9b67ff9849c82020b339",
+      "sha256": "22ce1b3820a5be79c480c843aff0e9ce859b77a9f2319198d020aef0114c7b2f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflineGscWorkflowPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflineGscWorkflowPreview.php",
+      "blob": "29e8d3174ea681176efbf49b472a6b03f9e41f0d",
+      "sha256": "a35c651258d27bfc258947f94c75fa01cb737121f79e6358999979d3453b116c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php",
+      "blob": "b0db34d3faca2274cd32b7c1455b08897df9618e",
+      "sha256": "d794167474b303bcbdba99f904eb2f466e279bc3c5440641e4a4d5fd379c78d2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+      "blob": "d2c345cf5b8085717ef3a9d5f04ec73b0280d39c",
+      "sha256": "970a5b5502f8513d9a7a4d652335766fd199402a779880a6d3dd897fdaf89cf8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php",
+      "blob": "811281241c9d597509bcadb2a27acec0293c962c",
+      "sha256": "78d9343feb1e1eab512b26b546f4a03145b9707bc2d34e30d698674b91c78db7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SeoReview/OfflineSeoHandoffPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SeoReview/OfflineSeoHandoffPreview.php",
+      "blob": "7b9fb8f43069da81c116c8b6e3ff5d3952d08bcc",
+      "sha256": "95696cdd3cab3f7cfa6c99cf682780d2c4d32a3ce991dc88c4f66c26f1ee0212",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/BenefitServiceFixture.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/BenefitServiceFixture.php",
+      "blob": "5ba8542325fc954b0d3c1c151e74364d5d8c92ff",
+      "sha256": "e416ed13439ec31b0ed583fa9a2f2ac92196f3761fd4e3789a99b03a6985a6b2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/BenefitServiceState.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/BenefitServiceState.php",
+      "blob": "6d854fdf48f0559a16752f773da915edf1d727fb",
+      "sha256": "9d39a9ef8f616f7159449e20ef0174fdc71904d63377b97ae192d2d316bb1cda",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/PortfolioKind.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioKind.php",
+      "blob": "05bebaa2cbe574ae8e13e9ded4155ca0dd2e8b2a",
+      "sha256": "2ca95c1bba13cb5b2400d2413e6642e28717c2242e831500918a7fcde3ef39c4",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/PortfolioPreviewItem.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioPreviewItem.php",
+      "blob": "4bb1fd564cd155592337e61781d3693cd2beb145",
+      "sha256": "ad2b29a44c8563b856bda6a75fef509d5d9199b9c93dc5dc5013fe8512fdcb68",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/PortfolioProduct.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/PortfolioProduct.php",
+      "blob": "ea5e7096b9dbd2d9c095e9090f3f06ba63cd5586",
+      "sha256": "684b307cf70012d86a787cb2f249563d3cda98373cee3573950ba0eed39b6528",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/UniversityBenefitPreviewPolicy.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/UniversityBenefitPreviewPolicy.php",
+      "blob": "663ea44e738cb59d842af6a9cd3a0f23da157703",
+      "sha256": "49bda5434cdbd25c6d37ef729d0b0dfd2a88c496151acb379cf99e41420ed05b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServicePortfolio/UniversityBenefitPreviewResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServicePortfolio/UniversityBenefitPreviewResult.php",
+      "blob": "03a7e59acb6d48c152c197fa0ad17a36d8f158d4",
+      "sha256": "544a9e3f4bf52dba4a3f64bd641715dac0099cb909c96a654aa865a80832586f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/DemoRequestCommand.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestCommand.php",
+      "blob": "6339962abd483c4fb26919d2f1f9971f3ab1a2ef",
+      "sha256": "abc7f781e32b43b1f45fb3f9ef9b991828fbcd24c46cfc5359af008cf01f1da9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/DemoRequestJournal.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestJournal.php",
+      "blob": "60bd1ddad08be6dd3bba0d20dd9e017b030acb3a",
+      "sha256": "1d8b2f141ba84863737367ec513ad03ec937ec912e445a8992140667dd5a95a6",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/DemoRequestJournalOutcome.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/DemoRequestJournalOutcome.php",
+      "blob": "cf9c0a2631500930d0cde1fa9b8243235ded1155",
+      "sha256": "8cdb589c3548eceb0aab3f3fd5809dc9e2de348b85504d720d508eba0f554a0c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/RequestInboxPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/RequestInboxPreview.php",
+      "blob": "e431e779bd8e74210bd9c8fe76c72f838735b826",
+      "sha256": "0b0782c698e37e338c4ea862505ca26327cb1c10e8879621dd13e8f49c678a2d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/RequestInboxPreviewResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/RequestInboxPreviewResult.php",
+      "blob": "fa6b71bf686eeed6d4f746d0690bd270bc516212",
+      "sha256": "178a884d4ee67decb4a8abe2f1c1c09961d849020b56cfa07c92aab8176a8328",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestAction.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestAction.php",
+      "blob": "2b853f7e6e470bad894f43306e1dfce6b56dba17",
+      "sha256": "c40ce82ca191e9f21da34411cf2308e3bac9ffc56a12176905a84a3ea1ceb236",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestActorKind.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestActorKind.php",
+      "blob": "dd9d51454f86dc12f80c032c9925f7d7d9925e1f",
+      "sha256": "25ec5eb5f7fc98ee7a09bd7076e3732cce8a494154d978301a070cbfe4a72979",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestSnapshot.php",
+      "blob": "63b43e2a6a9931ce82b4baeb9aa13dcfed1ed415",
+      "sha256": "6add492848eda3d177856da3d85537346537f43c5d7b7903b055358dcbf6eb4b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestStatus.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestStatus.php",
+      "blob": "8b553f45fcc89259e0f241902e04bb0ca5a5275a",
+      "sha256": "6c336da5e47d04e6abb50dd19fa4a478a008568fbe768903b532428b8dbd1e6f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestTransitionPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestTransitionPreview.php",
+      "blob": "1f7c5f4f62e7de0cb8db70ecbb46dd1843f25015",
+      "sha256": "708debc99cc5d0e943baa57ef6a333d87e1d44d0d26ed239ef5b910dbd714630",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/ServiceRequests/ServiceRequestWorkflowPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/ServiceRequests/ServiceRequestWorkflowPreview.php",
+      "blob": "326750b2a218f15ae12d86f41b908b2dd6b403ea",
+      "sha256": "d186303cb37132ddedc07e5be9667b404077db39ea991fd336f894c11d868092",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/DemoSiteReviewJournal.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/DemoSiteReviewJournal.php",
+      "blob": "d6ea019a60756c04442648aa2292c5cc4736fdc3",
+      "sha256": "85acacf680b88e3984d1e959bf019c2d8921b19da8392629ee460cdce435d162",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteBriefDraft.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php",
+      "blob": "a956ef024111bdd47b0667057d8746a69c8b3d9b",
+      "sha256": "38084f1b1bdc8a134c5d495a1d9323d3352967e080d9f2205127fc1523f74957",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteBriefPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefPreview.php",
+      "blob": "cd757ae3c57a8924350c50134d78bc3a521a5b60",
+      "sha256": "5da34e7af22895fc6eff9229f77e8093b35749da0a167ae50772a228a9c67939",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteBriefPreviewResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteBriefPreviewResult.php",
+      "blob": "542295c19b80f8e9e9750d2b7bfd8ea6fa9dbecd",
+      "sha256": "6da55dcb1739ed0d79ee2d7777c336b491821d11716e07b288c7695a9d2e6316",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteContentCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteContentCandidate.php",
+      "blob": "72cb18cd3f162ab497cae41f0ba2400b9899f722",
+      "sha256": "e5063af7e89b297e06c5be87abdf7899b3ac995066cbb771700bd4e2f4c2648c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineContractVocabulary.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineContractVocabulary.php",
+      "blob": "a836c7e802fd97f4f71ed954ac545c1d6d909ee4",
+      "sha256": "a1893acf75c5af0f90d4be5d842e60018c023c147c45be47b08b981680250f39",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineCreateProjectCandidateValidator.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineCreateProjectCandidateValidator.php",
+      "blob": "779a5d2108658287d8ab668ceea69814240a7ca2",
+      "sha256": "a9a49a9f0e73730f942b108a2b91745f266e1c99259fbf3c6bd33fcb604af88a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineCreateProjectDemoComposer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineCreateProjectDemoComposer.php",
+      "blob": "f706a912c99d116a852bf132ba2c7ef8dc2b9f09",
+      "sha256": "279c242fb5083387da77b3d59bd073f4149c34a73519212bec27c9d19855a83b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineEnvelopeSchemaDriftGate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineEnvelopeSchemaDriftGate.php",
+      "blob": "bc33726a1d4cec1f082f458b546134291847166c",
+      "sha256": "a7b6e53835107b91253e0ddf245725fafaf2f8663089392acafa078ebfdd1c07",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffDemoContractValidator.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffDemoContractValidator.php",
+      "blob": "8a379c8e00d50a7f22da6e7b1f50dbb4825851f8",
+      "sha256": "956b93f8c9c19f2b7c39186d421310ec2b5a16fcefe568807aa11c074759a8e3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffDemoValidationResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffDemoValidationResult.php",
+      "blob": "cc4c8342886c5ad8800c27ca12440ffda678403e",
+      "sha256": "ce5abc92a94ccc82f937b6cbfbd7f60848e86b316715fd3a65bd8b68a08d5b46",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewBuilder.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewBuilder.php",
+      "blob": "d38b43c4c87e615824f915cc3996647065f28a77",
+      "sha256": "f9d2f949f7acdf3a47ec657c045f1eaa5aec9d7bbeb6039eb196a5c42ffd695a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php",
+      "blob": "2d9139731afe4d6ef5be3ad0077cb340e59b3fd6",
+      "sha256": "007b605eca16e49f0a4de2479f85462ff64d3f91013610c8dad5dacf6c846d98",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewResult.php",
+      "blob": "ac36857b845c28577154578d828280a7c7c66168",
+      "sha256": "190c059d59d9caaf29edd6fd58fa8e89ef092f4a751706d1704f90d49a6c3813",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php",
+      "blob": "8d066aacc150a52abe9920f3e0025b4ba7f01be5",
+      "sha256": "098d41f8b11441b9637d861a9cff1d232c11410cbaae3a755996f8e260bf7cd9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteEngineSyntheticEnvelopePreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteEngineSyntheticEnvelopePreview.php",
+      "blob": "e6c7b6d3042c5073b863511888650fe429be3235",
+      "sha256": "d31ab35bf0f401cc6459af4d956e243287f25874bef2faf51a3ec72d1dbe2485",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteReviewCommand.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewCommand.php",
+      "blob": "6237039a1b326533774a165d538ccb04eee02c30",
+      "sha256": "06d12887a4fbeaae22b0f2ad56511a0f800541688291b3833c3c5cfd8b787fdb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteReviewDecision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewDecision.php",
+      "blob": "9bd4f6fc318ff214322e78b5881b020c1ec560e3",
+      "sha256": "4f4a63a09847f8d947427ccf6474a43507d266a990451f87db2b3a09f8249373",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SiteIntake/SiteReviewOutcome.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SiteIntake/SiteReviewOutcome.php",
+      "blob": "7c8d3be032a6290d3bc81e2fe91971a264056113",
+      "sha256": "9f8138dd1ebc1173f81ea0d94d3907d6d23a19980237c43d9316e3709bba0109",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasDenyingBindingSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasDenyingBindingSource.php",
+      "blob": "d10b8de09ac3be3d8ce3554e3a36865572683590",
+      "sha256": "4212c089f139908c2b0455f5c6a3ee43e7a96d6f60731a16e227a527e966c138",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasDenyingPaymentReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasDenyingPaymentReader.php",
+      "blob": "6c93febe1418c7f1786edb67e8bd691f563b6fc9",
+      "sha256": "e86d62edc1e497043465bfdfa45c8579bed94fd7fbb259384192847976374015",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasOfficialPaymentReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasOfficialPaymentReader.php",
+      "blob": "518ab7877bd313fc3a160d7f836aa3d495e812d0",
+      "sha256": "a859818088fd6c4fa76b6d1ae5d46cba8729ce7df87c3beb961e94e8d55e5386",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasReadOnlyPaymentClient.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasReadOnlyPaymentClient.php",
+      "blob": "3c66653394dfcc889764a948cff7ca705a1f38b3",
+      "sha256": "b26b86c359b51cb3a3d3209c0f168e3a047507cae181328536f5286d6e12e729",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasTrustedPaymentBinding.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasTrustedPaymentBinding.php",
+      "blob": "989f2f4f067b7c6b79f101f1de294eec7b0ac22c",
+      "sha256": "9dc6c6401e3c20b532cf04ca9ef4283f2b12a60372bd419bbb736babe8c6010f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasTrustedPaymentBindingSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasTrustedPaymentBindingSource.php",
+      "blob": "59b238e22026da1691c586e0f1a761bc7c9d746a",
+      "sha256": "7a8fadf4be571cc588b82a5abce575eae37350a58d88208d8d1c512042403264",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php",
+      "blob": "17bf5bd3f35b33a73b5befb2fd99addf164b62a5",
+      "sha256": "3d9120c72d6294a6238a469c03e53a441d1a5fe79424e5a440f025d72460dba7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/DenyingPortalRevocationEpochSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalRevocationEpochSource.php",
+      "blob": "c02b342d6c384bb0edc1086606fd78974b0cd300",
+      "sha256": "2716e7a56870b68e0dce55f2dd6aae5191fcd86554dc59844b4e14a8908aab5e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/DenyingPortalSettlementSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalSettlementSource.php",
+      "blob": "1e16ca9bc1efc8f92c88b32f12e5b62baafdd567",
+      "sha256": "938d75e216385091c5301b6f269b6c8c6a39ba9a6e14c078a6e8b15956bb8cdc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/DenyingPortalSiteContractSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteContractSource.php",
+      "blob": "0b4d0fec947f72a404dff34968574972060e945b",
+      "sha256": "c48523ade57b810997e1e4f29f2f82b22dc78183f30664e5546d02351b4c6ff1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php",
+      "blob": "34778e7f40492c3602b496bc5e54f11e9e5e2773",
+      "sha256": "1b044b96290c34a0bac67ca6595b3d171a0fc2449fc14675586e8b2dfef3823f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/OnepageEntryPaymentTerms.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/OnepageEntryPaymentTerms.php",
+      "blob": "1c634af1b9301a9a071f718991eea5ee07f2c87e",
+      "sha256": "8d73dd9aa6ed6a89090121ba5c98ba417d42329846df4e4feb827ac3de0ba263",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php",
+      "blob": "c70b22f3a146ddfc4e26cf38ca42de53bd1b1bd5",
+      "sha256": "b7ab0f5e3d2c828a7ae8dc2933f478419c84b7c323d18733c9b674639f0d46a7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php",
+      "blob": "927a8654612ae38ccf28b8766c10ac46e977cc25",
+      "sha256": "427f1c11acb982bad3a365df27bfa232d3367cd5af149dd061f50fd4693267ca",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php",
+      "blob": "59f2e4b4ca6f7be8ba55c1b718d2e5478bea8ff7",
+      "sha256": "926c024217ef267b0c22b01efe1e14df86304b7b9d1852dd5be1d40a74c5b1df",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalSettlementEvidence.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSettlementEvidence.php",
+      "blob": "6ae4f0ed80f5a4ca896462fcc0ba0c7b9ba66883",
+      "sha256": "38f22ca49235d9b77bd244758c12f5191dcd934737561b78766033c7fbdd5fe9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalSiteContractSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSiteContractSource.php",
+      "blob": "9733da25486bc038b63a5621698b29c918f6a970",
+      "sha256": "553934e44d602f92e07ef54e0b0396e6d5a8b2aeeb2349a7d91f9236458bfc46",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+      "blob": "cdb26e8e5b8ebe6349f6f29fba183fd78bc54710",
+      "sha256": "1cc73463d51249f831edd8b8c325608b2704132b53b98c20cb15668b62f42c62",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/SiteContractSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php",
+      "blob": "44cbfad8ed0c112455ccc7b862a86b57f6c5f9a9",
+      "sha256": "5d279edf279a7f1a1056a2ec5b60e76ea348c783ff6366ab95e1220e087ee944",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php",
+      "blob": "594df1b476f23909f3ce8277316e7e991d15e6e6",
+      "sha256": "33fd11910266befd093395d8d5a3f015361949fcfbd2895194fca39d490dc1a7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/ApprovedOfferCatalog.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/ApprovedOfferCatalog.php",
+      "blob": "42a44da0ab1590bcdbf644e2e30464b662ae2dcd",
+      "sha256": "ab3666724f2ef5767c8e01ea0b08baede6415410dd8a8e6ea7ab521ac789c69b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/AsaasSandboxGateway.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/AsaasSandboxGateway.php",
+      "blob": "fff49769b304c21001b8c7904b32c2a0da8a9b36",
+      "sha256": "f0b82f302d95524d8497470f7fef428f17e9e7df309e639a98aa5a8f5249bf28",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/BillingSchedule.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/BillingSchedule.php",
+      "blob": "951d715a4c8deec2ac12914b85dc4dab6d405852",
+      "sha256": "825c4614fa9bb551506ca261fb18e1a13cd19453f8e6dca0893f3389704eb595",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/CommercialSelectionIntent.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/CommercialSelectionIntent.php",
+      "blob": "67e442a1d0307631d19ad973f24019fbecb71680",
+      "sha256": "16fcdbcacd4a995d7ed47f733074c8c566425dda093b51d0681551462859d311",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/CompositeQuotePreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/CompositeQuotePreview.php",
+      "blob": "85b1dd8d7752139ea80c26bc0b8c1e49b94f6d29",
+      "sha256": "4ccae8880e2121647da096ce5c3c4f194aa98cbac27b503120dec0d51f6866c4",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/CustomerPreviewHandoff.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/CustomerPreviewHandoff.php",
+      "blob": "f09a1e2d68c6ccdcea8a08953ec71d0c53e08c91",
+      "sha256": "870c4efad4141fd9869d1762fe5c5268230c7aef2575c2d15f1101dfde12f3bb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/OnepageQuoteJourneyPlan.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/OnepageQuoteJourneyPlan.php",
+      "blob": "a8cca9481a0ab40ca8ab15f05d4d34b55a43c800",
+      "sha256": "0b527073dee45586048f588476ecb7cde659d92ca914f1e2ab7b90cb25cd229f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/PerformancePostpaidPolicy.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/PerformancePostpaidPolicy.php",
+      "blob": "c23aeee843a60e15b6e97c0d6678986695a28d4b",
+      "sha256": "b834c1b0e85a85976546a05bfba941e50c2ca44859509ead2db4e60c1ae01010",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/PerformanceSettlement.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/PerformanceSettlement.php",
+      "blob": "2ce5a1b244f3813a8f60262165096fceb91de1d0",
+      "sha256": "1bd7cc754259efb1dad44feeb1a33c7e978d998582d88c5e6dcb9130acadee4c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/SandboxCheckoutIntent.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/SandboxCheckoutIntent.php",
+      "blob": "21cf8a3f51cfd736be373c4e66b4a8b8361ebacb",
+      "sha256": "9f06b5a604cb63576928917e914a4d7a4f12ea2f142f04c8f0dfd9a480cd47f7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/SandboxFutureBilling.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/SandboxFutureBilling.php",
+      "blob": "88da8ca7476697d763b759b14cb0daa85995e783",
+      "sha256": "8f779935f18738686746f4ea1ea9784727ece65afcdf11e9bdefe82ecff3c35b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/Commerce/approved-catalog.json",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/Commerce/approved-catalog.json",
+      "blob": "f4c3cec8d8eaf2c50d53829dd605013fb04136ea",
+      "sha256": "75aab147df8d937f6f0630c92eec8b4783dc345e308292abe7706bcb31a905fa",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/CustomerPreviewStore.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/CustomerPreviewStore.php",
+      "blob": "cd25e71b0fe48d5e6e5a8c7c13c287ca3167e3e2",
+      "sha256": "159309e726e4dcacb7934a487ab74f1dd6cc2f1073853d819ed2c232ee5a8062",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/CustomerWorkPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/CustomerWorkPreview.php",
+      "blob": "f0cf05ffddc8d9e97c35ae516d75c34c0b03f577",
+      "sha256": "b60e3b5e053cd81b8d2f557649f91a012528f9c5ab1f956c33a6f1175a1350b1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/PersistedTestPurchase.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/PersistedTestPurchase.php",
+      "blob": "6ecb6caa4b7468b36a202a846c1bf6d6c3f0c372",
+      "sha256": "1cd8de7f79c7e5695d4aef302e2ddb3fe633182139cd2e49608e38093d274a75",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/PreviewOrderListing.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/PreviewOrderListing.php",
+      "blob": "585144b8c48ee02fc6ff1d348e59bf7701ac3248",
+      "sha256": "0145956c157831bc35b52291f609161791840cb1407e693cd2de8ac2b5755ed0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/PreviewProfiles.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/PreviewProfiles.php",
+      "blob": "f3fca5c45415fd98657b6a91a2904a081afe8ddf",
+      "sha256": "669be385404508aa55b8c6201c60bc65f7f4dfdd3df837ee2d1ef9f875f551cb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/PurchaseRehearsalScope.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/PurchaseRehearsalScope.php",
+      "blob": "0a008507488fa87af3a8de27c84ebb2d91cd25b7",
+      "sha256": "d863286550fa6773935679b7b9b9753ffff0c66354718a8b655e6360dde78f02",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/RoleBoundTestPurchase.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/RoleBoundTestPurchase.php",
+      "blob": "ef37ebb66fdaa4b27bd9b126a331f6a4d1a038f8",
+      "sha256": "7f75920c8726c11ad8cedd2f82ad64d142c4c0e565f3801de78b2ca3d9a349e7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Homologation/SyntheticPurchaseOwnership.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Homologation/SyntheticPurchaseOwnership.php",
+      "blob": "ef2cc3f2cba3aa1dd6a4e0e3c714aaeee871af41",
+      "sha256": "5c50c5d84edd8cb1e46fc855429b8e32d9c605fdcf05b9712b69590b62efd072",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/CustomerPreviewController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/CustomerPreviewController.php",
+      "blob": "d89e956b0ea2579dc0db5927b7c625b1d11e0279",
+      "sha256": "338218913d38e0eb66e40bbebe1f4dad4289980bedd6f9d70b8ad0213418c524",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/CustomerWorkPreviewController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/CustomerWorkPreviewController.php",
+      "blob": "8010708461ad5a26020af9dcb5701ace42a71ddd",
+      "sha256": "ec52278318370659616aaf7cb0bed1af847cf6e6df6760a80c4b7560fb5b709d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/FullPortalPreviewController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/FullPortalPreviewController.php",
+      "blob": "092536a3bdf46dc5a6be96fa71595b270b78672d",
+      "sha256": "2cfc42667a669816596d94698e2eb53f0c32a13ffed87e61129d2f4a38a4e288",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/OnepageClientPageController.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Http/Controllers/OnepageClientPageController.php",
+      "blob": "89953d6c20a3bc15a467aa33160d7503012194b6",
+      "sha256": "c00d42b74d9b6f854347c204331a5df9dbf9151b4516f6cf98d485cd12a37bdf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/OnepageFirstBriefingController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/OnepageFirstBriefingController.php",
+      "blob": "8d62417971258a6cfae2feed0403f9bbc8634189",
+      "sha256": "de5a9088d935cbfc4338ba791f51c454309c586f071839ca8983871f6074396b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/OnepageOrderController.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Http/Controllers/OnepageOrderController.php",
+      "blob": "749f9866b6a604593978607600b3a57fb8f589e8",
+      "sha256": "e013cc12a15d1578f6459346e756350f2d8c9664606e816da266d24b7e344be0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/PortalBrowserAuthController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/PortalBrowserAuthController.php",
+      "blob": "71df8907f88f4b884ab81343227cac130a35d288",
+      "sha256": "60d591fe767572f44094b31980d91b58868641743e9d7e450a41b2ae0babbf94",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Controllers/PurchaseRehearsalController.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Controllers/PurchaseRehearsalController.php",
+      "blob": "6603a60f93d69172c6c85ac30f10726688e172ed",
+      "sha256": "5c7611a9c7278dfb1d1744b51ce948bbde41950a71e21d582ba93ce7254f573d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Middleware/EnsureOnepageCommerceEnabled.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Middleware/EnsureOnepageCommerceEnabled.php",
+      "blob": "f0e4e9ee5aabf225c2b5723fee6f2a40d29baa18",
+      "sha256": "eeb006bea8fa7450c2c51cfb9b31efbb13f5e0e5f6be19f8de9585c669b3f705",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php",
+      "blob": "3324642ff89846a07c2644dd9c59e9fd815590d9",
+      "sha256": "d87adcb113ed9af272b99d6895ed81463ae3e45f5188626379a20eb16ae1be7b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Http/Middleware/PortalBrowserAuthGuard.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Http/Middleware/PortalBrowserAuthGuard.php",
+      "blob": "451d0f974ceecc4c12f660cd61eef92b86ae15d9",
+      "sha256": "9248b3a425762c0a8aad497d4b352854d225ad9e790005f1210faf551d00c773",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/ConfiguredSandboxD0Reader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Commerce/ConfiguredSandboxD0Reader.php",
+      "blob": "5b630f65a8dc515e7f03c725da451517604d5158",
+      "sha256": "54c1d995be1b4449cad204277d59174213c37d01bc5746cdf937e712e969b6cc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+      "blob": "7bf3be1d3d95a276795654fc913704d99a2780c9",
+      "sha256": "463b13c8a96834587cb069b63b7ff365d4f2bae2e5fef7232832457aaf37f0bb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/OnepagePrivateRuntime.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Commerce/OnepagePrivateRuntime.php",
+      "blob": "b1753a9d7db676ba5c5e09a4f4a43b1ace51be9b",
+      "sha256": "b52fb30ecc0725cb983a057c64cb03d52149fd3d797fe0ab2105e6c71a922b48",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/PostgresD0EntryStore.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresD0EntryStore.php",
+      "blob": "508a6b4aaa6f8769b583ef2eeeebdbbf58141458",
+      "sha256": "9c5cec3e85df6fb58edbd94a663b3183e50313feb2bf8750223d7cd58e6397ec",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageEntryPayments.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageEntryPayments.php",
+      "blob": "5dd6d312ff8bad542eee9d31ca0dc4ed98dc2ad1",
+      "sha256": "8867c289bdcb5665407b1d2e285eb98039f8ade606133cefa89fd6489cb58b4c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+      "blob": "183f84f99abb7a6e3c6244504529d57da0d6b248",
+      "sha256": "e3824a14967c3846a2c9be29c9c4be93684424a4d9c7e9cd3502564926d7a8d0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+      "blob": "f84ee07e704a83d8c997f8ad558b977bac8f0798",
+      "sha256": "fd47fe5db3f414114ba913a5592ee372a7e9d637a808bceaa18b3177be479317",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php",
+      "blob": "17e92fb3d3b23a7af402feeb813b7351b4618aa7",
+      "sha256": "11a6de7c7fafbcd0eb63d7097000d539c1eef17c288d2a5a0dc790588df92c1d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/EncryptedPostgresPortalSessionFactory.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/EncryptedPostgresPortalSessionFactory.php",
+      "blob": "4567b7f8675d72dff1f3b95c777975e6bcfe0c16",
+      "sha256": "2f69aa052d6631cac9441802ef0e1dbd73d80497e463061ce59ce3c3268656c9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/EncryptedPostgresPortalSessionHandler.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/EncryptedPostgresPortalSessionHandler.php",
+      "blob": "ad991940ac443fa2ea06c8d9dcb5dcc68d89fdd3",
+      "sha256": "112ed9e379ce4f47b1f0dda7cd6adbb374e8dfcedaeee897cf2d5d81876fb0ab",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php",
+      "blob": "35b064340d41d75c271e452eff13a7eb54690713",
+      "sha256": "a0dde69c16976bf5a81b196f07f4ee0e07e524aa8d433109cf352c996f5c61ad",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/PortalBrowserSecretFile.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/PortalBrowserSecretFile.php",
+      "blob": "b6434a077e8a19fe42e6c902eafe9ce195bfd1de",
+      "sha256": "e09a784e601eadb7c9c20843d586e04d0a1d711c215da607c5fdb82b9ae18319",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php",
+      "blob": "b86f7be0aee3bfc885cfb6207e6fc0d0c38d3d52",
+      "sha256": "c3e89508b6e8884a729e5e15e21634bfedb05517050f95a4e14fcbb106a27a2d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php",
+      "blob": "f7a2b8ea4749db6e759fefb5c04117c9ae8b9b78",
+      "sha256": "3764f959030104b95beda9b9c94750c23755267beffe504d4099ee693f97a398",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php",
+      "blob": "7fa685c51a1c1bf5a93efaa605625665bc8da562",
+      "sha256": "03587cdac2fe8bd0e4f9c8a57c2e1f315c339d7abd695a1209c98e0255502455",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php",
+      "blob": "4dd9a3b000e95105e973a283d2c3741eaff680f6",
+      "sha256": "3bdfb3a6cca87a40724ae1724889d7f668ec50df884985066865111e2c51aa1e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php",
+      "blob": "3cc797d373037e2646371694278c24472b6a2850",
+      "sha256": "a9060d6eafaafe0394c2109fb691f5ea911c893404fc89efd60382bb8186921d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/FencedPortalSessionReadCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/FencedPortalSessionReadCandidate.php",
+      "blob": "e90a83b7f8f51619d8481b858e8e0d5110d9e8c8",
+      "sha256": "4ca89532204a18f79fb2f7bc952aa1672b13cecac614306a3a949a7bcbcf1f93",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php",
+      "blob": "a68a2aca5387a4b23d1d06312cd6934e97c9746b",
+      "sha256": "dec6ab505614a1bc1fba16488a3cc5cd3f7739a14aec473b55e3253763c5a6f1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php",
+      "blob": "ab02461a092fcb1abdc332252c007a029666324c",
+      "sha256": "877e68e192842fd76b0eb9088ed9afe2d0b6fdb19f867d8404298300c078b3bd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php",
+      "blob": "af010bc5c168374713b53414aed4f822dae2af47",
+      "sha256": "403d9789e5af942db498574a9a848b623c3e71ed3019c9e950c2c2a3a913f721",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/NonceBoundHttpsWitnessReadCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/NonceBoundHttpsWitnessReadCandidate.php",
+      "blob": "e6582391ee0990918802fe34411f2184645e3df3",
+      "sha256": "60fa1244ef479a676cc8eb8166d275c4c910d2e65247e804f3756959e1eb0733",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php",
+      "blob": "7a1efb91e4fba84f811f98c7fd99f1bcadd92abe",
+      "sha256": "454e31b3dbb62b6d5ebcde9dba49d1fd00b3ee63d31b23cf309e38e27f0e6529",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php",
+      "blob": "f0f5d8250f31184998d7d7e91b6490b394f9313f",
+      "sha256": "312e41914289beb081a6ddc0cb9a11f230785943a57188c2fe59fc348e93eff5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php",
+      "blob": "5b82566b6d463c897d69c5a3a085d1fbaac40ea1",
+      "sha256": "3f944ad8cc3f7a807a2d322e39eeb069a3dd9ef347514d38f29afa302126428a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/PortalLiveRecoveryEpochSourceCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/PortalLiveRecoveryEpochSourceCandidate.php",
+      "blob": "c7630910c9a7711ae3744682150bbee8346e63a7",
+      "sha256": "2bd267a68ad4d575762cbc5ff165b60f5597e35d1e747ce4daef669ed37484cf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/PortalOnlineWitnessSource.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/PortalOnlineWitnessSource.php",
+      "blob": "471be2d64507238b53ea76f368c322aebe64dd1c",
+      "sha256": "12b3b1d8a6760bb06858c22d0e9ac57860522a6e7e5a7e0e982bf13ab475153e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php",
+      "blob": "e413ac33149e96512a48900aa8e221f914471116",
+      "sha256": "6f4addb4d90ecf968ed772caad8dfb1d1e6bccf1860a55e248618d7480ab136d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php",
+      "blob": "3e07ec7b23f9b03ee0cbe6bb2b2373849ec57537",
+      "sha256": "9603c22e98d9b4d1c3d4d29fbe42c3c36d570b56d33179eecc4752a020b319b4",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/AuthPerfF61/PortalPerfAuthorityFacts.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalPerfAuthorityFacts.php",
+      "blob": "00921798708ca67a66fd1edcad0bf6d1b7d741b8",
+      "sha256": "5e8647e1c61168afd43df671ef2331cb7cbdb9281082645ff8bd0c9a0ca7ca6a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/AuthPerfF61/PortalPerfSqlAuthorityResolver.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalPerfSqlAuthorityResolver.php",
+      "blob": "674f0ff550f57dbdb6bc0cc445a9a01cc000e4ea",
+      "sha256": "dc340a622ec982c91fc5cea6e453cfd378062ea25f4456abd7319fc3e97c8b7e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/AuthPerfF61/PortalSqlBackedCapabilityIssuer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/AuthPerfF61/PortalSqlBackedCapabilityIssuer.php",
+      "blob": "90fbac1dabf0c107492b8c019dcfca5b2890c73f",
+      "sha256": "7dbe8ce2287c4c7a9632f4b510e288e884967e223b67057d51dbc9dd546aa2d1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/AuthPerfF61/SyntheticCapabilityIssuer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/AuthPerfF61/SyntheticCapabilityIssuer.php",
+      "blob": "495a1ddf413c813a861f771e72afd96ac1246298",
+      "sha256": "7562c185c5543b0f99a293cdf15401e3075f7690558a930ecfe52b326bf61aac",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F22/SyntheticPgServiceReadAdapter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F22/SyntheticPgServiceReadAdapter.php",
+      "blob": "670ba35d6d4325110dd60f027b41a4e0c0029ea4",
+      "sha256": "5cba95ed679a41b66453d87f6fbe237cf26e52eef48ebfe52a45f32b2aa6e863",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F24/F24LabSessionProof.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F24/F24LabSessionProof.php",
+      "blob": "9251ef3a8ddca1494f9ccd8c0f3862dd1bb3ae42",
+      "sha256": "c9cdad7fd649f8a9dae7e9b1c58f9c0375df5b6bd362e0ed1475dc0493531af2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F24/F24SyntheticAuthorizedReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F24/F24SyntheticAuthorizedReader.php",
+      "blob": "74262a01a37911295ea7587e8e7a6863313af8b0",
+      "sha256": "6ddade89846d70a7fdb2ee5a4b4d9c4c20ca71908adfaad786614348b8b4556e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F26/F26AuthorityReadRehearsal.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F26/F26AuthorityReadRehearsal.php",
+      "blob": "ba78a66bff538c4f051d072027cd6a85ce286065",
+      "sha256": "a89c1edc725e3520d2dd29be586efa0124de1d99b5ff5cd04b29585f5b988f03",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F28/F28RevocationFenceInspector.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F28/F28RevocationFenceInspector.php",
+      "blob": "dfe8f7bdefb50727a3dd89c82824d9416c52bbd4",
+      "sha256": "ee9220f8c9076d6c3d99bbc853cb8951b8c2383e5b760c8b7b5f65fb05548b5c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F29/F29SyntheticRlsPolicyInspector.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F29/F29SyntheticRlsPolicyInspector.php",
+      "blob": "abe9089e1eb1023d5036325bf3de44384e667424",
+      "sha256": "e4165392ba994d15cfa40089eac21fbb1ef5cc8ae7e8ddadd58815de412a521c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F30/F30SyntheticViewSchemaInspector.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F30/F30SyntheticViewSchemaInspector.php",
+      "blob": "9c585bd61e4719b44858251c9310e0663a502632",
+      "sha256": "1628ef5a2bca69378d6891e170d5145002a2cbccc8db350cda255b9d4ff86626",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F31/F31ExternalFloorSnapshot.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F31/F31ExternalFloorSnapshot.php",
+      "blob": "cf09afb71636bd267711b1c98dd20c1456778507",
+      "sha256": "c38b8d800eaae405a08bb6b14446ce481da192204a8726a8fd0f388cc9e48e8a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F31/F31ExternalWitnessReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F31/F31ExternalWitnessReader.php",
+      "blob": "f13d372b404fa63be148f38385261acdc1b1bd30",
+      "sha256": "6648eb676e9f3c3834722670a0b2d465fc17365ba80358f143d3f90413414989",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F31/F31RollbackAwareLabReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F31/F31RollbackAwareLabReader.php",
+      "blob": "454656607e12ca65c94ea874aa50a5a16ef14cfd",
+      "sha256": "2b4b808276f85609cfa6fde7b8c004c59dd014570b74732029824df10a94eb50",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F33/F33SyntheticRevocationEvent.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F33/F33SyntheticRevocationEvent.php",
+      "blob": "f7b7b5287dd7d138b05c6d8f6fdfc3440c40d091",
+      "sha256": "9b2eb8e18c192bc6e859307df4ec4b743ef7440fa607ad6da290ec93ec147647",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F33/F33WitnessFirstRevocationPublisher.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F33/F33WitnessFirstRevocationPublisher.php",
+      "blob": "a4cf0a92e5452016f42b53decf77d2140db6d8cb",
+      "sha256": "198ad60f4e58decd667d0f1a8d31a5ae41ca3b5d5b9d8cbf605a1d421b5b812f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F34/F34ReconciliationRunner.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F34/F34ReconciliationRunner.php",
+      "blob": "bf910656c73b1634fbfef1ff666e50b643e9db28",
+      "sha256": "509bf3026dfc90c5e045d6303ee74caf975ad355ec0884ced4433358c37d5b70",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F34/F34ReplayOutcome.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F34/F34ReplayOutcome.php",
+      "blob": "76717c034000d985be61841f5190532bd4318ba9",
+      "sha256": "d6103198313c85097efce4b680df3f0c667d0b12a5fc5b28bcb2b5f10185f294",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F34/F34SyntheticLedgerReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F34/F34SyntheticLedgerReader.php",
+      "blob": "658b67d9521e243b605fdc8730d5c144decb4695",
+      "sha256": "48b9d532b5ad483338786306e6c8281b85a8bd80a52203e8cef006e3d091da5c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F35/F35AcknowledgedReconciliationRunner.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F35/F35AcknowledgedReconciliationRunner.php",
+      "blob": "9f90dcdb1c386bd25bc1427efde1b321dc521db2",
+      "sha256": "bb25f8eec65e5b3ed79a8f50f2cdaa4a790c9003600fd95ed24d4ff3e1ac4206",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F35/F35PrimaryStateVerifier.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F35/F35PrimaryStateVerifier.php",
+      "blob": "f9a6cd8c0341f9c88a9e35174563d91c929e7fe9",
+      "sha256": "616d6ab195402afddb45ac3e50ffe9fded76f05977d87d664ca240a5e93c68c2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F35/F35WitnessAcknowledgementWriter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F35/F35WitnessAcknowledgementWriter.php",
+      "blob": "36322d39b7b69375fdaede59cdf41bb8cd142d53",
+      "sha256": "df0778751e0cbb9b80c542c2f7ebd6c8e57c2ac40fc5c481970e52df1a202ff7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php",
+      "blob": "7692488959e69c44521a481ddc461bf13f7d3eb8",
+      "sha256": "ca24fb52eeb155ac929ea4514118f22469e031b21f174108af204e77353503d5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F38/F38SyntheticRequestWriter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F38/F38SyntheticRequestWriter.php",
+      "blob": "95ea6012cc8db08cbda9e3e8aff6c825fef5a74c",
+      "sha256": "85d53055b5b31108f56967fd9584c11554dcc868354ee4a45831ea08d8410e2b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F38/F38SyntheticWriteResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F38/F38SyntheticWriteResult.php",
+      "blob": "90cc762a4a46d0257c231f8f373681044cd8ff07",
+      "sha256": "2c7884ac8f55a68444f1dacb280017d24345e76c3f42a1fcbe61a1dde2bc7a79",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F40/F40FakeRelayOutcome.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F40/F40FakeRelayOutcome.php",
+      "blob": "36aa47b2da9ccd1d8ee5d19a3612a92ae72e36d5",
+      "sha256": "d9a410468df2df76e33ddfc7f5843d7aaaad4b1302261498a036af67dd4bc716",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F40/F40InMemoryFakeSink.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F40/F40InMemoryFakeSink.php",
+      "blob": "59667f18647e3cda0c548ecd62925576c0d35099",
+      "sha256": "3a5ef1c8a6669fff2506b62a3b2d4aca2d7ce73bd0a9d3c796f8992b3639b28a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F40/F40SyntheticOutboxRelay.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F40/F40SyntheticOutboxRelay.php",
+      "blob": "ebc66c421ded61f7a20ca140febbb48c56c4a4a5",
+      "sha256": "c0ce25c72f8f036d5902e985a34183e3c9da835a0078ba26be594bfeb5c39fcc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F44/F44SyntheticReviewWriteResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F44/F44SyntheticReviewWriteResult.php",
+      "blob": "629cc77a54ccd2ad9dbdaa4f58dee37d9b598d8e",
+      "sha256": "51bb6e579b550768b26de9ba82949bb6b4337b17249281b7a622ed18eb165040",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F44/F44SyntheticSiteReviewWriter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F44/F44SyntheticSiteReviewWriter.php",
+      "blob": "4b91c14c6249c9021a114d7368c7f6b78e67030e",
+      "sha256": "a36acbc1f2c281c83c21f7e694906a9eea6a21623998050f1983b7a1753b149a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F45/F45EditorialConsistencyResult.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F45/F45EditorialConsistencyResult.php",
+      "blob": "ec3ab9ee6d1f606f141e9c5deefabebf4acb7407",
+      "sha256": "3b943ec7502f0f156e7d07605508e5adb8c2427b7a6e465021aa6538fdc1fcf1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/F45/F45SyntheticReleaseConsistencyReader.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/F45/F45SyntheticReleaseConsistencyReader.php",
+      "blob": "f3db6e4ae6040e1911fbde451dd771bdca583298",
+      "sha256": "d32157d794de2170638cd1925cb215030919b664f14ee404ec2ca7d14cb5772b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/IdentityF70/PortalMfaReplayFence.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/IdentityF70/PortalMfaReplayFence.php",
+      "blob": "ff689c1db100f159e6e31fe2967eee1f39fca748",
+      "sha256": "119d496b802f05e4a1758ae70a6c2a486d7ef47556b5157d9a7eb09ed480c81d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/IdentityF71/PortalSyntheticMfaSessionCompleter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/IdentityF71/PortalSyntheticMfaSessionCompleter.php",
+      "blob": "84b09b14bf618f886dccf6bcaf5d859ee78f418a",
+      "sha256": "126015b2b56090e7729a194118ba5d50af8677f8e81f16181ed4819258e74173",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/IdentityF75/PortalEnrolledMfaSessionCompleter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/IdentityF75/PortalEnrolledMfaSessionCompleter.php",
+      "blob": "f4f6f39b31e35fb5214c1451c0b929916f9ced28",
+      "sha256": "e919027c62c2c51e64f81d2874937ef4998e1100e4a301703e4e530a10b4a2b5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/IdentityF81/PortalOrgRevisionMfaCompleter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/IdentityF81/PortalOrgRevisionMfaCompleter.php",
+      "blob": "b45e190ac230245f65328be278b0e90a75700376",
+      "sha256": "e5f53a9c3a81b3e02cc78098d9ef1e48db78229b5dad4fc5b6d6bcb5aa603e35",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Labs/IdentityF82/PortalSyntheticPasswordSessionIssuer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Labs/IdentityF82/PortalSyntheticPasswordSessionIssuer.php",
+      "blob": "f01459473f8ee18ddf670a50ddbf8ece4423f0a0",
+      "sha256": "543b67d3af98c9afcd9b5cfaea516bd806abe83dcf14370e0a4c1ac81aa74aaf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Models/PortalAuthSession.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Models/PortalAuthSession.php",
+      "blob": "32df47c45954df82c09b89f2f4b4f100b6917ca0",
+      "sha256": "6da7043c485969b4440866b9fabce4fb5e5d3b35882336510193f6885e1dc09a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Models/PortalIdentity.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Models/PortalIdentity.php",
+      "blob": "e76038454a0c9dd06819706c05855ed60f7d8fe2",
+      "sha256": "3df1aa19e07c4a9e71ab3d7a1f2c1d1c767b863393d98b9a13c18a59eee096b4",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Models/PortalMembership.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Models/PortalMembership.php",
+      "blob": "38f883b566ffa2586e8829b57e46c5fa2be89711",
+      "sha256": "7c6e4c478f5ce833c360b814cb791eba4d56fb2b35af88cb6dc9781084075a73",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Models/PortalMembershipGrant.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Models/PortalMembershipGrant.php",
+      "blob": "21f40a1b957e2daa9f154082942077a1493a5ee1",
+      "sha256": "8c9ffb538321916c7815962b53f32484838c839723b26b8b92975c5f87248410",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Models/PortalOrganization.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Models/PortalOrganization.php",
+      "blob": "a108ae9acfd9daf4fb4ed39924841d9586eb0f13",
+      "sha256": "99d96b9ad8b8b34b5db43d18aa6921674b3c12617bc68e4f12615cf45e706ee9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/ClientSection.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/ClientSection.php",
+      "blob": "caa6cbb0563adf852a3cd749d12c28c50a744917",
+      "sha256": "5d65aedcea74589550862cff478e9db8b3c870371e262cc611c0df9f0ca9b7d9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoClientOverview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoClientOverview.php",
+      "blob": "495d48e8c780b2ee11c5279185ae4b9fff80b845",
+      "sha256": "548addae5e0981fd0f762c7a8fbd0af16abb43fec5e14113de4bb41f8add41e1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoCommercialDeliveryReview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoCommercialDeliveryReview.php",
+      "blob": "393b815b4d56cf9d01d2cce05aea7df8deed4848",
+      "sha256": "2d4310f2f8d2bfd2934d1b8a9a893ec2050b3d64b8eab2c9ba5b8dd546e2a535",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoContractOverview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoContractOverview.php",
+      "blob": "d67067a8c7d55ea646e4fd73a8ec5574bbb121f7",
+      "sha256": "19d2df2d239fef72ef78a9e9f566e435f8b5feb3c2434080871616a3a6f88640",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoHelpCatalog.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoHelpCatalog.php",
+      "blob": "7dcb5e551fe9ddd7687baf95410433bd2c2766c8",
+      "sha256": "1a791aa211a465b0c0414eff4f1416364d1c403568d1471b416cea671a38abe6",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoNotice.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoNotice.php",
+      "blob": "6a0e9a4bd34cbdc0e5c2467148bbbae266cb438e",
+      "sha256": "1137c00c4815fd09bf2bfca5409c3f444bc0bcdea1b6b4f13a0c64ac834f0233",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoNoticeCatalog.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoNoticeCatalog.php",
+      "blob": "b970726ff0adeb29ab28e2b780bc5e5a69f81698",
+      "sha256": "c0a6d5259a8152d5035c091534ba4899cfb09718f44b56e469dc64196d72934a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoPortalArtifactManifest.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoPortalArtifactManifest.php",
+      "blob": "70bb954071433618e9fdfe2abc03231edb39c190",
+      "sha256": "47b0400e71fc1a300d7654f165201464b02958af5fd9138d2b87c93cda294ff9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoPortalNavigationAudit.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoPortalNavigationAudit.php",
+      "blob": "f4bc61d617ba79dcca3c358310a931c3a633b8cf",
+      "sha256": "e435dbbe389d53f607c53d8bdfbf01292bea45d948d1b6aa3594529591f1cedc",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoPortalOfflineExtras.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoPortalOfflineExtras.php",
+      "blob": "9c29c398a4c696ed06299b44fd1399800917151b",
+      "sha256": "87479f8c46061de67cf3a36e3de516320790b0636cb6c32f2e23554687a82163",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoPortalReviewWalkthrough.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoPortalReviewWalkthrough.php",
+      "blob": "bbaf14d52a7180629f0aa331dc5f0ec0c7f2f65e",
+      "sha256": "7735d010340bf925cd9e7f47135dacd307f7a65f354e79cf3ad1b80c0c2a4db5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoPortalStaticExporter.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoPortalStaticExporter.php",
+      "blob": "3c2c64e974839196b0816eb755bdf444843f90fd",
+      "sha256": "5e83e901cd94d81aba185c796cea33d0efc15f7232da0a59055d346888bb5e6d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoRequestInbox.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoRequestInbox.php",
+      "blob": "52b7473b3ab3ccc414d9cc17a9563ced9b93f079",
+      "sha256": "615d9de352632df1fb477d12333f302f99f3e72fdf30f5b611126ed42e738fa8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoRequestInboxStatusBoard.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoRequestInboxStatusBoard.php",
+      "blob": "362c356e306f1a876834fce8ae797ed2d64fee29",
+      "sha256": "038eeacccc2ea1a4d4c161d1147ed5e34d3f4dfafd77467c1b8dfaa4cf69d6fd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoRequestWorkflowMap.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoRequestWorkflowMap.php",
+      "blob": "1ae23cdede299817d49a740affc6221c361e5f33",
+      "sha256": "972d9569d18ece8fd56a69336ad8e90a72420a8dc8768b423dfbfab3d1f8865d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoServicePortfolio.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoServicePortfolio.php",
+      "blob": "c353ae778da190667113846267f29364ed0f4bbd",
+      "sha256": "449922db2e768f60f0140285d1be2513164bd1d0ebe056489ca4116807694b60",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoServiceRelationPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoServiceRelationPreview.php",
+      "blob": "c2978bc1eec82bc4af419afe35ab921ef386bc76",
+      "sha256": "af68ad5426d13c1efa5e73e51288d5c9f97ef3d3728e73dc4c2f12e75a3e4606",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoServiceRequests.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoServiceRequests.php",
+      "blob": "b2abca916abcb8e6fbb2b474aac8eb0b26bc5c27",
+      "sha256": "935b7adcc2089d0268f755936af03774a11586dd63ba1856e18d652e3e52ea5f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoSitesEditorialPreview.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoSitesEditorialPreview.php",
+      "blob": "3988a3537fd27d233fa84a3ff1f17e18e1f3a158",
+      "sha256": "bfa82fe4a9a31d031149d13b47945f719a2892069236e2b163b02b39182224d7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/DemoUniversityBenefitRequirements.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/DemoUniversityBenefitRequirements.php",
+      "blob": "733748a496b214cda497321f0aa6a1e6bf2c9f7b",
+      "sha256": "9e19529d82cebeb11a6919fd28c2ad9bd8e3bb835c800f2c442d7ab125ad06a3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/HelpCategory.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/HelpCategory.php",
+      "blob": "3ceaa6eb29546673f2b7d7a65b780b49061790ab",
+      "sha256": "5be86caa1004a944655f8bd07e55ad020cb21a8404d6291db5a1a5ba77187ba1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/HelpTopic.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/HelpTopic.php",
+      "blob": "3d7090541e1240a6d386e1d44b755e62da9d2458",
+      "sha256": "0443cbff8f38a6fe3183ce9187f8b258815945d64da5901076287b9f94d69f02",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/IllustrativeUpdate.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/IllustrativeUpdate.php",
+      "blob": "89caaffea245bd6349b71514a71d7da966f3ed87",
+      "sha256": "0b6e5cae816648ae7169270a80a9b9257115d595b7cd3576aeaf4011aca62d88",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/JourneyState.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/JourneyState.php",
+      "blob": "50ebe80ad1f32153790a87023a9bcfdb655b60ff",
+      "sha256": "cbfb5fb0e2e1649ebf01b0c2ca628844cecd49613931375c7d13b816b09d393a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/NoticeCategory.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/NoticeCategory.php",
+      "blob": "8a572f3bf0fe9bcc2fce12760a75ac0e728566ba",
+      "sha256": "26cdeec77849085d0615d3c9c472167a33a461828e696b42640843be58a96ac2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/RequestSummary.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/RequestSummary.php",
+      "blob": "d31ad1f4dcb64019033f9c8b3cbcb0904d361d41",
+      "sha256": "bc315e8ffebca9b67474bb8db493cabe82b46f32d1b0219c61b0a7d2ecc7cb57",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Presentation/ServiceFollowUp.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Presentation/ServiceFollowUp.php",
+      "blob": "12bbfee622919a6543da91f6aa9b4df596cfc196",
+      "sha256": "6d67f262d1e5bba5d5836be531cbb0e3144d2ef93cfd8dcc42c2f4a0d19ea70f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/AppServiceProvider.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Providers/AppServiceProvider.php",
+      "blob": "b99521c6841d51d899ba6399df285e19ab1a86d0",
+      "sha256": "f6cc278f22aa15ac5b067603b4bc75f1ca5a921ed0ef0c834346a9c4495e3a62",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/FullPortalPreviewServiceProvider.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Providers/FullPortalPreviewServiceProvider.php",
+      "blob": "6f1872761ec7c1bbe1d9fb80460e23a6332ed952",
+      "sha256": "d80bf4a5887b1e92f891449de00b3318867e118789788073d1555d04028d0bbf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/OnepageCommerceServiceProvider.php",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/app/Providers/OnepageCommerceServiceProvider.php",
+      "blob": "aed7a1b111dee6dec0d49549902c8f7272e6097e",
+      "sha256": "7b596100615128e99170bec4186decb9e9e94a9b92874828ee0ac9398490f490",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/OnepageD0CandidateServiceProvider.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Providers/OnepageD0CandidateServiceProvider.php",
+      "blob": "92a467b0b2d042b77da1ca17ad35caad7db60346",
+      "sha256": "bea32e45ecfe06f682e56fd87d1adf3d0d8c5404a097790ccb7dca0d7750db23",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/PortalDevelopmentAuthServiceProvider.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Providers/PortalDevelopmentAuthServiceProvider.php",
+      "blob": "96bdf48a995b7c9c9953bfc7260f4df1e5fae70c",
+      "sha256": "b1c16b9ffadeea35cb9302cbcd52c28923963833b1a8bf35ffbbe3f9905b3e3e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/app/Providers/PurchaseRehearsalServiceProvider.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php",
+      "blob": "a9c1e9fc93ba5b6b380f313fd591f37783c89efc",
+      "sha256": "4e17b95bd69f01f19cf95e3e7d1fdfb0e29d5231a16041e575921035f9970a75",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/bootstrap/app.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/bootstrap/app.php",
+      "blob": "1085719c5683acf7fa298c8efc78fcc5d0d6005e",
+      "sha256": "5affac529645646b3e4d599096e79c194aac63e8293690364b856d72c1e9ecbf",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/bootstrap/cache/.gitignore",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/bootstrap/cache/.gitignore",
+      "blob": "d6b7ef32c8478a48c3994dcadc86837f4371184d",
+      "sha256": "240a3e0d37d2e86b614063f5347eb02d4f99ca6c254de6b82871ff8d95532a7d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/bootstrap/providers.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/bootstrap/providers.php",
+      "blob": "0d24992f40ede898a75125a1e7fa485be8a15390",
+      "sha256": "c00596d45fa06673be2e282a62b7ad2e36509c92246e661bce2d42d2a69fb6b9",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/composer.json",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/composer.json",
+      "blob": "18e621d2557145bfc34339d229cc8be5ee002f6d",
+      "sha256": "d42ae37e8331b57b31a3b3c9b83a85cdc8e18f3441393a246f6ad35aafa7c5c0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/composer.lock",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/composer.lock",
+      "blob": "13e6715405e4719ab5dc56b8f22dcce1c855a66d",
+      "sha256": "161cfffc9922862c8ef60a1ebcab7fd0445f309b94310a915a49436faa0eddb2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/app.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/app.php",
+      "blob": "12a57234acbf6aafbb9de2a17d02dfceb207108f",
+      "sha256": "008805fd03c892c204091ca3e2432100e367e9e97be948b241c9c64451c98ece",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/cache.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/cache.php",
+      "blob": "4efdd3bf47a8b3171c965e68f0e205e1ef98bb1a",
+      "sha256": "4a02616925516761d3849570cb3349144fd8372987d97ef45cfa5196a56db033",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/database.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/database.php",
+      "blob": "00445daefdb5649c75555b8376fe53e995496edc",
+      "sha256": "c3214ab691e64a1df957aadbd9386f59dfe8e72cec9671d11d615572d086a46a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/filesystems.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/filesystems.php",
+      "blob": "c7c5026709a75719a693028aef8edf980a7dfa8a",
+      "sha256": "aa24a8979e6423aaf8553aa4b1420bd223ba23ac7be34a27185030cd38a29875",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/google_search_console.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/google_search_console.php",
+      "blob": "628c1bfdcde9bc3813a091db231d683f5c3902a9",
+      "sha256": "5230741640d12539f0c5cc1cd1b94842cc1530e41808427802392cf571d438e3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/logging.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/logging.php",
+      "blob": "17c3bd249c3712d5131829a0b8460fe3b9ef28de",
+      "sha256": "1d400c2be0aa6a8ce4b802b2dbabc090a4e560c787e989c44738e433f2804b30",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/mail.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/mail.php",
+      "blob": "e32e88da2cc82d4139c032c28b03005afc6008c6",
+      "sha256": "c43ff49a31c5f32ce21eb7159f2a4b3cd2f4074eaed5838d265646dbfedd3474",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/portal_development_auth.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/portal_development_auth.php",
+      "blob": "18ba5fdb75fe51f875470b842ed44aaa7e9d7a6c",
+      "sha256": "ff84dacd5ffe889555ee2c8b8954b1700933a749c22134620ea30b2c67cc00d5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/portal_onepage.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/portal_onepage.php",
+      "blob": "ba923b10ed8f5b7e3959591c594d63c795a26e87",
+      "sha256": "93dad18bc1d0ccef10166b76073843a276fa0c93e70678e0831e9b8c02859b30",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/portal_onepage_d0.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/portal_onepage_d0.php",
+      "blob": "d6a78f1d73b27825a84ec73e2260e11c7996e630",
+      "sha256": "4ba299853a52ebf963deb1716bd95b455aece1671fa36da3b56385b33008ab4e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/queue.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/queue.php",
+      "blob": "d0e0f50e56e5916e7de6284ce828414342fa4cb2",
+      "sha256": "10e076760068359868dccee972669d3e0ea3a74e690320fe4a25d79f32e18ea0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/services.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/services.php",
+      "blob": "ec226a406664750084d2e49b32fa3b7d03a31ff4",
+      "sha256": "b7ee786ea1adbc92db9f229f479431c94503527c47051da3862eb0e4d7db70aa",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/config/session.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/config/session.php",
+      "blob": "9dcb9600c1471a3d9ce98c3a8105fcc220793743",
+      "sha256": "0001cb6c2b26cde2f6659fa09d88ffb97b30b9f7de0b5533f63cc36790bd42a2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php",
+      "blob": "f952bd64cb51be2ea18122ec232f6862bc1d522a",
+      "sha256": "8bbb92fd344f1b90236f950635162edad5e9efdd3787b72e768e387fbbce7421",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php",
+      "blob": "3a5c99b8a50cf8b9473f912db6477309d7ea5fcb",
+      "sha256": "f42d304c5421a0f1dba2407996837dc2032b8d30647903211a6c2f511d3d515d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php",
+      "blob": "b8dee597906106dea33fabc79ce24bcf561d5e9a",
+      "sha256": "7b3fa227dea037b8b514fefe2082447cbe44a3684d02bff2d488122cb503bff0",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php",
+      "blob": "7cb48e75b4de17fd7d9091f5dad81a8eed7b2b4d",
+      "sha256": "7508954be98003bb4212c0689b5c0d81d9faa2932de908702463f493b6b46cd2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000006_create_portal_security_event_log.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000006_create_portal_security_event_log.php",
+      "blob": "e39a69cd8b24c9b1f6ca8566e229745476eebe7a",
+      "sha256": "18d699851e40143078e7a09ef01b29e6738951bd4e298e9453e5eb5bb24a8e79",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php",
+      "blob": "4987764366b275cdea01955f50e6729a7f387850",
+      "sha256": "6c48052d6d22bc6ed616f566e23f41e7edbc1eb9cc97d5514716bbc78f6479d6",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000007_create_portal_access_invitations.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000007_create_portal_access_invitations.php",
+      "blob": "58818b3463ac3dd8ff488fdee23776173086cb04",
+      "sha256": "0d91ecc90065e6c38511803896c7c541c09e75a7f2634a53de9f016cde5804a5",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php",
+      "blob": "737d43aa4271229e9c34bc2fa4759014ea11b21d",
+      "sha256": "45555ed72b0c9f35aed61900ec35ff408ff4fe4f97518cc6daf45d02e3abb169",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php",
+      "blob": "68f839a73bfaf22df7681c70062b1a8fe55bfc79",
+      "sha256": "40578381977798d892546b060f81405618f5cfd6785ec1163013df0ab3c2361c",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php",
+      "blob": "9c88dccecfe443e72a726bb4fac161daa311f30a",
+      "sha256": "29bc58bef71a28b1b349f3ea6106b2a4b8b48f8bc2905e2f8ff80de429682381",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php",
+      "blob": "0c74fc6d224d11ef445b7666f7fca2a7729a0d59",
+      "sha256": "e742c8d7d6a6544f93048506249888e8fdbe79ca441729b666178ad05b649733",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php",
+      "blob": "65675768cb2ab5b20b3b4e7276b490333f9698bb",
+      "sha256": "da204d354cce3e802ac1be80fad574cfea540f82953c20e54eab31678d1770e2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php",
+      "blob": "7f1e37f80f43434729a8de2e4197a2254f745393",
+      "sha256": "0ed68446a46571ae4574f2df2a04d613e0da974a88941f751a7a35f4b4d75a0d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_11_000012_fence_portal_membership_revision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_11_000012_fence_portal_membership_revision.php",
+      "blob": "86e75433868b1f6ecc2fd74344b70c8e256e1ec5",
+      "sha256": "1cb2bbe28f981ae3611852b207c3cc14d61072dc1cddf4f46a9464416de78f56",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_11_000013_fence_portal_organization_revision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_11_000013_fence_portal_organization_revision.php",
+      "blob": "7f6eb9526ed56f4306fbe0e6eda961b14142e63f",
+      "sha256": "3210dfebea522383ae968174ccc0263e4371b74b79b77049e9f169d61ca133a8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php",
+      "blob": "d00b2d0db13f788ff40b3964cb2b5b20eaf1f699",
+      "sha256": "3d672daf6af05e1a99d06c346888347d09ef6c5b390ffacfea3c6772ddef5118",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_11_000015_preserve_portal_security_timestamp_precision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_11_000015_preserve_portal_security_timestamp_precision.php",
+      "blob": "292263d0d7d108dd030c3cc99b22b049564b3970",
+      "sha256": "9eec2310f7e855d3b2376d9afa313809bcb2106cdd9baf30d9e55ea3bce9cfb7",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_12_000016_fence_portal_identity_revision.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_12_000016_fence_portal_identity_revision.php",
+      "blob": "a7528d5d461f1653efb13ecc3f4fb86ed66dbec8",
+      "sha256": "da247a29910d9c81c3a76adc2fdee5f3268ef3305d09edeca5ab2470f0881a59",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php",
+      "blob": "51e4db1165c2dbd74ac3ba674242c51a541de0f6",
+      "sha256": "8fe8ce056ee45e8b34e69742362e0edbdb121476334c2fdcae457513ec5c200f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_13_000018_create_portal_recovery_epoch_candidates.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_13_000018_create_portal_recovery_epoch_candidates.php",
+      "blob": "3e014d262e1320aeb02ec11175e3710043f308eb",
+      "sha256": "eab972647e12484173ae8639ae4e345a5bab2a34191f4fa9ef98f55668c64706",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php",
+      "blob": "40a5dfe5c2fc17450e8e32321e75da58fb8fcd76",
+      "sha256": "4ef2ad5ee1595b3c29ac981fdf40296e9ce6cceb7f2beb54911617c25dd36ed1",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_browser_auth.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_browser_auth.sql",
+      "blob": "42bb622b01e1b89f7ec99214ac104da2262c3774",
+      "sha256": "0b02a56c421786cf33e09f95fa4cee3e85fe04c37512f7af3d5a32d8e7ea4ec3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_browser_envelopes.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_browser_envelopes.sql",
+      "blob": "b39bbcdb9156ffe884d21d1b208d842f8cb7942d",
+      "sha256": "67b2eb71b41db3cd221f71f703e191cddd77af1d485eb136c001c2ea2bc28ad2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_browser_principal_candidate.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_browser_principal_candidate.sql",
+      "blob": "2ea9540009989b17656e18b588f0e7a60ed3762a",
+      "sha256": "a2b764d9f535f158b2dd5cb78916666455d885353006c81652fd1947b6a9b80f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_onepage_d0_account_epoch.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_onepage_d0_account_epoch.sql",
+      "blob": "a917cd4c7a486fb703b3a37bfe7a9ee68733804f",
+      "sha256": "7d7717ec8d02c4de87b19a607a9d0d324058b6c19acb0eaa7d8b792ad48f241a",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_onepage_d0_candidate.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_onepage_d0_candidate.sql",
+      "blob": "85f7a12dcf90d9319d1ced9300bda659cfec3c15",
+      "sha256": "1700ec3371fc3980fbd07ec83571c4df51ca28323eaf76f2a1ba823f41c157e6",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_onepage_entry_payments.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/database/security/portal_onepage_entry_payments.sql",
+      "blob": "d2ed493ac1227f033092b2db72cf5bb1e324d837",
+      "sha256": "096673b3c3f8595cbc1aab9e8f1c91cae5647041356d674d9d481544550354cb",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_onepage_orders.sql",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/database/security/portal_onepage_orders.sql",
+      "blob": "4f44d9ac9dda0662008d34b0210cd5d6c1e49209",
+      "sha256": "12e1a307b34a14506317698325debf4c6e0d9fe9af32a83d0a7032ac5aa3280b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/database/security/portal_onepage_site_receipts.sql",
+      "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+      "path": "apps/portal/database/security/portal_onepage_site_receipts.sql",
+      "blob": "2102fb9399ec8f43b5cca1768ee33b61339de3c0",
+      "sha256": "e80a7142e806d74af95a7d32bdae9724ff3f5bf9c223755cfc7df842ce01d16b",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/routes/console.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/routes/console.php",
+      "blob": "9694214c32413635af28397df3bf374b4d49d122",
+      "sha256": "6d8c592ded0a4eeedf76f1785b9df9fe262216dd24e3c30de794649ae99cfafd",
+      "transform": null
+    },
+    {
+      "destination": "runtime/application/routes/web.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/routes/web.php",
+      "blob": "c3175fa30731efe3663436e881dee17c3fc2b65c",
+      "sha256": "4957f546d50eca6c56c592f74e310daa067a9f9c9de029642e87aa07666dbf7d",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/CaptureHarness.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/CaptureHarness.php",
+      "blob": "7e35155b6fce494f51cee795b609172f8cd253c7",
+      "sha256": "b77b2773c433ff182059946b8ea825003dc7c6d3cede9d9598b4afa8dad2318f",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/Ingress.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/Ingress.php",
+      "blob": "755824b5b2a899e7229ae71461f6f6d8498da5ec",
+      "sha256": "ebc88f46e49cd3b60195631332afa2e71823782066b4404c9f26bac657d2d8c8",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/SharedCatalog.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/SharedCatalog.php",
+      "blob": "0f539787138e7cc27afc2e8f6a53c19450837a3f",
+      "sha256": "737fabf31f0a9b7e209b45016f83cf138eadea717db78232f5580d01516284ed",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/SharedInboxPort.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/SharedInboxPort.php",
+      "blob": "2d4498b255879dec9140afae869d58fca11ae9d8",
+      "sha256": "3c048300c4f2968d5b0c7c611bf977cc5b8e227260a4e283783bf93c6a2cdb17",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/delta.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/delta.sql",
+      "blob": "3bc0c116185a5108ef93eec6b84d0071f1a507a8",
+      "sha256": "3498953f9a8175e9ea92a857866bbc8e0730d4d5e59df56375d237dd5c8d5cd3",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/inbox.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/inbox.sql",
+      "blob": "292b23f7416e34e9b6f6b8ebb9dff6d056426f4b",
+      "sha256": "1a3bb63e0e1124412327e1d58ff3e4cef5e2032b0c1b60e0f365f64dce0c1e80",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/lease.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/lease.sql",
+      "blob": "03da8af90eca8733fb1842498fd4ac6b50fe8d7d",
+      "sha256": "f761ed1d25069f6060bf0370147a757d472a1e2601d21d514fd464cf83780058",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/shared-functions.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/shared-functions.sql",
+      "blob": "6e6c25ca897325f5a02dadaf9ee18335084039d1",
+      "sha256": "4ba6386d076331a97966966cfd07f1e948d774180811a084d93b94e1bf197162",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/shared-post.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/shared-post.sql",
+      "blob": "ec9110841a4eddca69d15b25d992832405771c7d",
+      "sha256": "6f15b0abb1d254a63ecfb0529314d1e507b3128f64139e199924d880cb4611ac",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/dual/shared-pre.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/shared-pre.sql",
+      "blob": "021a55fd98fa4ccb89979c1c378577a1248b13df",
+      "sha256": "06c1b2041d08c95d55e6f3b4e83690251d12eb53c6b55d6af6da7e08bece1078",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/finance/finance.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-finance-integrated/finance.sql",
+      "blob": "46ebfc9f9a756c8348f21791c7a2fc668b5da8f2",
+      "sha256": "da176ef9c16e5d32059456bccedbf344cfdc7dc5a6c6aad60c597feaab6e4c91",
+      "transform": null
+    },
+    {
+      "destination": "runtime/fixtures/finance/service-authority.sql",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-service-receipt-ci/service-authority.sql",
+      "blob": "00b68a9abc16cce07f71229487a4e9c53b76ea24",
+      "sha256": "45aa23f7712603945b71c27b28f802991e14d01c82acd45dfdd021bfcdde2436",
+      "transform": null
+    },
+    {
+      "destination": "runtime/worker/Consumer.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-dual-inbox/Consumer.php",
+      "blob": "57ce83cd8b4a15a1f20799b1b69cf3cec19435d2",
+      "sha256": "9ef3389444c35c016df301ec1ed37462870d62b6e2b7a0a55965f2d3b9f640a4",
+      "transform": null
+    },
+    {
+      "destination": "runtime/worker/Financial.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-finance-integrated/Financial.php",
+      "blob": "df330f740adc9f4cb909b10e042735a1b5946610",
+      "sha256": "9aea798894cae07510ec54731cb5788efe7a25ebb8dac0b9421c3cb5e685aa3e",
+      "transform": null
+    },
+    {
+      "destination": "runtime/worker/PdoFinancialPort.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-finance-integrated/PdoFinancialPort.php",
+      "blob": "3bdb21ca028d86f6e8fd870e460cd962aec54416",
+      "sha256": "28e4b124404e3c65fa44df3d987afcd24edf62b585bd387417947eff248880f2",
+      "transform": null
+    },
+    {
+      "destination": "runtime/worker/ServiceAuthorityPort.php",
+      "commit": "4dc198d2109fe1c7590b5f012e77757ed593e1d5",
+      "path": "apps/portal/labs/onepage-service-receipt-ci/ServiceAuthorityPort.php",
+      "blob": "2a451d7a7a06b6af5a5cde26a15c328a3a40c46e",
+      "sha256": "828c6cd721e4f35b46fd5303d89860cce6c00891481c0af68149e4297af6d520",
+      "source_sha256": "6b6fda0639324b1dbee3ebbac842293b0b2bfa1a6c5225e4b79335215574c2f4",
+      "transform": "service_port"
+    },
+    {
+      "destination": "runtime/worker/Worker.php",
+      "commit": "5b4fe89fdda1b9009dc5079143ca832e85a4ee9f",
+      "path": "ops/onepage-build/Worker.php",
+      "blob": "3605b96d09b9c30a8022a7a559f9859d3bf2ecd4",
+      "sha256": "70ae95507a44d8a2c580ec9eb134cbcf662fd67579aa4a749d633042a6304517",
+      "transform": null
+    }
+  ],
+  "new": [
+    {
+      "source": "new/.dockerignore",
+      "destination": ".dockerignore",
+      "sha256": "e4e72a9a9b3cdbb1563989f2a32e9bc9c6678b3864e2611d6b5d6afd1c05e79a"
+    },
+    {
+      "source": "new/Dockerfile",
+      "destination": "Dockerfile",
+      "sha256": "d3d7f11e19c40dbbf7b789baaf70c62a4fdb08f624b03b02b04990c78410fd59"
+    },
+    {
+      "source": "new/supervisor.py",
+      "destination": "supervisor.py",
+      "sha256": "282630718d8965769c2c09cd7435a5cac228c8de01a5e4ce2ff30d22f379e4f4"
+    },
+    {
+      "source": "new/admin-once.py",
+      "destination": "admin-once.py",
+      "sha256": "edb2ef24f4b9842c2975bb377824d5651627b48e25aa0c088368d1b3cf448d3f"
+    },
+    {
+      "source": "new/runtime/local-harness/Bootstrap.php",
+      "destination": "runtime/local-harness/Bootstrap.php",
+      "sha256": "498ca4b91998bcd6d976b23016f483167d41f5a2a0999e827f06023f2ce91c16"
+    },
+    {
+      "source": "new/runtime/local-harness/LocalGate.php",
+      "destination": "runtime/local-harness/LocalGate.php",
+      "sha256": "c418e2626df10a60b80125fc7aeccb7d251cc1c7300002b3cd6d2be39a3d3ede"
+    },
+    {
+      "source": "new/runtime/local-harness/run.php",
+      "destination": "runtime/local-harness/run.php",
+      "sha256": "15b1af928b7f999157be80a3bf3b6f9e41ec618096f1235ed81a20c6f5fff259"
+    },
+    {
+      "source": "new/runtime/oneshot/OneShot.php",
+      "destination": "runtime/oneshot/OneShot.php",
+      "sha256": "ebf89b0604225693e74fb93e90aae7e9e4017a558808a827a6199abb14bf2cb3"
+    },
+    {
+      "source": "new/runtime/oneshot/QualifiedLabContext.php",
+      "destination": "runtime/oneshot/QualifiedLabContext.php",
+      "sha256": "ea3dca505f460b01f814e5b3043b19fdc253343eeb11d831a1cda1c84210e316"
+    },
+    {
+      "source": "new/runtime/oneshot/entry.php",
+      "destination": "runtime/oneshot/entry.php",
+      "sha256": "e5467c1326203868912c9686b726231173e0ebeb3b6aae0d5a10b64b972600bd"
+    }
+  ]
+}
