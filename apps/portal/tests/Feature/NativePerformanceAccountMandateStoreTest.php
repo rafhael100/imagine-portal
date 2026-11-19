@@ -276,4 +276,93 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
             ->where('mandate_id',$mandate)->count());
     }
 
+
+    public function test_same_provider_account_has_independent_tenants_and_no_cross_tenant_audit(): void
+    {
+        $companyA=(string)Str::uuid();
+        $companyB=(string)Str::uuid();
+        $mandateA=(string)Str::uuid();
+        $mandateB=(string)Str::uuid();
+        $principal='imagine_portal_s2s';
+        $account='1234567890';
+
+        foreach ([$companyA,$companyB] as $company) {
+            DB::table('portal_performance_services')->insert([
+                'company_id'=>$company,'contract_ref'=>(string)Str::uuid(),
+                'contract_version'=>1,'company_active'=>true,'status'=>'active',
+                'source_kind'=>'synthetic_persisted','expires_at'=>time()+600,
+            ]);
+        }
+
+        // Equal provider/account/principal must not imply shared mandate.
+        foreach ([
+            [$companyA,$mandateA,'synthetic-consent-tenant-A','synthetic-vault-tenant-A'],
+            [$companyB,$mandateB,'synthetic-consent-tenant-B','synthetic-vault-tenant-B'],
+        ] as [$company,$mandate,$consent,$credential]) {
+            DB::table('portal_performance_account_mandates')->insert([
+                'id'=>$mandate,'company_id'=>$company,'provider'=>'google_ads',
+                'account_id'=>$account,'service_principal'=>$principal,
+                'operation'=>'reports.read','purpose'=>'ads_reporting_read',
+                'consent_reference'=>$consent,'credential_ref'=>$credential,
+                'status'=>'candidate','source_kind'=>'synthetic_candidate',
+                'operational_enabled'=>false,'revision'=>1,
+                'expires_at'=>time()+600,
+            ]);
+        }
+        foreach ([[$companyA,$mandateA],[$companyB,$mandateB]] as [$company,$mandate]) {
+            $this->assertSame(1,DB::table('portal_performance_account_mandates')
+                ->where('id',$mandate)->where('company_id',$company)->where('account_id',$account)->count());
+            $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+                ->where('mandate_id',$mandate)->where('company_id',$company)
+                ->where('revision',1)->where('event_kind','created')->count());
+        }
+
+        // A forged B event pointing to A must fail before the FK is involved.
+        // The trigger checks mandate_id, company_id AND service_principal.
+        try {
+            DB::table('portal_performance_account_mandate_events')->insert([
+                'id'=>(string)Str::uuid(),'mandate_id'=>$mandateA,
+                'company_id'=>$companyB,'service_principal'=>$principal,
+                'revision'=>1,'event_kind'=>'revised',
+                'correlation_id'=>(string)Str::uuid(),
+            ]);
+            $this->fail('Cross-company event accepted for a foreign mandate');
+        } catch (QueryException $e) {
+            $this->assertSame('23514',(string)$e->getCode(),
+                'Cross-company event must be denied by current-revision guard');
+        }
+
+        // A second same-scope mandate in A cannot hide a competing authority.
+        try {
+            DB::table('portal_performance_account_mandates')->insert([
+                'id'=>(string)Str::uuid(),'company_id'=>$companyA,
+                'provider'=>'google_ads','account_id'=>$account,
+                'service_principal'=>$principal,'operation'=>'reports.read',
+                'purpose'=>'ads_reporting_read','consent_reference'=>'synthetic-consent-extra',
+                'credential_ref'=>'synthetic-vault-extra',
+                'status'=>'candidate','source_kind'=>'synthetic_candidate',
+                'operational_enabled'=>false,'revision'=>1,'expires_at'=>time()+600,
+            ]);
+            $this->fail('Duplicate mandate authority for one company/account accepted');
+        } catch (QueryException $e) {
+            $this->assertSame('23505',(string)$e->getCode(),
+                'Same company/provider/account/principal must be unique');
+        }
+
+        // Revoking A must add exactly one event in A, without changing B.
+        DB::table('portal_performance_account_mandates')->where('id',$mandateA)->update([
+            'status'=>'revoked','revoked_at'=>time(),'revision'=>2,
+        ]);
+        $this->assertSame('revoked',DB::table('portal_performance_account_mandates')
+            ->where('id',$mandateA)->value('status'));
+        $this->assertSame('candidate',DB::table('portal_performance_account_mandates')
+            ->where('id',$mandateB)->value('status'));
+        $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandateA)->where('company_id',$companyA)
+            ->where('revision',2)->where('event_kind','revoked')->count());
+        $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandateB)->where('company_id',$companyB)->count());
+        $this->assertSame(0,DB::table('portal_performance_account_mandates')
+            ->whereIn('id',[$mandateA,$mandateB])->where('operational_enabled',true)->count());
+    }
 }
