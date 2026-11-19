@@ -176,7 +176,28 @@ class ServiceReceiptPgTest extends TestCase
         self::assertSame($review['offer_digest'],$order->offerDigest);self::assertSame($review['terms_digest'],$order->termsDigest);
         
         $gate=$this->serviceGate;
-        $cases=static fn(array $ctx)=>\PrivateServiceReceipt\ServiceHarness::run($gate,$ctx);
+        require_once __DIR__.'/BuyerContinuation.php';
+        require_once __DIR__.'/PurchaseContinuation.php';
+        $auth=new PostgresPortalBrowserAuthentication($this->connect('portal_browser_runtime'),'portal_native_orders_ci',$this->proof,$this->key,$this->pepper);
+        // A NEW real password+MFA session for the same identity, never reset its replay counter.
+        $login=function(\Closure $onPending)use($auth,$company):string{
+            $pending=$auth->beginPassword('onepage-own@example.invalid','native-order-fixture-password',$company,'192.0.2.10');
+            self::assertIsString($pending);$onPending($pending);
+            $counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
+            // Previous MFA may have used this time step. Wait for next valid step, bounded.
+            $deadline=microtime(true)+32;
+            do{usleep(200000);$next=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();}
+            while($next<=$counter&&microtime(true)<$deadline);
+            self::assertGreaterThan($counter,$next);
+            $h=hash_hmac('sha1',pack('N2',intdiv($next,4294967296),$next%4294967296),'12345678901234567890',true);
+            $offset=ord($h[19])&15;$code=str_pad((string)((unpack('N',substr($h,$offset,4))[1]&0x7fffffff)%1000000),6,'0',STR_PAD_LEFT);
+            $fresh=$auth->completeMfa($pending,$code,'192.0.2.10');self::assertIsString($fresh);
+            self::assertTrue($auth->isActiveBusinessSession($fresh));return $fresh;
+        };
+        $continue=function(array $ctx,array $ports,\Closure $guard,$financial,$capture)use($gate,$auth,$login,$same,$other,$pending):void{
+            \PrivateServiceReceipt\PurchaseContinuation::run($gate,$ctx,$ports,$guard,$financial,$capture,$auth,$login,[$same,$other,$pending]);
+        };
+        $cases=static fn(array $ctx)=>\PrivateServiceReceipt\ServiceHarness::run($gate,$ctx,$continue);
         self::assertInstanceOf(\Closure::class,$cases);
         require_once __DIR__.'/ServiceBindingFixture.php';
         ($this->inboxCases)(
