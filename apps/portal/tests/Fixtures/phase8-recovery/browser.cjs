@@ -1,5 +1,6 @@
 'use strict';
 const {chromium}=require('playwright');
+const {safeSessionDiagnostic}=require('./safe-session-diagnostic.cjs');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{execFileSync}=require('node:child_process');
 if(process.env.GITHUB_ACTIONS!=='true'||process.env.ADMIN_PHASE8_RECOVERY_CI!=='1')process.exit(1);
 const vault=JSON.parse(fs.readFileSync(process.env.P7_BROWSER_VAULT,'utf8'));
@@ -64,7 +65,15 @@ function otp(secret){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floo
   await visit(alpha,restored+'/portal-admin/performance-private/'+vault.users[0].company);
   check(alpha.url().endsWith('/portal-admin/login'),'pre_backup_revoked_cookie_denied_after_restore');
   response=await visit(pages[1],restored+'/portal-admin/performance-private/'+vault.users[1].company);
-  check(response.status()===200&&await pages[1].getByRole('heading',{name:'Estado da consulta'}).isVisible(),'pre_backup_active_database_session_survives_restore');
+  const restoredBetaHeading = await pages[1].getByRole('heading',{name:'Estado da consulta'}).isVisible();
+  if (response.status() !== 200 || !restoredBetaHeading) {
+    // Preserve strict failure. Capture only allowlisted status, route class and
+    // heading visibility; NEVER print URLs, cookies, response bodies or secrets.
+    let routePath;
+    try {routePath = new URL(pages[1].url()).pathname;} catch {routePath = null;}
+    console.error(safeSessionDiagnostic('restored_beta', response.status(), routePath, restoredBetaHeading));
+  }
+  check(response.status()===200&&restoredBetaHeading,'pre_backup_active_database_session_survives_restore');
   check(await pages[1].getByText('Dados indisponíveis',{exact:true}).isVisible(),'restored_official_metrics_still_unavailable');
   const cookie=(await contexts[1].cookies()).find(item=>item.name==='imagine_performance_p6_session');
   check(cookie&&cookie.secure&&cookie.httpOnly&&cookie.sameSite==='Strict','restored_secure_cookie_attributes');
