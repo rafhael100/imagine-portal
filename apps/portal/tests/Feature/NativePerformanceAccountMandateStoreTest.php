@@ -421,4 +421,67 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
             ->where('mandate_id',$mandate)->where('revision',2)
             ->where('event_kind','revoked')->count());
     }
+
+    public function test_account_mandate_initial_revision_and_status_cannot_skip_audit_history(): void
+    {
+        $company=(string)Str::uuid();
+        DB::table('portal_performance_services')->insert([
+            'company_id'=>$company,'contract_ref'=>(string)Str::uuid(),
+            'contract_version'=>1,'company_active'=>true,'status'=>'active',
+            'source_kind'=>'synthetic_persisted','expires_at'=>time()+600,
+        ]);
+        $base=[
+            'company_id'=>$company,'provider'=>'google_ads',
+            'service_principal'=>'imagine_portal_s2s','operation'=>'reports.read',
+            'purpose'=>'ads_reporting_read',
+            'consent_reference'=>'synthetic-consent-initial-001',
+            'credential_ref'=>'synthetic-vault-initial-001',
+            'status'=>'candidate','revision'=>1,
+            'source_kind'=>'synthetic_candidate','operational_enabled'=>false,
+            'expires_at'=>time()+600,
+        ];
+        // Each case uses a different account and UUID to rule out a UNIQUE
+        // collision. All fields except initial state are otherwise valid.
+        foreach ([
+            ['revision'=>2],
+            ['revision'=>99],
+            ['status'=>'suspended'],
+            ['status'=>'revoked','revoked_at'=>time()],
+        ] as $index=>$invalid) {
+            $id=(string)Str::uuid();
+            $row=array_merge($base,[
+                'id'=>$id,'account_id'=>'77'.str_pad((string)$index,8,'0',STR_PAD_LEFT),
+            ],$invalid);
+            try {
+                DB::table('portal_performance_account_mandates')->insert($row);
+                $this->fail('An initial account mandate bypassed revision/status history: '.$index);
+            } catch (QueryException $e) {
+                $this->assertSame('23514',(string)$e->getCode(),
+                    'Initial state must fail the SQL guard: '.$index);
+            }
+            $this->assertSame(0,DB::table('portal_performance_account_mandates')
+                ->where('id',$id)->count());
+            $this->assertSame(0,DB::table('portal_performance_account_mandate_events')
+                ->where('mandate_id',$id)->count());
+        }
+
+        $id=(string)Str::uuid();
+        DB::table('portal_performance_account_mandates')->insert(array_merge($base,[
+            'id'=>$id,'account_id'=>'7799999999',
+        ]));
+        $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$id)->where('revision',1)
+            ->where('event_kind','created')->count());
+        // Legitimate later changes are not blocked by the INSERT-only guard.
+        DB::table('portal_performance_account_mandates')->where('id',$id)->update([
+            'status'=>'suspended','revision'=>2,
+        ]);
+        $this->assertSame(1,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$id)->where('revision',2)
+            ->where('event_kind','suspended')->count());
+        $this->assertSame(2,DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$id)->count());
+        $this->assertSame(0,DB::table('portal_performance_account_mandates')
+            ->where('id',$id)->where('operational_enabled',true)->count());
+    }
 }
