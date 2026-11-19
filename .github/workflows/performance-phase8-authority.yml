@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 0bea5440ebc1f228b1d515ed5d00af1f62a6a375
+          ref: fb50fcf81d42b7d928908d89f6a757a0e1c5e1a8
           path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
