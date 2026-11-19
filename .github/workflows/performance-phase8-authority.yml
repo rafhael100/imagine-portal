@@ -3,6 +3,8 @@ on:
   push:
     branches: ['feat/admin-phase7-exact-compose-flow-2026-11-17']
     paths: ['apps/portal/**', '.github/workflows/performance-phase8-authority.yml']
+  pull_request:
+    paths: ['apps/portal/**', '.github/workflows/performance-phase8-authority.yml']
 permissions:
   contents: read
 jobs:
@@ -43,11 +45,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 15aad7bee3ac2dbade72c5fab6808d8e3044ac59
+          ref: 7f40693e8663578b8de721d9eca2e62262f46fa8
           path: engine
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -66,4 +69,10 @@ jobs:
           php tests/Fixtures/phase4/authority-role.php
       - name: Operation-specific navigation, filters, signatures and denial events
         working-directory: apps/portal
-        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
+        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|NativePerformanceAccountMandateStoreTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
+      - name: Restore populated synthetic mandate and event tables in disposable PostgreSQL
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          DOCKER_HOST: ''
+          DOCKER_CONTEXT: ''
+        run: bash apps/portal/tests/Fixtures/phase15-mandate-restore/run.sh

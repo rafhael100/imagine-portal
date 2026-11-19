@@ -3,6 +3,8 @@ on:
   push:
     branches: ['feat/admin-phase7-exact-compose-flow-2026-11-17']
     paths: ['apps/portal/**', '.github/workflows/performance-phase8-recovery.yml']
+  pull_request:
+    paths: ['apps/portal/**', '.github/workflows/performance-phase8-recovery.yml']
 permissions:
   contents: read
 jobs:
@@ -23,11 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 15aad7bee3ac2dbade72c5fab6808d8e3044ac59
+          ref: 7f40693e8663578b8de721d9eca2e62262f46fa8
           path: engine
           persist-credentials: false
       - name: Read-only inventory regression
@@ -51,7 +54,11 @@ jobs:
           npx playwright install --with-deps chromium >/dev/null
           echo "NODE_PATH=$RUNNER_TEMP/phase7-browser/node_modules" >> "$GITHUB_ENV"
       - name: Exact package, materials, build receipt and complete isolated recovery
-        run: bash apps/portal/tests/Fixtures/phase7/run.sh
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$candidate_sha" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          GITHUB_SHA="$candidate_sha" bash apps/portal/tests/Fixtures/phase7/run.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
