@@ -68,3 +68,12 @@ cross-site durability, or capacity for large operational archives. The already
 available secret mounts are reused under isolated CI control; operational
 secret escrow and external backup recovery remain separate release gates. A
 sealed old snapshot alone never authorizes current access.
+
+A recovery-browser failure of the restored beta session reports only an
+allowlisted HTTP status, route class and heading visibility under
+`PHASE8_RECOVERY_SESSION_DIAGNOSTIC`. The browser assertion is unchanged:
+redirects to login, a missing heading or any non-200 result still fail the run.
+The offline classifier has negative tests for injected paths and statuses;
+no URL, cookie, response body, token or identity appears in CI logs. This is
+diagnostic instrumentation, **not** a fix or proof that the historical
+intermittence has ended (Portal issue #997).
