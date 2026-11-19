@@ -102,5 +102,29 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
             $this->assertTrue(true);
         }
         $this->assertSame(1, DB::table('portal_performance_account_mandate_events')->where('id',$event)->count());
+
+        // A legitimate opaque-reference rotation requires a strictly newer revision.
+        DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
+            'credential_ref'=>'synthetic-vault-ref-002','revision'=>2,
+        ]);
+        $this->assertSame('synthetic-vault-ref-002',
+            DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('credential_ref'));
+        $this->assertSame(2,
+            (int)DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('revision'));
+
+        // Once revoked, the candidate cannot be silently reactivated.
+        DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
+            'status'=>'revoked','revoked_at'=>time(),'revision'=>3,
+        ]);
+        try {
+            DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
+                'status'=>'candidate','revoked_at'=>null,'revision'=>4,
+            ]);
+            $this->fail('Revoked mandate reactivated');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+        $this->assertSame('revoked',
+            DB::table('portal_performance_account_mandates')->where('id',$mandate)->value('status'));
     }
 }

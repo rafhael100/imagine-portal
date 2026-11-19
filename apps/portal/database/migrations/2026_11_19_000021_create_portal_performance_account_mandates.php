@@ -75,6 +75,31 @@ CREATE POLICY portal_performance_account_event_scope ON portal_performance_accou
     company_id::text = current_setting('app.performance_company',true)
     AND service_principal = current_setting('app.performance_principal',true)
  );
+CREATE FUNCTION enforce_portal_performance_account_mandate_update() RETURNS trigger
+LANGUAGE plpgsql AS $function$
+BEGIN
+    IF OLD.company_id IS DISTINCT FROM NEW.company_id
+       OR OLD.provider IS DISTINCT FROM NEW.provider
+       OR OLD.account_id IS DISTINCT FROM NEW.account_id
+       OR OLD.service_principal IS DISTINCT FROM NEW.service_principal
+       OR OLD.operation IS DISTINCT FROM NEW.operation
+       OR OLD.purpose IS DISTINCT FROM NEW.purpose
+       OR OLD.source_kind IS DISTINCT FROM NEW.source_kind
+       OR OLD.operational_enabled IS DISTINCT FROM NEW.operational_enabled THEN
+        RAISE EXCEPTION 'Account mandate identity is immutable';
+    END IF;
+    IF NEW.revision <= OLD.revision THEN
+        RAISE EXCEPTION 'Account mandate revision must increase';
+    END IF;
+    IF OLD.status = 'revoked' AND NEW.status <> 'revoked' THEN
+        RAISE EXCEPTION 'Revoked mandate cannot be reactivated';
+    END IF;
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER enforce_portal_performance_account_mandate_revisions
+ BEFORE UPDATE ON portal_performance_account_mandates
+ FOR EACH ROW EXECUTE FUNCTION enforce_portal_performance_account_mandate_update();
 CREATE FUNCTION prevent_portal_performance_account_event_mutation() RETURNS trigger
 LANGUAGE plpgsql AS $function$
 BEGIN
