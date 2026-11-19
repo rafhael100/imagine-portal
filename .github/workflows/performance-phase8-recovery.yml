@@ -54,7 +54,11 @@ jobs:
           npx playwright install --with-deps chromium >/dev/null
           echo "NODE_PATH=$RUNNER_TEMP/phase7-browser/node_modules" >> "$GITHUB_ENV"
       - name: Exact package, materials, build receipt and complete isolated recovery
-        run: bash apps/portal/tests/Fixtures/phase7/run.sh
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$candidate_sha" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          GITHUB_SHA="$candidate_sha" bash apps/portal/tests/Fixtures/phase7/run.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
