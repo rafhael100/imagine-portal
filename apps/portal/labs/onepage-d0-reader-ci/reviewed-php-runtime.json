@@ -1,0 +1,37 @@
+{
+  "composer": {
+    "path": "/usr/local/bin/composer",
+    "sha256": "f446ea719708bb85fcbf4ef18def5d0515f1f9b4d703f6d820c9c1656e10a2f2"
+  },
+  "ini_sha256": "53355883cf3ef1e36a9d02e01210f07b63650f231d8bc2762a9a3c49ed528bf0",
+  "liburing": {
+    "file_sha256": "51594b92ac35f96595d3fcec9c3ec5d190637d9b426d5f8a8f4207875d2962f6",
+    "file_size": 26856,
+    "filename": "pool/main/libu/liburing/liburing2_2.5-1build1_amd64.deb",
+    "resolved": "usr/lib/x86_64-linux-gnu/liburing.so.2.5",
+    "sha256": "c2aef62accee92a06263c3ad4ef46132c13e409b54296c44792a20491830a7b0",
+    "size": 21092
+  },
+  "modules": {
+    "/usr/lib/php/20240924/ctype.so": "0e4473269aede3429f7fe7512f64e94c6c3820c486a012c38421b98195125b4a",
+    "/usr/lib/php/20240924/curl.so": "08f843b6f26a4d4329db3d957c8dabbb20f58dac6c8d5445643f02a136be53a0",
+    "/usr/lib/php/20240924/dom.so": "b5063e512af3c0c7831b53b5805d8ebe71196857032264db0189c61d7e540c15",
+    "/usr/lib/php/20240924/fileinfo.so": "e0d1a5edfe4e7c77f6951c95e5c770ca9e83270aa703a2d18848f180e3d7c0aa",
+    "/usr/lib/php/20240924/iconv.so": "232b183e3d378a08489731ab745376d858ede65066038493dfc32e86c54f954f",
+    "/usr/lib/php/20240924/mbstring.so": "dde86f237f3bd8fd6b70e7e98d9dcbcd063d937bd6c453f8c22d40537b490d86",
+    "/usr/lib/php/20240924/pdo.so": "39e37938100e5b78c6fd37a82efdb5264b69f718d1abe27f478e2f5f2072c4b2",
+    "/usr/lib/php/20240924/pdo_pgsql.so": "95bdcdd8358bfe0fa40429353a064ba3b81f8103556ede131f9ed27ef4f9cc34",
+    "/usr/lib/php/20240924/phar.so": "4b53fd373239c9a8d6b9539ef97e64af5a87c3847fb1ab6ec391ed76c4786a2c",
+    "/usr/lib/php/20240924/posix.so": "8d16f08d2f86cef957ffb9ae0b0a7f377e7e796a3931d3d00fdbec73504c58f1",
+    "/usr/lib/php/20240924/tokenizer.so": "26520ef3921c309c7ac2584b6b53b61c4e1b4c9ea0e0db973f0a0e9a2d5f2033",
+    "/usr/lib/php/20240924/xml.so": "dae327b253471e34d37a626b0c52b600e9b9963810d0ffd9690cec54b82365fb",
+    "/usr/lib/php/20240924/xmlwriter.so": "9c341bdb7fc62dec552cf67648200d090018d933181922e4747a3129948be013"
+  },
+  "php": {
+    "path": "/usr/bin/php8.4",
+    "sha256": "f2241f24fd4bcbdf53d2de980096b698752f3fd03943550f217416070ffa076c"
+  },
+  "php_version": "8.4.27",
+  "posix": "/usr/lib/php/20240924/posix.so",
+  "schema": "imagine.noble-php-runtime.v1"
+}

@@ -3,6 +3,12 @@ import sys,os,json,time,tempfile,shutil,signal,stat,re
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from processes import Owned,OWNED
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'onepage-dual-inbox'))
+from composer import compose
+from inbox_supervisor import collect_with_inbox
+from bundle_inputs import read_inputs
 HERE=Path(__file__).resolve().parent
 WORKER=[b'PASS BRIEFING_AUTOLOAD_READY', b'PASS BRIEFING_BOOTSTRAP_READY', b'PASS BRIEFING_MAINTENANCE_CONFIG_READY', b'PASS BRIEFING_MAINTENANCE_BEFORE_DDL', b'PASS BRIEFING_DATABASE_CREATED', b'PASS BRIEFING_TEST_ENTERED', b'PASS BRIEFING_NEW_DATABASE_GATE_PASSED', b'PASS BRIEFING_LARAVEL_SQL_BEFORE_DDL', b'PASS BRIEFING_MIGRATIONS_COMPLETE', b'PASS BRIEFING_SCHEMA_COMPLETE', b'PASS BRIEFING_PORT_NATIVE_ORDER_READY', b'PASS BRIEFING_D0_PORT_COMPLETE', b'PASS BRIEFING_WORKER_COMPLETE']
 PHASE_COUNTS={b'AUTOLOAD': {0}, b'BOOTSTRAP': {1}, b'MAINTENANCE_CONFIG': {2}, b'MAINTENANCE_GATE': {3}, b'CREATE_DATABASE': {4}, b'TEST_BOOTSTRAP': {5}, b'NEW_DATABASE_GATE': {6}, b'ADMIN_GATE': {7}, b'MIGRATIONS': {8}, b'SECURITY_DDL': {9}, b'FIXTURES': {10}, b'CASES': {11}, b'TEST_TEARDOWN': {12}, b'FINALIZE': {12}}
@@ -29,7 +35,7 @@ def main():
   need(len(sys.argv)==9);uid,gid,php,ext,pg,lib,ini,mode=sys.argv[1:]
   need(mode in ('PARTIAL_START','BRIEFING'))
   need(os.geteuid()==os.getuid()==int(uid)>0 and os.getegid()==int(gid) and os.environ.get('GITHUB_ACTIONS')=='true')
-  env={'PATH':'/usr/bin:/bin','LC_ALL':'C','GITHUB_ACTIONS':'true','BRIEFING_SCOPE':'BRIEFING_VIABILITY_ONLY'}
+  env={'PATH':'/usr/bin:/bin','LC_ALL':'C','GITHUB_ACTIONS':'true','PHP_INI_SCAN_DIR':'','BRIEFING_SCOPE':'BRIEFING_VIABILITY_ONLY'}
   probe=HERE/'probe.php'
   cmd=[php,'-n','-d','display_errors=0','-d','log_errors=0']
   if ext!='builtin':cmd+=['-d','extension='+ext]
@@ -38,7 +44,7 @@ def main():
   print('PASS BRIEFING_UID_TOPOLOGY',flush=True)
   # Same immutable topology, no capabilities, no netns creation possible after drop.
   ns={k:os.readlink('/proc/self/ns/'+k) for k in ('net','mnt','pid')}
-  for name in ['postgres','initdb','pg_isready']:need((Path(pg)/name).is_file())
+  for name in ['postgres','initdb','pg_isready','psql','pg_controldata']:need((Path(pg)/name).is_file())
   env|={'LD_LIBRARY_PATH':lib,'PHP_INI_SCAN_DIR':''}
   phase='INIT';root=Path(tempfile.mkdtemp(prefix='native-briefing-',dir='/tmp'));os.chmod(root,0o700)
   s=root.lstat();identity=(s.st_dev,s.st_ino,s.st_uid);data=root/'data'
@@ -66,7 +72,11 @@ def main():
     'QUEUE_CONNECTION':'sync','MAIL_MAILER':'array','PORTAL_NATIVE_ORDER_TEST':'DISPOSABLE_PG18','PORTAL_NATIVE_ORDER_TEST_PORT':port,
     'PORTAL_NATIVE_ORDER_TEST_DATA':str(data),'BRIEFING_START_EPOCH':str(started),'BRIEFING_CI_SCOPE':'REVIEWED_SINGLE_OPENED_PR',
     **{'BRIEFING_NS_'+k.upper():v for k,v in ns.items()}}
-  try:ok,raw,reaped=Owned([php,'-c',ini,str(HERE.parent/'onepage-d0-reader-pg/worker.php')],worker_env).collect(120)
+  dual=HERE.parent/'onepage-dual-inbox'
+  worker_args=[php,'-c',ini,str(HERE.parent/'onepage-d0-reader-pg/worker.php')]
+  approved,fsql=read_inputs(dual,Path(pg),Path(php),Path(ini),'496b5ef220a0a05c05009131ea028a28b59896854da2f7fe2d05a92183a3ff4e')
+  review,bridge,finance=compose(worker_args,worker_env,pg,root,cluster,approved,fsql)
+  try:ok,raw,reaped=collect_with_inbox(worker_args,worker_env,pg,root,cluster,review,bridge,finance) # old runner replaced
   except BaseException:
    print('BRIEFING_WORKER_CAPTURE_REFUSED',flush=True);raise
   clean &= reaped

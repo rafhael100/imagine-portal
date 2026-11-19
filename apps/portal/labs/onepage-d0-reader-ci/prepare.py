@@ -10,8 +10,9 @@ def run(args,cwd=None):
  return p.stdout.decode()
 def main():
  check_checkout();php=os.environ['PHP_BIN'];app=HERE.parents[1]
- ext=Path(run([php,'-r','echo ini_get("extension_dir");']).strip());builtins=json.loads(run([php,'-n','-r','echo json_encode(get_loaded_extensions());']))
+ ext=Path(run([php,'-n','-r','echo ini_get("extension_dir");']).strip());builtins=json.loads(run([php,'-n','-r','echo json_encode(get_loaded_extensions());']))
  content=render(ext,builtins)
+ if content.encode()!=(HERE/'reviewed-php.ini').read_bytes():raise ValueError('REVIEWED_INI_REFUSED')
  ini=Path(os.environ['BRIEFING_PHP_INI'])
  with ini.open('x') as f:f.write(content)
  ini.chmod(0o600)

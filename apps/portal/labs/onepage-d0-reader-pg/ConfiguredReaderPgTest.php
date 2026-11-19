@@ -18,6 +18,7 @@ class ConfiguredReaderPgTest extends TestCase
 {
     private readonly PDO $admin;
     private \Closure $financeGate;
+    private \Closure $inboxCases;
     private int $port;
     private string $proof;
     private string $key;
@@ -73,6 +74,13 @@ class ConfiguredReaderPgTest extends TestCase
             self::assertSame('portal_native_orders_ci',$r['db']);self::assertSame('portal_native_test_bootstrap',$r['login']);
             self::assertSame('127.0.0.1',$r['host']);self::assertSame($this->port,(int)$r['port']);
         };
+        $dualDir=__DIR__.'/../onepage-dual-inbox';
+        require_once $dualDir.'/DualDbGate.php';
+        require_once $dualDir.'/InboxInstall.php';
+        require_once $dualDir.'/SetupBridge.php';
+        [$manifest,$semanticAudit,$qualification]=require $dualDir.'/qualification.php';
+        $files=['inbox.sql'=>file_get_contents($dualDir.'/inbox.sql'),'lease.sql'=>file_get_contents($dualDir.'/lease.sql')];
+        $this->inboxCases=\PrivateDualDb\SetupBridge::run($this->admin,$gate,$this->financeGate,$manifest,$files,$semanticAudit,$qualification);
         Trace::pass('PASS BRIEFING_LARAVEL_SQL_BEFORE_DDL');Trace::enter('MIGRATIONS');
         foreach ([
             '2026_11_09_000002_create_portal_identity_foundation.php',
@@ -220,7 +228,18 @@ class ConfiguredReaderPgTest extends TestCase
             $fresh=$financialAuth->completeMfa($pending,$code,'192.0.2.10');
             self::assertIsString($fresh);self::assertTrue($financialAuth->isActiveBusinessSession($fresh));return $fresh;
         };
-        ConfiguredReaderPgCases::run($this->admin,$runtime,fn(string $role):PDO=>$this->connect($role),$store,$order,$session,[$same,$other,$pending],$revoke,$newLogin,$this->financeGate);
+        $cases=require __DIR__.'/../onepage-dual-inbox/cases.php';
+        self::assertInstanceOf(\Closure::class,$cases);
+        require_once __DIR__.'/BindingFixture.php';
+        ($this->inboxCases)(
+            function(PDO $admin,\Closure $recheck)use($runtime,$store,$order,$session):array {
+                return BindingFixture::prepare($admin,$runtime,fn(string $role):PDO=>$this->connect($role),$store,$order,$session,$recheck);
+            },
+            function(PDO $admin,PDO $inbox,\Closure $recheck,array $fixture,array $qualification)use($cases,$runtime,$store,$order,$session):void {
+                $cases(['native'=>$admin,'inbox'=>$inbox,'recheck'=>$recheck,'fixture'=>$fixture,'qualification'=>$qualification,
+                    'runtime'=>$runtime,'store'=>$store,'order'=>$order,'session'=>$session]);
+            }
+        );
         Trace::pass('PASS BRIEFING_D0_PORT_COMPLETE');Trace::enter('TEST_TEARDOWN');
     }
 }
