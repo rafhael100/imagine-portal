@@ -13,9 +13,12 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        if (getenv('ADMIN_PHASE4_PG_CI') !== '1' || getenv('CI') !== 'true'
-            || getenv('DB_DATABASE') !== 'performance_phase4_ci') {
-            $this->markTestSkipped('Synthetic disposable Phase4 PostgreSQL required');
+        if (getenv('ADMIN_PHASE4_PG_CI') !== '1') {
+            $this->markTestSkipped('Explicit disposable Phase4 PostgreSQL flag required');
+        }
+        if (DB::getDriverName() !== 'pgsql'
+            || DB::connection()->getDatabaseName() !== 'performance_phase4_ci') {
+            $this->fail('Mandate tests require exact disposable PostgreSQL database');
         }
     }
 
