@@ -228,4 +228,52 @@ final class NativePerformanceAccountMandateStoreTest extends TestCase
         $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
             ->where('mandate_id',$mandateId)->where('revision',1)->count());
     }
+    public function test_future_audit_event_cannot_preseed_revision_and_block_rotation(): void
+    {
+        $company=(string)Str::uuid();
+        $mandate=(string)Str::uuid();
+        $principal='imagine_portal_s2s';
+        DB::table('portal_performance_services')->insert([
+            'company_id'=>$company,'contract_ref'=>(string)Str::uuid(),
+            'contract_version'=>1,'company_active'=>true,'status'=>'active',
+            'source_kind'=>'synthetic_persisted','expires_at'=>time()+600,
+        ]);
+        DB::table('portal_performance_account_mandates')->insert([
+            'id'=>$mandate,'company_id'=>$company,'provider'=>'google_ads',
+            'account_id'=>'9876543210','service_principal'=>$principal,
+            'operation'=>'reports.read','purpose'=>'ads_reporting_read',
+            'consent_reference'=>'synthetic-consent-guard-001',
+            'credential_ref'=>'synthetic-vault-guard-001','status'=>'candidate',
+            'source_kind'=>'synthetic_candidate','operational_enabled'=>false,
+            'revision'=>1,'expires_at'=>time()+600,
+        ]);
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',1)->where('event_kind','created')->count());
+
+        // Before this guard, a writer with audit INSERT could pre-seed revision
+        // 2, causing the automatic UNIQUE event to abort a legitimate rotation.
+        // FK, shape, company and principal are valid: only chronology can deny.
+        try {
+            DB::table('portal_performance_account_mandate_events')->insert([
+                'id'=>(string)Str::uuid(),'mandate_id'=>$mandate,
+                'company_id'=>$company,'service_principal'=>$principal,
+                'revision'=>2,'event_kind'=>'revised',
+                'correlation_id'=>(string)Str::uuid(),
+            ]);
+            $this->fail('A future-revision audit event was accepted');
+        } catch (QueryException $e) {
+            $this->assertSame('23514',(string)$e->getCode(),'Reject future revision, not duplicate or FK');
+        }
+        $this->assertSame(0, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',2)->count());
+
+        DB::table('portal_performance_account_mandates')->where('id',$mandate)->update([
+            'credential_ref'=>'synthetic-vault-guard-002','revision'=>2,
+        ]);
+        $this->assertSame(1, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->where('revision',2)->where('event_kind','revised')->count());
+        $this->assertSame(2, DB::table('portal_performance_account_mandate_events')
+            ->where('mandate_id',$mandate)->count());
+    }
+
 }
