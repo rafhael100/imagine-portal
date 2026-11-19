@@ -135,8 +135,8 @@ $resolve = new OnepageCurrentHeadS2sResponseCandidate(
     $service,$contracts,$current,$exact,$approval
 );
 $call = static fn(string $identity='test-only-authorized-s2s',
-    string $company=$tenant,string $orderRef=$order,string $siteRef=$site):string =>
-    $resolve->prepare($identity,$company,$orderRef,$siteRef);
+    ?string $company=null,?string $orderRef=null,?string $siteRef=null):string =>
+    $resolve->prepare($identity,$company ?? $tenant,$orderRef ?? $order,$siteRef ?? $site);
 $deny(static fn()=>(new OnepageCurrentHeadS2sResponseCandidate())->prepare(
     'test-only-authorized-s2s',$tenant,$order,$site
 ), 'default readers and service witness deny');
