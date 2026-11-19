@@ -42,6 +42,7 @@ docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_constraint WHERE conname IN ('account_mandate_consent_reference_shape','account_mandate_credential_reference_shape','account_mandate_event_revision_unique')")" == 3 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_event_current_revision_guard' AND tgenabled='O'")" == 1 ]]
+[[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_revoked_immutable' AND tgenabled='O'")" == 1 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
 INSERT INTO public.portal_performance_account_mandates
@@ -64,5 +65,12 @@ WHERE m.account_id='5555555555'
 fi
 [[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id WHERE m.account_id='5555555555'")" == 1 ]]
 
+# The restored schema must refuse any rewrite of an already revoked mandate.
+# This is a real negative mutation of restored synthetic rows, not a metadata-only check.
+if query "$target_db" "UPDATE public.portal_performance_account_mandates SET revision=revision+1, credential_ref='synthetic-vault-forged-999' WHERE status='revoked'" >/dev/null 2>&1; then
+    echo "FAIL: restored database allowed a post-revocation reference rewrite" >&2
+    exit 1
+fi
+[[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE status='revoked' AND revision>3")" == 0 ]]
 [[ "$(fingerprint "$source_db")" == "$original" ]]
 echo "PHASE15_POPULATED_MANDATE_RESTORE_PASS: nonempty revoked candidate and events restored, FORCE RLS and runtime-deny preserved, source untouched"

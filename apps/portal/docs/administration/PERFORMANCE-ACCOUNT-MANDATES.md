@@ -83,3 +83,10 @@ mandatos, contas Google/Meta autorizadas, consentimento humano, integração de
 cofre ou restore de VPS. Os testes continuam dentro da role de migração
 privilegiada controlada, sem conceder SELECT ao runtime, sem nova API e
 sem mudança na classificação `synthetic_candidate`.
+
+
+## Imutabilidade pós-revogação (candidato sintético, 19/11/2026)
+
+A migração `000025` protege o estado terminal: após `status=revoked`, nem uma alteração mantendo esse status pode atualizar `credential_ref`, `consent_reference`, prazo ou revisão. Antes, uma UPDATE com revisão nova poderia reescrever referências de um mandato revogado e gerar outro evento `revoked`, reduzindo a utilidade forense da auditoria. Uma transição inicial `candidate→revoked` continua possível com evento automático transacional; alterações posteriores falham com SQLSTATE `23514`.
+
+Os testes PostgreSQL18 descartáveis cobrem a transição permitida, quatro mutações proibidas e contagem de eventos inalterada; a restauração sintética repete uma mutação pós-revogação adversarial no banco restaurado. São fixtures, não prova de backups R2/Leaseweb, autenticidade de consentimento, IAM/cofre ou permissão Google/Meta. Nenhum GRANT à role runtime e nenhum caminho operacional foi criado. Revisão AppSec/DBA/LGPD e gate Leaseweb continuam obrigatórios.
