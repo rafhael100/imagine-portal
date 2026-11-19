@@ -1,8 +1,8 @@
-name: Onepage D0 configured reader incremental
+name: Onepage buyer signal correlation incremental
 on:
   pull_request:
     types: [opened]
-    branches: ['test/onepage-d0-account-epoch-v1']
+    branches: ['test/onepage-d0-reader-pg-v1']
     paths: ['.github/workflows/onepage-d0-reader-pg.yml']
 permissions:
   contents: read
@@ -12,10 +12,10 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.run_attempt == 1 && github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
-      github.event.pull_request.head.ref == 'test/onepage-d0-reader-pg-v1' &&
+      github.event.pull_request.head.ref == 'test/onepage-buyer-signal-pg-v1' &&
       github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
-      github.event.pull_request.base.ref == 'test/onepage-d0-account-epoch-v1' &&
-      github.event.pull_request.base.sha == '4e092891e753f595b4f8f12a75aee8d0f20870a4'
+      github.event.pull_request.base.ref == 'test/onepage-d0-reader-pg-v1' &&
+      github.event.pull_request.base.sha == '2fcb55e79e240366f27f63e8e63335f4d2b8be99'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
           fetch-depth: 0
-      - name: Verify exact additive scope before provisioning
+      - name: Verify exact child scope before provisioning
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
