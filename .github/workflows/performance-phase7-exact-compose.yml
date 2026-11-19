@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 15aad7bee3ac2dbade72c5fab6808d8e3044ac59
+          ref: 7f40693e8663578b8de721d9eca2e62262f46fa8
           path: engine
           persist-credentials: false
       - name: Locked browser and CI trust tools
