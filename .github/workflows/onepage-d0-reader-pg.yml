@@ -1,8 +1,8 @@
-name: Onepage buyer signal correlation incremental
+name: Onepage financial D0 isolated integration
 on:
   pull_request:
     types: [opened]
-    branches: ['test/onepage-d0-reader-pg-v1']
+    branches: ['test/onepage-buyer-signal-pg-v1']
     paths: ['.github/workflows/onepage-d0-reader-pg.yml']
 permissions:
   contents: read
@@ -11,11 +11,12 @@ jobs:
     if: >-
       github.repository == 'rafhael100/imagine-portal' &&
       github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
-      github.event.pull_request.head.ref == 'test/onepage-buyer-signal-pg-v1' &&
+      github.event.pull_request.head.ref == 'test/onepage-d0-finance-pg-v1' &&
       github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
-      github.event.pull_request.base.ref == 'test/onepage-d0-reader-pg-v1' &&
-      github.event.pull_request.base.sha == '2fcb55e79e240366f27f63e8e63335f4d2b8be99'
+      github.event.pull_request.base.ref == 'test/onepage-buyer-signal-pg-v1' &&
+      github.event.pull_request.base.sha == '6b713932d90846fcdeacfccee1a4c6ddd1f69620'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
