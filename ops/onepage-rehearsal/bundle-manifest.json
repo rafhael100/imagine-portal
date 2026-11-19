@@ -1,0 +1,1966 @@
+{
+  "purpose": "single-approved-disposable-synthetic-rehearsal",
+  "executed_container": false,
+  "files": [
+    {
+      "path": ".dockerignore",
+      "bytes": 51,
+      "sha256": "e4e72a9a9b3cdbb1563989f2a32e9bc9c6678b3864e2611d6b5d6afd1c05e79a"
+    },
+    {
+      "path": "Dockerfile",
+      "bytes": 2623,
+      "sha256": "d3d7f11e19c40dbbf7b789baaf70c62a4fdb08f624b03b02b04990c78410fd59"
+    },
+    {
+      "path": "admin-once.py",
+      "bytes": 5286,
+      "sha256": "edb2ef24f4b9842c2975bb377824d5651627b48e25aa0c088368d1b3cf448d3f"
+    },
+    {
+      "path": "runtime/application/app/Console/Commands/ExportDemoPortalPreview.php",
+      "bytes": 1042,
+      "sha256": "a11a06b7879feb794f4d48b32d4ba4e31cbabba3805c566545326c23e456fff3"
+    },
+    {
+      "path": "runtime/application/app/Console/Commands/VerifyDemoPortalPreview.php",
+      "bytes": 1231,
+      "sha256": "db7b863de2d600d256afac2843d0a019b6d2df4a5a189b550a05255c22e165bf"
+    },
+    {
+      "path": "runtime/application/app/Domain/Authorization/AuthorizationContext.php",
+      "bytes": 562,
+      "sha256": "97805136cd67f38053fcadb84382a84819f1324c778bd971bb1d480ff8a3104d"
+    },
+    {
+      "path": "runtime/application/app/Domain/Authorization/AuthorizationDecision.php",
+      "bytes": 629,
+      "sha256": "120c86d84cbecaef4d55be6bcba1b92d7a4372e1a6139dadff78ae6a8f0fc208"
+    },
+    {
+      "path": "runtime/application/app/Domain/Authorization/OrganizationAuthorizationService.php",
+      "bytes": 1911,
+      "sha256": "0949c3304c122c614caa792599c3dfaa3d4be8d83ecd42305a966ffe7d438ac3"
+    },
+    {
+      "path": "runtime/application/app/Domain/Authorization/Permission.php",
+      "bytes": 943,
+      "sha256": "4fba7afa9d9b720b57512d34ec8308d1b3883efd14c5e06504ce441af0b6577e"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/CatalogAccessPolicy.php",
+      "bytes": 1120,
+      "sha256": "eb04c92b0fa6eff14bd8a4ec4c56361e7377f537bf687b54531003550febc9de"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/OfferingEligibility.php",
+      "bytes": 1373,
+      "sha256": "ee2746cdcd6537ed657b6c97dc33685104eff5013cd45681401face006a64d6a"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/OfferingId.php",
+      "bytes": 530,
+      "sha256": "cd6b3b9e866722175d3b006d980276f839452869e7161b16cbfa7a0db3df332a"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/OfferingStatus.php",
+      "bytes": 256,
+      "sha256": "457ead782c370585082dde363ef21d9a0786d1622d04d6d8c18fe5421b5b0b11"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/PerformanceChannel.php",
+      "bytes": 140,
+      "sha256": "f42016cd56a51d59df06b4b7aa23053dbffddb3583b939c61e0b5810c446c59e"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/PerformanceModality.php",
+      "bytes": 209,
+      "sha256": "074612739764e71b688af54b5bba1e4d00d2da7f037522081fd8750d941d19cb"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/PerformanceOffering.php",
+      "bytes": 3009,
+      "sha256": "898658fdc5f23fcbe63e6251a566afe82eca122389ce76f3af620a714753490d"
+    },
+    {
+      "path": "runtime/application/app/Domain/Catalog/ProductCode.php",
+      "bytes": 196,
+      "sha256": "65363bd672999a9b9eac35d36b2daec51126bf5b7cc12f984cb32225c4b46bd9"
+    },
+    {
+      "path": "runtime/application/app/Domain/ClientOverview/DemoOverviewComposer.php",
+      "bytes": 4416,
+      "sha256": "d1d912745a331e557a34a9300bf552d504052bf0ed4ae29aeede93b50737f207"
+    },
+    {
+      "path": "runtime/application/app/Domain/ClientOverview/DemoOverviewResult.php",
+      "bytes": 2846,
+      "sha256": "dc325bdc0b4a561d500c492db41eac31c00b956b7f81122d8971a06fc554587e"
+    },
+    {
+      "path": "runtime/application/app/Domain/ClientOverview/DemoServiceRelationPage.php",
+      "bytes": 3861,
+      "sha256": "61a1177548d443362b77d363574bc73857e6eb618108029d55cc316646b76898"
+    },
+    {
+      "path": "runtime/application/app/Domain/ClientOverview/DemoServiceRelationProjector.php",
+      "bytes": 5245,
+      "sha256": "16005fce4b1716c8b880b0b6f0a0a43136fb70e393f2cbf7d105059aaded4a8d"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/D0/EntryStore.php",
+      "bytes": 434,
+      "sha256": "0ff9164ce71bd35ccd644f88d23d671ec4d7f4e749f214d07242721a7c492c73"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/D0/FirstBriefingRelease.php",
+      "bytes": 2332,
+      "sha256": "f334a5561a50fdadece0de59683af639a81365f49684f992b90dc1ddb28c4a7e"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/D0/UnavailableEntryStore.php",
+      "bytes": 411,
+      "sha256": "7b65ad6887aac905ad017cbb1788209e19b0367b6360855b7bfb0083d5636a57"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/OnepageAcceptedOrder.php",
+      "bytes": 3252,
+      "sha256": "04a3b80e6faec0686858d46e220e2f2140e6d86feb0788003602ed71cc7cc483"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/OnepageOrderReader.php",
+      "bytes": 295,
+      "sha256": "6c856135f5f545a3167e31ed9c44d7a95953711d102c8016b8337d117fdae246"
+    },
+    {
+      "path": "runtime/application/app/Domain/Commerce/OnepageOrderStore.php",
+      "bytes": 866,
+      "sha256": "21973653104f706f76af2426128622b5839aead378d8b85cf406b6c66b5769e2"
+    },
+    {
+      "path": "runtime/application/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewPreflight.php",
+      "bytes": 1952,
+      "sha256": "d0e145779755ed4db0beb83b4d2849e9db7c28fdb0f2d2929a6712cc1033fb8f"
+    },
+    {
+      "path": "runtime/application/app/Domain/CommercialDeliveryReview/CommercialDeliveryReviewVerdict.php",
+      "bytes": 887,
+      "sha256": "9a1373ebca38471b31760bc7050b8b59a6b922696247899cb373c50afa8eb3a2"
+    },
+    {
+      "path": "runtime/application/app/Domain/CommercialDeliveryReview/DeliveryReviewMetadataProjector.php",
+      "bytes": 4998,
+      "sha256": "1b5605d401d1f31e6058156f6d3444de93451ded12ce5201212b76f1e62766b5"
+    },
+    {
+      "path": "runtime/application/app/Domain/Contracts/DemoContractRecord.php",
+      "bytes": 1375,
+      "sha256": "bb38e356ea6fae0fa0cd8d8f80c31050f624f7477cc68c2cbdf57758d7fadec8"
+    },
+    {
+      "path": "runtime/application/app/Domain/Contracts/DemoContractStage.php",
+      "bytes": 609,
+      "sha256": "3ea00d9854499ef85999232b01e49bc4628f7b0d27e53c004daf792a46581f0f"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Browser/DenyingPortalBrowserAuthentication.php",
+      "bytes": 691,
+      "sha256": "2ee68ca882bfa27689345b3a5571a11595ccf02bce3e82d41cba71b9fa7a0419"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Browser/PortalBrowserAuthentication.php",
+      "bytes": 1137,
+      "sha256": "50e5154fb30674ca42302c7b1211f1dfaa5303a8c9da413c6d3e8fa18df5a881"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/DenyingPortalInvitationIdentitySource.php",
+      "bytes": 559,
+      "sha256": "d7dbc36bbd37098c12b3e255d078aa83ee4069945dc6f5d1e7f32faa10f57c5c"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalEmailVerificationSecret.php",
+      "bytes": 3626,
+      "sha256": "4aabf73df0c2950b6fc12366f7650b69ebc6e52f890ffd6e6562a3b26047fff1"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationActorEvidence.php",
+      "bytes": 2630,
+      "sha256": "82823f3e385387673b91321b45ca2fabc1f6d8b1924feb9d5ce8fa08a59a72b2"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationIdentitySource.php",
+      "bytes": 545,
+      "sha256": "f3931f83f200161fdd505dcd3e77d00dc4b17ab088416311ed259bee9a78ff57"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationPreflight.php",
+      "bytes": 1952,
+      "sha256": "93a111fc4b3ff3817f7c055c902afa68ee0b725ac408ad5a6713c2e9d08a1510"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationPreflightVerdict.php",
+      "bytes": 879,
+      "sha256": "132833260393152307614d5baf3a7d386838d684f9f8848600448fabe075473b"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Invitations/PortalInvitationSecret.php",
+      "bytes": 4089,
+      "sha256": "35d1b7bca4cf1de1695ac1b6ec6e40042cc6c3f1e04fdca14177f3a211a5d9b9"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/PortalActor.php",
+      "bytes": 214,
+      "sha256": "2ea85b3a15c6e841c59148668d138aef750324854ac2294cdaa057a037263074"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/PortalUserId.php",
+      "bytes": 892,
+      "sha256": "7b45a18a1b13cd080e020f2de833ba82a1f591d2c5a58760a6c2dc67fa1906ff"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Security/PortalPasswordCredential.php",
+      "bytes": 2150,
+      "sha256": "660895ff150dd0fe70a75b0f906d78ffdbc2330d23f1ddd768162aca943eeed7"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Security/PortalTotpSecretCipher.php",
+      "bytes": 2895,
+      "sha256": "bfe633f2fd70cceb9b9e92260ede4f6d575dfe24eca316aeb3f0d310f9dc8247"
+    },
+    {
+      "path": "runtime/application/app/Domain/Identity/Security/PortalTotpVerifier.php",
+      "bytes": 3408,
+      "sha256": "c7ede6f554dfc1f5de06ba2aec03ce85f089ea93e4162e38475efbf95fdbc306"
+    },
+    {
+      "path": "runtime/application/app/Domain/Organizations/CustomerOrganization.php",
+      "bytes": 244,
+      "sha256": "ee9838a2dc707fc8ca4e95edbc839156141663db8c8ef89ba8ef2c06bc2461c0"
+    },
+    {
+      "path": "runtime/application/app/Domain/Organizations/MembershipStatus.php",
+      "bytes": 276,
+      "sha256": "033d6be678d02e72441473a0c37d7968db7568cc5fe6c0db22a0a1f6031a1556"
+    },
+    {
+      "path": "runtime/application/app/Domain/Organizations/OrganizationId.php",
+      "bytes": 552,
+      "sha256": "0747fdaf8d2670239a7a38531aa954e7738c92c4bcf93cecbcf3d9da376f2b74"
+    },
+    {
+      "path": "runtime/application/app/Domain/Organizations/OrganizationMembership.php",
+      "bytes": 1650,
+      "sha256": "59855f039506d5e1edb1b98d6c6f3f9774263f054e2482b8f158962d51b67cbc"
+    },
+    {
+      "path": "runtime/application/app/Domain/Organizations/OrganizationRole.php",
+      "bytes": 319,
+      "sha256": "4fd2e53011a6c1a2583ba9d724d7733b1cbc069d1f59de97a2dede9ebbb12537"
+    },
+    {
+      "path": "runtime/application/app/Domain/PaymentRouting/C6SandboxCredentialPreflight.php",
+      "bytes": 4360,
+      "sha256": "0e6a1594e5ebfda9db4475059b77c447eefd651ca70b74f51e451b6c84e06453"
+    },
+    {
+      "path": "runtime/application/app/Domain/PaymentRouting/GatewayPolicyReview.php",
+      "bytes": 7057,
+      "sha256": "69f40af98f4da0b4e0beaae35f33d5967401cf006b6a6f1603b2321e1ca58b7d"
+    },
+    {
+      "path": "runtime/application/app/Domain/PaymentRouting/GatewayRoutingPreview.php",
+      "bytes": 5442,
+      "sha256": "7e52cd73f1b5a525ce68b8811dc1b6861bbc1d5061e19d14437fe0b20a2b0b2d"
+    },
+    {
+      "path": "runtime/application/app/Domain/PaymentRouting/PaymentIntentLifecyclePreview.php",
+      "bytes": 4676,
+      "sha256": "2d16cc547e1cc15a8ba8eec8d0033d623bb7223e5bf447a81f89e46a073484dd"
+    },
+    {
+      "path": "runtime/application/app/Domain/PaymentRouting/PortalGatewayReviewExporter.php",
+      "bytes": 3040,
+      "sha256": "642daec6ff32518c8bb45b9109896efb42cc8e9ab1e45b6f98b57a3a283c8413"
+    },
+    {
+      "path": "runtime/application/app/Domain/Performance/ActivationGatewayReviewLab.php",
+      "bytes": 4122,
+      "sha256": "0640781aaf4658de7b44dcb249b18a30d62a034e691d378e3081871b86cd269f"
+    },
+    {
+      "path": "runtime/application/app/Domain/Performance/ActivationPostpaidPreview.php",
+      "bytes": 8258,
+      "sha256": "6d5d3d2b78b13aed56a178c2cec4488f89dc55ee1af67b8ce7964f7d13c63844"
+    },
+    {
+      "path": "runtime/application/app/Domain/Performance/PerformanceChannelReviewEnvelope.php",
+      "bytes": 8703,
+      "sha256": "1c17bc90b4e7fab97f86a47985be37adb63f707f3cba229782c28fc6a4151a60"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/CredentialBoundBudgetPreview.php",
+      "bytes": 7812,
+      "sha256": "506cbd183ab168b5e5660aa962e3ed9e1ca411b8a0a14f268f37afb0a8c08e20"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/CredentialBoundPerformanceWorkbenchPreview.php",
+      "bytes": 7550,
+      "sha256": "316b8b924faea7b1f453eecd851bbefc07859f2bb9a85c99311286416fdd5f44"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoCampaignCard.php",
+      "bytes": 1038,
+      "sha256": "eb2d5716335dd87d13b6cc6d1114f5e65d4bfa4a1079b1947cb2f85c27077b64"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoCampaignStage.php",
+      "bytes": 433,
+      "sha256": "28f0467073b26aea3912b3fb18069f9ebd826a6176a7cdea76be059a618fd5d2"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoDashboardFactory.php",
+      "bytes": 4528,
+      "sha256": "1c52d0498d66d551d585f5c6346323c13c473118f42e91493f141ac7a2e2b052"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoDashboardSnapshot.php",
+      "bytes": 1119,
+      "sha256": "22d391d8f3db2e8aa93eaab5bf1b8fa1fca6e2a9eab0b4df2dd1ffe598092457"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoMetric.php",
+      "bytes": 426,
+      "sha256": "889d56aec89cc5dd419800444b5af832df81e9aa3a70d22cad9682784d5a41b9"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoMetricKey.php",
+      "bytes": 487,
+      "sha256": "273cc856161c9e5aaee42d463b6eeeccb032de419b2b796145354e7b813b7494"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoRequestCard.php",
+      "bytes": 677,
+      "sha256": "17241393ce893014391efa592e27ca5bc1917e5aca25c0ab793997f83067e4ac"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/DemoRequestStage.php",
+      "bytes": 481,
+      "sha256": "72ad2a13c1ffdc3627cfcab0ff17a5e273b804feee565014ea86a6350e17ccfa"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/OfflinePerformanceWorkbenchPreview.php",
+      "bytes": 5325,
+      "sha256": "ce48b1418ed7a313b68cdf613620511a6b3890224c9f6ae0ff3938022dbcf726"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/PerformanceCampaignObservationState.php",
+      "bytes": 759,
+      "sha256": "aad5f81a46b73cd366672d0e61835b9adcaa80827b06137e16f0d06c908326de"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceDashboard/PerformanceReviewObservationState.php",
+      "bytes": 867,
+      "sha256": "533e00768dddcfb2a82822bfe357528478eec53380c0985a46b5827eca6bcc84"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoAdAccount.php",
+      "bytes": 647,
+      "sha256": "dde66259ee8d3aca5b580299137bf7c3898c484ffbf3f4be129077aa9a863bd7"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoAdapterReceipt.php",
+      "bytes": 977,
+      "sha256": "9a421a4685d264d91ad5c0da9c40627143df8741fd3adb30461b1aaa609af4bd"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoBusinessGoal.php",
+      "bytes": 280,
+      "sha256": "0dc87de3f3df7d25681d2b54d20359fcde9d0d0eeeaa636fed472b815530337b"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingDraft.php",
+      "bytes": 1028,
+      "sha256": "39e15b4bd9493139ef6fa98408968b03585586cdcb8efe16dda45e9e991e04db"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingFactory.php",
+      "bytes": 2875,
+      "sha256": "217b8c452a07a26c876a91060b04a14dd95e7f0eae2b33376530fb4442220d82"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingId.php",
+      "bytes": 568,
+      "sha256": "2ccd67fb2cbdd1b5ab6fc0fe7dffe24115ddca75b016f04aecb7c5b681982953"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoOnboardingStatus.php",
+      "bytes": 221,
+      "sha256": "413e2b388637a7393ce0e30171badc5a56164c8a0d3a2cff21fd01e5bc644fac"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/DemoPerformanceEvent.php",
+      "bytes": 1646,
+      "sha256": "439391768517c31ab08892e7e40fd143fc6371893fa7fbfc4d71c41227f06263"
+    },
+    {
+      "path": "runtime/application/app/Domain/PerformanceOnboarding/InMemoryPerformanceMockAdapter.php",
+      "bytes": 2952,
+      "sha256": "ee397cdb817d11b0a042908ceb3f6645ae1e589361a665ee6a746d3ed2394404"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/DenyingPortalAuthorities.php",
+      "bytes": 1007,
+      "sha256": "851845227fd6c4ae0d0765b8cd6436bbe449b42d66c614b3473cf19beb629233"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalAuthorityBoundary.php",
+      "bytes": 4532,
+      "sha256": "096480a4fd87b0abf5164f00a419e436da7ecd42b3fb091eb870ee301140631f"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalBoundaryVerdict.php",
+      "bytes": 604,
+      "sha256": "530385292df85aebba6b89cfbd141f851f8fbb3d6975dc852c252b3ad49771d9"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalMembershipAuthority.php",
+      "bytes": 574,
+      "sha256": "f8e0223fd20b046e9a0c8751db7be76fa3898dec97779fdc9aaedfa7e33f4818"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalOrganizationAuthority.php",
+      "bytes": 478,
+      "sha256": "627af6d4241bc62835e2aa7a543907c9a4799b05d795defd8c625e38472b79a7"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalOrganizationSnapshot.php",
+      "bytes": 668,
+      "sha256": "31cdf4488db61ecd06dad10ba92988a7d05dde604155a9c625d165035015e5f1"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalResourceAuthority.php",
+      "bytes": 421,
+      "sha256": "cf364b30dbf847dbe36d70b4329aaf30a4222d7ae5ad47b8471168793dec9c93"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionAuthority.php",
+      "bytes": 449,
+      "sha256": "68a694ca74be8fe67dd171971c1efb1f14b6c8060a72c3e1d9332748d63c297f"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionPurpose.php",
+      "bytes": 434,
+      "sha256": "814c0d3f6c72dc3a97c5f7677f386f2a9ea0f217fd008757685ae39ebc8b7c34"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/Authority/PortalSessionSnapshot.php",
+      "bytes": 2424,
+      "sha256": "db47cfa11b4896573e5e6415ab825a3aa6b7ce8682ea32c5b95d1e7f0ed6216d"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/DemoAccessBlocker.php",
+      "bytes": 437,
+      "sha256": "c1b23c9bd09b9f59d4a209d45feac8a287cb924e7c3b9a4d8ed8161cb90f6aaf"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/DemoNavigationPolicy.php",
+      "bytes": 2383,
+      "sha256": "9b3d732c3325e8bb295c2203814ae24698c845ecd451fb7f18285fa656f9fb3f"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/DemoNavigationVerdict.php",
+      "bytes": 598,
+      "sha256": "07bde5fedc56d695fece1a6181c1d3e2b6454c3cb88e06186601cb7e5ad83a1a"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/DemoPortalSession.php",
+      "bytes": 1007,
+      "sha256": "10de4725d009cc792c95f2daf8d1e06f1344509c34cc7c30dc6a5884b65a5bef"
+    },
+    {
+      "path": "runtime/application/app/Domain/PortalAccess/DemoPortalSessionState.php",
+      "bytes": 286,
+      "sha256": "581784efe4e9108b5a6cc29c30f6582e4d70f0b7f5955df7196cf93d64f2296c"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoAcceptance.php",
+      "bytes": 858,
+      "sha256": "a42d310f7e3d318298a86e6e8804810c471c6d399abe7b5590d843816ea8c639"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoAcceptanceService.php",
+      "bytes": 1938,
+      "sha256": "1164a4ace89ef5144a2767d31a64f478360747c452b586b5d080d8dc2f7b7b02"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoAddonSelection.php",
+      "bytes": 679,
+      "sha256": "ef010cf0b2e15c54c37209371fe139dccc279430cf2d58fbdfd888b541f681b5"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoProposalId.php",
+      "bytes": 540,
+      "sha256": "4f159641fbb07d78fd2669e9dd6b8c0f10e87ce4f35f17f3d2ac3775f3e9bf62"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoProposalSimulator.php",
+      "bytes": 2329,
+      "sha256": "66f1a7e9bdb36bbbd6f4e5233079bed1647256b6cfaacb1963d3a63bf295a387"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoProposalSnapshot.php",
+      "bytes": 2658,
+      "sha256": "58550bc56a40ae49480db7e61bf61e8a34df13dc3578d0cf77e7f61dfa2f65dc"
+    },
+    {
+      "path": "runtime/application/app/Domain/Proposals/DemoProposalStatus.php",
+      "bytes": 201,
+      "sha256": "2f53ddf36ffb4bcd1c5b4b9450049c618668beea4c37d8e3db3dad3840ed1916"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleAuthorizationUrl.php",
+      "bytes": 2917,
+      "sha256": "a396e86b793dad4115965efa35cf9ae56b1a2d24faed7ea7326c6144fddad633"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleCallbackParser.php",
+      "bytes": 4126,
+      "sha256": "abf2559aab12fb90bd5fa5ba6bb8f242f7d6470d272fa3614ef36ae3ab4110f1"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleConnectionPreflight.php",
+      "bytes": 2307,
+      "sha256": "109c258204bcfb8bf4394fbc87189105bbfc95a86dab940f9aed6bd2992ee793"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleConnectionReview.php",
+      "bytes": 831,
+      "sha256": "f8f828a99278538fec1bf43a351c2029d751f6f0c07e3ed5d57d07d9d778a2a8"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleDailyPerformanceSeries.php",
+      "bytes": 3398,
+      "sha256": "7ec428864d67540f8bac96b2655f2ec9da7e6251cc1d78fd3c3a3c5e7679ea7a"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleIamWitness.php",
+      "bytes": 4954,
+      "sha256": "cf2b83933313d43bec44f7f0ff7e644901e99c205ad8b722fb46c53e02cd1fbd"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleIamWitnessReview.php",
+      "bytes": 861,
+      "sha256": "4e3bd9a7c96208da676fbf3d37db9fc5716a7d3e62afd665e18fb3ffe156c661"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleMetricsReview.php",
+      "bytes": 6250,
+      "sha256": "d04176474430e47dba576e51c2601af034f028dbbcd6251c8e5aae168ff59611"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsolePeriodComparison.php",
+      "bytes": 6171,
+      "sha256": "5ffaef2810449aead4bdda63b595ee60c228eac9717371059f3823a8f97b3394"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsolePropertyIdentifier.php",
+      "bytes": 3566,
+      "sha256": "8617099843cee9a481ad53db19f259b94560f28433d6a5a12f42996f5e48efe9"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleQueryPagePaginationPlan.php",
+      "bytes": 1997,
+      "sha256": "db77d8ae4a52ed39a614e2fa63ac1b2f9004b0331235d20c98791bd93460df99"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleReadOnlyTokenResponse.php",
+      "bytes": 2454,
+      "sha256": "d6fe1e78a7ee5e0aeb2a5bca01cfc92e675ab25a733c8bc2401e054286caea5f"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleRefreshTokenPostRequest.php",
+      "bytes": 4470,
+      "sha256": "bfe55f865405873074f736b357c4ba34bd3ec14d7010f64b2497d84855614ccd"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleSearchAnalyticsPlan.php",
+      "bytes": 3406,
+      "sha256": "03c126e0ba0bc9a36f5920979267285dbc3625572d615656be69d6f63488b173"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/GoogleSearchConsoleSiteListingReview.php",
+      "bytes": 3005,
+      "sha256": "5d171b50e472700dce4842cf788da47cb5236b0540e97a78dd7806a3cdd7072a"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflineGscDailyComparisonPreview.php",
+      "bytes": 6465,
+      "sha256": "161b3ceafd33f2c3aa139846435da4c6a1840a88010ba3bf8dc0050d3ff07795"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflineGscQueryPageOverlapPreview.php",
+      "bytes": 4323,
+      "sha256": "61e042fc8c769852d3bc15c903ac116ba50a7e313ae15f93b77be9ddd063a869"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflineGscQueryPagePaginationPreview.php",
+      "bytes": 4660,
+      "sha256": "22ce1b3820a5be79c480c843aff0e9ce859b77a9f2319198d020aef0114c7b2f"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflineGscWorkflowPreview.php",
+      "bytes": 4067,
+      "sha256": "a35c651258d27bfc258947f94c75fa01cb737121f79e6358999979d3453b116c"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflinePortalGscLoopbackTokenTransportReview.php",
+      "bytes": 8913,
+      "sha256": "d794167474b303bcbdba99f904eb2f466e279bc3c5440641e4a4d5fd379c78d2"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflinePortalGscOAuthStateStartReview.php",
+      "bytes": 19467,
+      "sha256": "970a5b5502f8513d9a7a4d652335766fd199402a779880a6d3dd897fdaf89cf8"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflinePortalGscSiteListEvidenceReview.php",
+      "bytes": 4348,
+      "sha256": "78d9343feb1e1eab512b26b546f4a03145b9707bc2d34e30d698674b91c78db7"
+    },
+    {
+      "path": "runtime/application/app/Domain/SeoReview/OfflineSeoHandoffPreview.php",
+      "bytes": 5672,
+      "sha256": "95696cdd3cab3f7cfa6c99cf682780d2c4d32a3ce991dc88c4f66c26f1ee0212"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/BenefitServiceFixture.php",
+      "bytes": 1268,
+      "sha256": "e416ed13439ec31b0ed583fa9a2f2ac92196f3761fd4e3789a99b03a6985a6b2"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/BenefitServiceState.php",
+      "bytes": 350,
+      "sha256": "9d39a9ef8f616f7159449e20ef0174fdc71904d63377b97ae192d2d316bb1cda"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/PortfolioKind.php",
+      "bytes": 661,
+      "sha256": "2ca95c1bba13cb5b2400d2413e6642e28717c2242e831500918a7fcde3ef39c4"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/PortfolioPreviewItem.php",
+      "bytes": 1196,
+      "sha256": "ad2b29a44c8563b856bda6a75fef509d5d9199b9c93dc5dc5013fe8512fdcb68"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/PortfolioProduct.php",
+      "bytes": 1593,
+      "sha256": "684b307cf70012d86a787cb2f249563d3cda98373cee3573950ba0eed39b6528"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/UniversityBenefitPreviewPolicy.php",
+      "bytes": 1823,
+      "sha256": "49bda5434cdbd25c6d37ef729d0b0dfd2a88c496151acb379cf99e41420ed05b"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServicePortfolio/UniversityBenefitPreviewResult.php",
+      "bytes": 1932,
+      "sha256": "544a9e3f4bf52dba4a3f64bd641715dac0099cb909c96a654aa865a80832586f"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/DemoRequestCommand.php",
+      "bytes": 1747,
+      "sha256": "abc7f781e32b43b1f45fb3f9ef9b991828fbcd24c46cfc5359af008cf01f1da9"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/DemoRequestJournal.php",
+      "bytes": 4326,
+      "sha256": "1d8b2f141ba84863737367ec513ad03ec937ec912e445a8992140667dd5a95a6"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/DemoRequestJournalOutcome.php",
+      "bytes": 1461,
+      "sha256": "8cdb589c3548eceb0aab3f3fd5809dc9e2de348b85504d720d508eba0f554a0c"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/RequestInboxPreview.php",
+      "bytes": 2579,
+      "sha256": "0b0782c698e37e338c4ea862505ca26327cb1c10e8879621dd13e8f49c678a2d"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/RequestInboxPreviewResult.php",
+      "bytes": 1840,
+      "sha256": "178a884d4ee67decb4a8abe2f1c1c09961d849020b56cfa07c92aab8176a8328"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestAction.php",
+      "bytes": 367,
+      "sha256": "c40ce82ca191e9f21da34411cf2308e3bac9ffc56a12176905a84a3ea1ceb236"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestActorKind.php",
+      "bytes": 347,
+      "sha256": "25ec5eb5f7fc98ee7a09bd7076e3732cce8a494154d978301a070cbfe4a72979"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestSnapshot.php",
+      "bytes": 961,
+      "sha256": "6add492848eda3d177856da3d85537346537f43c5d7b7903b055358dcbf6eb4b"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestStatus.php",
+      "bytes": 775,
+      "sha256": "6c336da5e47d04e6abb50dd19fa4a478a008568fbe768903b532428b8dbd1e6f"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestTransitionPreview.php",
+      "bytes": 1497,
+      "sha256": "708debc99cc5d0e943baa57ef6a333d87e1d44d0d26ed239ef5b910dbd714630"
+    },
+    {
+      "path": "runtime/application/app/Domain/ServiceRequests/ServiceRequestWorkflowPreview.php",
+      "bytes": 3126,
+      "sha256": "d186303cb37132ddedc07e5be9667b404077db39ea991fd336f894c11d868092"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/DemoSiteReviewJournal.php",
+      "bytes": 4389,
+      "sha256": "85acacf680b88e3984d1e959bf019c2d8921b19da8392629ee460cdce435d162"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteBriefDraft.php",
+      "bytes": 1846,
+      "sha256": "38084f1b1bdc8a134c5d495a1d9323d3352967e080d9f2205127fc1523f74957"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteBriefPreview.php",
+      "bytes": 3936,
+      "sha256": "5da34e7af22895fc6eff9229f77e8093b35749da0a167ae50772a228a9c67939"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteBriefPreviewResult.php",
+      "bytes": 1279,
+      "sha256": "6da55dcb1739ed0d79ee2d7777c336b491821d11716e07b288c7695a9d2e6316"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteContentCandidate.php",
+      "bytes": 2458,
+      "sha256": "e5063af7e89b297e06c5be87abdf7899b3ac995066cbb771700bd4e2f4c2648c"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineContractVocabulary.php",
+      "bytes": 2863,
+      "sha256": "a1893acf75c5af0f90d4be5d842e60018c023c147c45be47b08b981680250f39"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineCreateProjectCandidateValidator.php",
+      "bytes": 3415,
+      "sha256": "a9a49a9f0e73730f942b108a2b91745f266e1c99259fbf3c6bd33fcb604af88a"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineCreateProjectDemoComposer.php",
+      "bytes": 2539,
+      "sha256": "279c242fb5083387da77b3d59bd073f4149c34a73519212bec27c9d19855a83b"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineEnvelopeSchemaDriftGate.php",
+      "bytes": 1815,
+      "sha256": "a7b6e53835107b91253e0ddf245725fafaf2f8663089392acafa078ebfdd1c07"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffDemoContractValidator.php",
+      "bytes": 2569,
+      "sha256": "956b93f8c9c19f2b7c39186d421310ec2b5a16fcefe568807aa11c074759a8e3"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffDemoValidationResult.php",
+      "bytes": 1486,
+      "sha256": "ce5abc92a94ccc82f937b6cbfbd7f60848e86b316715fd3a65bd8b68a08d5b46"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewBuilder.php",
+      "bytes": 2788,
+      "sha256": "f9d2f949f7acdf3a47ec657c045f1eaa5aec9d7bbeb6039eb196a5c42ffd695a"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php",
+      "bytes": 3147,
+      "sha256": "007b605eca16e49f0a4de2479f85462ff64d3f91013610c8dad5dacf6c846d98"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineHandoffPreviewResult.php",
+      "bytes": 1218,
+      "sha256": "190c059d59d9caaf29edd6fd58fa8e89ef092f4a751706d1704f90d49a6c3813"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php",
+      "bytes": 2170,
+      "sha256": "098d41f8b11441b9637d861a9cff1d232c11410cbaae3a755996f8e260bf7cd9"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteEngineSyntheticEnvelopePreview.php",
+      "bytes": 2435,
+      "sha256": "d31ab35bf0f401cc6459af4d956e243287f25874bef2faf51a3ec72d1dbe2485"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteReviewCommand.php",
+      "bytes": 1733,
+      "sha256": "06d12887a4fbeaae22b0f2ad56511a0f800541688291b3833c3c5cfd8b787fdb"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteReviewDecision.php",
+      "bytes": 268,
+      "sha256": "4f4a63a09847f8d947427ccf6474a43507d266a990451f87db2b3a09f8249373"
+    },
+    {
+      "path": "runtime/application/app/Domain/SiteIntake/SiteReviewOutcome.php",
+      "bytes": 1845,
+      "sha256": "9f8138dd1ebc1173f81ea0d94d3907d6d23a19980237c43d9316e3709bba0109"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasDenyingBindingSource.php",
+      "bytes": 283,
+      "sha256": "4212c089f139908c2b0455f5c6a3ee43e7a96d6f60731a16e227a527e966c138"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasDenyingPaymentReader.php",
+      "bytes": 246,
+      "sha256": "e86d62edc1e497043465bfdfa45c8579bed94fd7fbb259384192847976374015"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasOfficialPaymentReader.php",
+      "bytes": 452,
+      "sha256": "a859818088fd6c4fa76b6d1ae5d46cba8729ce7df87c3beb961e94e8d55e5386"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasReadOnlyPaymentClient.php",
+      "bytes": 3921,
+      "sha256": "b26b86c359b51cb3a3d3209c0f168e3a047507cae181328536f5286d6e12e729"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasTrustedPaymentBinding.php",
+      "bytes": 1806,
+      "sha256": "9dc6c6401e3c20b532cf04ca9ef4283f2b12a60372bd419bbb736babe8c6010f"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasTrustedPaymentBindingSource.php",
+      "bytes": 454,
+      "sha256": "7a8fadf4be571cc588b82a5abce575eae37350a58d88208d8d1c512042403264"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/AsaasVerifiedSettlementSource.php",
+      "bytes": 5665,
+      "sha256": "3d9120c72d6294a6238a469c03e53a441d1a5fe79424e5a440f025d72460dba7"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/DenyingPortalRevocationEpochSource.php",
+      "bytes": 367,
+      "sha256": "2716e7a56870b68e0dce55f2dd6aae5191fcd86554dc59844b4e14a8908aab5e"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/DenyingPortalSettlementSource.php",
+      "bytes": 282,
+      "sha256": "938d75e216385091c5301b6f269b6c8c6a39ba9a6e14c078a6e8b15956bb8cdc"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/DenyingPortalSiteContractSource.php",
+      "bytes": 369,
+      "sha256": "c48523ade57b810997e1e4f29f2f82b22dc78183f30664e5546d02351b4c6ff1"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/OnepageEntryPaymentBindingSource.php",
+      "bytes": 2635,
+      "sha256": "1b044b96290c34a0bac67ca6595b3d171a0fc2449fc14675586e8b2dfef3823f"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/OnepageEntryPaymentTerms.php",
+      "bytes": 5669,
+      "sha256": "8d73dd9aa6ed6a89090121ba5c98ba417d42329846df4e4feb827ac3de0ba263"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalCurrentRevocationEpochSource.php",
+      "bytes": 501,
+      "sha256": "b7ab0f5e3d2c828a7ae8dc2933f478419c84b7c323d18733c9b674639f0d46a7"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalCurrentSettlementSource.php",
+      "bytes": 409,
+      "sha256": "427f1c11acb982bad3a365df27bfa232d3367cd5af149dd061f50fd4693267ca"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalEd25519EntitlementIssuer.php",
+      "bytes": 5312,
+      "sha256": "926c024217ef267b0c22b01efe1e14df86304b7b9d1852dd5be1d40a74c5b1df"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalSettlementEvidence.php",
+      "bytes": 1269,
+      "sha256": "38f22ca49235d9b77bd244758c12f5191dcd934737561b78766033c7fbdd5fe9"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalSiteContractSource.php",
+      "bytes": 277,
+      "sha256": "553934e44d602f92e07ef54e0b0396e6d5a8b2aeeb2349a7d91f9236458bfc46"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+      "bytes": 4406,
+      "sha256": "1cc73463d51249f831edd8b8c325608b2704132b53b98c20cb15668b62f42c62"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/SiteContractSnapshot.php",
+      "bytes": 1046,
+      "sha256": "5d279edf279a7f1a1056a2ec5b60e76ea348c783ff6366ab95e1220e087ee944"
+    },
+    {
+      "path": "runtime/application/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php",
+      "bytes": 1576,
+      "sha256": "33fd11910266befd093395d8d5a3f015361949fcfbd2895194fca39d490dc1a7"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/ApprovedOfferCatalog.php",
+      "bytes": 5718,
+      "sha256": "ab3666724f2ef5767c8e01ea0b08baede6415410dd8a8e6ea7ab521ac789c69b"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/AsaasSandboxGateway.php",
+      "bytes": 4967,
+      "sha256": "f0b82f302d95524d8497470f7fef428f17e9e7df309e639a98aa5a8f5249bf28"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/BillingSchedule.php",
+      "bytes": 2630,
+      "sha256": "825c4614fa9bb551506ca261fb18e1a13cd19453f8e6dca0893f3389704eb595"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/CommercialSelectionIntent.php",
+      "bytes": 3669,
+      "sha256": "16fcdbcacd4a995d7ed47f733074c8c566425dda093b51d0681551462859d311"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/CompositeQuotePreview.php",
+      "bytes": 5939,
+      "sha256": "4ccae8880e2121647da096ce5c3c4f194aa98cbac27b503120dec0d51f6866c4"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/CustomerPreviewHandoff.php",
+      "bytes": 1159,
+      "sha256": "870c4efad4141fd9869d1762fe5c5268230c7aef2575c2d15f1101dfde12f3bb"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/OnepageQuoteJourneyPlan.php",
+      "bytes": 3815,
+      "sha256": "0b527073dee45586048f588476ecb7cde659d92ca914f1e2ab7b90cb25cd229f"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/PerformancePostpaidPolicy.php",
+      "bytes": 2429,
+      "sha256": "b834c1b0e85a85976546a05bfba941e50c2ca44859509ead2db4e60c1ae01010"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/PerformanceSettlement.php",
+      "bytes": 9442,
+      "sha256": "1bd7cc754259efb1dad44feeb1a33c7e978d998582d88c5e6dcb9130acadee4c"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/SandboxCheckoutIntent.php",
+      "bytes": 4822,
+      "sha256": "9f06b5a604cb63576928917e914a4d7a4f12ea2f142f04c8f0dfd9a480cd47f7"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/SandboxFutureBilling.php",
+      "bytes": 2348,
+      "sha256": "8f779935f18738686746f4ea1ea9784727ece65afcdf11e9bdefe82ecff3c35b"
+    },
+    {
+      "path": "runtime/application/app/Homologation/Commerce/approved-catalog.json",
+      "bytes": 6423,
+      "sha256": "75aab147df8d937f6f0630c92eec8b4783dc345e308292abe7706bcb31a905fa"
+    },
+    {
+      "path": "runtime/application/app/Homologation/CustomerPreviewStore.php",
+      "bytes": 11181,
+      "sha256": "159309e726e4dcacb7934a487ab74f1dd6cc2f1073853d819ed2c232ee5a8062"
+    },
+    {
+      "path": "runtime/application/app/Homologation/CustomerWorkPreview.php",
+      "bytes": 5226,
+      "sha256": "b60e3b5e053cd81b8d2f557649f91a012528f9c5ab1f956c33a6f1175a1350b1"
+    },
+    {
+      "path": "runtime/application/app/Homologation/PersistedTestPurchase.php",
+      "bytes": 5802,
+      "sha256": "1cd8de7f79c7e5695d4aef302e2ddb3fe633182139cd2e49608e38093d274a75"
+    },
+    {
+      "path": "runtime/application/app/Homologation/PreviewOrderListing.php",
+      "bytes": 432,
+      "sha256": "0145956c157831bc35b52291f609161791840cb1407e693cd2de8ac2b5755ed0"
+    },
+    {
+      "path": "runtime/application/app/Homologation/PreviewProfiles.php",
+      "bytes": 3855,
+      "sha256": "669be385404508aa55b8c6201c60bc65f7f4dfdd3df837ee2d1ef9f875f551cb"
+    },
+    {
+      "path": "runtime/application/app/Homologation/PurchaseRehearsalScope.php",
+      "bytes": 273,
+      "sha256": "d863286550fa6773935679b7b9b9753ffff0c66354718a8b655e6360dde78f02"
+    },
+    {
+      "path": "runtime/application/app/Homologation/RoleBoundTestPurchase.php",
+      "bytes": 3728,
+      "sha256": "7f75920c8726c11ad8cedd2f82ad64d142c4c0e565f3801de78b2ca3d9a349e7"
+    },
+    {
+      "path": "runtime/application/app/Homologation/SyntheticPurchaseOwnership.php",
+      "bytes": 1086,
+      "sha256": "5c50c5d84edd8cb1e46fc855429b8e32d9c605fdcf05b9712b69590b62efd072"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/CustomerPreviewController.php",
+      "bytes": 7817,
+      "sha256": "338218913d38e0eb66e40bbebe1f4dad4289980bedd6f9d70b8ad0213418c524"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/CustomerWorkPreviewController.php",
+      "bytes": 4420,
+      "sha256": "ec52278318370659616aaf7cb0bed1af847cf6e6df6760a80c4b7560fb5b709d"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/FullPortalPreviewController.php",
+      "bytes": 4999,
+      "sha256": "2cfc42667a669816596d94698e2eb53f0c32a13ffed87e61129d2f4a38a4e288"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/OnepageClientPageController.php",
+      "bytes": 1301,
+      "sha256": "c00d42b74d9b6f854347c204331a5df9dbf9151b4516f6cf98d485cd12a37bdf"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/OnepageFirstBriefingController.php",
+      "bytes": 1555,
+      "sha256": "de5a9088d935cbfc4338ba791f51c454309c586f071839ca8983871f6074396b"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/OnepageOrderController.php",
+      "bytes": 10444,
+      "sha256": "e013cc12a15d1578f6459346e756350f2d8c9664606e816da266d24b7e344be0"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/PortalBrowserAuthController.php",
+      "bytes": 6653,
+      "sha256": "60d591fe767572f44094b31980d91b58868641743e9d7e450a41b2ae0babbf94"
+    },
+    {
+      "path": "runtime/application/app/Http/Controllers/PurchaseRehearsalController.php",
+      "bytes": 4475,
+      "sha256": "5c7611a9c7278dfb1d1744b51ce948bbde41950a71e21d582ba93ce7254f573d"
+    },
+    {
+      "path": "runtime/application/app/Http/Middleware/EnsureOnepageCommerceEnabled.php",
+      "bytes": 2199,
+      "sha256": "eeb006bea8fa7450c2c51cfb9b31efbb13f5e0e5f6be19f8de9585c669b3f705"
+    },
+    {
+      "path": "runtime/application/app/Http/Middleware/EnsurePortalDevelopmentAuthEnabled.php",
+      "bytes": 753,
+      "sha256": "d87adcb113ed9af272b99d6895ed81463ae3e45f5188626379a20eb16ae1be7b"
+    },
+    {
+      "path": "runtime/application/app/Http/Middleware/PortalBrowserAuthGuard.php",
+      "bytes": 2146,
+      "sha256": "9248b3a425762c0a8aad497d4b352854d225ad9e790005f1210faf551d00c773"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/ConfiguredSandboxD0Reader.php",
+      "bytes": 3342,
+      "sha256": "54c1d995be1b4449cad204277d59174213c37d01bc5746cdf937e712e969b6cc"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+      "bytes": 4589,
+      "sha256": "463b13c8a96834587cb069b63b7ff365d4f2bae2e5fef7232832457aaf37f0bb"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/OnepagePrivateRuntime.php",
+      "bytes": 5445,
+      "sha256": "b52fb30ecc0725cb983a057c64cb03d52149fd3d797fe0ab2105e6c71a922b48"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/PostgresD0EntryStore.php",
+      "bytes": 2653,
+      "sha256": "9c5cec3e85df6fb58edbd94a663b3183e50313feb2bf8750223d7cd58e6397ec"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageEntryPayments.php",
+      "bytes": 6043,
+      "sha256": "8867c289bdcb5665407b1d2e285eb98039f8ade606133cefa89fd6489cb58b4c"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+      "bytes": 3889,
+      "sha256": "e3824a14967c3846a2c9be29c9c4be93684424a4d9c7e9cd3502564926d7a8d0"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+      "bytes": 3515,
+      "sha256": "fd47fe5db3f414114ba913a5592ee372a7e9d637a808bceaa18b3177be479317"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php",
+      "bytes": 1633,
+      "sha256": "11a6de7c7fafbcd0eb63d7097000d539c1eef17c288d2a5a0dc790588df92c1d"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/EncryptedPostgresPortalSessionFactory.php",
+      "bytes": 2513,
+      "sha256": "2f69aa052d6631cac9441802ef0e1dbd73d80497e463061ce59ce3c3268656c9"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/EncryptedPostgresPortalSessionHandler.php",
+      "bytes": 8850,
+      "sha256": "112ed9e379ce4f47b1f0dda7cd6adbb374e8dfcedaeee897cf2d5d81876fb0ab"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/PortalBrowserPrivateRuntime.php",
+      "bytes": 4996,
+      "sha256": "a0dde69c16976bf5a81b196f07f4ee0e07e524aa8d433109cf352c996f5c61ad"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/PortalBrowserSecretFile.php",
+      "bytes": 6355,
+      "sha256": "e09a784e601eadb7c9c20843d586e04d0a1d711c215da607c5fdb82b9ae18319"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/PostgresPortalBrowserAuthentication.php",
+      "bytes": 9919,
+      "sha256": "c3e89508b6e8884a729e5e15e21634bfedb05517050f95a4e14fcbb106a27a2d"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/PostgresPortalPermissionPreflight.php",
+      "bytes": 4342,
+      "sha256": "3764f959030104b95beda9b9c94750c23755267beffe504d4099ee693f97a398"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Identity/PostgresPortalSessionPrincipalCandidateReader.php",
+      "bytes": 3700,
+      "sha256": "03587cdac2fe8bd0e4f9c8a57c2e1f315c339d7abd695a1209c98e0255502455"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/ChallengeBoundWitnessCandidateVerifier.php",
+      "bytes": 5097,
+      "sha256": "3bdfb3a6cca87a40724ae1724889d7f668ec50df884985066865111e2c51aa1e"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/FencedPortalGrantReadCandidate.php",
+      "bytes": 1375,
+      "sha256": "a9060d6eafaafe0394c2109fb691f5ea911c893404fc89efd60382bb8186921d"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/FencedPortalSessionReadCandidate.php",
+      "bytes": 1451,
+      "sha256": "4ca89532204a18f79fb2f7bc952aa1672b13cecac614306a3a949a7bcbcf1f93"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/IndependentSignedWitnessTransport.php",
+      "bytes": 403,
+      "sha256": "dec6ab505614a1bc1fba16488a3cc5cd3f7739a14aec473b55e3253763c5a6f1"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/IndependentWitnessCandidateVerifier.php",
+      "bytes": 4887,
+      "sha256": "877e68e192842fd76b0eb9088ed9afe2d0b6fdb19f867d8404298300c078b3bd"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/LiveRecoveryWitnessSourceCandidate.php",
+      "bytes": 708,
+      "sha256": "403d9789e5af942db498574a9a848b623c3e71ed3019c9e950c2c2a3a913f721"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/NonceBoundHttpsWitnessReadCandidate.php",
+      "bytes": 10341,
+      "sha256": "60fa1244ef479a676cc8eb8166d275c4c910d2e65247e804f3756959e1eb0733"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/OnlineWitnessFenceCandidate.php",
+      "bytes": 4748,
+      "sha256": "454e31b3dbb62b6d5ebcde9dba49d1fd00b3ee63d31b23cf309e38e27f0e6529"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/PinnedHttpsSignedWitnessTransportCandidate.php",
+      "bytes": 7390,
+      "sha256": "312e41914289beb081a6ddc0cb9a11f230785943a57188c2fe59fc348e93eff5"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/PinnedHttpsWitnessPublisherCandidate.php",
+      "bytes": 9431,
+      "sha256": "3f944ad8cc3f7a807a2d322e39eeb069a3dd9ef347514d38f29afa302126428a"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/PortalLiveRecoveryEpochSourceCandidate.php",
+      "bytes": 396,
+      "sha256": "2bd267a68ad4d575762cbc5ff165b60f5597e35d1e747ce4daef669ed37484cf"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/PortalOnlineWitnessSource.php",
+      "bytes": 733,
+      "sha256": "12b3b1d8a6760bb06858c22d0e9ac57860522a6e7e5a7e0e982bf13ab475153e"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/Recovery/PostgresPortalRecoveryEpochCandidateReader.php",
+      "bytes": 5059,
+      "sha256": "6f4addb4d90ecf968ed772caad8dfb1d1e6bccf1860a55e248618d7480ab136d"
+    },
+    {
+      "path": "runtime/application/app/Infrastructure/SeoReview/GoogleSearchConsoleHttpsTransportCandidate.php",
+      "bytes": 15529,
+      "sha256": "9603c22e98d9b4d1c3d4d29fbe42c3c36d570b56d33179eecc4752a020b319b4"
+    },
+    {
+      "path": "runtime/application/app/Labs/AuthPerfF61/PortalPerfAuthorityFacts.php",
+      "bytes": 718,
+      "sha256": "5e8647e1c61168afd43df671ef2331cb7cbdb9281082645ff8bd0c9a0ca7ca6a"
+    },
+    {
+      "path": "runtime/application/app/Labs/AuthPerfF61/PortalPerfSqlAuthorityResolver.php",
+      "bytes": 7398,
+      "sha256": "dc340a622ec982c91fc5cea6e453cfd378062ea25f4456abd7319fc3e97c8b7e"
+    },
+    {
+      "path": "runtime/application/app/Labs/AuthPerfF61/PortalSqlBackedCapabilityIssuer.php",
+      "bytes": 4047,
+      "sha256": "7dbe8ce2287c4c7a9632f4b510e288e884967e223b67057d51dbc9dd546aa2d1"
+    },
+    {
+      "path": "runtime/application/app/Labs/AuthPerfF61/SyntheticCapabilityIssuer.php",
+      "bytes": 3584,
+      "sha256": "7562c185c5543b0f99a293cdf15401e3075f7690558a930ecfe52b326bf61aac"
+    },
+    {
+      "path": "runtime/application/app/Labs/F22/SyntheticPgServiceReadAdapter.php",
+      "bytes": 14006,
+      "sha256": "5cba95ed679a41b66453d87f6fbe237cf26e52eef48ebfe52a45f32b2aa6e863"
+    },
+    {
+      "path": "runtime/application/app/Labs/F24/F24LabSessionProof.php",
+      "bytes": 8772,
+      "sha256": "c9cdad7fd649f8a9dae7e9b1c58f9c0375df5b6bd362e0ed1475dc0493531af2"
+    },
+    {
+      "path": "runtime/application/app/Labs/F24/F24SyntheticAuthorizedReader.php",
+      "bytes": 1749,
+      "sha256": "6ddade89846d70a7fdb2ee5a4b4d9c4c20ca71908adfaad786614348b8b4556e"
+    },
+    {
+      "path": "runtime/application/app/Labs/F26/F26AuthorityReadRehearsal.php",
+      "bytes": 4095,
+      "sha256": "a89c1edc725e3520d2dd29be586efa0124de1d99b5ff5cd04b29585f5b988f03"
+    },
+    {
+      "path": "runtime/application/app/Labs/F28/F28RevocationFenceInspector.php",
+      "bytes": 4404,
+      "sha256": "ee9220f8c9076d6c3d99bbc853cb8951b8c2383e5b760c8b7b5f65fb05548b5c"
+    },
+    {
+      "path": "runtime/application/app/Labs/F29/F29SyntheticRlsPolicyInspector.php",
+      "bytes": 8549,
+      "sha256": "e4165392ba994d15cfa40089eac21fbb1ef5cc8ae7e8ddadd58815de412a521c"
+    },
+    {
+      "path": "runtime/application/app/Labs/F30/F30SyntheticViewSchemaInspector.php",
+      "bytes": 4241,
+      "sha256": "1628ef5a2bca69378d6891e170d5145002a2cbccc8db350cda255b9d4ff86626"
+    },
+    {
+      "path": "runtime/application/app/Labs/F31/F31ExternalFloorSnapshot.php",
+      "bytes": 1095,
+      "sha256": "c38b8d800eaae405a08bb6b14446ce481da192204a8726a8fd0f388cc9e48e8a"
+    },
+    {
+      "path": "runtime/application/app/Labs/F31/F31ExternalWitnessReader.php",
+      "bytes": 5827,
+      "sha256": "6648eb676e9f3c3834722670a0b2d465fc17365ba80358f143d3f90413414989"
+    },
+    {
+      "path": "runtime/application/app/Labs/F31/F31RollbackAwareLabReader.php",
+      "bytes": 3272,
+      "sha256": "2b4b808276f85609cfa6fde7b8c004c59dd014570b74732029824df10a94eb50"
+    },
+    {
+      "path": "runtime/application/app/Labs/F33/F33SyntheticRevocationEvent.php",
+      "bytes": 1565,
+      "sha256": "9b2eb8e18c192bc6e859307df4ec4b743ef7440fa607ad6da290ec93ec147647"
+    },
+    {
+      "path": "runtime/application/app/Labs/F33/F33WitnessFirstRevocationPublisher.php",
+      "bytes": 7010,
+      "sha256": "198ad60f4e58decd667d0f1a8d31a5ae41ca3b5d5b9d8cbf605a1d421b5b812f"
+    },
+    {
+      "path": "runtime/application/app/Labs/F34/F34ReconciliationRunner.php",
+      "bytes": 1878,
+      "sha256": "509bf3026dfc90c5e045d6303ee74caf975ad355ec0884ced4433358c37d5b70"
+    },
+    {
+      "path": "runtime/application/app/Labs/F34/F34ReplayOutcome.php",
+      "bytes": 431,
+      "sha256": "d6103198313c85097efce4b680df3f0c667d0b12a5fc5b28bcb2b5f10185f294"
+    },
+    {
+      "path": "runtime/application/app/Labs/F34/F34SyntheticLedgerReader.php",
+      "bytes": 9376,
+      "sha256": "48b9d532b5ad483338786306e6c8281b85a8bd80a52203e8cef006e3d091da5c"
+    },
+    {
+      "path": "runtime/application/app/Labs/F35/F35AcknowledgedReconciliationRunner.php",
+      "bytes": 2290,
+      "sha256": "bb25f8eec65e5b3ed79a8f50f2cdaa4a790c9003600fd95ed24d4ff3e1ac4206"
+    },
+    {
+      "path": "runtime/application/app/Labs/F35/F35PrimaryStateVerifier.php",
+      "bytes": 6600,
+      "sha256": "616d6ab195402afddb45ac3e50ffe9fded76f05977d87d664ca240a5e93c68c2"
+    },
+    {
+      "path": "runtime/application/app/Labs/F35/F35WitnessAcknowledgementWriter.php",
+      "bytes": 2547,
+      "sha256": "df0778751e0cbb9b80c542c2f7ebd6c8e57c2ac40fc5c481970e52df1a202ff7"
+    },
+    {
+      "path": "runtime/application/app/Labs/F36/F36BoundedPagedAcknowledgementRunner.php",
+      "bytes": 4103,
+      "sha256": "ca24fb52eeb155ac929ea4514118f22469e031b21f174108af204e77353503d5"
+    },
+    {
+      "path": "runtime/application/app/Labs/F38/F38SyntheticRequestWriter.php",
+      "bytes": 14599,
+      "sha256": "85d53055b5b31108f56967fd9584c11554dcc868354ee4a45831ea08d8410e2b"
+    },
+    {
+      "path": "runtime/application/app/Labs/F38/F38SyntheticWriteResult.php",
+      "bytes": 1536,
+      "sha256": "2c7884ac8f55a68444f1dacb280017d24345e76c3f42a1fcbe61a1dde2bc7a79"
+    },
+    {
+      "path": "runtime/application/app/Labs/F40/F40FakeRelayOutcome.php",
+      "bytes": 982,
+      "sha256": "d9a410468df2df76e33ddfc7f5843d7aaaad4b1302261498a036af67dd4bc716"
+    },
+    {
+      "path": "runtime/application/app/Labs/F40/F40InMemoryFakeSink.php",
+      "bytes": 1257,
+      "sha256": "3a5ef1c8a6669fff2506b62a3b2d4aca2d7ce73bd0a9d3c796f8992b3639b28a"
+    },
+    {
+      "path": "runtime/application/app/Labs/F40/F40SyntheticOutboxRelay.php",
+      "bytes": 10309,
+      "sha256": "c0ce25c72f8f036d5902e985a34183e3c9da835a0078ba26be594bfeb5c39fcc"
+    },
+    {
+      "path": "runtime/application/app/Labs/F44/F44SyntheticReviewWriteResult.php",
+      "bytes": 1971,
+      "sha256": "51bb6e579b550768b26de9ba82949bb6b4337b17249281b7a622ed18eb165040"
+    },
+    {
+      "path": "runtime/application/app/Labs/F44/F44SyntheticSiteReviewWriter.php",
+      "bytes": 11762,
+      "sha256": "a36acbc1f2c281c83c21f7e694906a9eea6a21623998050f1983b7a1753b149a"
+    },
+    {
+      "path": "runtime/application/app/Labs/F45/F45EditorialConsistencyResult.php",
+      "bytes": 1165,
+      "sha256": "3b943ec7502f0f156e7d07605508e5adb8c2427b7a6e465021aa6538fdc1fcf1"
+    },
+    {
+      "path": "runtime/application/app/Labs/F45/F45SyntheticReleaseConsistencyReader.php",
+      "bytes": 7908,
+      "sha256": "d32157d794de2170638cd1925cb215030919b664f14ee404ec2ca7d14cb5772b"
+    },
+    {
+      "path": "runtime/application/app/Labs/IdentityF70/PortalMfaReplayFence.php",
+      "bytes": 2764,
+      "sha256": "119d496b802f05e4a1758ae70a6c2a486d7ef47556b5157d9a7eb09ed480c81d"
+    },
+    {
+      "path": "runtime/application/app/Labs/IdentityF71/PortalSyntheticMfaSessionCompleter.php",
+      "bytes": 6850,
+      "sha256": "126015b2b56090e7729a194118ba5d50af8677f8e81f16181ed4819258e74173"
+    },
+    {
+      "path": "runtime/application/app/Labs/IdentityF75/PortalEnrolledMfaSessionCompleter.php",
+      "bytes": 7380,
+      "sha256": "e919027c62c2c51e64f81d2874937ef4998e1100e4a301703e4e530a10b4a2b5"
+    },
+    {
+      "path": "runtime/application/app/Labs/IdentityF81/PortalOrgRevisionMfaCompleter.php",
+      "bytes": 7967,
+      "sha256": "e5f53a9c3a81b3e02cc78098d9ef1e48db78229b5dad4fc5b6d6bcb5aa603e35"
+    },
+    {
+      "path": "runtime/application/app/Labs/IdentityF82/PortalSyntheticPasswordSessionIssuer.php",
+      "bytes": 6796,
+      "sha256": "543b67d3af98c9afcd9b5cfaea516bd806abe83dcf14370e0a4c1ac81aa74aaf"
+    },
+    {
+      "path": "runtime/application/app/Models/PortalAuthSession.php",
+      "bytes": 1734,
+      "sha256": "6da7043c485969b4440866b9fabce4fb5e5d3b35882336510193f6885e1dc09a"
+    },
+    {
+      "path": "runtime/application/app/Models/PortalIdentity.php",
+      "bytes": 1180,
+      "sha256": "3df1aa19e07c4a9e71ab3d7a1f2c1d1c767b863393d98b9a13c18a59eee096b4"
+    },
+    {
+      "path": "runtime/application/app/Models/PortalMembership.php",
+      "bytes": 1288,
+      "sha256": "7c6e4c478f5ce833c360b814cb791eba4d56fb2b35af88cb6dc9781084075a73"
+    },
+    {
+      "path": "runtime/application/app/Models/PortalMembershipGrant.php",
+      "bytes": 691,
+      "sha256": "8c9ffb538321916c7815962b53f32484838c839723b26b8b92975c5f87248410"
+    },
+    {
+      "path": "runtime/application/app/Models/PortalOrganization.php",
+      "bytes": 775,
+      "sha256": "99d96b9ad8b8b34b5db43d18aa6921674b3c12617bc68e4f12615cf45e706ee9"
+    },
+    {
+      "path": "runtime/application/app/Presentation/ClientSection.php",
+      "bytes": 853,
+      "sha256": "5d65aedcea74589550862cff478e9db8b3c870371e262cc611c0df9f0ca9b7d9"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoClientOverview.php",
+      "bytes": 1023,
+      "sha256": "548addae5e0981fd0f762c7a8fbd0af16abb43fec5e14113de4bb41f8add41e1"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoCommercialDeliveryReview.php",
+      "bytes": 3742,
+      "sha256": "2d4310f2f8d2bfd2934d1b8a9a893ec2050b3d64b8eab2c9ba5b8dd546e2a535"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoContractOverview.php",
+      "bytes": 1375,
+      "sha256": "19d2df2d239fef72ef78a9e9f566e435f8b5feb3c2434080871616a3a6f88640"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoHelpCatalog.php",
+      "bytes": 3756,
+      "sha256": "1a791aa211a465b0c0414eff4f1416364d1c403568d1471b416cea671a38abe6"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoNotice.php",
+      "bytes": 706,
+      "sha256": "1137c00c4815fd09bf2bfca5409c3f444bc0bcdea1b6b4f13a0c64ac834f0233"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoNoticeCatalog.php",
+      "bytes": 3548,
+      "sha256": "c0a6d5259a8152d5035c091534ba4899cfb09718f44b56e469dc64196d72934a"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoPortalArtifactManifest.php",
+      "bytes": 6918,
+      "sha256": "47b0400e71fc1a300d7654f165201464b02958af5fd9138d2b87c93cda294ff9"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoPortalNavigationAudit.php",
+      "bytes": 9140,
+      "sha256": "e435dbbe389d53f607c53d8bdfbf01292bea45d948d1b6aa3594529591f1cedc"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoPortalOfflineExtras.php",
+      "bytes": 849,
+      "sha256": "87479f8c46061de67cf3a36e3de516320790b0636cb6c32f2e23554687a82163"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoPortalReviewWalkthrough.php",
+      "bytes": 2115,
+      "sha256": "7735d010340bf925cd9e7f47135dacd307f7a65f354e79cf3ad1b80c0c2a4db5"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoPortalStaticExporter.php",
+      "bytes": 12415,
+      "sha256": "5e83e901cd94d81aba185c796cea33d0efc15f7232da0a59055d346888bb5e6d"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoRequestInbox.php",
+      "bytes": 1828,
+      "sha256": "615d9de352632df1fb477d12333f302f99f3e72fdf30f5b611126ed42e738fa8"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoRequestInboxStatusBoard.php",
+      "bytes": 2248,
+      "sha256": "038eeacccc2ea1a4d4c161d1147ed5e34d3f4dfafd77467c1b8dfaa4cf69d6fd"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoRequestWorkflowMap.php",
+      "bytes": 3482,
+      "sha256": "972d9569d18ece8fd56a69336ad8e90a72420a8dc8768b423dfbfab3d1f8865d"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoServicePortfolio.php",
+      "bytes": 1496,
+      "sha256": "449922db2e768f60f0140285d1be2513164bd1d0ebe056489ca4116807694b60"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoServiceRelationPreview.php",
+      "bytes": 1125,
+      "sha256": "af68ad5426d13c1efa5e73e51288d5c9f97ef3d3728e73dc4c2f12e75a3e4606"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoServiceRequests.php",
+      "bytes": 2700,
+      "sha256": "935b7adcc2089d0268f755936af03774a11586dd63ba1856e18d652e3e52ea5f"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoSitesEditorialPreview.php",
+      "bytes": 3936,
+      "sha256": "bfa82fe4a9a31d031149d13b47945f719a2892069236e2b163b02b39182224d7"
+    },
+    {
+      "path": "runtime/application/app/Presentation/DemoUniversityBenefitRequirements.php",
+      "bytes": 703,
+      "sha256": "9e19529d82cebeb11a6919fd28c2ad9bd8e3bb835c800f2c442d7ab125ad06a3"
+    },
+    {
+      "path": "runtime/application/app/Presentation/HelpCategory.php",
+      "bytes": 933,
+      "sha256": "5be86caa1004a944655f8bd07e55ad020cb21a8404d6291db5a1a5ba77187ba1"
+    },
+    {
+      "path": "runtime/application/app/Presentation/HelpTopic.php",
+      "bytes": 701,
+      "sha256": "0443cbff8f38a6fe3183ce9187f8b258815945d64da5901076287b9f94d69f02"
+    },
+    {
+      "path": "runtime/application/app/Presentation/IllustrativeUpdate.php",
+      "bytes": 588,
+      "sha256": "0b6e5cae816648ae7169270a80a9b9257115d595b7cd3576aeaf4011aca62d88"
+    },
+    {
+      "path": "runtime/application/app/Presentation/JourneyState.php",
+      "bytes": 959,
+      "sha256": "cbfb5fb0e2e1649ebf01b0c2ca628844cecd49613931375c7d13b816b09d393a"
+    },
+    {
+      "path": "runtime/application/app/Presentation/NoticeCategory.php",
+      "bytes": 974,
+      "sha256": "26cdeec77849085d0615d3c9c472167a33a461828e696b42640843be58a96ac2"
+    },
+    {
+      "path": "runtime/application/app/Presentation/RequestSummary.php",
+      "bytes": 1461,
+      "sha256": "bc315e8ffebca9b67474bb8db493cabe82b46f32d1b0219c61b0a7d2ecc7cb57"
+    },
+    {
+      "path": "runtime/application/app/Presentation/ServiceFollowUp.php",
+      "bytes": 841,
+      "sha256": "6d67f262d1e5bba5d5836be531cbb0e3144d2ef93cfd8dcc42c2f4a0d19ea70f"
+    },
+    {
+      "path": "runtime/application/app/Providers/AppServiceProvider.php",
+      "bytes": 2581,
+      "sha256": "f6cc278f22aa15ac5b067603b4bc75f1ca5a921ed0ef0c834346a9c4495e3a62"
+    },
+    {
+      "path": "runtime/application/app/Providers/FullPortalPreviewServiceProvider.php",
+      "bytes": 3487,
+      "sha256": "d80bf4a5887b1e92f891449de00b3318867e118789788073d1555d04028d0bbf"
+    },
+    {
+      "path": "runtime/application/app/Providers/OnepageCommerceServiceProvider.php",
+      "bytes": 4244,
+      "sha256": "7b596100615128e99170bec4186decb9e9e94a9b92874828ee0ac9398490f490"
+    },
+    {
+      "path": "runtime/application/app/Providers/OnepageD0CandidateServiceProvider.php",
+      "bytes": 1100,
+      "sha256": "bea32e45ecfe06f682e56fd87d1adf3d0d8c5404a097790ccb7dca0d7750db23"
+    },
+    {
+      "path": "runtime/application/app/Providers/PortalDevelopmentAuthServiceProvider.php",
+      "bytes": 4871,
+      "sha256": "b1c16b9ffadeea35cb9302cbcd52c28923963833b1a8bf35ffbbe3f9905b3e3e"
+    },
+    {
+      "path": "runtime/application/app/Providers/PurchaseRehearsalServiceProvider.php",
+      "bytes": 1591,
+      "sha256": "4e17b95bd69f01f19cf95e3e7d1fdfb0e29d5231a16041e575921035f9970a75"
+    },
+    {
+      "path": "runtime/application/bootstrap/app.php",
+      "bytes": 684,
+      "sha256": "5affac529645646b3e4d599096e79c194aac63e8293690364b856d72c1e9ecbf"
+    },
+    {
+      "path": "runtime/application/bootstrap/cache/.gitignore",
+      "bytes": 14,
+      "sha256": "240a3e0d37d2e86b614063f5347eb02d4f99ca6c254de6b82871ff8d95532a7d"
+    },
+    {
+      "path": "runtime/application/bootstrap/providers.php",
+      "bytes": 348,
+      "sha256": "c00596d45fa06673be2e282a62b7ad2e36509c92246e661bce2d42d2a69fb6b9"
+    },
+    {
+      "path": "runtime/application/composer.json",
+      "bytes": 1018,
+      "sha256": "d42ae37e8331b57b31a3b3c9b83a85cdc8e18f3441393a246f6ad35aafa7c5c0"
+    },
+    {
+      "path": "runtime/application/composer.lock",
+      "bytes": 299076,
+      "sha256": "161cfffc9922862c8ef60a1ebcab7fd0445f309b94310a915a49436faa0eddb2"
+    },
+    {
+      "path": "runtime/application/config/app.php",
+      "bytes": 4288,
+      "sha256": "008805fd03c892c204091ca3e2432100e367e9e97be948b241c9c64451c98ece"
+    },
+    {
+      "path": "runtime/application/config/cache.php",
+      "bytes": 4367,
+      "sha256": "4a02616925516761d3849570cb3349144fd8372987d97ef45cfa5196a56db033"
+    },
+    {
+      "path": "runtime/application/config/database.php",
+      "bytes": 6875,
+      "sha256": "c3214ab691e64a1df957aadbd9386f59dfe8e72cec9671d11d615572d086a46a"
+    },
+    {
+      "path": "runtime/application/config/filesystems.php",
+      "bytes": 2683,
+      "sha256": "aa24a8979e6423aaf8553aa4b1420bd223ba23ac7be34a27185030cd38a29875"
+    },
+    {
+      "path": "runtime/application/config/google_search_console.php",
+      "bytes": 1451,
+      "sha256": "5230741640d12539f0c5cc1cd1b94842cc1530e41808427802392cf571d438e3"
+    },
+    {
+      "path": "runtime/application/config/logging.php",
+      "bytes": 4607,
+      "sha256": "1d400c2be0aa6a8ce4b802b2dbabc090a4e560c787e989c44738e433f2804b30"
+    },
+    {
+      "path": "runtime/application/config/mail.php",
+      "bytes": 3631,
+      "sha256": "c43ff49a31c5f32ce21eb7159f2a4b3cd2f4074eaed5838d265646dbfedd3474"
+    },
+    {
+      "path": "runtime/application/config/portal_development_auth.php",
+      "bytes": 316,
+      "sha256": "ff84dacd5ffe889555ee2c8b8954b1700933a749c22134620ea30b2c67cc00d5"
+    },
+    {
+      "path": "runtime/application/config/portal_onepage.php",
+      "bytes": 341,
+      "sha256": "93dad18bc1d0ccef10166b76073843a276fa0c93e70678e0831e9b8c02859b30"
+    },
+    {
+      "path": "runtime/application/config/portal_onepage_d0.php",
+      "bytes": 119,
+      "sha256": "4ba299853a52ebf963deb1716bd95b455aece1671fa36da3b56385b33008ab4e"
+    },
+    {
+      "path": "runtime/application/config/queue.php",
+      "bytes": 4195,
+      "sha256": "10e076760068359868dccee972669d3e0ea3a74e690320fe4a25d79f32e18ea0"
+    },
+    {
+      "path": "runtime/application/config/services.php",
+      "bytes": 1039,
+      "sha256": "b7ee786ea1adbc92db9f229f479431c94503527c47051da3862eb0e4d7db70aa"
+    },
+    {
+      "path": "runtime/application/config/session.php",
+      "bytes": 8651,
+      "sha256": "0001cb6c2b26cde2f6659fa09d88ffb97b30b9f7de0b5533f63cc36790bd42a2"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php",
+      "bytes": 7913,
+      "sha256": "8bbb92fd344f1b90236f950635162edad5e9efdd3787b72e768e387fbbce7421"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php",
+      "bytes": 1558,
+      "sha256": "f42d304c5421a0f1dba2407996837dc2032b8d30647903211a6c2f511d3d515d"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php",
+      "bytes": 1714,
+      "sha256": "7b3fa227dea037b8b514fefe2082447cbe44a3684d02bff2d488122cb503bff0"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php",
+      "bytes": 2415,
+      "sha256": "7508954be98003bb4212c0689b5c0d81d9faa2932de908702463f493b6b46cd2"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000006_create_portal_security_event_log.php",
+      "bytes": 4955,
+      "sha256": "18d699851e40143078e7a09ef01b29e6738951bd4e298e9453e5eb5bb24a8e79"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000007_allow_seo_gsc_connect_grant.php",
+      "bytes": 2470,
+      "sha256": "6c48052d6d22bc6ed616f566e23f41e7edbc1eb9cc97d5514716bbc78f6479d6"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000007_create_portal_access_invitations.php",
+      "bytes": 4304,
+      "sha256": "0d91ecc90065e6c38511803896c7c541c09e75a7f2634a53de9f016cde5804a5"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php",
+      "bytes": 3841,
+      "sha256": "45555ed72b0c9f35aed61900ec35ff408ff4fe4f97518cc6daf45d02e3abb169"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000008_create_gsc_property_candidates.php",
+      "bytes": 5849,
+      "sha256": "40578381977798d892546b060f81405618f5cfd6785ec1163013df0ab3c2361c"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000009_create_portal_email_verification_challenges.php",
+      "bytes": 4296,
+      "sha256": "29bc58bef71a28b1b349f3ea6106b2a4b8b48f8bc2905e2f8ff80de429682381"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000009_fence_gsc_candidate_mutation.php",
+      "bytes": 3195,
+      "sha256": "e742c8d7d6a6544f93048506249888e8fdbe79ca441729b666178ad05b649733"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000010_create_gsc_vault_reference_candidates.php",
+      "bytes": 5003,
+      "sha256": "da204d354cce3e802ac1be80fad574cfea540f82953c20e54eab31678d1770e2"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_10_000011_fence_gsc_vault_binding.php",
+      "bytes": 3959,
+      "sha256": "0ed68446a46571ae4574f2df2a04d613e0da974a88941f751a7a35f4b4d75a0d"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_11_000012_fence_portal_membership_revision.php",
+      "bytes": 6329,
+      "sha256": "1cb2bbe28f981ae3611852b207c3cc14d61072dc1cddf4f46a9464416de78f56"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_11_000013_fence_portal_organization_revision.php",
+      "bytes": 3776,
+      "sha256": "3210dfebea522383ae968174ccc0263e4371b74b79b77049e9f169d61ca133a8"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php",
+      "bytes": 4906,
+      "sha256": "3d672daf6af05e1a99d06c346888347d09ef6c5b390ffacfea3c6772ddef5118"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_11_000015_preserve_portal_security_timestamp_precision.php",
+      "bytes": 3231,
+      "sha256": "9eec2310f7e855d3b2376d9afa313809bcb2106cdd9baf30d9e55ea3bce9cfb7"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_12_000016_fence_portal_identity_revision.php",
+      "bytes": 4390,
+      "sha256": "da247a29910d9c81c3a76adc2fdee5f3268ef3305d09edeca5ab2470f0881a59"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_12_000017_create_portal_service_resource_claims.php",
+      "bytes": 5326,
+      "sha256": "8fe8ce056ee45e8b34e69742362e0edbdb121476334c2fdcae457513ec5c200f"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_13_000018_create_portal_recovery_epoch_candidates.php",
+      "bytes": 5232,
+      "sha256": "eab972647e12484173ae8639ae4e345a5bab2a34191f4fa9ef98f55668c64706"
+    },
+    {
+      "path": "runtime/application/database/migrations/2026_11_14_000019_allow_seo_gsc_view_grant.php",
+      "bytes": 4045,
+      "sha256": "4ef2ad5ee1595b3c29ac981fdf40296e9ce6cceb7f2beb54911617c25dd36ed1"
+    },
+    {
+      "path": "runtime/application/database/security/portal_browser_auth.sql",
+      "bytes": 16825,
+      "sha256": "0b02a56c421786cf33e09f95fa4cee3e85fe04c37512f7af3d5a32d8e7ea4ec3"
+    },
+    {
+      "path": "runtime/application/database/security/portal_browser_envelopes.sql",
+      "bytes": 4037,
+      "sha256": "67b2eb71b41db3cd221f71f703e191cddd77af1d485eb136c001c2ea2bc28ad2"
+    },
+    {
+      "path": "runtime/application/database/security/portal_browser_principal_candidate.sql",
+      "bytes": 1772,
+      "sha256": "a2b764d9f535f158b2dd5cb78916666455d885353006c81652fd1947b6a9b80f"
+    },
+    {
+      "path": "runtime/application/database/security/portal_onepage_d0_account_epoch.sql",
+      "bytes": 7416,
+      "sha256": "7d7717ec8d02c4de87b19a607a9d0d324058b6c19acb0eaa7d8b792ad48f241a"
+    },
+    {
+      "path": "runtime/application/database/security/portal_onepage_d0_candidate.sql",
+      "bytes": 9986,
+      "sha256": "1700ec3371fc3980fbd07ec83571c4df51ca28323eaf76f2a1ba823f41c157e6"
+    },
+    {
+      "path": "runtime/application/database/security/portal_onepage_entry_payments.sql",
+      "bytes": 17364,
+      "sha256": "096673b3c3f8595cbc1aab9e8f1c91cae5647041356d674d9d481544550354cb"
+    },
+    {
+      "path": "runtime/application/database/security/portal_onepage_orders.sql",
+      "bytes": 24175,
+      "sha256": "12e1a307b34a14506317698325debf4c6e0d9fe9af32a83d0a7032ac5aa3280b"
+    },
+    {
+      "path": "runtime/application/database/security/portal_onepage_site_receipts.sql",
+      "bytes": 8194,
+      "sha256": "e80a7142e806d74af95a7d32bdae9724ff3f5bf9c223755cfc7df842ce01d16b"
+    },
+    {
+      "path": "runtime/application/routes/console.php",
+      "bytes": 66,
+      "sha256": "6d8c592ded0a4eeedf76f1785b9df9fe262216dd24e3c30de794649ae99cfafd"
+    },
+    {
+      "path": "runtime/application/routes/web.php",
+      "bytes": 141,
+      "sha256": "4957f546d50eca6c56c592f74e310daa067a9f9c9de029642e87aa07666dbf7d"
+    },
+    {
+      "path": "runtime/fixtures/dual/CaptureHarness.php",
+      "bytes": 3823,
+      "sha256": "b77b2773c433ff182059946b8ea825003dc7c6d3cede9d9598b4afa8dad2318f"
+    },
+    {
+      "path": "runtime/fixtures/dual/Ingress.php",
+      "bytes": 5793,
+      "sha256": "ebc88f46e49cd3b60195631332afa2e71823782066b4404c9f26bac657d2d8c8"
+    },
+    {
+      "path": "runtime/fixtures/dual/SharedCatalog.php",
+      "bytes": 10303,
+      "sha256": "737fabf31f0a9b7e209b45016f83cf138eadea717db78232f5580d01516284ed"
+    },
+    {
+      "path": "runtime/fixtures/dual/SharedInboxPort.php",
+      "bytes": 1955,
+      "sha256": "3c048300c4f2968d5b0c7c611bf977cc5b8e227260a4e283783bf93c6a2cdb17"
+    },
+    {
+      "path": "runtime/fixtures/dual/delta.sql",
+      "bytes": 5486,
+      "sha256": "3498953f9a8175e9ea92a857866bbc8e0730d4d5e59df56375d237dd5c8d5cd3"
+    },
+    {
+      "path": "runtime/fixtures/dual/inbox.sql",
+      "bytes": 1723,
+      "sha256": "1a3bb63e0e1124412327e1d58ff3e4cef5e2032b0c1b60e0f365f64dce0c1e80"
+    },
+    {
+      "path": "runtime/fixtures/dual/lease.sql",
+      "bytes": 2265,
+      "sha256": "f761ed1d25069f6060bf0370147a757d472a1e2601d21d514fd464cf83780058"
+    },
+    {
+      "path": "runtime/fixtures/dual/shared-functions.sql",
+      "bytes": 5064,
+      "sha256": "4ba6386d076331a97966966cfd07f1e948d774180811a084d93b94e1bf197162"
+    },
+    {
+      "path": "runtime/fixtures/dual/shared-post.sql",
+      "bytes": 615,
+      "sha256": "6f15b0abb1d254a63ecfb0529314d1e507b3128f64139e199924d880cb4611ac"
+    },
+    {
+      "path": "runtime/fixtures/dual/shared-pre.sql",
+      "bytes": 3721,
+      "sha256": "06c1b2041d08c95d55e6f3b4e83690251d12eb53c6b55d6af6da7e08bece1078"
+    },
+    {
+      "path": "runtime/fixtures/finance/finance.sql",
+      "bytes": 11254,
+      "sha256": "da176ef9c16e5d32059456bccedbf344cfdc7dc5a6c6aad60c597feaab6e4c91"
+    },
+    {
+      "path": "runtime/fixtures/finance/service-authority.sql",
+      "bytes": 8883,
+      "sha256": "45aa23f7712603945b71c27b28f802991e14d01c82acd45dfdd021bfcdde2436"
+    },
+    {
+      "path": "runtime/local-harness/Bootstrap.php",
+      "bytes": 10407,
+      "sha256": "498ca4b91998bcd6d976b23016f483167d41f5a2a0999e827f06023f2ce91c16"
+    },
+    {
+      "path": "runtime/local-harness/LocalGate.php",
+      "bytes": 7185,
+      "sha256": "c418e2626df10a60b80125fc7aeccb7d251cc1c7300002b3cd6d2be39a3d3ede"
+    },
+    {
+      "path": "runtime/local-harness/inputs.json",
+      "bytes": 60217,
+      "sha256": "f227e78e61628ef4fc05b8b51af0f1b616384314fe298179e7b0587d92e5fc5a"
+    },
+    {
+      "path": "runtime/local-harness/run.php",
+      "bytes": 5861,
+      "sha256": "15b1af928b7f999157be80a3bf3b6f9e41ec618096f1235ed81a20c6f5fff259"
+    },
+    {
+      "path": "runtime/oneshot/OneShot.php",
+      "bytes": 6173,
+      "sha256": "ebf89b0604225693e74fb93e90aae7e9e4017a558808a827a6199abb14bf2cb3"
+    },
+    {
+      "path": "runtime/oneshot/QualifiedLabContext.php",
+      "bytes": 634,
+      "sha256": "ea3dca505f460b01f814e5b3043b19fdc253343eeb11d831a1cda1c84210e316"
+    },
+    {
+      "path": "runtime/oneshot/entry.php",
+      "bytes": 433,
+      "sha256": "e5467c1326203868912c9686b726231173e0ebeb3b6aae0d5a10b64b972600bd"
+    },
+    {
+      "path": "runtime/worker/Consumer.php",
+      "bytes": 9618,
+      "sha256": "9ef3389444c35c016df301ec1ed37462870d62b6e2b7a0a55965f2d3b9f640a4"
+    },
+    {
+      "path": "runtime/worker/Financial.php",
+      "bytes": 4676,
+      "sha256": "9aea798894cae07510ec54731cb5788efe7a25ebb8dac0b9421c3cb5e685aa3e"
+    },
+    {
+      "path": "runtime/worker/PdoFinancialPort.php",
+      "bytes": 5463,
+      "sha256": "28e4b124404e3c65fa44df3d987afcd24edf62b585bd387417947eff248880f2"
+    },
+    {
+      "path": "runtime/worker/ServiceAuthorityPort.php",
+      "bytes": 3179,
+      "sha256": "828c6cd721e4f35b46fd5303d89860cce6c00891481c0af68149e4297af6d520"
+    },
+    {
+      "path": "runtime/worker/Worker.php",
+      "bytes": 1095,
+      "sha256": "70ae95507a44d8a2c580ec9eb134cbcf662fd67579aa4a749d633042a6304517"
+    },
+    {
+      "path": "supervisor.py",
+      "bytes": 4073,
+      "sha256": "282630718d8965769c2c09cd7435a5cac228c8de01a5e4ce2ff30d22f379e4f4"
+    }
+  ]
+}
