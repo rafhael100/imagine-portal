@@ -14,7 +14,7 @@ sys.path.insert(0,str(ATOMIC_DIR))
 from atomic_supervisor import AtomicRefused, run as run_atomic_ingress
 HERE=Path(__file__).resolve().parent
 WORKER=[b'PASS ATOMIC_INGRESS_CASES']
-PHASE_COUNTS={b'ATOMIC_BOOTSTRAP': {0}, b'ATOMIC_DDL': {0}, b'ATOMIC_CATALOG': {0}, b'ATOMIC_ROLLBACK': {0}, b'ATOMIC_COMMIT_LOSS': {0}, b'ATOMIC_DUPLICATE': {0}, b'ATOMIC_CAPTURE_FIRST': {0}, b'ATOMIC_SCOPE': {0}, b'ATOMIC_REVOKE_FIRST': {0}}
+PHASE_COUNTS={b'ATOMIC_BOOTSTRAP': {0}, b'ATOMIC_DDL': {0}, b'ATOMIC_CATALOG': {0}, b'ATOMIC_ROLLBACK': {0}, b'ATOMIC_COMMIT_LOSS': {0}, b'ATOMIC_DUPLICATE': {0}, b'ATOMIC_CAPTURE_FIRST': {0}, b'ATOMIC_SCOPE': {0}, b'ATOMIC_REVOKE_FIRST': {0}, b'ATOMIC_GATE_MAINT': {0}, b'ATOMIC_GATE_NATIVE': {0}, b'ATOMIC_GATE_INBOX': {0}}
 def exact(raw,expected):return raw==b'\n'.join(expected)+b'\n'
 def worker_failure(raw):
  # Accept only a complete fixed refusal and the exact positive prefix for that phase.

@@ -1,13 +1,13 @@
 """Full base/diff/worktree gate. Independent final bytes/tree are pinned by EXTERNAL review."""
 import os,json,hashlib,subprocess
 from pathlib import Path
-BASE='38b27035ac7d08d67e5f7cd77e104b1b0d77288e'
-BASE_TREE='b99962e6720f0781dc9e3cd5c78f70cad6ec43e0'
+BASE='7a98cd3eb2b327d5d72ef650bea846524c9545b1'
+BASE_TREE='f8e870bfa40434f6f18ed34bf6f257db3bc50d5d'
 REPO='rafhael100/imagine-portal'
-BASE_BRANCH='test/onepage-d0-composed-pg-v1'
-BRANCH='test/onepage-d0-atomic-ingress-pg-v1'
-CHANGES={'apps/portal/labs/onepage-atomic-ingress-ci/atomic_supervisor.py': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/harness.php': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/Fixture.php': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/AtomicInboxPort.php': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/Ingress.php': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/pre.sql': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/post.sql': 'A', 'apps/portal/labs/onepage-atomic-ingress-ci/atomic-capture.candidate.sql': 'A', 'apps/portal/labs/onepage-d0-reader-ci/scope.py': 'M', 'apps/portal/labs/onepage-d0-reader-ci/preflight.py': 'M', '.github/workflows/onepage-d0-atomic-ingress-pg.yml': 'A'}
-HARNESS_PINS={'apps/portal/labs/onepage-atomic-ingress-ci/atomic_supervisor.py': '31b809e8d95c3647e32850eade5cc81543110837', 'apps/portal/labs/onepage-atomic-ingress-ci/harness.php': '5183166cd4dfc9bd86da6e7d27a3c0447ccfe96a', 'apps/portal/labs/onepage-atomic-ingress-ci/Fixture.php': '8f063ed46233ffaa54aa200e5bcb77673b28ea01', 'apps/portal/labs/onepage-atomic-ingress-ci/AtomicInboxPort.php': '54fd2085c96e345c55daef03d091164fe1a07cba', 'apps/portal/labs/onepage-atomic-ingress-ci/Ingress.php': '755824b5b2a899e7229ae71461f6f6d8498da5ec', 'apps/portal/labs/onepage-atomic-ingress-ci/pre.sql': '940bf7b5305dcb379c9361c43d80774d76095c07', 'apps/portal/labs/onepage-atomic-ingress-ci/post.sql': '726d16e08154df1784a4b039e0d1df1b74a3c5f8', 'apps/portal/labs/onepage-atomic-ingress-ci/atomic-capture.candidate.sql': 'c660b9f22c290d35ec4d743d0def0b5d421aab46', 'apps/portal/labs/onepage-d0-reader-ci/scope.py': 'c85f466fc535e9421e7501202ffea5040029c363'}
+BASE_BRANCH='test/onepage-d0-atomic-ingress-pg-v1'
+BRANCH='test/onepage-d0-atomic-ingress-pg-v2'
+CHANGES={'apps/portal/labs/onepage-atomic-ingress-ci/atomic_supervisor.py': 'M', 'apps/portal/labs/onepage-atomic-ingress-ci/Fixture.php': 'M', 'apps/portal/labs/onepage-atomic-ingress-ci/pre.sql': 'M', 'apps/portal/labs/onepage-atomic-ingress-ci/harness.php': 'M', 'apps/portal/labs/onepage-d0-reader-ci/scope.py': 'M', 'apps/portal/labs/onepage-d0-reader-ci/preflight.py': 'M', '.github/workflows/onepage-d0-atomic-ingress-pg-v2.yml': 'A'}
+HARNESS_PINS={'apps/portal/labs/onepage-atomic-ingress-ci/atomic_supervisor.py': 'dd231c0e60bcbf1575eb7dc2b99e7c303d2ab77b', 'apps/portal/labs/onepage-atomic-ingress-ci/Fixture.php': '660dc16fc2bde2ea78f2773a8b0b7b10eb6e4bfb', 'apps/portal/labs/onepage-atomic-ingress-ci/pre.sql': '682db215ee7aedab50d5c4b92125d5f81c47968d', 'apps/portal/labs/onepage-atomic-ingress-ci/harness.php': '75df99fefcc3382b320dd83ea125fe6508337746', 'apps/portal/labs/onepage-d0-reader-ci/scope.py': '5d8c31209e0e0292f1ad17bd2005a7deb7a14475'}
 FILES=list(CHANGES)
 ENV_KEYS=('GITHUB_ACTIONS','GITHUB_EVENT_NAME','GITHUB_REPOSITORY','GITHUB_EVENT_PATH','GITHUB_RUN_ATTEMPT')
 def need(v):

@@ -1,0 +1,126 @@
+name: Onepage atomic Sandbox ingress isolated rehearsal v2
+on:
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-d0-atomic-ingress-pg-v1']
+    paths: ['.github/workflows/onepage-d0-atomic-ingress-pg-v2.yml']
+permissions:
+  contents: read
+jobs:
+  admission:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-d0-atomic-ingress-pg-v2' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-d0-atomic-ingress-pg-v1' &&
+      github.event.pull_request.base.sha == '7a98cd3eb2b327d5d72ef650bea846524c9545b1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact child scope before provisioning
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_1" >&3; else echo "BRIEFING_WORKFLOW_STEP_1_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+          trap - EXIT
+          set -euo pipefail
+          printf "%s  %s\n" 87edcbbb245cb841699ae6cbcddbe3373b51bdbaec88c3fe16351c5f3cf6a6e2 apps/portal/labs/onepage-d0-reader-ci/preflight.py | sha256sum -c --status
+          env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+            GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            /usr/bin/python3 -B apps/portal/labs/onepage-d0-reader-ci/preflight.py
+          ) 3>&-
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4.27'
+          extensions: curl, pdo_pgsql, mbstring, sodium, dom, xml, posix, pcntl
+          tools: composer:2.8.12
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_2" >&3; else echo "BRIEFING_WORKFLOW_STEP_2_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+          trap - EXIT
+          set -euo pipefail
+          tooling=$(mktemp -d "$RUNNER_TEMP/onepage-composed-XXXXXXXX")
+          env -i PATH=/usr/bin:/bin LC_ALL=C /usr/bin/python3 -B apps/portal/labs/onepage-d0-reader-ci/runtime.py "$tooling"
+          cat "$tooling/runtime.env" >> "$GITHUB_ENV"
+          ) 3>&-
+      - name: Locked dependencies and offline source regression
+        working-directory: apps/portal
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/admission-step-XXXXXXXX")
+          exec 3>&1
+          private_home=''
+          trap 'rc=$?; if [ -n "$private_home" ]; then rm -rf -- "$private_home" 3>&-; fi; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_3" >&3; else echo "BRIEFING_WORKFLOW_STEP_3_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          private_home=$(mktemp -d "$RUNNER_TEMP/onepage-composer-XXXXXXXX" 3>&-)
+          (
+          trap - EXIT
+          set -euo pipefail
+          php_bin="$PHP_BIN"
+          composer_bin="$REVIEWED_COMPOSER"
+          run_composer() {
+            env -i PATH=/usr/bin:/bin HOME="$private_home" COMPOSER_HOME="$private_home/composer" LC_ALL=C \
+              GITHUB_ACTIONS="$GITHUB_ACTIONS" GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" \
+              GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+              "$php_bin" "$composer_bin" "$@"
+          }
+          run_composer --version --no-ansi | grep -E '^Composer version 2[.]8[.]12 '
+          run_composer validate --no-check-publish --no-interaction
+          run_composer install --prefer-dist --no-progress --no-interaction --no-scripts --no-plugins
+          run_composer check-platform-reqs --no-interaction
+          git diff --exit-code -- composer.json composer.lock
+          ini_dir=$(mktemp -d "$RUNNER_TEMP/briefing-php-XXXXXXXX")
+          ini="$ini_dir/php.ini"
+          env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS="$GITHUB_ACTIONS" PHP_BIN="$php_bin" BRIEFING_PHP_INI="$ini" \
+            GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            /usr/bin/python3 -B labs/onepage-d0-reader-ci/prepare.py
+          cmp -- "$ini" labs/onepage-d0-reader-ci/reviewed-php.ini
+          chmod 400 "$ini"
+          echo "BRIEFING_PHP_INI=$ini" >> "$GITHUB_ENV"
+          ) 3>&-
+      - name: One focused atomic ingress rehearsal and owned teardown
+        run: |
+          set -euo pipefail
+          umask 077
+          private_log=$(mktemp "$RUNNER_TEMP/briefing-step-XXXXXXXX")
+          exec 3>&1
+          trap 'rc=$?; grep -E "^(PASS ATOMIC_INGRESS_CASES|PASS BRIEFING_(PARTIAL_START_REFUSED_AND_CLEANED|UID_TOPOLOGY|OWNED_POSTMASTER_READY|OWNED_CHILDREN_STOPPED_AND_REMOVED|RUN_COMPLETE|NAMESPACE_REAPED)|BRIEFING_WORKER_REFUSED phase=(ATOMIC_BOOTSTRAP|ATOMIC_GATE_MAINT|ATOMIC_GATE_NATIVE|ATOMIC_GATE_INBOX|ATOMIC_DDL|ATOMIC_CATALOG|ATOMIC_ROLLBACK|ATOMIC_COMMIT_LOSS|ATOMIC_DUPLICATE|ATOMIC_CAPTURE_FIRST|ATOMIC_SCOPE|ATOMIC_REVOKE_FIRST)|BRIEFING_WORKER_CAPTURE_REFUSED|BRIEFING_RUN_REFUSED phase=(PREFLIGHT|INIT|START|WORKER) cleanup=(VERIFIED|UNVERIFIED)|BRIEFING_LAUNCH_REFUSED cleanup=UNVERIFIED)$" "$private_log" >&3 3>&- || true; rm -f -- "$private_log" 3>&-; if [ "$rc" -eq 0 ]; then echo "PASS BRIEFING_WORKFLOW_STEP_4" >&3; else echo "BRIEFING_WORKFLOW_STEP_4_REFUSED" >&3; fi' EXIT
+          exec >"$private_log" 2>&1
+          (
+            trap - EXIT
+            set -euo pipefail
+            unset BASH_ENV ENV
+            cmp -- "$BRIEFING_PHP_INI" apps/portal/labs/onepage-d0-reader-ci/reviewed-php.ini
+            env -i PATH=/usr/bin:/bin LC_ALL=C GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+              GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+              GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+              PHP_BIN="$PHP_BIN" POSIX_EXTENSION="$POSIX_EXTENSION" PG_BIN="$PG_BIN" \
+              ONEPAGE_PG_RUNTIME_LIB="$ONEPAGE_PG_RUNTIME_LIB" BRIEFING_PHP_INI="$BRIEFING_PHP_INI" \
+              /usr/bin/python3 -B apps/portal/labs/onepage-d0-reader-ci/launch.py --run
+          ) 3>&-
