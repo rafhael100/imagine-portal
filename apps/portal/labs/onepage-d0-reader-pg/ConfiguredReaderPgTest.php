@@ -17,6 +17,7 @@ use NativeBriefingFixture\Trace;
 class ConfiguredReaderPgTest extends TestCase
 {
     private readonly PDO $admin;
+    private \Closure $financeGate;
     private int $port;
     private string $proof;
     private string $key;
@@ -56,6 +57,22 @@ class ConfiguredReaderPgTest extends TestCase
         Trace::pass('PASS BRIEFING_NEW_DATABASE_GATE_PASSED');Trace::enter('ADMIN_GATE');
         $this->admin=\NativeBriefingFixture\CiGate::adminBeforeWrites($admin,$gate);
         \NativeBriefingFixture\CiGate::sameConnection($this->app['db']->connection('pgsql')->getPdo(),$gate['pdo']);
+        // Capture only after original config + SQL identity/empty-cluster gates.
+        $capturedConfig=config('database.connections.pgsql');
+        $this->financeGate=function()use($gate,$capturedConfig):void {
+            \NativeBriefingFixture\CiGate::topology();
+            self::assertSame('pgsql',config('database.default'));
+            self::assertSame($capturedConfig,config('database.connections.pgsql'));
+            \NativeBriefingFixture\CiGate::sameConnection($this->app['db']->connection('pgsql')->getPdo(),$gate['pdo']);
+            $r=$this->admin->query("SELECT system_identifier::text cluster_id, current_database() db,session_user login,
+              current_setting('data_directory') data,extract(epoch FROM pg_postmaster_start_time()) started,
+              inet_server_port() port,host(inet_server_addr()) host FROM pg_control_system()")->fetch(PDO::FETCH_ASSOC);
+            self::assertSame($gate['identity']['cluster_id'],$r['cluster_id']);
+            self::assertSame($gate['identity']['data'],$r['data']);
+            self::assertSame((string)$gate['identity']['started'],(string)$r['started']);
+            self::assertSame('portal_native_orders_ci',$r['db']);self::assertSame('portal_native_test_bootstrap',$r['login']);
+            self::assertSame('127.0.0.1',$r['host']);self::assertSame($this->port,(int)$r['port']);
+        };
         Trace::pass('PASS BRIEFING_LARAVEL_SQL_BEFORE_DDL');Trace::enter('MIGRATIONS');
         foreach ([
             '2026_11_09_000002_create_portal_identity_foundation.php',
@@ -188,7 +205,22 @@ class ConfiguredReaderPgTest extends TestCase
         self::assertSame($review['offer_digest'],$order->offerDigest);self::assertSame($review['terms_digest'],$order->termsDigest);
         require_once __DIR__.'/PgCases.php';
         Trace::pass('PASS BRIEFING_PORT_NATIVE_ORDER_READY');Trace::enter('CASES');
-        ConfiguredReaderPgCases::run($this->admin,$runtime,fn(string $role):PDO=>$this->connect($role),$store,$order,$session,[$same,$other,$pending]);
+        $financialAuth=new PostgresPortalBrowserAuthentication($this->connect('portal_browser_runtime'),'portal_native_orders_ci',$this->proof,$this->key,$this->pepper);
+        $revoke=static fn(string $old):bool=>$financialAuth->revoke($old);
+        $newLogin=function(\Closure $beforeMfa)use($financialAuth,$company):string {
+            $pending=$financialAuth->beginPassword('onepage-own@example.invalid','native-order-fixture-password',$company,'192.0.2.10');
+            self::assertIsString($pending);$beforeMfa($pending);
+            $initial=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
+            $deadline=microtime(true)+35;
+            do {usleep(100000);$counter=(int)$this->admin->query('SELECT floor(extract(epoch FROM clock_timestamp())/30)::bigint')->fetchColumn();
+                if(microtime(true)>$deadline)throw new \RuntimeException('FRESH_MFA_WINDOW_UNAVAILABLE');
+            } while($counter<=$initial);
+            $h=hash_hmac('sha1',pack('N2',intdiv($counter,4294967296),$counter%4294967296),'12345678901234567890',true);
+            $offset=ord($h[19])&15;$code=str_pad((string)((unpack('N',substr($h,$offset,4))[1]&0x7fffffff)%1000000),6,'0',STR_PAD_LEFT);
+            $fresh=$financialAuth->completeMfa($pending,$code,'192.0.2.10');
+            self::assertIsString($fresh);self::assertTrue($financialAuth->isActiveBusinessSession($fresh));return $fresh;
+        };
+        ConfiguredReaderPgCases::run($this->admin,$runtime,fn(string $role):PDO=>$this->connect($role),$store,$order,$session,[$same,$other,$pending],$revoke,$newLogin,$this->financeGate);
         Trace::pass('PASS BRIEFING_D0_PORT_COMPLETE');Trace::enter('TEST_TEARDOWN');
     }
 }
