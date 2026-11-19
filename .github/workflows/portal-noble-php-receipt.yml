@@ -1,0 +1,214 @@
+name: Portal Noble PHP and runtime dependency receipt
+'on':
+  pull_request:
+    types: [opened]
+    branches: ['test/onepage-d0-finance-pg-v2']
+    paths: ['.github/workflows/portal-noble-php-receipt.yml']
+permissions:
+  contents: read
+jobs:
+  receipt:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.run_attempt == 1 && github.event.pull_request.draft == true &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.head.ref == 'test/onepage-noble-php-receipt-v2' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.base.ref == 'test/onepage-d0-finance-pg-v2' &&
+      github.event.pull_request.base.sha == 'e95baafac952e5fb8577bd4407de76263d11500e'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact new receipt-only child
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_EVENT_PATH="$GITHUB_EVENT_PATH" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" RUNNER_TEMP="$RUNNER_TEMP" \
+            /usr/bin/python3 -I -B - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+
+          REPO = 'rafhael100/imagine-portal'
+          BASE = 'e95baafac952e5fb8577bd4407de76263d11500e'
+          BASE_TREE = '0b22a8efeb696bb38e6494fedd85a35381f4fe3f'
+          BASE_REF = 'test/onepage-d0-finance-pg-v2'
+          HEAD_REF = 'test/onepage-noble-php-receipt-v2'
+          PATH = '.github/workflows/portal-noble-php-receipt.yml'
+          ARCH = 'amd64'
+          ENV = {'PATH':'/usr/bin:/bin','LC_ALL':'C'}
+
+          def need(value):
+              if not value:
+                  raise ValueError('RECEIPT_REFUSED')
+
+          def run(argv, seconds=12, env=None):
+              child = subprocess.run(argv, env=ENV if env is None else env, stdin=subprocess.DEVNULL,
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=seconds)
+              return child.stdout
+
+          def tree(commit):
+              out = {}
+              for entry in run(['git','ls-tree','-rz',commit]).split(b'\0'):
+                  if not entry:
+                      continue
+                  meta, key = entry.split(b'\t',1)
+                  mode, kind, blob = meta.split()
+                  need(key not in out)
+                  out[key] = (mode,kind,blob)
+              return out
+
+          def gate():
+              need(os.environ.get('GITHUB_ACTIONS')=='true' and
+                   os.environ.get('GITHUB_EVENT_NAME')=='pull_request' and
+                   os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_RUN_ATTEMPT')=='1')
+              event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+              p = event['pull_request']
+              need(event['action']=='opened' and event['repository']['full_name']==REPO and
+                   p['draft'] is True and p['state']=='open')
+              need(p['base']['sha']==BASE and p['base']['ref']==BASE_REF and p['head']['ref']==HEAD_REF)
+              need(p['base']['repo']['full_name']==p['head']['repo']['full_name']==REPO)
+              head=p['head']['sha']
+              need(re.fullmatch(r'[0-9a-f]{40}',head) is not None)
+              need(run(['git','rev-parse','HEAD']).strip().decode()==head)
+              need(run(['git','rev-list','--parents','-n','1',head]).decode().split()==[head,BASE])
+              need(run(['git','rev-parse',BASE+'^{tree}']).strip().decode()==BASE_TREE)
+              need(run(['git','status','--porcelain=v1','--untracked-files=all'])==b'')
+              old,new=tree(BASE),tree(head)
+              key=PATH.encode()
+              need(key not in old and key in new and new[key][:2]==(b'100644',b'blob'))
+              need({k:v for k,v in new.items() if k!=key}==old)
+              raw=Path(PATH)
+              need(raw.is_file() and not raw.is_symlink())
+              b=raw.read_bytes()
+              need(hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest().encode()==new[key][2])
+              need(run(['dpkg','--print-architecture']).strip()==ARCH.encode())
+              release=Path('/etc/os-release').read_text()
+              need(re.search(r'^ID=ubuntu$',release,re.M) and re.search(r'^VERSION_CODENAME=noble$',release,re.M))
+              return head
+
+          try: gate()
+          except Exception: print('PHP_RECEIPT_SCOPE_REFUSED'); raise SystemExit(1)
+          PY
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, pdo_pgsql, mbstring, sodium, dom, xml, posix, pcntl
+          tools: composer:2.8.12
+          coverage: none
+      - name: Attest PHP and Ubuntu dependency without starting a cluster
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib,json,os,re,shlex,shutil,subprocess,tempfile,types
+          from pathlib import Path
+          from importlib.machinery import SourceFileLoader
+          env={'PATH':'/usr/bin:/bin','LC_ALL':'C','PHP_INI_SCAN_DIR':'','PHPRC':'/dev/null'}
+          origin='https://archive.ubuntu.com/ubuntu'
+          def need(v):
+              if not v: raise ValueError('RUNTIME_RECEIPT_REFUSED')
+          def run(*args,extras=None,cwd=None):
+              return subprocess.run(args,env=env|(extras or {}),cwd=cwd,check=True,timeout=90,
+                 stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout
+          def digest(path):
+              need(path.is_file() and not path.is_symlink())
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          phase='RUNTIME_PATHS'
+          def runtime(root):
+              global phase
+              php=Path(shutil.which('php')).resolve(strict=True)
+              composer=Path(shutil.which('composer')).resolve(strict=True)
+              policy=Path('apps/portal/labs/onepage-d0-reader-ci/ini_policy.py')
+              loader=SourceFileLoader('ini_policy',str(policy));m=types.ModuleType(loader.name);loader.exec_module(m)
+              phase='PHP_DISCOVERY'
+              features=json.loads(run(str(php),'-n','-r','echo json_encode([PHP_VERSION, ini_get("extension_dir"), get_loaded_extensions()]);'))
+              version,ext,builtins=features
+              need(re.fullmatch(r'8[.]4[.][0-9]+',version) and ext.startswith('/usr/') and Path(ext).is_dir())
+              phase='PHP_INI'
+              ini=m.render(ext,builtins); ini_path=root/'php.ini';ini_path.write_text(ini)
+              run(str(php),'-c',str(ini_path),'-r','exit(php_ini_scanned_files() === false && PDO::getAvailableDrivers() === ["pgsql"] && extension_loaded("posix") && !function_exists("curl_exec") ? 0 : 1);')
+              phase='COMPOSER_VERSION'
+              home=root/'home';home.mkdir(mode=0o700)
+              composer_home=home/'composer';composer_home.mkdir(mode=0o700)
+              cwd=root/'empty';cwd.mkdir(mode=0o700)
+              clean={'HOME':str(home),'COMPOSER_HOME':str(composer_home),'COMPOSER_DISABLE_NETWORK':'1'}
+              need(re.match(rb'^Composer version 2[.]8[.]12 ',run(str(php),'-c',str(ini_path),str(composer),'--no-plugins','--no-scripts','--version','--no-ansi',extras=clean,cwd=cwd)))
+              phase='RUNTIME_HASHES'
+              modules={key:digest(Path(key)) for line in ini.splitlines() if line.startswith('extension=') for key in [line[10:]]}
+              return {'schema':'imagine.noble-php-runtime.v1','php_version':version,
+                     'php':{'path':str(php),'sha256':digest(php)},'composer':{'path':str(composer),'sha256':digest(composer)},
+                     'modules':modules,'ini_sha256':digest(ini_path),
+                     'posix':'builtin' if 'posix' in [x.lower() for x in builtins] else ext+'/posix.so'},ini
+          def ubuntu(root):
+              global phase
+              phase='APT_SCOPE'
+              (root/'lists/partial').mkdir(parents=True);(root/'cache/archives/partial').mkdir(parents=True)
+              (root/'debs').mkdir()
+              key='/usr/share/keyrings/ubuntu-archive-keyring.gpg'
+              need(Path(key).is_file())
+              (root/'sources.list').write_text(''.join(f'deb [arch=amd64 signed-by={key}] {origin} {p} main universe\n' for p in ('noble','noble-updates')))
+              apt=root/'apt.conf'
+              apt.write_text(f'''Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "{root}/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "{root}/lists";
+          Dir::Cache "{root}/cache";
+          Dir::Log "{root}";
+          ''')
+              cfg={'APT_CONFIG':str(apt)}
+              options=['-o','Acquire::Retries=1','-o','Acquire::https::Timeout=15',
+                       '-o','Acquire::AllowInsecureRepositories=false','-o','APT::Get::AllowUnauthenticated=false']
+              phase='APT_SIGNED_INDEX'
+              run('/usr/bin/apt-get',*options,'--error-on=any','update','-qq',extras=cfg)
+              phase='APT_SELECTION'
+              uri,_,size,check=shlex.split(run('/usr/bin/apt-get',*options,'--print-uris','download','liburing2:amd64',extras=cfg,cwd=root/'debs').decode().strip())
+              prefix=origin+'/'
+              need(uri.startswith(prefix))
+              from urllib.parse import unquote
+              file=unquote(uri[len(prefix):])
+              need(re.fullmatch(r'pool/main/libu/liburing/liburing2_[a-zA-Z0-9.+~-]+_amd64[.]deb',file))
+              phase='APT_DOWNLOAD'
+              run('/usr/bin/apt-get',*options,'download','liburing2:amd64',extras=cfg,cwd=root/'debs')
+              files=list((root/'debs').glob('*.deb'));need(len(files)==1)
+              deb=files[0];need(deb.stat().st_size==int(size))
+              sha=digest(deb)
+              # apt's --print-uris digest can be MD5; use SHA256 from the signed APT index.
+              phase='APT_INDEX_HASH'
+              index=run('/usr/bin/apt-cache','show','liburing2:amd64',extras=cfg).decode()
+              candidates=[]
+              for paragraph in index.split('\n\n'):
+                  fields=dict(line.split(': ',1) for line in paragraph.splitlines() if ': ' in line and not line.startswith(' '))
+                  if fields.get('Filename')==file:
+                      candidates.append((fields.get('Architecture'),fields.get('Size'),fields.get('SHA256')))
+              need(set(candidates)=={('amd64',size,sha)})
+              phase='APT_EXTRACT'
+              extracted=root/'extracted'
+              run('/usr/bin/dpkg-deb','-x',str(deb),str(extracted))
+              resolved=(extracted/'usr/lib/x86_64-linux-gnu/liburing.so.2').resolve(strict=True)
+              rel=str(resolved.relative_to(extracted))
+              need(re.fullmatch(r'usr/lib/x86_64-linux-gnu/liburing[.]so[.]2[.][0-9]+',rel))
+              return {'filename':file,'sha256':sha,'size':int(size),'resolved':rel,
+                      'file_sha256':digest(resolved),'file_size':resolved.stat().st_size}
+          try:
+              with tempfile.TemporaryDirectory(dir=os.environ['RUNNER_TEMP'],prefix='php-receipt-') as work:
+                  root=Path(work);r,ini=runtime(root);r['liburing']=ubuntu(root)
+                  phase='RECEIPT'
+                  print('D0_REVIEWED_RUNTIME_CANDIDATE '+json.dumps({'runtime':r,'ini':ini},sort_keys=True,separators=(',',':')))
+          except Exception:print('RUNTIME_RECEIPT_REFUSED phase='+phase);raise SystemExit(1)
+          PY
