@@ -86,9 +86,50 @@ final class OnepageRenderPlanCandidateEncoder
             self::keys(get_object_vars($manifest->payload), [
                 'payloadRef', 'mediaType', 'sizeBytes', 'sha256',
             ]);
-            if ($manifest->payload->mediaType !== 'application/json' ||
+            // Reject a re-hashed but internally inconsistent snapshot here.
+            // The pinned Sites BriefSnapshotInput would deny this later; the
+            // Portal candidate must not emit a plan for such an input.
+            foreach (['operationId', 'idempotencyKey', 'orderRef', 'contractRef'] as $key) {
+                if (!is_string($manifest->{$key}) || !self::reference($manifest->{$key})) {
+                    throw new RuntimeException();
+                }
+            }
+            if (!is_int($manifest->contractRevision) ||
+                $manifest->contractRevision < 1 || $manifest->contractRevision > 2147483647 ||
+                !is_int($manifest->sourceVersion) ||
+                $manifest->sourceVersion < 0 || $manifest->sourceVersion > 9007199254740991 ||
+                !is_int($manifest->expectedBriefRevision) ||
+                $manifest->expectedBriefRevision < 0 || $manifest->expectedBriefRevision > 2147483646 ||
+                $manifest->briefRevision !== $manifest->expectedBriefRevision + 1 ||
+                !is_string($manifest->payload->payloadRef) ||
+                !self::reference($manifest->payload->payloadRef) ||
+                $manifest->payload->mediaType !== 'application/json' ||
                 $manifest->payload->sizeBytes !== strlen($sourceBytes) ||
                 $manifest->payload->sha256 !== $snapshotPair['payloadSha256']) {
+                throw new RuntimeException();
+            }
+            // The pair is promised to come from our local candidate exporter,
+            // not from an arbitrary re-hashed JSON object. Rebuild it with the
+            // same source bytes to validate the entire rich-body profile and
+            // reject non-canonical/repackaged manifests before plan generation.
+            // This verifies structure ONLY; it is not origin authentication.
+            $reconstructed = OnepageBriefSnapshotCandidateEncoder::build(
+                new SiteContractSnapshot(
+                    $manifest->tenantRef, $manifest->orderRef,
+                    $manifest->contractRef, $manifest->contractRevision, 'onepage',
+                ),
+                [
+                    'siteRef' => $manifest->siteRef,
+                    'snapshotRef' => $manifest->snapshotRef,
+                    'operationId' => $manifest->operationId,
+                    'idempotencyKey' => $manifest->idempotencyKey,
+                    'sourceVersion' => $manifest->sourceVersion,
+                    'expectedBriefRevision' => $manifest->expectedBriefRevision,
+                    'payloadRef' => $manifest->payload->payloadRef,
+                ],
+                $sourceBytes,
+            );
+            if (!hash_equals($manifestBytes, $reconstructed['manifestBytes'])) {
                 throw new RuntimeException();
             }
             self::keys($selection, [

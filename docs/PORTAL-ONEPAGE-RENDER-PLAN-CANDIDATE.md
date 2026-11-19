@@ -85,6 +85,30 @@ renderizar precisa causar recusa. O GitHub Actions executa a prova em PHP
 8.3/8.4, com checkout fixado, sem banco, Composer, Asaas, IA, custo,
 dados reais ou escrita em produção.
 
+## Contrato adicional de consistência (19/11/2026)
+
+O compositor de plano recusa, **antes de produzir bytes**, um par de snapshot
+cujo manifesto tenha sido regravado e cujo SHA-256 tenha sido recalculado,
+mas que viole invariantes do parser real de Sites. A regressão cobre:
+revisão `briefRevision != expectedBriefRevision + 1`, limites de
+`contractRevision` e `sourceVersion`, além de referências originais
+de operação, pedido, contrato e payload fora da gramática fechada.
+Oito casos negativos usam hashes recalculados, portanto não dependem apenas
+de um teste trivial de SHA inválido.
+
+O compositor também recompõe o par usando o `OnepageBriefSnapshotCandidateEncoder`
+local, com os **bytes originais** da fonte rica: um JSON inválido, campos
+desconhecidos, material marcado como disponível, serviços vazios ou contato
+inválido continuam recusados mesmo após novo SHA-256 do corpo e do manifesto.
+Uma alteração legítima de LF para CRLF produz novo compromisso pelo próprio
+exportador e é aceita como entrada sintética distinta. A serialização do
+manifesto do exportador deve permanecer canônica, sem repacotamento.
+
+Essas recusas previnem o envio de planos que seriam inevitavelmente negados
+pelo `BriefSnapshotInput` fixado. **Não constituem atestação de origem,
+aprovação do cliente, identidade nem autorização para publicar**. Toda
+verificação de posse, idempotência e revogação durável permanece separada.
+
 ## Pendências de homologação operacional
 
 Faltam um **leitor Portal autorizado e versionado** para o corpo rico,
