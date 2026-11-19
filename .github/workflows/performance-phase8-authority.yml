@@ -3,6 +3,8 @@ on:
   push:
     branches: ['feat/admin-phase7-exact-compose-flow-2026-11-17']
     paths: ['apps/portal/**', '.github/workflows/performance-phase8-authority.yml']
+  pull_request:
+    paths: ['apps/portal/**', '.github/workflows/performance-phase8-authority.yml']
 permissions:
   contents: read
 jobs:
@@ -66,4 +68,4 @@ jobs:
           php tests/Fixtures/phase4/authority-role.php
       - name: Operation-specific navigation, filters, signatures and denial events
         working-directory: apps/portal
-        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
+        run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|NativePerformanceAccountMandateStoreTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
