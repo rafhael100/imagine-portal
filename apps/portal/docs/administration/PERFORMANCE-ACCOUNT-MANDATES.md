@@ -64,3 +64,22 @@ SQL proprietário/superusuário, GUCs de escopo, ausência de cofre IAM, consent
 real e vínculo SQL001→S2S continuam sem homologação e não devem ser usados para
 emitir mandatos operacionais. A prova é de um banco sintético descartável, não
 de um backup externo, de Ads ou da VPS.
+
+
+## Prova multiempresa sobre mesma conta publicitária (PostgreSQL descartável)
+
+O teste `test_same_provider_account_has_independent_tenants_and_no_cross_tenant_audit`
+constrói duas empresas sintéticas com o **mesmo** provider, account_id e
+principal técnico. A unicidade do mandato é por empresa; a criação registra
+um evento independente para cada empresa. Uma tentativa direta de registrar
+evento de B apontando ao mandato de A deve retornar SQLSTATE `23514`;
+um segundo mandato com a mesma chave lógica em A retorna `23505`.
+Revogar A deve deixar B com status candidato e sem novos eventos, e nenhum
+registro pode estar `operational_enabled=true`.
+
+A prova observa os invariantes em banco de CI descartável, **não** demonstra
+a emissão da delegação autenticada ou `SQL001→S2S`, acesso de runtime a
+mandatos, contas Google/Meta autorizadas, consentimento humano, integração de
+cofre ou restore de VPS. Os testes continuam dentro da role de migração
+privilegiada controlada, sem conceder SELECT ao runtime, sem nova API e
+sem mudança na classificação `synthetic_candidate`.
