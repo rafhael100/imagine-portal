@@ -29,6 +29,21 @@ final class ConfiguredReaderPgCases
   A::assertSame('recorded',$reg->registerEntry($a->id,'pay_ConfigFixture1','cus_ConfigFixture1',OnepageEntryPaymentTerms::reference($a,'native-entry-sandbox','cus_ConfigFixture1'),33000,OnepageEntryPaymentTerms::schedule($a)[0]['due_date'],'PIX'));
   $store=new PostgresD0EntryStore($runtime,$writer,'portal_native_orders_ci','native-entry-sandbox');
   $snapshot=$store->inspect($session,$a->id);A::assertSame('ready',$snapshot['state']);
+  require_once __DIR__.'/BuyerSignalCorrelation.php';
+  Wire::reset();
+  $signal=['payment_id'=>'pay_ConfigFixture1','external_reference'=>OnepageEntryPaymentTerms::reference($a,'native-entry-sandbox','cus_ConfigFixture1')];
+  $correlate=static fn(string $s,array $v):bool=>\PrivateLab\BuyerSignalCorrelation::matches($store,$s,$a->id,'native-entry-sandbox','sandbox',$v);
+  A::assertSame($snapshot['binding']['payment_id'],$signal['payment_id']);
+  A::assertSame($snapshot['binding']['external_reference'],$signal['external_reference']);
+  A::assertTrue($correlate($session,$signal));
+  A::assertTrue($correlate($session,$signal)); // duplicate is diagnostic only
+  foreach($wrongSessions as $bad)A::assertFalse($correlate($bad,$signal));
+  foreach(['payment_id','external_reference'] as $field)A::assertFalse($correlate($session,array_replace($signal,[$field=>'mismatch'])));
+  A::assertFalse(\PrivateLab\BuyerSignalCorrelation::matches($store,$session,$a->id,'other-account','sandbox',$signal));
+  A::assertFalse(\PrivateLab\BuyerSignalCorrelation::matches($store,$session,$a->id,'native-entry-sandbox','production',$signal));
+  A::assertSame($snapshot,$store->inspect($session,$a->id));
+  A::assertSame(0,Wire::$calls);
+  A::assertSame(0,(int)self::q($admin,'SELECT count(*) FROM portal_onepage.entry_confirmations'));
   Wire::reset();Wire::$response=['id'=>$snapshot['binding']['payment_id'],'customer'=>$snapshot['binding']['customer_id'],'externalReference'=>$snapshot['binding']['external_reference'],'billingType'=>$snapshot['binding']['billing_type'],'status'=>'RECEIVED','value'=>'330.00'];
   $configuration=static function()use($store,$session,$a){$s=$store->inspect($session,$a->id);return ['account'=>$s['account'],'environment'=>$s['environment'],'configuration'=>$s['account_authorization']['configuration'],'generation'=>$s['account_authorization']['generation']];};
   $leaseCalls=0;$lease=static function(array $c)use(&$leaseCalls){$leaseCalls++;return $c+['token'=>'synthetic-fixture-token-not-credential'];};

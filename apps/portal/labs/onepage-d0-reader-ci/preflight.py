@@ -1,12 +1,13 @@
 """Full base/diff/worktree gate. Independent final bytes/tree are pinned by EXTERNAL review."""
 import os,json,hashlib,subprocess
 from pathlib import Path
-BASE='4e092891e753f595b4f8f12a75aee8d0f20870a4'
-BASE_TREE='5e2af471ebace44a1abf6934b43648ccf245bff9'
+BASE='2fcb55e79e240366f27f63e8e63335f4d2b8be99'
+BASE_TREE='c35328281e913e9851bc366b8b8a82894e9c8949'
 REPO='rafhael100/imagine-portal'
-BASE_BRANCH='test/onepage-d0-account-epoch-v1'
-BRANCH='test/onepage-d0-reader-pg-v1'
-FILES=['.github/workflows/onepage-d0-reader-pg.yml', 'apps/portal/app/Infrastructure/Commerce/ConfiguredSandboxD0Reader.php', 'apps/portal/labs/onepage-d0-configured-reader/CurlFixture.php', 'apps/portal/labs/onepage-d0-configured-reader/offline.php', 'apps/portal/labs/onepage-d0-reader-ci/ini_policy.py', 'apps/portal/labs/onepage-d0-reader-ci/launch.py', 'apps/portal/labs/onepage-d0-reader-ci/preflight.py', 'apps/portal/labs/onepage-d0-reader-ci/prepare.py', 'apps/portal/labs/onepage-d0-reader-ci/probe.php', 'apps/portal/labs/onepage-d0-reader-ci/processes.py', 'apps/portal/labs/onepage-d0-reader-ci/root_wrapper.py', 'apps/portal/labs/onepage-d0-reader-ci/scope.py', 'apps/portal/labs/onepage-d0-reader-pg/ConfiguredReaderPgTest.php', 'apps/portal/labs/onepage-d0-reader-pg/PgCases.php', 'apps/portal/labs/onepage-d0-reader-pg/worker.php']
+BASE_BRANCH='test/onepage-d0-reader-pg-v1'
+BRANCH='test/onepage-buyer-signal-pg-v1'
+CHANGES={'.github/workflows/onepage-d0-reader-pg.yml': 'M', 'apps/portal/labs/onepage-d0-reader-ci/preflight.py': 'M', 'apps/portal/labs/onepage-d0-reader-pg/PgCases.php': 'M', 'apps/portal/labs/onepage-d0-reader-pg/BuyerSignalCorrelation.php': 'A'}
+FILES=list(CHANGES)
 ENV_KEYS=('GITHUB_ACTIONS','GITHUB_EVENT_NAME','GITHUB_REPOSITORY','GITHUB_EVENT_PATH','GITHUB_RUN_ATTEMPT')
 def need(v):
  if not v:raise ValueError('D0_ENVELOPE_REFUSED')
@@ -19,14 +20,15 @@ def verify(e,f):
  need(p['base']['sha']==BASE and p['base']['ref']==BASE_BRANCH and p['head']['ref']==BRANCH)
  need(p['base']['repo']['full_name']==p['head']['repo']['full_name']==REPO)
  need(f['attempt']=='1' and f['head']==p['head']['sha'] and f['parents']==[BASE] and f['clean'] and f['base_tree']==BASE_TREE)
- need(f['changes']=={p:'A' for p in FILES})
+ need(f['changes']==CHANGES)
 def tree_check(base,head):
- need(set(head)==set(base)|set(FILES))
+ need(set(head)==set(base)|{p for p,s in CHANGES.items() if s=='A'})
  for p,v in base.items():
   if p not in FILES:need(head[p]==v)
  for p in FILES:
   need(head[p][0]=='100644' and head[p][1]=='blob')
-  need(p not in base)
+  if CHANGES[p]=='A':need(p not in base)
+  else:need(p in base and base[p][0:2]==('100644','blob') and head[p]!=base[p])
 def parse(raw):
  out={}
  for entry in raw.split(b'\0'):
