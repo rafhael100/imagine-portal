@@ -194,6 +194,72 @@ final class CustomerPreviewStore
         return (new \App\Homologation\Commerce\SandboxCheckoutIntent($this->db,$this))->read($owner,$id);
     }
 
+    /**
+     * Explicit review of the exact submitted briefing by its authenticated
+     * synthetic buyer, persisted under signed per-customer FORCE RLS.
+     * Never implies Ads consent, mandate, campaign or plan approval.
+     */
+    public function approveF423Briefing(
+        string $owner, string $orderId, string $buyerUsername, int $revision, string $sha256
+    ): bool {
+        if (!preg_match('/\Ademo-[a-z0-9-]{3,40}\z/D',$buyerUsername)
+            || !preg_match('/\A[a-f0-9]{64}\z/D',$sha256) || $revision <= 0) return false;
+        return $this->scoped($owner,function () use ($owner,$orderId,$buyerUsername,$revision,$sha256): bool {
+            $q=$this->db->prepare(
+                'SELECT revision, product, briefing, payment, payment_source, payment_hold
+                   FROM purchase_rehearsal.customer_orders
+                  WHERE customer_id=? AND id=? FOR UPDATE'
+            );
+            $q->execute([$owner,$orderId]);
+            $row=$q->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || $row['product']!=='performance'
+                || (int)$row['revision']!==$revision
+                || $row['payment']!=='approved'
+                || $row['payment_source']!=='asaas_sandbox'
+                || in_array($row['payment_hold'],[true,'t',1,'1'],true)
+                || !is_string($row['briefing'])) return false;
+            $briefing=json_decode($row['briefing'],true,512,JSON_THROW_ON_ERROR);
+            if (!is_array($briefing)
+                || !hash_equals(hash('sha256',json_encode($briefing,JSON_THROW_ON_ERROR)),$sha256)) return false;
+            $q=$this->db->prepare(
+                "INSERT INTO purchase_rehearsal.f423_briefing_reviews
+                   (customer_id,order_id,order_revision,briefing_sha256,approved_by)
+                 SELECT o.customer_id,o.id,o.revision,?,?
+                   FROM purchase_rehearsal.customer_orders o
+                  WHERE o.customer_id=? AND o.id=? AND o.revision=?
+                    AND o.product='performance' AND o.payment='approved'
+                    AND o.payment_source='asaas_sandbox' AND NOT o.payment_hold
+                    AND o.briefing IS NOT NULL
+                    AND EXISTS (SELECT 1 FROM purchase_rehearsal.sandbox_payment_intents i
+                                WHERE i.order_id=o.id AND i.state='approved')
+                 ON CONFLICT(customer_id,order_id,order_revision) DO NOTHING"
+            );
+            $q->execute([$sha256,$buyerUsername,$owner,$orderId,$revision]);
+            $q=$this->db->prepare(
+                'SELECT approved_by FROM purchase_rehearsal.f423_briefing_reviews
+                  WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?'
+            );
+            $q->execute([$owner,$orderId,$revision,$sha256]);
+            return $q->fetchColumn()===$buyerUsername;
+        });
+    }
+
+    /** Only the exact still-current revision and digest can be read as approved. */
+    public function f423BriefingApproval(string $owner,string $orderId,int $revision,string $sha256): ?array
+    {
+        if ($revision <= 0 || !preg_match('/\A[a-f0-9]{64}\z/D',$sha256)) return null;
+        return $this->scoped($owner,function () use ($owner,$orderId,$revision,$sha256): ?array {
+            $q=$this->db->prepare(
+                'SELECT approved_by, approval_kind
+                   FROM purchase_rehearsal.f423_briefing_reviews
+                  WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?'
+            );
+            $q->execute([$owner,$orderId,$revision,$sha256]);
+            $record=$q->fetch(PDO::FETCH_ASSOC);
+            return is_array($record)?$record:null;
+        });
+    }
+
     public function orders(?string $owner): array
     {
         return $this->scoped($owner, function () use ($owner): array {
