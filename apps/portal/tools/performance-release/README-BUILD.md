@@ -20,7 +20,7 @@ projeto `imagine-performance-p7-ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT`.
 `$GITHUB_WORKSPACE/engine`.
 
 A revisão esperada do Portal é `GITHUB_SHA`. O engine permanece preso ao commit
-`da852f45bf12ce88ae23a4bdba993b7300a4d110`. As três referências locais esperadas
+`7e5a11acd03c23c0a36687b510a4047a86d7c089`. As três referências locais esperadas
 são `p7-portal-ci`, `p7-web-ci` e `p7-receiver-ci`, também conferidas contra as
 variáveis `P6_PORTAL_IMAGE`, `P6_PORTAL_WEB_IMAGE` e `P6_RECEIVER_IMAGE`.
 
