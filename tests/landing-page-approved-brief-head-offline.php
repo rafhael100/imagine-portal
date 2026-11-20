@@ -81,8 +81,8 @@ $gate=new LandingPageCurrentApprovedBriefGate($admission,$head);
 $read=$gate->inspect($request,'test-peer');
 $ok($read->sourceVersion===3&&$read->approvalEpoch===2,'latest approved version metadata read');
 $ok(hash_equals(hash('sha256',$read->sourceBytes()),$read->sourceSha256),'original source bytes matched hash');
-$ok($head->calls===2&&$peer->calls===4&&$contracts->calls===4&&$bindings->calls===4,
- 'admission verified twice and current head read twice');
+$ok($head->calls===2&&$peer->calls===6&&$contracts->calls===6&&$bindings->calls===6,
+ 'admission verified three times and current head read twice');
 $ok(!property_exists($read,'canPublish')&&!property_exists($read,'paymentAuthorized'),
  'head does not contain operational grants');
 try{json_encode($read,JSON_THROW_ON_ERROR);$failed=false;}catch(Throwable){$failed=true;}
