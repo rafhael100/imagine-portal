@@ -28,13 +28,13 @@ CREATE POLICY f423_review_scoped_read ON purchase_rehearsal.f423_briefing_review
   FOR SELECT TO purchase_rehearsal_a
   USING (purchase_rehearsal.preview_order_allowed(customer_id)
     AND EXISTS (SELECT 1 FROM purchase_rehearsal.customer_orders o
-      WHERE o.id=order_id AND o.customer_id=customer_id AND o.product='performance'));
+      WHERE o.id=purchase_rehearsal.f423_briefing_reviews.order_id AND o.customer_id=purchase_rehearsal.f423_briefing_reviews.customer_id AND o.product='performance'));
 CREATE POLICY f423_review_scoped_insert ON purchase_rehearsal.f423_briefing_reviews
   FOR INSERT TO purchase_rehearsal_a
   WITH CHECK (purchase_rehearsal.preview_order_allowed(customer_id)
     AND EXISTS (SELECT 1 FROM purchase_rehearsal.customer_orders o
-      WHERE o.id=order_id AND o.customer_id=customer_id AND o.product='performance'
-        AND o.revision=order_revision AND o.briefing IS NOT NULL
+      WHERE o.id=purchase_rehearsal.f423_briefing_reviews.order_id AND o.customer_id=purchase_rehearsal.f423_briefing_reviews.customer_id AND o.product='performance'
+        AND o.revision=purchase_rehearsal.f423_briefing_reviews.order_revision AND o.briefing IS NOT NULL
         AND o.payment='approved' AND o.payment_source='asaas_sandbox'
         AND NOT o.payment_hold
         AND EXISTS (SELECT 1 FROM purchase_rehearsal.sandbox_payment_intents i
