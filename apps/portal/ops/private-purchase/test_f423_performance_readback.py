@@ -18,8 +18,10 @@ assert stored==['google_ads|blocked|mandate_or_s2s_denied|100000','meta_ads|bloc
 assert sql("SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s'"%(owner,order))=='2'
 guard=sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_performance_decisions'::regclass")
 assert guard=='t','Decision ledger must enforce FORCE RLS'
-privileges=sql("SELECT has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','UPDATE')||'|'||has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','DELETE')")
-assert privileges=='f|f','No SQL write mutation capability'
+privileges=sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','DELETE'))")
+assert privileges=='t','No SQL write mutation capability'
+unique_alias=sql("SELECT count(*) FROM pg_constraint WHERE conrelid='purchase_rehearsal.f423_performance_decisions'::regclass AND contype='u' AND pg_get_constraintdef(oid) LIKE '%source_order_alias%'")
+assert unique_alias=='1','Canonical alias collision protection must exist'
 with sync_playwright() as playwright:
     browser=playwright.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'),
             headless=True,args=['--no-sandbox'])

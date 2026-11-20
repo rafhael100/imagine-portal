@@ -22,7 +22,8 @@ CREATE TABLE purchase_rehearsal.f423_performance_decisions (
  decision_reason text NOT NULL CHECK(decision_reason='mandate_or_s2s_denied'),
  decision_fingerprint text NOT NULL CHECK(decision_fingerprint ~ '^[a-f0-9]{64}$'),
  created_at timestamptz NOT NULL DEFAULT now(),
- PRIMARY KEY(customer_id,order_id,order_revision,provider)
+ PRIMARY KEY(customer_id,order_id,order_revision,provider),
+ UNIQUE(source_order_alias,order_revision,provider) -- reject cross-company/order alias collisions
 );
 ALTER TABLE purchase_rehearsal.f423_performance_decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_rehearsal.f423_performance_decisions FORCE ROW LEVEL SECURITY;
