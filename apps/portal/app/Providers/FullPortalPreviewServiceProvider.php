@@ -34,6 +34,8 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                 && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1') {
                 Route::get('shop/orders/{id}/performance-snapshot',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'show']);
+                Route::post('shop/orders/{id}/briefing-review',
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approve']);
             }
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
             Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
