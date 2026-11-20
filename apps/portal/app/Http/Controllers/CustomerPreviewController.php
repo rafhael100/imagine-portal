@@ -54,7 +54,14 @@ final class CustomerPreviewController
     }
     public function show(Request $r,string $id)
     {
-        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404); $o['sandbox']=app(CustomerPreviewStore::class)->sandboxStatus($p['customer_id'],$id); $o['future_billing']=app(CustomerPreviewStore::class)->futureStatus($p['customer_id'],$id); return $this->page($o);
+        $p=$this->owner($r); $o=app(CustomerPreviewStore::class)->read($p['customer_id'],$id); abort_unless($o,404); $o['sandbox']=app(CustomerPreviewStore::class)->sandboxStatus($p['customer_id'],$id); $o['future_billing']=app(CustomerPreviewStore::class)->futureStatus($p['customer_id'],$id);
+        if (getenv('GITHUB_ACTIONS')==='true' && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+            && $o['product']==='performance' && is_array($o['briefing'])) {
+            $digest=hash('sha256',json_encode($o['briefing'],JSON_THROW_ON_ERROR));
+            $o['f423_review']=app(CustomerPreviewStore::class)->f423BriefingApproval(
+                $p['customer_id'],$id,(int)$o['revision'],$digest);
+        }
+        return $this->page($o);
     }
     public function sandbox(Request $r,string $id)
     {

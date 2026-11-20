@@ -5,6 +5,8 @@ No production account, fiscal invoice, recurring management fee or real money.
 """
 import os
 import shutil
+import re
+import subprocess
 import uuid
 import time
 from playwright.sync_api import sync_playwright
@@ -67,6 +69,7 @@ with sync_playwright() as playwright:
     assert '/shop/orders/' in url
     oid = url.rsplit('/',1)[1]
     snapshot_url = url + '/performance-snapshot'
+    review_url = url + '/briefing-review'
 
     def snapshot():
         response = page.context.request.get(snapshot_url)
@@ -100,6 +103,13 @@ with sync_playwright() as playwright:
     assert initial_snapshot['purchase_evidence'] is None
     assert initial_snapshot['onboarding_state'] == 'awaiting_briefing'
     assert initial_snapshot['approved_briefing_revision'] is None
+    # A pending purchase cannot be turned into an approved briefing,
+    # even by the signed buyer; read-only receipts are not a payment.
+    pending_review = page.context.request.post(review_url, form={
+        '_token':page.locator('[name=_token]').first.input_value(),
+        'revision':'1','briefing_sha256':'0'*64,'review_ack':'1'})
+    assert pending_review.status == 409, 'Pending fake payment must deny review'
+
     assert page.context.request.get(
         BASE + '/shop/orders/TEST-' + uuid.uuid4().hex + '/performance-snapshot'
     ).status == 404, 'Missing order fails closed'
@@ -196,6 +206,63 @@ with sync_playwright() as playwright:
     assert len(submitted['briefing_submission_sha256']) == 64
     assert snapshot() == submitted, 'Repeated authenticated GET is stable; no ledger invented'
 
+    # This is a NEW, distinct buyer review of the submitted revision and SHA,
+    # not a channel/account mandate and not a future Performance plan approval.
+    assert page.get_by_role('button', name='Validar revisão fictícia do briefing').count() == 1
+    buyer_csrf = page.locator('form[action$="/briefing-review"] [name=_token]').input_value()
+    review_form = {
+        '_token':buyer_csrf,'revision':str(submitted['briefing_submission_revision']),
+        'briefing_sha256':submitted['briefing_submission_sha256'],'review_ack':'1'}
+    wrong_sha = dict(review_form, briefing_sha256='0'*64)
+    assert page.context.request.post(review_url, form=wrong_sha).status == 409, 'Wrong digest must deny review'
+    old_revision = dict(review_form, revision=str(submitted['briefing_submission_revision']-1))
+    assert page.context.request.post(review_url, form=old_revision).status == 409, 'Stale revision must deny review'
+    assert snapshot()['briefing_review_state'] == 'not_approved'
+    page.locator('[name=review_ack]').check()
+    page.get_by_role('button',name='Validar revisão fictícia do briefing').click()
+    approved = snapshot()
+    assert approved['briefing_review_state'] == 'synthetic_buyer_approved'
+    assert approved['approved_briefing_revision'] == submitted['briefing_submission_revision']
+    assert approved['approved_briefing_sha256'] == submitted['briefing_submission_sha256']
+    assert approved['briefing_review_actor'] == user
+    assert approved['onboarding_state'] == 'briefing_approved_synthetic'
+    assert approved['purchase_state'] == 'synthetic_confirmed'
+    assert approved['ready_channels_count'] == 0
+    assert approved['decision_persisted_by_performance'] is False
+    assert approved['performance_s2s_proven'] is False
+    assert all(channel['decision_state']=='blocked' for channel in approved['channels'].values())
+    assert all(channel['campaign_state']=='not_created' for channel in approved['channels'].values())
+    # Cross-request idempotency through SQL (not a PHP array ledger).
+    replay = page.context.request.post(review_url, form=review_form)
+    assert replay.status == 200, 'Exact buyer review replay must be idempotent'
+    assert snapshot() == approved
+
+    assert re.fullmatch(r'TEST-[0-9a-f]{32}',oid)
+    assert re.fullmatch(r'demo-[0-9a-f]{32}',approved['company_id'])
+    assert re.fullmatch(r'[0-9a-f]{64}',approved['approved_briefing_sha256'])
+    sql = ("SELECT customer_id,order_id,order_revision,briefing_sha256,approved_by "
+           "FROM purchase_rehearsal.f423_briefing_reviews WHERE order_id='%s'" % oid)
+    query = subprocess.run([
+        'docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
+        '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
+        'exec','-T','database','psql','-X','-q','-t','-A','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','portal_purchase_rehearsal','-c',sql],
+        check=True,capture_output=True,text=True)
+    rows = [line.split('|') for line in query.stdout.splitlines() if line.strip()]
+    assert rows == [[approved['company_id'],oid,str(approved['approved_briefing_revision']),
+                    approved['approved_briefing_sha256'],user]], (
+        'One exact row in actual disposable PG18, never in-memory-only')
+    guard = subprocess.run([
+        'docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
+        '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
+        'exec','-T','database','psql','-X','-q','-t','-A','-v','ON_ERROR_STOP=1',
+        '-U','postgres','-d','portal_purchase_rehearsal','-c',
+        "SELECT relrowsecurity AND relforcerowsecurity FROM pg_class "
+        "WHERE oid='purchase_rehearsal.f423_briefing_reviews'::regclass"],
+        check=True,capture_output=True,text=True)
+    assert guard.stdout.strip() == 't', 'Approval ledger must FORCE RLS'
+
+
     # A different signed individual-customer scope cannot read this order.
     other = browser.new_context()
     other_page = other.new_page()
@@ -213,4 +280,4 @@ with sync_playwright() as playwright:
     assert other.request.get(snapshot_url).status == 404, 'Cross-customer order read blocked by signed FORCE RLS'
     other.close()
     browser.close()
-print('PASS F423: live Portal HTTP RLS-scoped order/briefing readback, fake payment and per-channel NO-GO; not Performance S2S or persisted decision.')
+print('PASS F423: buyer-approved exact briefing persisted once in PG18 under FORCE RLS and read by Portal HTTP; both channels still NO-GO, no Performance S2S or decision persistence.')

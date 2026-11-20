@@ -15,6 +15,37 @@ use Illuminate\Http\Request;
  */
 final class PerformanceOrderSnapshotLabController
 {
+    /**
+     * Browser POST by the authenticated fake buyer. Approval is NOT an Ads
+     * mandate or the later approval of a Performance plan.
+     */
+    public function approve(Request $request, string $id)
+    {
+        abort_unless(
+            getenv('GITHUB_ACTIONS') === 'true'
+            && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1'
+            && config('app.env') === 'staging',404
+        );
+        abort_unless(preg_match('/\ATEST-[a-f0-9]{32}\z/D',$id)===1,404);
+        abort_unless(array_diff(array_keys($request->all()),
+            ['_token','revision','briefing_sha256','review_ack'])===[],422);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile) && ($profile['role']??null)==='client'
+            && is_string($profile['customer_id']??null)
+            && is_string($profile['id']??null),403);
+        $v=$request->validate([
+            'revision'=>'required|integer|min:1|max:100000',
+            'briefing_sha256'=>['required','string','regex:/\A[a-f0-9]{64}\z/D'],
+            'review_ack'=>'accepted',
+        ]);
+        $store=app(CustomerPreviewStore::class);
+        abort_unless(is_array($store->read($profile['customer_id'],$id)),404);
+        abort_unless($store->approveF423Briefing(
+            $profile['customer_id'],$id,$profile['id'],(int)$v['revision'],$v['briefing_sha256']
+        ),409,'A revisão mudou ou a confirmação fictícia não é válida.');
+        return redirect('/_preview/portal/shop/orders/'.$id);
+    }
+
     public function show(Request $request, string $id)
     {
         abort_unless(
@@ -50,6 +81,12 @@ final class PerformanceOrderSnapshotLabController
         // Preserve the submission revision and digest as distinct fields.
         $briefing = $order['briefing'] ?? null;
         $submitted = is_array($briefing);
+        $digest = $submitted ? hash('sha256', json_encode($briefing, JSON_THROW_ON_ERROR)) : null;
+        $approval = $submitted
+            ? $store->f423BriefingApproval($owner, $id, (int)$order['revision'], $digest)
+            : null;
+        $buyerApproved = is_array($approval)
+            && ($approval['approval_kind'] ?? null) === 'ci_buyer_briefing_review';
         $channels = [];
         foreach (['google_ads', 'meta_ads'] as $provider) {
             if (!array_key_exists($provider, $media)) {
@@ -74,13 +111,15 @@ final class PerformanceOrderSnapshotLabController
             'order_revision' => $order['revision'],
             'purchase_state' => $confirmed ? 'synthetic_confirmed' : 'pending_or_unverified',
             'purchase_evidence' => $confirmed ? 'fake_provider_callback_only' : null,
-            'onboarding_state' => $submitted ? 'briefing_submitted_unreviewed' : 'awaiting_briefing',
+            'onboarding_state' => $buyerApproved ? 'briefing_approved_synthetic' : ($submitted ? 'briefing_submitted_unreviewed' : 'awaiting_briefing'),
             'briefing_submission_revision' => $submitted ? $order['revision'] : null,
             'briefing_submission_sha256' => $submitted
-                ? hash('sha256', json_encode($briefing, JSON_THROW_ON_ERROR))
+                ? $digest
                 : null,
-            'briefing_review_state' => 'not_approved',
-            'approved_briefing_revision' => null,
+            'briefing_review_state' => $buyerApproved ? 'synthetic_buyer_approved' : 'not_approved',
+            'approved_briefing_revision' => $buyerApproved ? $order['revision'] : null,
+            'approved_briefing_sha256' => $buyerApproved ? $digest : null,
+            'briefing_review_actor' => $buyerApproved ? $approval['approved_by'] : null,
             'channels' => $channels,
             'ready_channels_count' => 0,
             'decision_persisted_by_performance' => false,
