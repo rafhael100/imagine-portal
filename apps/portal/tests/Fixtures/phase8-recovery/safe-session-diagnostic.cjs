@@ -30,4 +30,17 @@ function safeSessionDiagnostic(stage, status, pathname, headingVisible, signals 
   return 'PHASE8_RECOVERY_SESSION_DIAGNOSTIC stage=' + safeStage
     + ' status=' + safeStatus + ' route=' + route + ' heading=' + heading + suffix;
 }
-module.exports = {safeSessionDiagnostic};
+// Only the existence of the fixed synthetic session cookie is observable.
+// Never return or log its name/value, metadata, domain, or the full cookie jar.
+// An unavailable browser state is unknown, not proof of a missing cookie.
+async function hasSessionCookie(context) {
+  try {
+    const cookies = await context.cookies();
+    if (!Array.isArray(cookies)) return null;
+    return cookies.some(item => item !== null && typeof item === 'object'
+      && item.name === 'imagine_performance_p6_session');
+  } catch {
+    return null;
+  }
+}
+module.exports = {safeSessionDiagnostic, hasSessionCookie};
