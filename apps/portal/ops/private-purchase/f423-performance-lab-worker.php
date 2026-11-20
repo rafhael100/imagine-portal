@@ -29,7 +29,10 @@ function signedRequest(string $method,string $path,string $company,string $key,?
 $path='/_preview/portal/lab-s2s/orders/'.$orderId;
 [$unauth]=signedRequest('GET',$path,$company,$key,null,'none');
 [$forged]=signedRequest('GET',$path,$company,$key,null,'signature');
-if($unauth!==403||$forged!==403) throw new RuntimeException('Unsigned/forged S2S request not denied');
+// Missing company header is deliberately indistinguishable from a
+// nonexistent order (404); an invalid signature with valid scope is 403.
+if(!in_array($unauth,[403,404],true)||$forged!==403)
+    throw new RuntimeException('Unsigned/forged S2S request not denied: unsigned='.$unauth.', forged='.$forged);
 [$status,$source]=signedRequest('GET',$path,$company,$key);
 if($status!==200||!is_array($source)) throw new RuntimeException('Portal S2S HTTP source unavailable: '.$status);
 if($source['schema']!=='portal_f423_ci_authenticated_order_source_v1'
