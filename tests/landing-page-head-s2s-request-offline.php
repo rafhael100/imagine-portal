@@ -56,7 +56,7 @@ foreach ([
     ['duplicate tenant',substr($landing,0,-1).',"tenantRef":"tenant-foreign"}'],
     ['escaped selector',str_replace('tenant-landing-lab-A','tenant-landing-\\u006cab-A',$landing)],
     ['reordered fields','{"tenantRef":"'.$tenant.'","schemaVersion":"sites.landing-page-current-head.fetch.v1","orderRef":"'.$order.'","siteRef":"'.$site.'","productCode":"landing_page"}'],
-    ['uppercase UUID',str_replace($site,strtoupper($site),$landing)],
+    ['uppercase UUID',str_replace($site,'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',$landing)],
     ['oversized',$landing.str_repeat(' ',1100)],
     ['invalid JSON','{'],
 ] as [$label,$bad]) {
