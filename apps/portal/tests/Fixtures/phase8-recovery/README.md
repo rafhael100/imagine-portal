@@ -74,6 +74,13 @@ allowlisted HTTP status, route class and heading visibility under
 `PHASE8_RECOVERY_SESSION_DIAGNOSTIC`. The browser assertion is unchanged:
 redirects to login, a missing heading or any non-200 result still fail the run.
 The offline classifier has negative tests for injected paths and statuses;
-no URL, cookie, response body, token or identity appears in CI logs. This is
-diagnostic instrumentation, **not** a fix or proof that the historical
-intermittence has ended (Portal issue #997).
+no URL, cookie, response body, token or identity appears in CI logs. The
+browser now captures **only** whether the fixed synthetic session cookie was
+present in the source context before snapshot/revocation, whether it is present
+when the restored-beta check fails, whether the source heading was visible,
+and whether the failed navigation followed an HTTP redirect. The values are
+serialized as `yes/no/unknown` only on failure; cookie contents and redirect
+URLs are never sent to the formatter. A cookie-presence flag is **not** proof
+of a server-accepted session; these signals distinguish likely failure paths
+for review, but do not prove any cause. This is diagnostic instrumentation,
+**not** a fix or proof that the historical intermittence has ended (Portal #997).
