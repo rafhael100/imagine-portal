@@ -66,6 +66,43 @@ with sync_playwright() as playwright:
     url = page.url
     assert '/shop/orders/' in url
     oid = url.rsplit('/',1)[1]
+    snapshot_url = url + '/performance-snapshot'
+
+    def snapshot():
+        response = page.context.request.get(snapshot_url)
+        assert response.status == 200, 'Real authenticated Portal source read must return HTTP 200'
+        payload = response.json()
+        assert payload['schema'] == 'portal_f423_ci_authenticated_order_source_v1'
+        assert payload['order_id'] == oid
+        assert payload['company_id'].startswith('demo-')
+        assert payload['source'] == 'ci_only_portal_customer_purchase_pg18'
+        assert payload['ready_channels_count'] == 0
+        assert payload['decision_persisted_by_performance'] is False
+        assert payload['performance_s2s_proven'] is False
+        assert payload['operational_enabled'] is False
+        assert payload['ads_write_enabled'] is False
+        assert payload['billable'] is False
+        assert set(payload['channels']) == {'google_ads','meta_ads'}
+        assert payload['channels']['google_ads']['media_cents'] == 100000
+        assert payload['channels']['meta_ads']['media_cents'] == 70000
+        for channel in payload['channels'].values():
+            assert channel['activation_cents'] == 49000
+            assert channel['decision_state'] == 'blocked'
+            assert channel['connection_state'] == 'not_connected'
+            assert channel['campaign_state'] == 'not_created'
+        return payload
+
+    unauthed = browser.new_context()
+    assert unauthed.request.get(snapshot_url).status == 403, 'No session must deny source read'
+    unauthed.close()
+    initial_snapshot = snapshot()
+    assert initial_snapshot['purchase_state'] == 'pending_or_unverified'
+    assert initial_snapshot['purchase_evidence'] is None
+    assert initial_snapshot['onboarding_state'] == 'awaiting_briefing'
+    assert initial_snapshot['approved_briefing_revision'] is None
+    assert page.context.request.get(
+        BASE + '/shop/orders/TEST-' + uuid.uuid4().hex + '/performance-snapshot'
+    ).status == 404, 'Missing order fails closed'
     text = page.locator('body').inner_text()
     assert 'R$ 980,00' in text and 'R$ 370,00' in text
     assert 'Ativação única' in text
@@ -135,9 +172,45 @@ with sync_playwright() as playwright:
     worker.process(row)
     page.reload()
     assert page.locator('[name=business]').count()==1, 'Trusted provider confirmation unlocks briefing'
+    confirmed = snapshot()
+    assert confirmed['purchase_state'] == 'synthetic_confirmed'
+    assert confirmed['purchase_evidence'] == 'fake_provider_callback_only'
+    assert confirmed['onboarding_state'] == 'awaiting_briefing'
+    assert confirmed['approved_briefing_revision'] is None
     assert len(api.posts)==2, 'No duplicated provider writes'
     assert page.locator('form[action$="/future-billing"]').count()==0
     assert page.locator('form[action$="/performance-report"]').count()==0
     assert 'R$ 980,00' in page.locator('body').inner_text()
+
+    # Persist actual briefing submission via the real Portal HTTP form.
+    # Submission is NOT an approval and must never mint a channel mandate.
+    for field in ('business','goal','audience','materials'):
+        page.locator('[name='+field+']').fill('Conteudo ficticio F423 '+field)
+    page.get_by_role('button',name='Salvar briefing de teste',exact=True).click()
+    submitted = snapshot()
+    assert submitted['purchase_state'] == 'synthetic_confirmed'
+    assert submitted['onboarding_state'] == 'briefing_submitted_unreviewed'
+    assert submitted['briefing_review_state'] == 'not_approved'
+    assert submitted['approved_briefing_revision'] is None
+    assert submitted['briefing_submission_revision'] > confirmed['order_revision']
+    assert len(submitted['briefing_submission_sha256']) == 64
+    assert snapshot() == submitted, 'Repeated authenticated GET is stable; no ledger invented'
+
+    # A different signed individual-customer scope cannot read this order.
+    other = browser.new_context()
+    other_page = other.new_page()
+    assert other_page.goto(BASE+'/register').status == 200
+    for name,value in [
+        ('name','Cliente ficticio de outra empresa'),
+        ('company','Empresa sintética B'),
+        ('username','demo-f423-other-'+uuid.uuid4().hex[:10]),
+        ('password','ci-other-customer-only-2026'),
+        ('password_confirmation','ci-other-customer-only-2026'),
+    ]:
+        other_page.locator('[name='+name+']').fill(value)
+    other_page.get_by_role('button',name='Criar conta e continuar',exact=True).click()
+    assert '/client/' in other_page.url
+    assert other.request.get(snapshot_url).status == 404, 'Cross-customer order read blocked by signed FORCE RLS'
+    other.close()
     browser.close()
-print('PASS F423: owned R$980 Performance activation sandbox only; HMAC/RLS, fake provider verification, no ad media/management invoice.')
+print('PASS F423: live Portal HTTP RLS-scoped order/briefing readback, fake payment and per-channel NO-GO; not Performance S2S or persisted decision.')

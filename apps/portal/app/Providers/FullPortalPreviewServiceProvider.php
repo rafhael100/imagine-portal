@@ -28,6 +28,13 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::get('shop',[\App\Http\Controllers\CustomerPreviewController::class,'shop']);
             Route::post('shop/orders',[\App\Http\Controllers\CustomerPreviewController::class,'create']);
             Route::get('shop/orders/{id}',[\App\Http\Controllers\CustomerPreviewController::class,'show']);
+            // CI-only: authenticated read from the real disposable purchase DB.
+            // No account mandate or purchase grant is derived from this snapshot.
+            if (getenv('GITHUB_ACTIONS') === 'true'
+                && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1') {
+                Route::get('shop/orders/{id}/performance-snapshot',
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'show']);
+            }
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
             Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
             Route::post('shop/orders/{id}/sandbox',[\App\Http\Controllers\CustomerPreviewController::class,'sandbox'])->middleware('throttle:preview-sandbox');
