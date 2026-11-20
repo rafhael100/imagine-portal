@@ -1,0 +1,7 @@
+# Portal Landing — provas de RLS com roles de leitura
+
+Cadeia independente: Portal #1015 → #1017 (base fixa 30f10691c6710e7b5effb220d0f4788c7f91914e) → esta PR; Sites #541/#542 → #559.
+
+O leitor Pg18LandingPageApprovedBriefHeadSourceCandidate antes tinha seu caminho positivo exercitado com role proprietária no PostgreSQL 18 descartável. Esta prova executa o mesmo leitor com três conexões de leitura PostgreSQL reais, não proprietárias e sem BYPASSRLS. Duas recebem políticas SELECT isoladas por tenant A e B; a terceira recebe GRANT SELECT mas nenhuma policy. Os testes cobrem leitura válida, denial cross-tenant/pedido/site, revogação, evolução de versão, ausência de writes, impossibilidade de assumir role B a partir da role A, e nenhuma transação aberta. A CI executa as regressões do reader e dos eventos terminais em PHP 8.3/8.4.
+
+**Limitações:** roles, senhas, atores, RLS policies e dados são exclusivamente sintéticos e efêmeros no CI. Não constituem migrations, mecanismo de identidade de serviço, autenticação real do aprovador, ledger oficial ou RLS em produção. A projeção de admissão e a custódia de pedido real seguem separadas. Não usar variável de sessão alterável pelo chamador como autoridade. O teste não prova aceites, geração/públicação, nem revogação posterior ao último readback. Dez gates continuam BLOQUEADOS. PR draft, sem merge/deploy/VPS/Cloudflare/DNS/Asaas/pagamento.
