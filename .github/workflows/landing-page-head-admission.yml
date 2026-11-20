@@ -1,0 +1,66 @@
+name: Portal Landing Page head admission (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/portal-landing-head-request-2026-11-19-r11']
+    paths:
+      - '.github/workflows/landing-page-head-admission.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/PortalLandingPageHeadServiceWitness.php'
+      - 'apps/portal/app/Domain/SitesIntegration/DenyingPortalLandingPageHeadServiceWitness.php'
+      - 'apps/portal/app/Domain/SitesIntegration/LandingPageCurrentHeadAdmissionCandidate.php'
+      - 'tests/landing-page-head-admission-offline.php'
+      - 'docs/PORTAL-LANDING-PAGE-HEAD-ADMISSION.md'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-admission-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-admission:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/portal-landing-head-admission-2026-11-19-r12' &&
+      github.event.pull_request.base.ref == 'feature/portal-landing-head-request-2026-11-19-r11' &&
+      github.event.pull_request.base.sha == '38564372940e6ca827d5559be9fc4537c52d1216'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 26c64e4046a7e6e286676d1620c9af8a20d721aa
+          path: .pinned-sites
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+      - name: Pin immutable Sites and lint PHP
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-sites rev-parse HEAD)" = 26c64e4046a7e6e286676d1620c9af8a20d721aa
+          php -l apps/portal/app/Domain/SitesIntegration/PortalLandingPageHeadServiceWitness.php
+          php -l apps/portal/app/Domain/SitesIntegration/DenyingPortalLandingPageHeadServiceWitness.php
+          php -l apps/portal/app/Domain/SitesIntegration/LandingPageCurrentHeadAdmissionCandidate.php
+          php -l tests/landing-page-head-admission-offline.php
+      - name: Validate Landing admission and earlier Landing/Onepage contracts
+        run: |
+          set -euo pipefail
+          php tests/landing-page-head-admission-offline.php | tee admission.log
+          grep -Eq '^PORTAL LANDING HEAD ADMISSION PASS: [0-9]+ checks;' admission.log
+          php tests/landing-page-head-s2s-request-offline.php | tee landing.log
+          grep -Eq '^PORTAL LANDING HEAD REQUEST PASS: [0-9]+ checks;' landing.log
+          php tests/onepage-current-head-s2s-dispatch-offline.php | tee onepage.log
+          grep -Eq '^PORTAL ONEPAGE HEAD DISPATCH PASS: [0-9]+ checks;' onepage.log
