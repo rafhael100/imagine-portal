@@ -1,6 +1,6 @@
 'use strict';
 const {chromium}=require('playwright');
-const {safeSessionDiagnostic}=require('./safe-session-diagnostic.cjs');
+const {safeSessionDiagnostic,hasSessionCookie}=require('./safe-session-diagnostic.cjs');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{execFileSync}=require('node:child_process');
 if(process.env.GITHUB_ACTIONS!=='true'||process.env.ADMIN_PHASE8_RECOVERY_CI!=='1')process.exit(1);
 const vault=JSON.parse(fs.readFileSync(process.env.P7_BROWSER_VAULT,'utf8'));
@@ -56,6 +56,10 @@ function otp(secret){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floo
   step('snapshot');
   let response=await visit(pages[1],live+'/portal-admin/performance-private/'+vault.users[1].company);
   check(response.status()===200,'post_snapshot_receipt_and_nonce_created');
+  // Capture only booleans while the synthetic source session is known good;
+  // this snapshot is never logged or stored as a browser artefact.
+  const sourceCookie = await hasSessionCookie(contexts[1]);
+  const sourceHeading = await pages[1].getByRole('heading',{name:'Estado da consulta'}).isVisible();
   step('revoke');
   await visit(pages[0],live+'/portal-admin/performance-private/'+vault.users[0].company);
   check(pages[0].url().endsWith('/portal-admin/login'),'current_source_session_revocation_effective');
@@ -71,7 +75,11 @@ function otp(secret){const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(Math.floo
     // heading visibility; NEVER print URLs, cookies, response bodies or secrets.
     let routePath;
     try {routePath = new URL(pages[1].url()).pathname;} catch {routePath = null;}
-    console.error(safeSessionDiagnostic('restored_beta', response.status(), routePath, restoredBetaHeading));
+    // Cookie contents and redirect destination must never reach diagnostics.
+    const restoredCookie = await hasSessionCookie(contexts[1]);
+    const redirected = response.request().redirectedFrom() !== null;
+    console.error(safeSessionDiagnostic('restored_beta', response.status(), routePath, restoredBetaHeading,
+      {sourceCookie, restoredCookie, sourceHeading, redirected}));
   }
   check(response.status()===200&&restoredBetaHeading,'pre_backup_active_database_session_survives_restore');
   check(await pages[1].getByText('Dados indisponíveis',{exact:true}).isVisible(),'restored_official_metrics_still_unavailable');
