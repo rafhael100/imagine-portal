@@ -118,6 +118,35 @@ foreach ([
     $deny(static fn()=>Plan::build($pair,$json(array_replace($editorial,$delta)),
         $renderSelection,$expected),$label);
 }
+// A digest-correct editorial body can still render misleading invisible text.
+// Fail closed on bidi overrides/isolates, BOM, hidden space and C0/C1 controls.
+foreach ([
+    'bidi override in brand'=>['brand'=>"Marca\u{202E}falsa"],
+    'bidi isolate in headline'=>['headline'=>"Título\u{2066}falso"],
+    'zero-width space in description'=>['description'=>"Texto\u{200B}oculto"],
+    'BOM in CTA'=>['callToAction'=>"Saiba\u{FEFF}mais"],
+    'Arabic direction mark in benefit'=>['benefits'=>["Valor\u{061C}alterado"]],
+    'C0 control in headline'=>['headline'=>"Oferta\u{0001}falsa"],
+    'C1 control in description'=>['description'=>"Texto\u{0085}oculto"],
+    'left-to-right mark in brand'=>['brand'=>"Marca\u{200E}falsa"],
+] as $label=>$delta) {
+    $deny(static fn()=>Plan::build(
+        $pair,$json(array_replace($editorial,$delta)),
+        $renderSelection,$expected,
+    ),'editorial invisible control: '.$label);
+}
+// Keep legitimate multilingual characters, emoji ZWJ and line breaks intact.
+$legitimateEditorial = $json(array_replace($editorial, [
+    'brand'=>'Ateliê fictício',
+    'headline'=>"Equipe \u{1F469}\u{200D}\u{1F4BB} em ação",
+    'description'=>"Linha um\r\nLinha dois",
+]));
+$legitimatePlan = Plan::build($pair,$legitimateEditorial,$renderSelection,$expected);
+$ok($legitimatePlan['editorialBytes']===$legitimateEditorial &&
+    $legitimatePlan['editorialSha256']===hash('sha256',$legitimateEditorial) &&
+    $legitimatePlan['canPublish']===false,
+    'legitimate Unicode, emoji joiner and CRLF retain exact bytes without authority');
+
 $badEditorial = substr($editorialBytes,0,-2)."\nNOT_JSON";
 $deny(static fn()=>Plan::build($pair,$badEditorial,$renderSelection,$expected),
     'malformed editorial bytes');
