@@ -53,7 +53,14 @@ final class PerformanceS2SLabController
         abort_unless(is_array($payload),422);
         try {
             $out=app(F423PerformanceDecisionStore::class)->persist((string)$company,$id,$payload);
-        } catch (\Throwable) {
+        } catch (\Throwable $failure) {
+            // CI-only and synthetic. Log a bounded code / hard-coded reason,
+            // never SQL details, request bodies, identities or secrets.
+            $reason=$failure instanceof \RuntimeException
+                && !$failure instanceof \PDOException
+                ? preg_replace('/[^a-zA-Z0-9 _-]/','',(string)$failure->getMessage())
+                : 'database_policy_or_sql_rejected';
+            error_log('F423 CI decision denied: '.substr((string)$reason,0,96));
             abort(409,'Synthetic purchase, approval, or decision conflict.');
         }
         return response()->json(['schema'=>'f423_ci_only_persisted_blocked_decisions_v1',...$out,
