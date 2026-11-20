@@ -54,8 +54,8 @@ $event=static function(string $tenant,int $version,string $kind='approved',
         'approval'=>"approval-$tenant-$version",'actor'=>$actor,'event_type'=>$kind,
     ]);
 };
-$read=static fn(string $tenant='tenant-A',string $order='order-A',string $siteRef=$site)
-    =>$reader->readCurrent($tenant,$order,$siteRef);
+$read=static fn(string $tenant='tenant-A',string $order='order-A',?string $siteRef=null)
+    =>$reader->readCurrent($tenant,$order,$siteRef ?? $site);
 $ok($read()===null,'missing head denies');
 $insert('tenant-A',1);$event('tenant-A',1);
 $first=$read();
