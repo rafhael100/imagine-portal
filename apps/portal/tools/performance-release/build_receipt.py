@@ -20,7 +20,7 @@ _spec.loader.exec_module(p)
 
 INPUT_SCHEMA = "imagine.performance.build.inputs.v1"
 RESULT_SCHEMA = "imagine.performance.build.receipt.v1"
-ENGINE_PIN = "3c225561ad2badc8796aa8aca0878b7161b63e62"
+ENGINE_PIN = "954bcbf091c2a256fb89783e5e4cfa5aac577475"
 SERVICES = ("portal", "portal-web", "receiver")
 REFERENCES = {"portal": "p7-portal-ci", "portal-web": "p7-web-ci", "receiver": "p7-receiver-ci"}
 REFERENCE_ENV = {"portal": "P6_PORTAL_IMAGE", "portal-web": "P6_PORTAL_WEB_IMAGE", "receiver": "P6_RECEIVER_IMAGE"}
