@@ -1,0 +1,63 @@
+name: Portal Landing PG18 atomic approved-head reader (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/portal-landing-approved-brief-head-2026-11-20-r14']
+    paths:
+      - '.github/workflows/landing-page-pg18-head-reader.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php'
+      - 'apps/portal/labs/landing-pg-head/**'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-pg18-head-reader-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  approved-head-pg18:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/portal-landing-pg18-approval-read-2026-11-20-r15' &&
+      github.event.pull_request.base.ref == 'integration/portal-landing-approved-brief-head-2026-11-20-r14' &&
+      github.event.pull_request.base.sha == 'e0f38d8d98c151ffa5743c9c372ac039074b9ea7'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Lint immutable candidate and disposable PG18 fixture
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php
+          php -l apps/portal/labs/landing-pg-head/probe.php
+          php -m | grep -x pdo_pgsql
+      - name: Verify real PG18 snapshot and retain original approval boundary regression
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-pg-head/probe.php | tee portal-pg18-head.log
+          grep -Eq '^PORTAL LANDING PG18 ATOMIC HEAD PASS: [0-9]+ checks;' portal-pg18-head.log
+          php tests/landing-page-approved-brief-head-offline.php | tee portal-approved-head.log
+          grep -Eq '^PORTAL LANDING APPROVED HEAD PASS: [0-9]+ checks;' portal-approved-head.log
