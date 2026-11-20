@@ -11,7 +11,7 @@ import pathlib
 import re
 import subprocess
 
-PIN = "7e5a11acd03c23c0a36687b510a4047a86d7c089"
+PIN = "62e8af2701f64624bddf4c011c15e50e8616cdad"
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 WORKFLOWS = (
     ".github/workflows/performance-phase7-exact-compose.yml",
