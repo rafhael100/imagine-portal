@@ -55,7 +55,7 @@ foreach ([
     ['tenantRef', ''],
     ['orderRef', 'order/lab'],
     ['orderRef', str_repeat('a',129)],
-    ['siteRef', strtoupper($wire['siteRef'])],
+    ['siteRef', strtoupper('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')],
     ['siteRef', '11111111-1111-1111-1111-111111111111/other'],
     ['siteRef', null],
     ['tenantRef', 42],
