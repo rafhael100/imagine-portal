@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: b395767aa523c71a6255d6fc6d83af8ba78f28ad
+          ref: ae544a9ee8a201c6c56390835925d69779a78e35
           path: engine
           persist-credentials: false
       - name: Read-only inventory regression
