@@ -20,4 +20,16 @@ const hostile = safeSessionDiagnostic('restored_beta', 9999,
 expect(hostile,
   'PHASE8_RECOVERY_SESSION_DIAGNOSTIC stage=restored_beta status=invalid route=other heading=unknown');
 assert(!hostile.includes('secret-token')); checks++;
+const signals = safeSessionDiagnostic('restored_beta', 302, '/portal-admin/login', false,
+  {sourceCookie: true, restoredCookie: false, sourceHeading: true, redirected: true});
+expect(signals, 'PHASE8_RECOVERY_SESSION_DIAGNOSTIC stage=restored_beta status=302 route=login heading=no'
+  + ' source_cookie=yes restored_cookie=no source_heading=yes redirected=yes');
+const sanitized = safeSessionDiagnostic('restored_beta', 200,
+  '/portal-admin/performance-private/company_beta', false,
+  {sourceCookie: 'PRIVATE_COOKIE_VALUE_DO_NOT_LOG', restoredCookie: null,
+    sourceHeading: 'secret', redirected: false, access_token: 'PRIVATE_BEARER_DO_NOT_LOG'});
+expect(sanitized, 'PHASE8_RECOVERY_SESSION_DIAGNOSTIC stage=restored_beta status=200 route=private heading=no'
+  + ' source_cookie=unknown restored_cookie=unknown source_heading=unknown redirected=no');
+assert(!sanitized.includes('PRIVATE_COOKIE_VALUE_DO_NOT_LOG')); checks++;
+assert(!sanitized.includes('PRIVATE_BEARER_DO_NOT_LOG')); checks++;
 console.log('PHASE8_RECOVERY_SAFE_DIAGNOSTIC_TEST_PASS: ' + checks + ' checks');
