@@ -24,6 +24,17 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Checkout exact read-only Performance #458 fixture (not official authority)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-performance-ai
+          ref: 33f3e86cdf5d7378ed17f9877addc407fe41db17
+          path: perf-f423
+          persist-credentials: false
+      - name: Check pinned Performance fixture HEAD and no external operations
+        run: |
+          test "$(git -C perf-f423 rev-parse HEAD)" = "33f3e86cdf5d7378ed17f9877addc407fe41db17"
+          test -f perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php
       - name: Build existing locked runtime from official base images
         run: docker build -f infra/development/portal-auth/Dockerfile -t imagine-portal-private-auth:local .
       - name: Build isolated purchase application before generating private files
@@ -45,6 +56,11 @@ jobs:
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-payment-schema.sql
           # Reviewed synthetic buyer briefing record only; NOT Ads/financial authority.
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-briefing-review-schema.sql
+          # Second pre-DDL fence: effective Laravel + SQL PG18 must attest the
+          # disposable destination AFTER the buyer review schema exists.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-performance-bridge-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-performance-decisions-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
@@ -140,6 +156,24 @@ jobs:
           # Run the new channel activation LAST to preserve existing account
           # and report-throttle tests. It respects Retry-After itself.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
+          # The buyer actually approved the briefing in PG18. Fetch its exact
+          # synthetic owner/order from SQL; never mint an independent signal.
+          cd apps/portal/ops/private-purchase
+          row=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT customer_id||'|'||order_id FROM purchase_rehearsal.f423_briefing_reviews ORDER BY approved_at DESC LIMIT 1")
+          [[ "$row" =~ ^demo-[a-f0-9]{32}\|TEST-[a-f0-9]{32}$ ]] || exit 1
+          owner=${row%%|*}; order=${row#*|}
+          # Two genuinely separate Performance PHP workers: SQL INSERT must be
+          # durable/idempotent and isolated from the worker (no DB credentials).
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/worker.php "$owner" "$order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/worker.php "$owner" "$order"
+          rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+             -U postgres -d portal_purchase_rehearsal -c \
+             "SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='$owner' AND order_id='$order'")
+          test "$rows" = 2
+          cd ../../../..
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_performance_readback.py
           cd apps/portal/ops/private-purchase
           # Prove the shared application SQL login cannot enumerate another
           # customer's identity, orders, events, invoices or financial reports.
@@ -162,6 +196,9 @@ jobs:
           PY
           docker compose exec -T database psql -U postgres -d portal_purchase_rehearsal -Atc 'SELECT count(*) FROM purchase_rehearsal.orders' > /tmp/purchase-count-after
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
+          cd ../../../..
+          F423_RESTARTED=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_performance_readback.py
+          cd apps/portal/ops/private-purchase
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
           PURCHASE_PREVIEW_BASE: http://127.0.0.1:18083/_rehearsal/purchase
