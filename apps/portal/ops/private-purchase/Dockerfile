@@ -20,6 +20,7 @@ COPY apps/portal/tools/operator_performance_report.php ./tools/operator_performa
 COPY apps/portal/app/Http/Controllers/PurchaseRehearsalController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php ./app/Providers/
 COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehearsal
+COPY apps/portal/ops/private-purchase/f423-approval-preflight.php ./f423-approval-preflight.php
 COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 COPY apps/portal/ops/private-purchase/test_route_gate.php ./private-preview-route-gate.test.php
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
