@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-performance-ai
-          ref: 3db4581e8a0621ec3c11be55c833d149a61e935b
+          ref: 78d364710d997cc982da9e55b4a0aad8f01e3901
           path: engine
           persist-credentials: false
       - name: Verify pinned candidate engine revision (offline)
