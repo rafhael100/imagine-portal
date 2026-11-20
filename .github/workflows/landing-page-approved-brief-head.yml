@@ -9,6 +9,7 @@ on:
       - 'apps/portal/app/Domain/SitesIntegration/CurrentApprovedLandingPageBriefHeadSource.php'
       - 'apps/portal/app/Domain/SitesIntegration/DenyingCurrentApprovedLandingPageBriefHeadSource.php'
       - 'apps/portal/app/Domain/SitesIntegration/LandingPageCurrentApprovedBriefGate.php'
+      - 'apps/portal/app/Domain/SitesIntegration/LandingPagePrivateBriefEnvelopeCandidate.php'
       - 'tests/landing-page-approved-brief-head-offline.php'
 permissions:
   contents: read
@@ -50,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C .pinned-sites rev-parse HEAD)" = fbcbc9d090e62b2cd20c302ff9e549cfa46ef185
-          for file in apps/portal/app/Domain/SitesIntegration/{ApprovedLandingPageBriefHead,CurrentApprovedLandingPageBriefHeadSource,DenyingCurrentApprovedLandingPageBriefHeadSource,LandingPageCurrentApprovedBriefGate}.php tests/landing-page-approved-brief-head-offline.php; do php -l "$file"; done
+          for file in apps/portal/app/Domain/SitesIntegration/{ApprovedLandingPageBriefHead,CurrentApprovedLandingPageBriefHeadSource,DenyingCurrentApprovedLandingPageBriefHeadSource,LandingPageCurrentApprovedBriefGate,LandingPagePrivateBriefEnvelopeCandidate}.php tests/landing-page-approved-brief-head-offline.php; do php -l "$file"; done
       - name: Run versioned approval and adversarial regressions
         run: |
           set -euo pipefail
