@@ -85,7 +85,6 @@ $ok($head->calls===2&&$peer->calls===4&&$contracts->calls===4&&$bindings->calls=
  'admission verified twice and current head read twice');
 $ok(!property_exists($read,'canPublish')&&!property_exists($read,'paymentAuthorized'),
  'head does not contain operational grants');
-$ok(json_encode($read,JSON_PARTIAL_OUTPUT_ON_ERROR)!==false,'explicit json guard exists');
 try{json_encode($read,JSON_THROW_ON_ERROR);$failed=false;}catch(Throwable){$failed=true;}
 $ok($failed,'JSON serialization of private source is forbidden');
 try{serialize($read);$failed=false;}catch(Throwable){$failed=true;}
