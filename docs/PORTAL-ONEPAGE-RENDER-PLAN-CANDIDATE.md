@@ -109,6 +109,25 @@ pelo `BriefSnapshotInput` fixado. **Não constituem atestação de origem,
 aprovação do cliente, identidade nem autorização para publicar**. Toda
 verificação de posse, idempotência e revogação durável permanece separada.
 
+## Regressão de caracteres invisíveis no editorial (20/11/2026)
+
+O compositor sintético recusa controles C0/C1 não imprimíveis,
+marcadores bidi de override/isolate, BOM, espaço de largura zero e marcas
+direcionais explícitas em brand, headline, description, callToAction
+e cada item de benefits. Esses caracteres antes podiam passar pela
+validação com hashes corretos e confundir uma revisão visual do HTML.
+
+A regra preserva UTF-8 legítimo, acentos, CRLF, tabulação e sequências
+emoji com ZWJ. Não remove, escapa nem reescreve o texto: preserva os
+bytes íntegros de uma entrada admissível ou recusa os bytes inadequados.
+O teste acrescenta oito negativas e um caso positivo, conservando a
+paridade com o renderer original Sites pinado.
+
+O recorte é apenas de entrada sintética offline. Não implementa
+sanitização HTML, revisão humana, identidade Portal, autorização de
+publicação nem alterações em regras comerciais. Gates AppSec/DBA/LGPD,
+P0/RF-PEND e homologação continuam abertos.
+
 ## Pendências de homologação operacional
 
 Faltam um **leitor Portal autorizado e versionado** para o corpo rico,
