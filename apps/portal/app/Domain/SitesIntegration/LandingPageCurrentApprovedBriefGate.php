@@ -33,6 +33,10 @@ final readonly class LandingPageCurrentApprovedBriefGate
                 !hash_equals($first->sourceBytes(), $second->sourceBytes())) {
                 throw new RuntimeException();
             }
+            // Final custody check catches an observed revocation during the last head read.
+            if ($this->admission->inspect($requestBytes, $verifiedPeerServiceRef) !== $before) {
+                throw new RuntimeException();
+            }
             return $second;
         } catch (Throwable) {
             throw new RuntimeException('PORTAL_LANDING_PAGE_APPROVED_BRIEF_DENIED');
