@@ -10,6 +10,7 @@ foreach ([
  'LandingPageCurrentHeadS2sRequestCandidate','LandingPageCurrentHeadAdmissionCandidate',
  'ApprovedLandingPageBriefHead','CurrentApprovedLandingPageBriefHeadSource',
  'DenyingCurrentApprovedLandingPageBriefHeadSource','LandingPageCurrentApprovedBriefGate',
+ 'LandingPagePrivateBriefEnvelopeCandidate',
 ] as $name) require_once __DIR__.'/../apps/portal/app/Domain/SitesIntegration/'.$name.'.php';
 
 use App\Domain\SitesIntegration\{SiteContractSnapshot,PortalSiteContractSource,
@@ -83,6 +84,21 @@ $ok($read->sourceVersion===3&&$read->approvalEpoch===2,'latest approved version 
 $ok(hash_equals(hash('sha256',$read->sourceBytes()),$read->sourceSha256),'original source bytes matched hash');
 $ok($head->calls===2&&$peer->calls===6&&$contracts->calls===6&&$bindings->calls===6,
  'admission verified three times and current head read twice');
+$privateWire=\App\Domain\SitesIntegration\LandingPagePrivateBriefEnvelopeCandidate::encode($read);
+$privateDecoded=json_decode($privateWire,true,8,JSON_THROW_ON_ERROR);
+$ok($privateDecoded['sourceBytes']===$read->sourceBytes() &&
+    $privateDecoded['sourceSha256']===$read->sourceSha256,
+    'explicit private handoff preserves exact source bytes and digest');
+$ok(array_keys($privateDecoded)===[
+    'schemaVersion','tenantRef','orderRef','siteRef','contractRef','contractRevision',
+    'productCode','sourceVersion','sourceSha256','approvalRef','approvalEpoch','sourceBytes'],
+    'handoff has exact fields and no publishing authority');
+$ok($privateDecoded['productCode']==='landing_page' &&
+    $privateDecoded['sourceVersion']===3 &&
+    $privateDecoded['approvalEpoch']===2,
+    'private handoff remains Landing and version-bound');
+$ok(!str_contains($privateWire,'"canPublish"') && !str_contains($privateWire,'"clientAccepted"'),
+    'handoff does not convey approval of publication or client acceptance');
 $ok(!property_exists($read,'canPublish')&&!property_exists($read,'paymentAuthorized'),
  'head does not contain operational grants');
 try{json_encode($read,JSON_THROW_ON_ERROR);$failed=false;}catch(Throwable){$failed=true;}
