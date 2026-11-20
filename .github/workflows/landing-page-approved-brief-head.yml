@@ -1,0 +1,63 @@
+name: Portal Landing approved brief head (draft, fail-closed)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['security/portal-landing-site-bound-admission-2026-11-20-r13']
+    paths:
+      - '.github/workflows/landing-page-approved-brief-head.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/ApprovedLandingPageBriefHead.php'
+      - 'apps/portal/app/Domain/SitesIntegration/CurrentApprovedLandingPageBriefHeadSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/DenyingCurrentApprovedLandingPageBriefHeadSource.php'
+      - 'apps/portal/app/Domain/SitesIntegration/LandingPageCurrentApprovedBriefGate.php'
+      - 'apps/portal/app/Domain/SitesIntegration/LandingPagePrivateBriefEnvelopeCandidate.php'
+      - 'tests/landing-page-approved-brief-head-offline.php'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-approved-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  approval-head:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/portal-landing-approved-brief-head-2026-11-20-r14' &&
+      github.event.pull_request.base.ref == 'security/portal-landing-site-bound-admission-2026-11-20-r13' &&
+      github.event.pull_request.base.sha == '9f85a3c2d4923bfa0420de2c0278859934833f55'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: fbcbc9d090e62b2cd20c302ff9e549cfa46ef185
+          path: .pinned-sites
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Lint approval and verify immutable Sites candidate
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-sites rev-parse HEAD)" = fbcbc9d090e62b2cd20c302ff9e549cfa46ef185
+          for file in apps/portal/app/Domain/SitesIntegration/{ApprovedLandingPageBriefHead,CurrentApprovedLandingPageBriefHeadSource,DenyingCurrentApprovedLandingPageBriefHeadSource,LandingPageCurrentApprovedBriefGate,LandingPagePrivateBriefEnvelopeCandidate}.php tests/landing-page-approved-brief-head-offline.php; do php -l "$file"; done
+      - name: Run versioned approval and adversarial regressions
+        run: |
+          set -euo pipefail
+          php tests/landing-page-approved-brief-head-offline.php | tee approval-head.log
+          grep -Eq '^PORTAL LANDING APPROVED HEAD PASS: [0-9]+ checks;' approval-head.log
+          php tests/landing-page-head-admission-offline.php | tee admission.log
+          grep -Eq '^PORTAL LANDING HEAD ADMISSION PASS: [0-9]+ checks;' admission.log
+          php tests/landing-page-head-s2s-request-offline.php | tee request.log
+          grep -Eq '^PORTAL LANDING HEAD REQUEST PASS: [0-9]+ checks;' request.log
