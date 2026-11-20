@@ -13,7 +13,8 @@ use Throwable;
  * Not wired to HTTP, routes, containers, migrations or production.
  *
  * One REPEATABLE READ snapshot joins the latest revision to its approval event.
- * A later audit event for that revision invalidates the approval. Reading a
+ * Any terminal revocation/supersession for this revision (even if earlier
+ * than a forged reapproval) or a later audit event invalidates approval. Reading a
  * head does NOT authenticate the approver or the requesting service.
  */
 final class Pg18LandingPageApprovedBriefHeadSourceCandidate
@@ -64,7 +65,11 @@ SELECT r.tenant_ref, r.order_ref, r.site_ref, r.contract_ref,
           AND future.order_ref = r.order_ref
           AND future.site_ref = r.site_ref
           AND future.source_version = r.source_version
-          AND future.event_sequence > a.event_sequence
+          -- A terminal event is irreversible for this revision, even if
+          -- an inconsistent writer subsequently inserts an approval. Any
+          -- other later event also invalidates the exact approval snapshot.
+          AND (future.event_sequence > a.event_sequence
+               OR future.event_type IN ('revoked', 'superseded'))
    )
 SQL);
             $statement->execute([
