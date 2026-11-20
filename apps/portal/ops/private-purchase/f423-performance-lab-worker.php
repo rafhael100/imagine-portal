@@ -90,6 +90,17 @@ $packet=['company_id'=>$company,'order_id'=>$orderId,'source_order_alias'=>$sour
 [$tampered]=signedRequest('POST',$path.'/decisions',$company,$key,
  array_replace($packet,['briefing_sha256'=>str_repeat('0',64)]));
 if($tampered!==409) throw new RuntimeException('Mismatched signed digest must be denied');
+// A correctly signed and internally consistent (rehashed) packet with a
+// different Meta amount must still fail against the Portal's exact offer.
+$wrongPrice=$packet;
+$wrongPrice['channels']['meta_ads']['media_cents']=70001;
+$wrongPrice['channels']['meta_ads']['fingerprint']=hash('sha256',implode("\0",[
+ $company,$orderId,(string)$order['briefing_revision'],$order['briefing_sha256'],
+ 'meta_ads','70001',$out['meta_ads']['account_fingerprint'],
+ 'blocked','mandate_or_s2s_denied'
+]));
+[$wrongPriceStatus]=signedRequest('POST',$path.'/decisions',$company,$key,$wrongPrice);
+if($wrongPriceStatus!==409) throw new RuntimeException('Mismatched signed Meta amount must be denied');
 [$wrongCompany]=signedRequest('GET',$path,'demo-'.str_repeat('a',32),$key);
 if($wrongCompany!==404) throw new RuntimeException('Other company must not read synthetic order');
 [$status,$response]=signedRequest('POST',$path.'/decisions',$company,$key,$packet);

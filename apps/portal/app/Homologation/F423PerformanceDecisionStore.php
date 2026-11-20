@@ -78,8 +78,13 @@ final class F423PerformanceDecisionStore
             if($q->fetchColumn()===false) throw new RuntimeException('Fake payment not confirmed in SQL');
             $offer=json_decode((string)$order['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
             $media=$offer['media_by_channel_cents']??null;
+            // PostgreSQL jsonb does not preserve object insertion/key order.
+            // Match the *exact* provider set, then check strict integer amounts.
+            $mediaKeys=is_array($media)?array_keys($media):[];
+            sort($mediaKeys,SORT_STRING);
             if(!is_array($media) || ($offer['activation_per_channel_cents']??null)!==49000
-                || array_keys($media)!==['google_ads','meta_ads']
+                || $mediaKeys!==['google_ads','meta_ads']
+                || !is_int($media['google_ads']) || !is_int($media['meta_ads'])
                 || $media['google_ads']!==100000 || $media['meta_ads']!==70000) {
                 throw new RuntimeException('Different synthetic offer');
             }
