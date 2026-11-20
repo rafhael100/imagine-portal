@@ -4,3 +4,27 @@ services:
       GITHUB_ACTIONS: 'true'
       PORTAL_PREVIEW_LOOPBACK_TEST: '1'
       APP_URL: http://127.0.0.1:18083
+    volumes:
+      - ./.private/performance-app-key:/run/secrets/f423-performance-key:ro
+  # Entirely separate PHP process/container, no SQL credentials, no browser
+  # session, no external Ads or PSP network. Uses pinned Performance #458.
+  performance-lab:
+    profiles: [on-demand]
+    image: php:8.3-cli-alpine
+    entrypoint: [php]
+    user: '70:70'
+    environment:
+      GITHUB_ACTIONS: 'true'
+      PORTAL_PREVIEW_LOOPBACK_TEST: '1'
+    volumes:
+      - ./f423-performance-lab-worker.php:/lab/worker.php:ro
+      - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
+      - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro
+    networks: [private]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=4m']
+    restart: 'no'
+    mem_limit: 64m
+    cpus: 0.25

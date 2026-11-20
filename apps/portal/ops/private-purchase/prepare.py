@@ -9,6 +9,7 @@ webhook_db_password = secrets.token_hex(32)  # Only the one-shot webhook SQL bro
 psp_password = secrets.token_hex(32)  # The payment worker receives no web-app secret.
 scope_key = secrets.token_hex(32)  # Never exposed through SQL application role.
 admin = secrets.token_hex(32)
+performance_ci_key = secrets.token_hex(32)  # EPHEMERAL CI-only HTTP S2S. NOT official IAM.
 key = 'base64:' + base64.b64encode(secrets.token_bytes(32)).decode()
 sql = """CREATE SCHEMA purchase_rehearsal;
 CREATE TABLE purchase_rehearsal.orders (
@@ -33,7 +34,7 @@ CREATE POLICY preview_scope ON purchase_rehearsal.orders FOR ALL
  USING (tenant='test-org-a' AND current_user='purchase_rehearsal_a')
  WITH CHECK (tenant='test-org-a' AND current_user='purchase_rehearsal_a');
 """ % (password, webhook_db_password, psp_password, scope_key)
-for name,content,uid in [('runtime.json',json.dumps({'database_password':password,'app_key':key,'customer_scope_key':scope_key}),82),('admin-password',admin,70),('init.sql',sql,70),('hook.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_hook:'+webhook_db_password,70),('broker.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_psp:'+psp_password,70)]:
+for name,content,uid in [('runtime.json',json.dumps({'database_password':password,'app_key':key,'customer_scope_key':scope_key}),82),('admin-password',admin,70),('init.sql',sql,70),('hook.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_hook:'+webhook_db_password,70),('broker.pgpass','database:5432:portal_purchase_rehearsal:purchase_rehearsal_psp:'+psp_password,70),('performance-app-key',performance_ci_key,82),('performance-worker-key',performance_ci_key,70)]:
     file = root / name
     file.write_text(content)
     file.chmod(0o400)

@@ -62,7 +62,17 @@ final class PerformanceOrderSnapshotLabController
             && is_string($profile['customer_id'] ?? null),
             403
         );
-        $owner = $profile['customer_id'];
+        return $this->source($profile['customer_id'],$id);
+    }
+
+    /** Shared *verified-source* read: buyer session or authenticated CI S2S only. */
+    public function source(string $owner, string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+            && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+            && config('app.env')==='staging'
+            && preg_match('/\ATEST-[a-f0-9]{32}\z/D',$id)===1
+            && preg_match('/\Ademo-[a-f0-9]{32}\z/D',$owner)===1,404);
         $store = app(CustomerPreviewStore::class);
         $order = $store->read($owner, $id);
         abort_unless(is_array($order) && ($order['product'] ?? null) === 'performance', 404);
@@ -103,6 +113,34 @@ final class PerformanceOrderSnapshotLabController
             ];
         }
         abort_unless($channels !== [], 409);
+        // Real PostgreSQL decisions by an authenticated LAB S2S consumer.
+        // This is not a campaign draft and cannot imply operational readiness.
+        $stored=$submitted && $buyerApproved
+            ? app(\App\Homologation\F423PerformanceDecisionStore::class)->read(
+                $owner,$id,(int)$order['revision'],$digest
+              ) : [];
+        $complete=count($stored)===count($channels);
+        if($complete) {
+            foreach($channels as $provider=>&$channel) {
+                if(!isset($stored[$provider])
+                    || $stored[$provider]['media_cents']!==$channel['media_cents']) {
+                    $complete=false; break;
+                }
+                $channel['decision_state']=$stored[$provider]['state'];
+                $channel['decision_reason']=$stored[$provider]['reason'];
+            }
+            unset($channel);
+        }
+        if(!$complete) {
+            foreach($channels as &$channel) {
+                $channel['decision_state']='blocked';
+                $channel['decision_reason']='incomplete_or_unverified_performance_decision';
+            }
+            unset($channel);
+        }
+        $ready=0;
+        if($complete) foreach($channels as $channel)
+            if($channel['decision_state']==='internal_review_only') ++$ready;
         $response = [
             'schema' => 'portal_f423_ci_authenticated_order_source_v1',
             'source' => 'ci_only_portal_customer_purchase_pg18',
@@ -121,9 +159,9 @@ final class PerformanceOrderSnapshotLabController
             'approved_briefing_sha256' => $buyerApproved ? $digest : null,
             'briefing_review_actor' => $buyerApproved ? $approval['approved_by'] : null,
             'channels' => $channels,
-            'ready_channels_count' => 0,
-            'decision_persisted_by_performance' => false,
-            'performance_s2s_proven' => false,
+            'ready_channels_count' => $ready,
+            'decision_persisted_by_performance' => $complete,
+            'performance_s2s_proven' => $complete,
             'operational_enabled' => false,
             'ads_write_enabled' => false,
             'billable' => false,

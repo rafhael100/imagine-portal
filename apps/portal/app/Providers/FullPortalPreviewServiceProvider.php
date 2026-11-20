@@ -49,6 +49,18 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::get('client/{section}',[FullPortalPreviewController::class,'client']);
             Route::get('admin/{section}',[FullPortalPreviewController::class,'admin']);
         });
+        // CI-only machine routes are deliberately NOT in the browser web
+        // group: no session/CSRF cookie is minted or accepted. Every request
+        // is instead authenticated using the ephemeral signed test key.
+        if (getenv('GITHUB_ACTIONS') === 'true'
+            && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1') {
+            Route::prefix('_preview/portal/lab-s2s')->group(function(): void {
+                Route::get('orders/{id}',
+                    [\App\Http\Controllers\PerformanceS2SLabController::class,'source']);
+                Route::post('orders/{id}/decisions',
+                    [\App\Http\Controllers\PerformanceS2SLabController::class,'persist']);
+            });
+        }
         $this->app['router']->getRoutes()->refreshNameLookups();
     }
 }
