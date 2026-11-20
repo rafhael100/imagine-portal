@@ -1,0 +1,66 @@
+name: Portal Landing PG18 terminal-event fence (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/portal-landing-pg18-approval-read-2026-11-20-r15']
+    paths:
+      - '.github/workflows/landing-page-pg18-terminal-event-fence.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php'
+      - 'apps/portal/labs/landing-pg-head/terminal-event-probe.php'
+      - 'apps/portal/labs/landing-pg-head/TERMINAL-EVENT-FENCE.md'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-terminal-fence-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  terminal-event-pg18:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-pg18-terminal-revocation-2026-11-20-r16' &&
+      github.event.pull_request.base.ref == 'integration/portal-landing-pg18-approval-read-2026-11-20-r15' &&
+      github.event.pull_request.base.sha == '3c3ba328111445394ad756b9a12507db393a62d1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Lint isolated candidate and security regression
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php
+          php -l apps/portal/labs/landing-pg-head/terminal-event-probe.php
+          php -m | grep -x pdo_pgsql
+      - name: PG18 terminal-event attack and baseline regression
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-pg-head/terminal-event-probe.php | tee terminal-event.log
+          grep -Eq '^PORTAL LANDING PG18 TERMINAL FENCE PASS: [0-9]+ checks;' terminal-event.log
+          php apps/portal/labs/landing-pg-head/probe.php | tee pg18-head-regression.log
+          grep -Eq '^PORTAL LANDING PG18 ATOMIC HEAD PASS: [0-9]+ checks;' pg18-head-regression.log
+          php tests/landing-page-approved-brief-head-offline.php | tee offline-approval-regression.log
+          grep -Eq '^PORTAL LANDING APPROVED HEAD PASS: [0-9]+ checks;' offline-approval-regression.log
