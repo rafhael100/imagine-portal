@@ -1,0 +1,66 @@
+name: Portal Onepage canonical S2S dispatch to current head (draft only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/portal-onepage-current-head-request-2026-11-19-r9']
+    paths:
+      - '.github/workflows/onepage-current-head-s2s-dispatch.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/OnepageCurrentHeadS2sDispatchCandidate.php'
+      - 'tests/onepage-current-head-s2s-dispatch-offline.php'
+      - 'docs/PORTAL-ONEPAGE-CURRENT-HEAD-S2S-DISPATCH.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-onepage-head-dispatch-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  request-to-current-head:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/portal-onepage-head-dispatch-2026-11-19-r10' &&
+      github.event.pull_request.base.ref == 'integration/portal-onepage-current-head-request-2026-11-19-r9' &&
+      github.event.pull_request.base.sha == '51cc13a3baf1ac7c95fce226378296d9a7d76022'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 2d8f9cd639dde4ba016220383b6dfcbccc103a2c
+          path: .pinned-sites
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, curl
+          coverage: none
+      - name: Pin source and lint contracts
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-sites rev-parse HEAD)" = 2d8f9cd639dde4ba016220383b6dfcbccc103a2c
+          php -l apps/portal/app/Domain/SitesIntegration/OnepageCurrentHeadS2sDispatchCandidate.php
+          php -l apps/portal/app/Domain/SitesIntegration/OnepageCurrentHeadS2sRequestCandidate.php
+          php -l tests/onepage-current-head-s2s-dispatch-offline.php
+          php -l .pinned-sites/apps/sites/app/Integration/PortalOnepageHeadRequestCandidate.php
+      - name: Exercise canonical request, independent S2S authority and response
+        run: |
+          set -euo pipefail
+          php tests/onepage-current-head-s2s-dispatch-offline.php | tee dispatch.log
+          grep -Eq '^PORTAL ONEPAGE HEAD DISPATCH PASS: [0-9]+ checks;' dispatch.log
+          php tests/onepage-current-head-s2s-request-offline.php | tee request.log
+          grep -Eq '^PORTAL ONEPAGE CURRENT HEAD REQUEST PASS: [0-9]+ checks;' request.log
