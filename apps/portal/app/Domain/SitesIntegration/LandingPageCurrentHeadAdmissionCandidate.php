@@ -1,25 +1,20 @@
 <?php
 declare(strict_types=1);
 namespace App\Domain\SitesIntegration;
-
 use RuntimeException;
 use Throwable;
 
 /**
- * Read-only candidate for Landing Page pre-head admission, not an HTTP endpoint.
- * It checks tenant, order and product using independent Portal sources and a
- * service witness. The source itself MUST enforce site/tenant authorization.
- *
- * The result is not client approval, current briefing, payment, publication,
- * acceptance, or a transactional read. Official providers are not installed.
+ * Default-denied Landing admission. An order-level contract never grants site ownership.
+ * The independent Portal site binding must match exact tenant/order/site/contract/revision.
+ * Offline candidate only: no official provider, mTLS route, transaction, approval or publication.
  */
 final readonly class LandingPageCurrentHeadAdmissionCandidate
 {
     public function __construct(
-        private PortalLandingPageHeadServiceWitness $service =
-            new DenyingPortalLandingPageHeadServiceWitness(),
-        private PortalSiteContractSource $contracts =
-            new DenyingPortalSiteContractSource(),
+        private PortalLandingPageHeadServiceWitness $service = new DenyingPortalLandingPageHeadServiceWitness(),
+        private PortalSiteContractSource $contracts = new DenyingPortalSiteContractSource(),
+        private PortalLandingPageSiteOrderBindingSource $bindings = new DenyingPortalLandingPageSiteOrderBindingSource(),
     ) {}
 
     /** @return array{tenantRef:string,orderRef:string,siteRef:string,contractRef:string,contractRevision:int,productCode:string} */
@@ -36,25 +31,34 @@ final readonly class LandingPageCurrentHeadAdmissionCandidate
             if (!$this->service->permits($verifiedPeerServiceRef, $tenant, $order, $site)) {
                 throw new RuntimeException();
             }
-            $before = $this->contracts->findAuthorizedSiteOrder($order);
-            if (!self::matches($before, $tenant, $order)) {
+            $beforeContract = $this->contracts->findAuthorizedSiteOrder($order);
+            if (!self::matchesContract($beforeContract, $tenant, $order)) {
                 throw new RuntimeException();
             }
-            // Detect changed service entitlement or order projection; this is
-            // NOT a database transaction and cannot establish brief freshness.
+            $beforeBinding = $this->bindings->readCurrentBinding($tenant, $order, $site);
+            if (!self::matchesBinding($beforeBinding, $beforeContract, $tenant, $order, $site)) {
+                throw new RuntimeException();
+            }
+            // Rereads detect observed changes; they do NOT create a transaction or defeat ABA.
             if (!$this->service->permits($verifiedPeerServiceRef, $tenant, $order, $site)) {
                 throw new RuntimeException();
             }
-            $after = $this->contracts->findAuthorizedSiteOrder($order);
-            if (!self::matches($after, $tenant, $order) || $after != $before) {
+            $afterContract = $this->contracts->findAuthorizedSiteOrder($order);
+            if (!self::matchesContract($afterContract, $tenant, $order) ||
+                $afterContract != $beforeContract) {
+                throw new RuntimeException();
+            }
+            $afterBinding = $this->bindings->readCurrentBinding($tenant, $order, $site);
+            if (!self::matchesBinding($afterBinding, $afterContract, $tenant, $order, $site) ||
+                $afterBinding != $beforeBinding) {
                 throw new RuntimeException();
             }
             return [
                 'tenantRef' => $tenant,
                 'orderRef' => $order,
                 'siteRef' => $site,
-                'contractRef' => $before->contractRef,
-                'contractRevision' => $before->contractRevision,
+                'contractRef' => $beforeContract->contractRef,
+                'contractRevision' => $beforeContract->contractRevision,
                 'productCode' => 'landing_page',
             ];
         } catch (Throwable) {
@@ -62,11 +66,22 @@ final readonly class LandingPageCurrentHeadAdmissionCandidate
         }
     }
 
-    private static function matches(?SiteContractSnapshot $contract, string $tenant, string $order): bool
+    private static function matchesContract(?SiteContractSnapshot $value, string $tenant, string $order): bool
     {
-        return $contract instanceof SiteContractSnapshot &&
-            $contract->productCode === 'landing_page' &&
-            $contract->tenantRef === $tenant &&
-            $contract->orderRef === $order;
+        return $value instanceof SiteContractSnapshot &&
+            $value->tenantRef === $tenant &&
+            $value->orderRef === $order &&
+            $value->productCode === 'landing_page';
+    }
+
+    private static function matchesBinding(
+        ?LandingPageSiteOrderBinding $binding, SiteContractSnapshot $contract,
+        string $tenant, string $order, string $site,
+    ): bool {
+        return $binding instanceof LandingPageSiteOrderBinding &&
+            $binding->tenantRef === $tenant && $binding->orderRef === $order &&
+            $binding->siteRef === $site && $binding->productCode === 'landing_page' &&
+            $binding->contractRef === $contract->contractRef &&
+            $binding->contractRevision === $contract->contractRevision;
     }
 }
