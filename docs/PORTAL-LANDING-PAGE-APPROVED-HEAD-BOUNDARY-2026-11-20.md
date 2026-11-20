@@ -13,6 +13,11 @@ contract/version churn, missing approval, revoked service, missing binding and
 changed bytes are denied with one redacted error. Source bytes must never be
 serialized as JSON, PHP object wire, debug text, CI log or GitHub fixture.
 
+The explicit `LandingPagePrivateBriefEnvelopeCandidate` may encode those original
+bytes only at a future authenticated private transport boundary. This **candidate**
+wire shape is not authority; Sites must validate selectors, approval epoch and
+exact source version against independently trusted state before use.
+
 **Not operational:** the test source is synthetic; no Postgres approval ledger,
 authenticated reviewer, mTLS configuration, route, payment settlement, renderer,
 release, technical publication or customer acceptance exists here. Two reads are
