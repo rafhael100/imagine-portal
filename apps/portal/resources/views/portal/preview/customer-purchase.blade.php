@@ -94,6 +94,23 @@
 @else<p>O briefing será liberado após aprovação na modalidade de teste escolhida.</p>@endif
 @else
 <section><h2>Briefing salvo no Portal de teste</h2><p>Atualize esta página para conferir a recuperação do pedido e do briefing pelo servidor.</p><dl>@foreach($order['briefing'] as $field=>$value)<dt>{{ ['business'=>'Empresa fictícia','goal'=>'Objetivo','audience'=>'Público','materials'=>'Materiais'][$field] }}</dt><dd>{{ $value }}</dd>@endforeach</dl></section>
+@if(getenv('GITHUB_ACTIONS')==='true' && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1' && $order['product']==='performance')
+<section><h2>Revisão do briefing fictício pelo comprador</h2>
+@if(($order['f423_review']['approval_kind']??null)==='ci_buyer_briefing_review')
+<p class="status">Revisão exata validada pelo comprador autenticado nesta simulação.</p>
+<p>Isto não concede acesso a Google/Meta e não aprova o plano posterior do Performance.</p>
+@else
+<p>A submissão do briefing ainda não equivale à validação. Confirme esta revisão específica apenas no laboratório CI.</p>
+<form method="post" action="{{ url('/_preview/portal/shop/orders/'.$order['id'].'/briefing-review') }}">
+@csrf
+<input type="hidden" name="revision" value="{{ $order['revision'] }}">
+<input type="hidden" name="briefing_sha256" value="{{ hash('sha256',json_encode($order['briefing'],JSON_THROW_ON_ERROR)) }}">
+<label><input type="checkbox" name="review_ack" value="1" required> Eu, comprador fictício autenticado, valido exclusivamente esta revisão do briefing; não autorizo conta Ads, gasto ou campanhas.</label>
+<button type="submit">Validar revisão fictícia do briefing</button>
+</form>
+@endif
+</section>
+@endif
 @endif
 @endif
 <p><a href="/_preview/portal/client/services">Ver meus pedidos no painel</a></p><footer>Imagine · homologação privada · sem cobrança real</footer></main></body></html>
