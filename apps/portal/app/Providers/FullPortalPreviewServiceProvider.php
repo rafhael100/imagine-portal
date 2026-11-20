@@ -36,11 +36,6 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'show']);
                 Route::post('shop/orders/{id}/briefing-review',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approve']);
-                // Only CI loopback: signed test S2S; never an Ads authority.
-                Route::get('lab-s2s/orders/{id}',
-                    [\App\Http\Controllers\PerformanceS2SLabController::class,'source']);
-                Route::post('lab-s2s/orders/{id}/decisions',
-                    [\App\Http\Controllers\PerformanceS2SLabController::class,'persist']);
             }
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
             Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
@@ -54,6 +49,18 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
             Route::get('client/{section}',[FullPortalPreviewController::class,'client']);
             Route::get('admin/{section}',[FullPortalPreviewController::class,'admin']);
         });
+        // CI-only machine routes are deliberately NOT in the browser web
+        // group: no session/CSRF cookie is minted or accepted. Every request
+        // is instead authenticated using the ephemeral signed test key.
+        if (getenv('GITHUB_ACTIONS') === 'true'
+            && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1') {
+            Route::prefix('_preview/portal/lab-s2s')->group(function(): void {
+                Route::get('orders/{id}',
+                    [\App\Http\Controllers\PerformanceS2SLabController::class,'source']);
+                Route::post('orders/{id}/decisions',
+                    [\App\Http\Controllers\PerformanceS2SLabController::class,'persist']);
+            });
+        }
         $this->app['router']->getRoutes()->refreshNameLookups();
     }
 }
