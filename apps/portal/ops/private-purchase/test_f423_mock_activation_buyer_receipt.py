@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -124,6 +125,42 @@ with sync_playwright() as p:
         text = response.text()
         assert "f423-performance-key" not in text
         assert "f423_mock_activation_ci_v1" not in text
+
+        # New isolated CI proof: the mock writes only to ephemeral /tmp (tmpfs).
+        # Restart its existing container; the prior receipt MUST be gone.
+        # The upstream PAUSED stage and the authenticated buyer/PG18 draft
+        # stay intact. An old 200 would be an unsafe stale evidence leak.
+        subprocess.run(compose + ["start", "f423-mock-activation"], check=True)
+        for attempt in range(30):
+            status = buyer.context.request.get(receipt).status
+            if status == 404:
+                break
+            assert status == 503, (
+                f"Mock restarted with unexpected exercise receipt HTTP {status}"
+            )
+            time.sleep(0.5)
+        else:
+            raise AssertionError("Restarted mock did not reach clean empty state")
+        paused_url = f"{base}/shop/orders/{order}/paused-stage-receipt"
+        assert buyer.context.request.get(paused_url).status == 200, (
+            "PAUSED source must remain readable when activation mock restarts"
+        )
+
+        # A new explicit synthetic exercise is required after restart.
+        # This second lifecycle is still only in a private CI mock, never Ads.
+        subprocess.run(worker, check=True)
+        restored_response = buyer.goto(receipt)
+        assert restored_response.status == 200
+        assert buyer.locator("#activation-state").inner_text() == (
+            "ci_mock_activation_exercised_not_delivered"
+        )
+        assert buyer.locator("#activation-count").inner_text() == "um único exercício"
+        assert buyer.locator("#activation-stage").inner_text() == (
+            re.fullmatch(r"[a-f0-9]{64}", buyer.locator("#activation-stage").inner_text()).group()
+        )
+        assert buyer.context.request.get(receipt).status == 200
+        subprocess.run(compose + ["stop", "f423-mock-activation"], check=True)
+        assert buyer.context.request.get(receipt).status == 503
     browser.close()
 
-print("PASS F423 BUYER MOCK ACTIVATION RECEIPT ALL: same authenticated buyer before/after/outage, two container replays, no external Ads or delivery")
+print("PASS F423 MOCK RESTART: buyer mock receipt fails closed on stop; restart clears ephemeral event 404 while PAUSED remains 200; fresh synthetic exercise yields one new receipt, no Ads delivery")
