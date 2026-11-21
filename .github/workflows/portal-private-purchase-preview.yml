@@ -65,6 +65,11 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-google-plan-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-plan-schema.sql
+          # Plan buyer approval is a distinct immutable ledger, gated by another
+          # read-only actual Laravel and TCP SQL disposable PG18 preflight.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-plan-approval-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-plan-approval-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private

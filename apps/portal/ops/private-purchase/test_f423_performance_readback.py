@@ -68,7 +68,9 @@ with sync_playwright() as playwright:
         assert plan['sample_impressions']==1000 and plan['sample_clicks']==40
         assert plan['sample_conversions']==2 and plan['media_cents']==100000
         assert plan['proposed_action']=='review_search_terms_only'
-        assert plan['buyer_plan_approved'] is False
+        assert plan['buyer_plan_approved'] is bool(os.getenv('F423_RESTARTED'))
+        assert plan['plan_approval_state']==('synthetic_buyer_approved' if os.getenv('F423_RESTARTED') else 'not_approved')
+        assert data['plan_approved'] is bool(os.getenv('F423_RESTARTED'))
         assert plan['campaign_draft_created'] is False and plan['operational_enabled'] is False
         assert len(plan['plan_fingerprint'])==64
     else:
@@ -83,6 +85,37 @@ with sync_playwright() as playwright:
             assert channel['decision_reason']=='mandate_or_s2s_denied'
         assert channel['connection_state']=='not_connected'
         assert channel['campaign_state']=='not_created'
+    if GOOGLE_ONLY and not os.getenv('F423_RESTARTED'):
+        review_url=BASE+'/shop/orders/'+order+'/plan-review'
+        unauthenticated=browser.new_context()
+        assert unauthenticated.request.get(review_url).status==403, 'Anonymous plan review forbidden'
+        unauthenticated.close()
+        rendered=page.goto(review_url)
+        assert rendered.status==200
+        assert '1000' in page.locator('body').inner_text() and 'fict' in page.locator('body').inner_text().lower()
+        assert plan['plan_fingerprint'] in page.locator('body').inner_text(), 'Exact plan fingerprint must be shown before approval'
+        token=page.locator('form[action$="/plan-review"] [name=_token]').input_value()
+        payload={'_token':token,'revision':revision,'plan_version':'1',
+                 'plan_fingerprint':plan['plan_fingerprint'],'approval_ack':'1'}
+        assert page.context.request.post(review_url,form=dict(payload,plan_fingerprint='0'*64)).status==409
+        assert page.context.request.post(review_url,form=dict(payload,revision=str(int(revision)+1))).status==409
+        assert page.context.request.post(review_url,form=dict(payload,plan_version='2'),headers={'Accept':'application/json'}).status==422
+        assert page.context.request.post(review_url,form=dict(payload,approval_ack=''),headers={'Accept':'application/json'}).status==422
+        assert page.context.request.get(endpoint).json()['plan_approved'] is False
+        page.locator('[name=approval_ack]').check()
+        page.get_by_role('button',name='Aprovar plano fictício exibido').click()
+        assert page.locator('#approval-state').inner_text()=='synthetic_buyer_approved'
+        assert page.context.request.post(review_url,form=payload).status==200, 'Exact approval replay is idempotent'
+        fresh=page.context.request.get(endpoint).json()
+        assert fresh['plan_approved'] is True
+        assert fresh['diagnostic_plan']['buyer_plan_approved'] is True
+        assert fresh['diagnostic_plan']['plan_fingerprint']==plan['plan_fingerprint']
+        assert fresh['campaign_drafts_created']==0
+        assert fresh['channels']['google_ads']['campaign_state']=='not_created'
+        assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_plan_approvals WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND plan_fingerprint='%s' AND approved_by='%s'"%(owner,order,revision,plan['plan_fingerprint'],user))=='1'
+        assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_plan_approvals'::regclass")=='t'
+        assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_plan_approvals','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_plan_approvals','DELETE'))")=='t'
+        data=fresh
     assert page.context.request.get(endpoint).json()==data
     browser.close()
 print('PASS F423: Portal buyer HTTP re-read of same exact PG18 '+('Google-only' if GOOGLE_ONLY else 'Google+Meta')+' order/review, Google synthetic internal-only'+('' if GOOGLE_ONLY else ', Meta blocked')+', exactly one internal review, durable after fresh process'+(' and SQL restart' if os.getenv('F423_RESTARTED') else ''))
