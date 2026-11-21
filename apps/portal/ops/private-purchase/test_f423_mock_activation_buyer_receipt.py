@@ -9,9 +9,7 @@ import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-assert len(sys.argv) == 2 and sys.argv[1] in {
-    "not-exercised", "exercised", "unavailable"
-}
+assert len(sys.argv) == 2 and sys.argv[1] == "all"
 mode = sys.argv[1]
 owner = os.environ["F423_STAGE_OWNER"]
 order = os.environ["F423_STAGE_ORDER"]
@@ -68,7 +66,19 @@ with sync_playwright() as p:
         f"{base}/shop/orders/TEST-{'f'*32}/mock-activation-receipt"
     ).status == 404
 
-    if mode == "exercised":
+    if mode == "all":
+        # One authenticated buyer session across all three stages prevents
+        # CI login throttling from obscuring the original negative controls.
+        assert buyer.context.request.get(receipt).status == 404, (
+            "No mock exercise receipt before an explicit synthetic decision"
+        )
+        compose = ["docker", "compose",
+            "-f", "apps/portal/ops/private-purchase/compose.yaml",
+            "-f", "apps/portal/ops/private-purchase/compose.ci.yaml"]
+        worker = compose + ["run", "--rm", "-T", "performance-lab",
+            "/lab/mock-activation-worker.php", owner, order]
+        subprocess.run(worker, check=True)
+        subprocess.run(worker, check=True)  # second process, no duplication
         response = buyer.goto(receipt)
         assert response.status == 200, response.status
         assert buyer.locator("#activation-order").inner_text() == order
@@ -106,14 +116,14 @@ with sync_playwright() as p:
         assert "/admin/" in admin.url
         assert admin.context.request.get(receipt).status == 403
         admin.close()
-    else:
+        # Stop only the simulator, not the PAUSED source. The same buyer
+        # must now receive fail-closed 503, never a stale success receipt.
+        subprocess.run(compose + ["stop", "f423-mock-activation"], check=True)
         response = buyer.context.request.get(receipt)
-        expected = 404 if mode == "not-exercised" else 503
-        assert response.status == expected, (mode, response.status)
+        assert response.status == 503, ("unavailable", response.status)
         text = response.text()
         assert "f423-performance-key" not in text
         assert "f423_mock_activation_ci_v1" not in text
     browser.close()
 
-print("PASS F423 BUYER MOCK ACTIVATION RECEIPT " + mode.upper()
-      + ": verified exact CI order, no external Ads or delivery")
+print("PASS F423 BUYER MOCK ACTIVATION RECEIPT ALL: same authenticated buyer before/after/outage, two container replays, no external Ads or delivery")
