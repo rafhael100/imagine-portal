@@ -21,6 +21,7 @@ def login(page,who):
 def check_contract(page,rev):
     assert page.locator('h1').inner_text()=='Revisar contrato fictício Landing'
     assert page.locator('#order').inner_text()=='landing-order-001'
+    assert page.locator('#contract-ref').inner_text()==read()['contractRef']
     assert page.locator('#revision').inner_text()==str(rev)
     doc=page.locator('#terms').inner_text()
     digest=page.locator('#digest').inner_text()
