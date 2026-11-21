@@ -1,8 +1,8 @@
-name: Portal Landing R38 refuse state drift between provider reads (NO-GO)
+name: Portal Landing R39 refuse misleading HTTP content encoding (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r37-presentation-headers-2026-11-21']
+    branches: ['test/portal-landing-r38-provider-state-drift-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -14,6 +14,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_presentation_header_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_content_encoding_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -27,9 +28,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r37-presentation-headers-2026-11-21' &&
-      github.event.pull_request.base.sha == '4b49a18d94c4f820489885d9c05db9de2e7a9a74'
+      github.event.pull_request.head.ref == 'test/portal-landing-r39-content-encoding-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
+      github.event.pull_request.base.sha == '84e1fe2b98e4ab6e1907be35bb92645c4449be8b'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -299,6 +300,402 @@ jobs:
             trap - EXIT
           done
           echo 'R37_PRESENTATION_CONTROL_DENIAL_PASS: 4 NEW NEGATIVE_ENDPOINT_CHECKS; NO_REAL_EGRESS'
+      - name: R39 reject misleading content coding on state and HTML before receipt
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_content_encoding_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          for coding in gzip br; do
+            LANDING_R39_ENCODING="$coding" php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r39-$coding-provider.log" 2>&1 & P=$!
+            trap 'kill "$P" 2>/dev/null || true' EXIT
+            ready=0
+            for i in $(seq 1 30); do
+              if curl --noproxy '*' --raw -fsS --max-time 2 -D "$RUNNER_TEMP/r39-$coding-state.headers" -o /dev/null http://127.0.0.1:8791/ci/state &&
+                 grep -Eqi '^Content-Encoding: '"$coding"'\r?
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-wrong-mime.log" 2>&1 & BAD_MIME=$!
+          trap 'kill "$BAD_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && printf '%s' "$headers" | grep -Eqi '^content-type: text/plain'; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:8791/ci/served)" = 200
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-mime-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-mime-proof.txt"
+          kill "$BAD_MIME"
+          wait "$BAD_MIME" 2>/dev/null || true
+          # The other negative is two contradictory Content-Type fields in
+          # one HTTP 200, not a missing field or a wrong JSON/body digest.
+          LANDING_R36_DUPLICATE=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-duplicate-mime.log" 2>&1 & DUP_MIME=$!
+          trap 'kill "$DUP_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            n="$(printf '%s' "$headers" | grep -Eic '^content-type:' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && test "$n" -eq 2; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          kill "$DUP_MIME"
+          wait "$DUP_MIME" 2>/dev/null || true
+          trap - EXIT
+          echo 'R36_WRONG_AND_DUPLICATE_MIME_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; NORMAL_R28_PROVIDER_UNMODIFIED'
+      - name: R35 deny ambiguous provider state before any receipt or release authority
+        run: |
+          set -euo pipefail
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$receipt"
+          php "$receipt" probe-state-canonical | tee "$RUNNER_TEMP/r35-canonical-proof.txt"
+          grep -F 'R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r35-canonical-proof.txt"
+      - name: IN127-R05 local provider loses ACK after durable apply, state first and no retry
+        run: |
+          set -euo pipefail
+          file=apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php
+          php "$file" init
+          r29file=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php "$r29file" init
+          # A receipt cannot be issued on mere approval or a pre-apply ACK.
+          if php "$r29file" issue > "$RUNNER_TEMP/r29-premature.txt" 2>&1; then
+            echo "ERROR: premature delivery receipt was issued"; exit 1
+          fi
+          php -S 127.0.0.1:8791 "$file" > "$RUNNER_TEMP/r28-provider.log" 2>&1 & PROVIDER=$!
+          php -S 127.0.0.1:8790 "$file" > "$RUNNER_TEMP/r28-proxy.log" 2>&1 & PROXY=$!
+          trap 'kill "$PROVIDER" "$PROXY" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            status="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8790/release || true)"
+            if [ "$status" = 403 ]; then break; fi
+            sleep 1
+          done
+          test "$status" = 403
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r28-before.json"
+          grep -F '"state":"PENDING"' "$RUNNER_TEMP/r28-before.json"
+          test "$(curl --noproxy '*' -s -o "$RUNNER_TEMP/r28-suppressed.txt" -w '%{http_code}' \
+            --max-time 5 -X POST -H 'Content-Type: application/json' \
+            --data '{"requestRef":"ci-landing-v2-probe-001"}' \
+            http://127.0.0.1:8790/ci/submit)" = 504
+          grep -F ACK_SUPPRESSED_BY_CI_PROXY "$RUNNER_TEMP/r28-suppressed.txt"
+          php "$file" reconcile | tee "$RUNNER_TEMP/r28-proof.log"
+          grep -F 'R28_LOST_ACK_RECONCILED_NO_RETRY; APPLIED_ONCE=1' "$RUNNER_TEMP/r28-proof.log"
+          grep -F 'DEADLINE_UNCHANGED; MOCK_ONLY; FORM=OFF; PUBLISH=NO_GO' "$RUNNER_TEMP/r28-proof.log"
+          php "$file" reconcile-wrong-digest | grep -F 'R28_WRONG_HEAD_BLOCKED; NO_SECOND_DISPATCH'
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
+            'http://127.0.0.1:8791/ci/state?tenantRef=tenant-B&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci')" = 403
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:8791/release)" = 403
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r28-after.json"
+          grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r28-after.json"
+          echo 'R28_MOCK_PROVIDER_RECONCILED_WITHOUT_REPEAT; RELEASE_PUBLIC=NO_GO'
+          # New R29 proof starts only after the independently confirmed release.
+          # R32: two independent PHP processes race for the same synthetic
+          # receipt. Exactly one insertion, one idempotent replay. No renewal.
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-a.txt" 2>&1 & ISSUE_A=$!
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-b.txt" 2>&1 & ISSUE_B=$!
+          wait "$ISSUE_A"
+          wait "$ISSUE_B"
+          cat "$RUNNER_TEMP/r32-issue-a.txt" "$RUNNER_TEMP/r32-issue-b.txt"
+          test "$(grep -l 'R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          test "$(grep -l 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          php "$r29file" count-receipts | tee "$RUNNER_TEMP/r32-count.txt"
+          grep -F 'R32_ONE_SCOPED_RECEIPT_PG18; COUNT=1; REPLAY_NO_NEW_ROW; NO_GO' "$RUNNER_TEMP/r32-count.txt"
+          php "$r29file" issue | tee "$RUNNER_TEMP/r32-third-replay.txt"
+          grep -F 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP/r32-third-replay.txt"
+          php "$r29file" readback | tee "$RUNNER_TEMP/r29-readback.txt"
+          grep -F 'R29_INDEPENDENT_RECEIPT_READBACK' "$RUNNER_TEMP/r29-readback.txt"
+          php -S 127.0.0.1:8792 "$r29file" > "$RUNNER_TEMP/r29-delivery.log" 2>&1 & DELIVERY=$!
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/r29-login.log" 2>&1 & LOGIN=$!
+          trap 'kill "$PROVIDER" "$PROXY" "$DELIVERY" "$LOGIN" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8792/lab/delivery | grep -qx 403; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          python apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py | tee "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R29_PRIVATE_BUYER_DELIVERY_PASS:' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R34_CANONICAL_DELIVERY_REF_PASS: 3 new negative browser checks; NO_GO' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
+      - name: R38 refuse APPLIED-to-PENDING provider drift between state and HTML reads
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          counter=/tmp/landing-r38-ci-state-counter
+          printf '0' > "$counter"
+          LANDING_R38_STATE_DRIFT_LAB=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r38-adversarial-provider.log" 2>&1 & BAD_PROVIDER=$!
+          trap 'kill "$BAD_PROVIDER" 2>/dev/null || true; rm -f "$counter"' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8791/ci/r38-ready | grep -Fq CI_ONLY_STATE_DRIFT_READY; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-first.json"
+          grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r38-first.json"
+          curl --noproxy '*' -fsS http://127.0.0.1:8791/ci/served > "$RUNNER_TEMP/r38-served.html"
+          sha="$(sed -n 's/^V2_LANDING_HTML_SHA256=//p' "$RUNNER_TEMP/r26-evidence.log")"
+          test -n "$sha"
+          test "$(sha256sum "$RUNNER_TEMP/r38-served.html" | cut -d' ' -f1)" = "$sha"
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-second.json"
+          grep -F '"state":"PENDING","sideEffects":1' "$RUNNER_TEMP/r38-second.json"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          php "$receipt" probe-state-drift | tee "$RUNNER_TEMP/r38-denial.log"
+          grep -F 'R38_STATE_DRIFT_BETWEEN_GETS_DENIED; NO_NEW_RECEIPT; NO_GO; LOOPBACK_ONLY' "$RUNNER_TEMP/r38-denial.log"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          if php "$receipt" issue > "$RUNNER_TEMP/r38-issue-denied.log" 2>&1; then
+            echo 'ERROR: R38 stale provider state issued a receipt'; exit 1
+          fi
+          test "$(cat "$counter")" = 2
+          count="$(PGPASSWORD=ci-only psql -h 127.0.0.1 -U postgres -d postgres -Atqc "SELECT count(*) FROM landing_delivery_r29.receipts WHERE tenant_ref='tenant-A' AND buyer_ref='buyer-A' AND order_ref='landing-order-001'")"
+          test "$count" = 1
+          echo 'R38_PROVIDER_DRIFT_DENIED; EXISTING_RECEIPTS=1; NEW_RECEIPTS=0; NO_REAL_EGRESS'
+      - name: Revocation invalidates independent source despite stale mTLS fixture
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php revoke
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php check-revoked
+          php apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php readback-revoked
+      - name: Confirm no operational endpoint, IAM writer or publisher bound
+        run: |
+          set -euo pipefail
+          test -d sites-mtls-snapshot/apps/sites/app/Providers
+          test -d sites-mtls-snapshot/apps/sites/routes
+          test -f sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          ! grep -R -n -E 'PortalClientApprovalMtlsHttpSource|SignedPortalClientApprovalGate' \
+            sites-mtls-snapshot/apps/sites/app/Providers sites-mtls-snapshot/apps/sites/routes
+          grep -F 'new DenyingPortalAuthorityGateway()' \
+            sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          echo 'F1-395 transport is unbound; default-deny publisher. Sites #38 NO-GO.'
+      - name: Destroy ephemeral PKI and listener
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/f395.pid" ]; then kill "$(cat "$RUNNER_TEMP/f395.pid")" 2>/dev/null || true; fi
+          rm -rf -- /tmp/f388-fixture
+ "$RUNNER_TEMP/r39-$coding-state.headers"; then ready=1; break; fi
+              sleep 1
+            done
+            test "$ready" = 1
+            for endpoint in state served; do
+              curl --noproxy '*' --raw -fsS --max-time 2 -D "$RUNNER_TEMP/r39-$coding-$endpoint.headers" -o "$RUNNER_TEMP/r39-$coding-$endpoint.bytes" "http://127.0.0.1:8791/ci/$endpoint"
+              grep -Eqi '^Content-Encoding: '"$coding"'\r?
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-wrong-mime.log" 2>&1 & BAD_MIME=$!
+          trap 'kill "$BAD_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && printf '%s' "$headers" | grep -Eqi '^content-type: text/plain'; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:8791/ci/served)" = 200
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-mime-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-mime-proof.txt"
+          kill "$BAD_MIME"
+          wait "$BAD_MIME" 2>/dev/null || true
+          # The other negative is two contradictory Content-Type fields in
+          # one HTTP 200, not a missing field or a wrong JSON/body digest.
+          LANDING_R36_DUPLICATE=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-duplicate-mime.log" 2>&1 & DUP_MIME=$!
+          trap 'kill "$DUP_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            n="$(printf '%s' "$headers" | grep -Eic '^content-type:' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && test "$n" -eq 2; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          kill "$DUP_MIME"
+          wait "$DUP_MIME" 2>/dev/null || true
+          trap - EXIT
+          echo 'R36_WRONG_AND_DUPLICATE_MIME_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; NORMAL_R28_PROVIDER_UNMODIFIED'
+      - name: R35 deny ambiguous provider state before any receipt or release authority
+        run: |
+          set -euo pipefail
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$receipt"
+          php "$receipt" probe-state-canonical | tee "$RUNNER_TEMP/r35-canonical-proof.txt"
+          grep -F 'R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r35-canonical-proof.txt"
+      - name: IN127-R05 local provider loses ACK after durable apply, state first and no retry
+        run: |
+          set -euo pipefail
+          file=apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php
+          php "$file" init
+          r29file=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php "$r29file" init
+          # A receipt cannot be issued on mere approval or a pre-apply ACK.
+          if php "$r29file" issue > "$RUNNER_TEMP/r29-premature.txt" 2>&1; then
+            echo "ERROR: premature delivery receipt was issued"; exit 1
+          fi
+          php -S 127.0.0.1:8791 "$file" > "$RUNNER_TEMP/r28-provider.log" 2>&1 & PROVIDER=$!
+          php -S 127.0.0.1:8790 "$file" > "$RUNNER_TEMP/r28-proxy.log" 2>&1 & PROXY=$!
+          trap 'kill "$PROVIDER" "$PROXY" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            status="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8790/release || true)"
+            if [ "$status" = 403 ]; then break; fi
+            sleep 1
+          done
+          test "$status" = 403
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r28-before.json"
+          grep -F '"state":"PENDING"' "$RUNNER_TEMP/r28-before.json"
+          test "$(curl --noproxy '*' -s -o "$RUNNER_TEMP/r28-suppressed.txt" -w '%{http_code}' \
+            --max-time 5 -X POST -H 'Content-Type: application/json' \
+            --data '{"requestRef":"ci-landing-v2-probe-001"}' \
+            http://127.0.0.1:8790/ci/submit)" = 504
+          grep -F ACK_SUPPRESSED_BY_CI_PROXY "$RUNNER_TEMP/r28-suppressed.txt"
+          php "$file" reconcile | tee "$RUNNER_TEMP/r28-proof.log"
+          grep -F 'R28_LOST_ACK_RECONCILED_NO_RETRY; APPLIED_ONCE=1' "$RUNNER_TEMP/r28-proof.log"
+          grep -F 'DEADLINE_UNCHANGED; MOCK_ONLY; FORM=OFF; PUBLISH=NO_GO' "$RUNNER_TEMP/r28-proof.log"
+          php "$file" reconcile-wrong-digest | grep -F 'R28_WRONG_HEAD_BLOCKED; NO_SECOND_DISPATCH'
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
+            'http://127.0.0.1:8791/ci/state?tenantRef=tenant-B&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci')" = 403
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:8791/release)" = 403
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r28-after.json"
+          grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r28-after.json"
+          echo 'R28_MOCK_PROVIDER_RECONCILED_WITHOUT_REPEAT; RELEASE_PUBLIC=NO_GO'
+          # New R29 proof starts only after the independently confirmed release.
+          # R32: two independent PHP processes race for the same synthetic
+          # receipt. Exactly one insertion, one idempotent replay. No renewal.
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-a.txt" 2>&1 & ISSUE_A=$!
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-b.txt" 2>&1 & ISSUE_B=$!
+          wait "$ISSUE_A"
+          wait "$ISSUE_B"
+          cat "$RUNNER_TEMP/r32-issue-a.txt" "$RUNNER_TEMP/r32-issue-b.txt"
+          test "$(grep -l 'R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          test "$(grep -l 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          php "$r29file" count-receipts | tee "$RUNNER_TEMP/r32-count.txt"
+          grep -F 'R32_ONE_SCOPED_RECEIPT_PG18; COUNT=1; REPLAY_NO_NEW_ROW; NO_GO' "$RUNNER_TEMP/r32-count.txt"
+          php "$r29file" issue | tee "$RUNNER_TEMP/r32-third-replay.txt"
+          grep -F 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP/r32-third-replay.txt"
+          php "$r29file" readback | tee "$RUNNER_TEMP/r29-readback.txt"
+          grep -F 'R29_INDEPENDENT_RECEIPT_READBACK' "$RUNNER_TEMP/r29-readback.txt"
+          php -S 127.0.0.1:8792 "$r29file" > "$RUNNER_TEMP/r29-delivery.log" 2>&1 & DELIVERY=$!
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/r29-login.log" 2>&1 & LOGIN=$!
+          trap 'kill "$PROVIDER" "$PROXY" "$DELIVERY" "$LOGIN" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8792/lab/delivery | grep -qx 403; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          python apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py | tee "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R29_PRIVATE_BUYER_DELIVERY_PASS:' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R34_CANONICAL_DELIVERY_REF_PASS: 3 new negative browser checks; NO_GO' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
+      - name: R38 refuse APPLIED-to-PENDING provider drift between state and HTML reads
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          counter=/tmp/landing-r38-ci-state-counter
+          printf '0' > "$counter"
+          LANDING_R38_STATE_DRIFT_LAB=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r38-adversarial-provider.log" 2>&1 & BAD_PROVIDER=$!
+          trap 'kill "$BAD_PROVIDER" 2>/dev/null || true; rm -f "$counter"' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8791/ci/r38-ready | grep -Fq CI_ONLY_STATE_DRIFT_READY; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-first.json"
+          grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r38-first.json"
+          curl --noproxy '*' -fsS http://127.0.0.1:8791/ci/served > "$RUNNER_TEMP/r38-served.html"
+          sha="$(sed -n 's/^V2_LANDING_HTML_SHA256=//p' "$RUNNER_TEMP/r26-evidence.log")"
+          test -n "$sha"
+          test "$(sha256sum "$RUNNER_TEMP/r38-served.html" | cut -d' ' -f1)" = "$sha"
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-second.json"
+          grep -F '"state":"PENDING","sideEffects":1' "$RUNNER_TEMP/r38-second.json"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          php "$receipt" probe-state-drift | tee "$RUNNER_TEMP/r38-denial.log"
+          grep -F 'R38_STATE_DRIFT_BETWEEN_GETS_DENIED; NO_NEW_RECEIPT; NO_GO; LOOPBACK_ONLY' "$RUNNER_TEMP/r38-denial.log"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          if php "$receipt" issue > "$RUNNER_TEMP/r38-issue-denied.log" 2>&1; then
+            echo 'ERROR: R38 stale provider state issued a receipt'; exit 1
+          fi
+          test "$(cat "$counter")" = 2
+          count="$(PGPASSWORD=ci-only psql -h 127.0.0.1 -U postgres -d postgres -Atqc "SELECT count(*) FROM landing_delivery_r29.receipts WHERE tenant_ref='tenant-A' AND buyer_ref='buyer-A' AND order_ref='landing-order-001'")"
+          test "$count" = 1
+          echo 'R38_PROVIDER_DRIFT_DENIED; EXISTING_RECEIPTS=1; NEW_RECEIPTS=0; NO_REAL_EGRESS'
+      - name: Revocation invalidates independent source despite stale mTLS fixture
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php revoke
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php check-revoked
+          php apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php readback-revoked
+      - name: Confirm no operational endpoint, IAM writer or publisher bound
+        run: |
+          set -euo pipefail
+          test -d sites-mtls-snapshot/apps/sites/app/Providers
+          test -d sites-mtls-snapshot/apps/sites/routes
+          test -f sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          ! grep -R -n -E 'PortalClientApprovalMtlsHttpSource|SignedPortalClientApprovalGate' \
+            sites-mtls-snapshot/apps/sites/app/Providers sites-mtls-snapshot/apps/sites/routes
+          grep -F 'new DenyingPortalAuthorityGateway()' \
+            sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          echo 'F1-395 transport is unbound; default-deny publisher. Sites #38 NO-GO.'
+      - name: Destroy ephemeral PKI and listener
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/f395.pid" ]; then kill "$(cat "$RUNNER_TEMP/f395.pid")" 2>/dev/null || true; fi
+          rm -rf -- /tmp/f388-fixture
+ "$RUNNER_TEMP/r39-$coding-$endpoint.headers"
+              grep -Eq '^HTTP/[^ ]+ 200 ' "$RUNNER_TEMP/r39-$coding-$endpoint.headers"
+              test -s "$RUNNER_TEMP/r39-$coding-$endpoint.bytes"
+            done
+            php "$receipt" probe-content-encoding | tee "$RUNNER_TEMP/r39-$coding-denial.log"
+            grep -F 'R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r39-$coding-denial.log"
+            kill "$P"
+            wait "$P" 2>/dev/null || true
+            trap - EXIT
+          done
+          echo 'R39_MISLEADING_ENCODING_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; R28_UNMODIFIED; NO_REAL_EGRESS'
       - name: R36 deny HTTP 200 provider state and HTML with wrong media type
         run: |
           set -euo pipefail
