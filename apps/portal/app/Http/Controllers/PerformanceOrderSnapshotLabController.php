@@ -151,7 +151,7 @@ final class PerformanceOrderSnapshotLabController
             : null;
         $response = [
             'diagnostic_plan' => $plan,
-            'plan_approved' => false,
+            'plan_approved' => is_array($plan) && ($plan['buyer_plan_approved']??false)===true,
             'campaign_drafts_created' => 0,
             'schema' => 'portal_f423_ci_authenticated_order_source_v1',
             'source' => 'ci_only_portal_customer_purchase_pg18',
@@ -181,5 +181,60 @@ final class PerformanceOrderSnapshotLabController
             'Cache-Control' => 'no-store, private',
             'X-Robots-Tag' => 'noindex, nofollow',
         ]);
+    }
+
+    /** The buyer sees the exact immutable lab plan in the browser, separate from briefing. */
+    public function planReviewForm(Request $request,string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+          && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+          && config('app.env')==='staging',404);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile)&&($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null),403);
+        $snapshot=$this->source($profile['customer_id'],$id)->getData(true);
+        $plan=$snapshot['diagnostic_plan']??null;
+        abort_unless(is_array($plan) && count($snapshot['channels'])===1
+          && isset($snapshot['channels']['google_ads'])
+          && ($snapshot['purchase_state']??null)==='synthetic_confirmed'
+          && ($snapshot['briefing_review_state']??null)==='synthetic_buyer_approved'
+          && $plan['plan_version']===1,404);
+        return response()->view('portal.preview.f423-google-plan-review',[
+            'id'=>$id,'revision'=>$snapshot['order_revision'],'plan'=>$plan
+        ])->header('Cache-Control','no-store, private');
+    }
+
+    /** Explicit CSRF-protected buyer approval, does NOT grant account consent or create campaign. */
+    public function approvePlan(Request $request,string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+          && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+          && config('app.env')==='staging',404);
+        abort_unless(array_diff(array_keys($request->all()),
+          ['_token','revision','plan_version','plan_fingerprint','approval_ack'])===[],422);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile)&&($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null)
+          && is_string($profile['id']??null),403);
+        $v=$request->validate([
+          'revision'=>'required|integer|min:1|max:100000',
+          'plan_version'=>'required|integer|in:1',
+          'plan_fingerprint'=>['required','string','regex:/\A[a-f0-9]{64}\z/D'],
+          'approval_ack'=>'accepted'
+        ]);
+        $source=$this->source($profile['customer_id'],$id)->getData(true);
+        abort_unless(is_array($source['diagnostic_plan']??null)
+          && count($source['channels']??[])===1
+          && isset($source['channels']['google_ads'])
+          && $source['purchase_state']==='synthetic_confirmed'
+          && $source['briefing_review_state']==='synthetic_buyer_approved'
+          && (int)$source['order_revision']===(int)$v['revision']
+          && (int)$source['diagnostic_plan']['plan_version']===(int)$v['plan_version']
+          && hash_equals($source['diagnostic_plan']['plan_fingerprint'],$v['plan_fingerprint']),409);
+        abort_unless(app(\App\Homologation\F423GoogleDiagnosticPlanStore::class)->approve(
+            $profile['customer_id'],$id,$profile['id'],
+            (int)$v['revision'],(int)$v['plan_version'],$v['plan_fingerprint']
+        ),409,'O plano mudou ou o comprador não tem autorização.');
+        return redirect('/_preview/portal/shop/orders/'.$id.'/plan-review');
     }
 }
