@@ -1,0 +1,76 @@
+name: Portal Landing exact-contract browser CI (draft only NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-pg18-tenant-roles-2026-11-20-r19']
+    paths:
+      - '.github/workflows/landing-exact-contract-browser-lab.yml'
+      - 'apps/portal/labs/landing-contract-click/**'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-click-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  buyer-exact-contract-click:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-contract-browser-click-2026-11-21-r20' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-pg18-tenant-roles-2026-11-20-r19' &&
+      github.event.pull_request.base.sha == '4a5e1e06376188f85c90bee3d10056ab3ce2302a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      APP_ENV: testing
+      LANDING_EXACT_CLICK_LAB: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Lint lab handlers and confirm PG driver
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/landing-contract-click/setup.php
+          php -l apps/portal/labs/landing-contract-click/router.php
+          php -m | grep -x pdo_pgsql
+          python3 -m py_compile apps/portal/labs/landing-contract-click/browser_test.py
+      - name: Install isolated Chromium driver
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/landing-click-venv"
+          source "$RUNNER_TEMP/landing-click-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Chromium click, PG18 persistence, independent readback; fake PSP not called
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/landing-click-venv/bin/activate"
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/landing-click-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/lab/login >/dev/null; then break; fi
+            sleep 1
+          done
+          python apps/portal/labs/landing-contract-click/browser_test.py | tee "$RUNNER_TEMP/landing-click-evidence.log"
+          grep -F 'LANDING EXACT CLICK BROWSER PASS:' "$RUNNER_TEMP/landing-click-evidence.log"
+          grep -F 'OPERATIONS=NO_GO; PSP=NOT_CALLED;' "$RUNNER_TEMP/landing-click-evidence.log"
