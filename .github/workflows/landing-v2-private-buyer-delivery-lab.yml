@@ -1,8 +1,8 @@
-name: Portal Landing R31 PG clock receipt expiry and future-issue denial (NO-GO)
+name: Portal Landing R32 idempotent exact buyer receipt under concurrent retry (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-v2-buyer-receipt-mobile-a11y-2026-11-21-r30']
+    branches: ['test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -23,9 +23,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-v2-buyer-receipt-mobile-a11y-2026-11-21-r30' &&
-      github.event.pull_request.base.sha == 'ce69f8f6575514623761c050a2f5d6e730ebbcda'
+      github.event.pull_request.head.ref == 'test/portal-landing-r32-receipt-idempotent-replay-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21' &&
+      github.event.pull_request.base.sha == '4e184caa0a3c484316fa27bd4bb6a250cf637c70'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -274,8 +274,19 @@ jobs:
           grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r28-after.json"
           echo 'R28_MOCK_PROVIDER_RECONCILED_WITHOUT_REPEAT; RELEASE_PUBLIC=NO_GO'
           # New R29 proof starts only after the independently confirmed release.
-          php "$r29file" issue | tee "$RUNNER_TEMP/r29-issued.txt"
-          grep -F 'R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=' "$RUNNER_TEMP/r29-issued.txt"
+          # R32: two independent PHP processes race for the same synthetic
+          # receipt. Exactly one insertion, one idempotent replay. No renewal.
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-a.txt" 2>&1 & ISSUE_A=$!
+          php "$r29file" issue > "$RUNNER_TEMP/r32-issue-b.txt" 2>&1 & ISSUE_B=$!
+          wait "$ISSUE_A"
+          wait "$ISSUE_B"
+          cat "$RUNNER_TEMP/r32-issue-a.txt" "$RUNNER_TEMP/r32-issue-b.txt"
+          test "$(grep -l 'R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          test "$(grep -l 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP"/r32-issue-*.txt | wc -l)" -eq 1
+          php "$r29file" count-receipts | tee "$RUNNER_TEMP/r32-count.txt"
+          grep -F 'R32_ONE_SCOPED_RECEIPT_PG18; COUNT=1; REPLAY_NO_NEW_ROW; NO_GO' "$RUNNER_TEMP/r32-count.txt"
+          php "$r29file" issue | tee "$RUNNER_TEMP/r32-third-replay.txt"
+          grep -F 'R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=' "$RUNNER_TEMP/r32-third-replay.txt"
           php "$r29file" readback | tee "$RUNNER_TEMP/r29-readback.txt"
           grep -F 'R29_INDEPENDENT_RECEIPT_READBACK' "$RUNNER_TEMP/r29-readback.txt"
           php -S 127.0.0.1:8792 "$r29file" > "$RUNNER_TEMP/r29-delivery.log" 2>&1 & DELIVERY=$!
@@ -294,6 +305,7 @@ jobs:
           grep -F 'R29_PRIVATE_BUYER_DELIVERY_PASS:' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
       - name: Revocation invalidates independent source despite stale mTLS fixture
         run: |

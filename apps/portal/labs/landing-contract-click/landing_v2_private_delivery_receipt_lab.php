@@ -201,17 +201,43 @@ if($mode==='issue') {
     $s=r29source();
     if($s===null)throw new RuntimeException('No independent applied state and served bytes: cannot issue receipt');
     $e=$s['e'];$ref=bin2hex(random_bytes(16));
+    // R32: concurrent retries on the SAME fictitious order/release must never
+    // create a second receipt or extend its PG-clock expiry. No replacement of
+    // a stale, revoked, expired or differently sourced receipt is permitted.
     $q=r29db()->prepare(<<<'SQL'
 INSERT INTO landing_delivery_r29.receipts
 (receipt_ref,tenant_ref,buyer_ref,order_ref,site_ref,release_ref,
  html_sha256,brief_sha256,artifact_generation,acceptance_ref,request_ref)
 VALUES(?,?,?,?,?,?,?,?,?,?,?)
+ON CONFLICT (tenant_ref,buyer_ref,order_ref,release_ref) DO NOTHING
 SQL);
     $q->execute([$ref,R26_TENANT,R26_BUYER,R26_ORDER,trim((string)$e['site_ref']),
         R29_RELEASE,(string)$e['html_sha256'],(string)$e['brief_sha256'],
         (int)$e['artifact_generation'],(string)$e['challenge_ref'],R29_REQUEST]);
-    if(!r29receipt($ref))throw new RuntimeException('Independent receipt readback failed');
-    echo "R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=".(string)$e['html_sha256']."; LAB_ONLY\n";exit;
+    $created=$q->rowCount()===1;
+    // Reader is a separate PG18 connection with a non-owner RLS role. Exact
+    // site/acceptance/revision/digests/time and fresh served bytes are checked.
+    $readback=r29receipt();
+    if(!$readback || ($created &&
+        !hash_equals((string)$readback['receipt']['receipt_ref'],$ref)))
+        throw new RuntimeException('Independent receipt readback failed; no new authority');
+    if($created) {
+        echo "R29_ISSUED_AFTER_INDEPENDENT_RELEASE_SHA=".(string)$e['html_sha256']."; LAB_ONLY\n";
+    } else {
+        echo "R32_REPLAY_REUSED_EXACT_BUYER_RECEIPT_SHA=".(string)$e['html_sha256']."; NO_NEW_ROW; LAB_ONLY\n";
+    }
+    exit;
+}
+if($mode==='count-receipts') {
+    $q=r29db('landing_r29_reader')->prepare(<<<'SQL'
+SELECT count(*) FROM landing_delivery_r29.receipts
+WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND release_ref=?
+SQL);
+    $q->execute([R26_TENANT,R26_BUYER,R26_ORDER,R29_RELEASE]);
+    if((int)$q->fetchColumn()!==1 || r29receipt()===null)
+        throw new RuntimeException('R32 scoped receipt count or exact readback mismatch');
+    echo "R32_ONE_SCOPED_RECEIPT_PG18; COUNT=1; REPLAY_NO_NEW_ROW; NO_GO\n";
+    exit;
 }
 if($mode==='readback') {
     $r=r29receipt();

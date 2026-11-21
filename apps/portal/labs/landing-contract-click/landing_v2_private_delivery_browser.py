@@ -29,6 +29,13 @@ def cli(mode):
                             capture_output=True, text=True, check=True)
     return result.stdout.strip()
 
+def rejected_replay():
+    # An expired/future-issued receipt must not be silently replaced by a retry.
+    attempt = subprocess.run(["php", str(FILE), "issue"],
+                             capture_output=True, text=True, check=False)
+    return (attempt.returncode != 0
+            and "Independent receipt readback failed" in attempt.stderr)
+
 def login(page, actor):
     page.goto(LOGIN)
     page.locator("#fixture").select_option(actor)
@@ -117,15 +124,18 @@ with sync_playwright() as p:
     check(buyer.request.get(DELIVERY).status == 403
           and buyer.request.get(private_url).status == 403,
           "expired receipt and private HTML link are both denied")
+    check(rejected_replay(), "expired receipt cannot be renewed by duplicate issuance")
     check("R31_FUTURE_ISSUED_RECEIPT_DENIED_BY_PG_CLOCK" in cli("future-issue"),
           "future-issued receipt cannot pre-authorize delivery")
     check(buyer.request.get(DELIVERY).status == 403
           and buyer.request.get(private_url).status == 403,
           "future-issued receipt and private HTML link are denied")
+    check(rejected_replay(), "future-issued receipt cannot be replaced by duplicate issuance")
     browser.close()
 
 print(f"R29_PRIVATE_BUYER_DELIVERY_PASS: {checks} new checks")
 print("R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority")
 print("R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority")
+print("R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal")
 print(f"R29_HTTP_SHA256={EXPECTED}")
 print("SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO")
