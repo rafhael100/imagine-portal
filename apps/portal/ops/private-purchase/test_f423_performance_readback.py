@@ -26,6 +26,10 @@ assert stored==expected,stored
 assert sql("SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s'"%(owner,order))==str(len(expected))
 guard=sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_performance_decisions'::regclass")
 assert guard=='t','Decision ledger must enforce FORCE RLS'
+if GOOGLE_ONLY:
+    assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_diagnostic_plans WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads' AND plan_version=1"%(owner,order,revision,digest))=='1', 'Exactly one persisted versioned Google diagnostic plan'
+    assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_diagnostic_plans'::regclass")=='t', 'Plan ledger must FORCE RLS'
+    assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_diagnostic_plans','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_diagnostic_plans','DELETE'))")=='t', 'Plan ledger mutation forbidden'
 privileges=sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','DELETE'))")
 assert privileges=='t','No SQL write mutation capability'
 unique_alias=sql("SELECT count(*) FROM pg_constraint WHERE conrelid='purchase_rehearsal.f423_performance_decisions'::regclass AND contype='u' AND pg_get_constraintdef(oid) LIKE '%source_order_alias%'")
@@ -55,7 +59,20 @@ with sync_playwright() as playwright:
     assert data['ready_channels_count']==1
     assert data['operational_enabled'] is False and data['ads_write_enabled'] is False
     assert data['billable'] is False
+    assert data['plan_approved'] is False and data['campaign_drafts_created']==0
     assert set(data['channels'])==({'google_ads'} if GOOGLE_ONLY else {'google_ads','meta_ads'})
+    if GOOGLE_ONLY:
+        plan=data['diagnostic_plan']
+        assert plan['state']=='awaiting_separate_approval' and plan['plan_version']==1
+        assert plan['diagnostic_version']==1 and plan['metric_origin']=='ci_synthetic_fixture_no_ads'
+        assert plan['sample_impressions']==1000 and plan['sample_clicks']==40
+        assert plan['sample_conversions']==2 and plan['media_cents']==100000
+        assert plan['proposed_action']=='review_search_terms_only'
+        assert plan['buyer_plan_approved'] is False
+        assert plan['campaign_draft_created'] is False and plan['operational_enabled'] is False
+        assert len(plan['plan_fingerprint'])==64
+    else:
+        assert data['diagnostic_plan'] is None
     for provider in (('google_ads',) if GOOGLE_ONLY else ('google_ads','meta_ads')):
         channel=data['channels'][provider]
         if provider=='google_ads':
