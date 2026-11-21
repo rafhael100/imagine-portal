@@ -59,7 +59,7 @@ with sync_playwright() as playwright:
     assert data['ready_channels_count']==1
     assert data['operational_enabled'] is False and data['ads_write_enabled'] is False
     assert data['billable'] is False
-    assert data['plan_approved'] is False and data['campaign_drafts_created']==0
+    assert data['plan_approved'] is (GOOGLE_ONLY and bool(os.getenv('F423_RESTARTED'))) and data['campaign_drafts_created']==0
     assert set(data['channels'])==({'google_ads'} if GOOGLE_ONLY else {'google_ads','meta_ads'})
     if GOOGLE_ONLY:
         plan=data['diagnostic_plan']
