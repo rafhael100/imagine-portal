@@ -15,3 +15,10 @@ A sessão de login, aceite do contrato, aprovação do briefing e vínculo de re
 A nova prova é somente o **recibo privado ao comprador com verificação independente da release**. Os testes anteriores de clique, geração, mTLS, evento de lead e reconciliação de ACK são pré-requisitos, não serão novamente contados como novas provas. Etapa 15 de lead CRM/Vendas real permanece NO-GO sem destino autorizado, release e formulário previamente aceitos, transporte independente e confirmação real. OnePage e API OpenAI não são parte desta trilha.
 
 Pendente operacional: writers oficiais de autenticação/MFA, contrato e aprovação/revogação do briefing; fonte confiável de autorização para publicação, release no destino autorizado, recibo assinado, domínio/rota privada real, link de entrega ao comprador nativo e leitura independente CRM/Vendas. Gates Sites #38, IN127-R05/R06 permanecem bloqueados; rollback automático não foi autorizado.
+
+
+## R33 — limite efetivo na leitura HTTP do provider local
+
+A R32 confirma idempotência na emissão concorrente, mas `r29http()` ainda aceitava o corpo completo de HTTP 200 em memória antes de verificar o limite da prévia. Nesta candidata, o estado JSON tem orçamento de **4.096 bytes** e o HTML de **32.768 bytes**, aplicados por callback de streaming do cURL. Exceder qualquer orçamento interrompe o recebimento e falha fechado antes do parse e do recibo. Sem follow redirects, sem URL dinâmica, retries ou tráfego externo.
+
+O ensaio usa exclusivamente servidor adversarial em `127.0.0.1:8791` que devolve HTTP 200 com estado de 12.288 bytes e HTML de 65.536 bytes; ambos são rejeitados. Depois o servidor é encerrado e a prova integrada anterior com provider local normal continua, verificando que o limite não impede a release sintética válida. Não é teste de OpenAI, CRM/VEN, login nativo, dados reais nem publicação.
