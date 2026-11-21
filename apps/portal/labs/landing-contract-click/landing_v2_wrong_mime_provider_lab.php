@@ -19,7 +19,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET'
     exit;
 }
 header('Cache-Control: no-store');
-header('Content-Type: text/plain');
+if (getenv('LANDING_R36_DUPLICATE') === '1') {
+    // The first MIME is correct but a conflicting second value makes the
+    // final response ambiguous. This only runs in a disposable PHP server.
+    header('Content-Type: '.($path === '/ci/state'
+        ? 'application/json' : 'text/html; charset=utf-8'));
+    header('Content-Type: text/plain', false);
+} else {
+    header('Content-Type: text/plain');
+}
 if ($path === '/ci/state') {
     echo '{"requestRef":"ci-only","state":"APPLIED"}';
 } else {
