@@ -257,7 +257,7 @@ if($mode==='probe-provider-mime') {
     // never be treated as valid state or as a browser-rendered HTML release.
     if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
         throw new RuntimeException('R36 wrong media type accepted as release evidence');
-    echo "R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS\\n";
+    echo "R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-http-bounds') {
