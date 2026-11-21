@@ -119,7 +119,12 @@ SQL);
         || !hash_equals(hash('sha256',(string)$s['html_bytes']), (string)$s['html_sha256'])) return null;
     $state=r29http(R29_STATE_URL);
     $served=r29http(R29_HTML_URL);
-    if (!$state || !$served || strlen($served[0])>32768) return null;
+    // R38: an APPLIED read before HTML is not sufficient if the provider
+    // changes current release state while the bytes are being observed.
+    // One fresh state GET, no retry or new publication dispatch.
+    $stateAfter=r29http(R29_STATE_URL);
+    if (!$state || !$served || !$stateAfter || strlen($served[0])>32768
+        || !hash_equals($state[0],$stateAfter[0])) return null;
     $reply=r29decodeState($state[0]);
     if ($reply===null
         || ($reply['state']??null)!=='APPLIED'
@@ -257,6 +262,14 @@ if($mode==='probe-state-canonical') {
         if(r29decodeState($candidate)!==null)
             throw new RuntimeException('R35 ambiguous provider state accepted: case '.($i+1));
     echo "R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS\n";
+    exit;
+}
+if($mode==='probe-state-drift') {
+    // R38: exercise the full readback against a CI-only provider that returns
+    // APPLIED, exact HTML, then PENDING on the second state GET.
+    if(r29source()!==null)
+        throw new RuntimeException('R38 stale first APPLIED accepted despite current state drift');
+    echo "R38_STATE_DRIFT_BETWEEN_GETS_DENIED; NO_NEW_RECEIPT; NO_GO; LOOPBACK_ONLY\n";
     exit;
 }
 if($mode==='probe-presentation-headers') {
