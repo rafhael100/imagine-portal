@@ -238,18 +238,17 @@ SQL);
 // receipt outside the database clock window is denied on both buyer endpoints.
 // These controls never run in a server route, nor mint a new receipt.
 if($mode==='expire-receipt' || $mode==='future-issue') {
-    $q=r29db()->prepare($mode==='expire-receipt' ? <<<'SQL'
+    $q=r29db()->prepare(<<<'SQL'
 UPDATE landing_delivery_r29.receipts
-SET expires_at=clock_timestamp()-INTERVAL '1 second'
-WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND release_ref=?
-SQL
-    : <<<'SQL'
-UPDATE landing_delivery_r29.receipts
-SET issued_at=clock_timestamp()+INTERVAL '2 minutes',
-    expires_at=clock_timestamp()+INTERVAL '10 minutes'
+SET issued_at=CASE WHEN ?='future-issue'
+                  THEN clock_timestamp()+INTERVAL '2 minutes'
+                  ELSE issued_at END,
+    expires_at=CASE WHEN ?='expire-receipt'
+                    THEN clock_timestamp()-INTERVAL '1 second'
+                    ELSE clock_timestamp()+INTERVAL '10 minutes' END
 WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND release_ref=?
 SQL);
-    $q->execute([R26_TENANT,R26_BUYER,R26_ORDER,R29_RELEASE]);
+    $q->execute([$mode,$mode,R26_TENANT,R26_BUYER,R26_ORDER,R29_RELEASE]);
     if($q->rowCount()!==1 || r29receipt()!==null)
         throw new RuntimeException('R31 temporal validity must deny the buyer receipt');
     echo $mode==='expire-receipt'
