@@ -66,4 +66,26 @@ final class PerformanceS2SLabController
         return response()->json(['schema'=>'f423_ci_only_persisted_channel_decisions_v1',...$out,
             'operational_enabled'=>false,'billable'=>false])->header('Cache-Control','no-store');
     }
+
+    /** CI S2S plan candidate after the existing persisted internal-only decision. */
+    public function persistDiagnosticPlan(Request $request,string $id)
+    {
+        $company=$request->header('X-F423-Company','');
+        $this->verify($request,$id,(string)$company);
+        abort_unless(str_starts_with((string)$request->header('Content-Type',''),'application/json'),415);
+        abort_unless(strlen($request->getContent())<=2048,413);
+        $payload=json_decode($request->getContent(),true);
+        abort_unless(is_array($payload),422);
+        try {
+            $out=app(\\App\\Homologation\\F423GoogleDiagnosticPlanStore::class)
+                ->persist((string)$company,$id,$payload);
+        } catch (\\Throwable $failure) {
+            // No untrusted diagnostics, consent, request data or SQL in responses.
+            error_log('F423 CI-only diagnostic plan denied');
+            abort(409,'Synthetic diagnostic plan conflict.');
+        }
+        return response()->json(['schema'=>'f423_ci_only_persisted_google_diagnostic_v1',...$out,
+             'operational_enabled'=>false,'billable'=>false])
+             ->header('Cache-Control','no-store');
+    }
 }
