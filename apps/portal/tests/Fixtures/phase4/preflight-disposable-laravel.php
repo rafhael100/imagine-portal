@@ -7,6 +7,7 @@ declare(strict_types=1);
  * at the one disposable PostgreSQL18 database before artisan migrate runs.
  * No DDL, privilege changes, data writes, or credentials are emitted.
  */
+$stage = 'FLAGS';
 try {
     foreach ([
         'GITHUB_ACTIONS' => 'true',
@@ -24,10 +25,12 @@ try {
         }
     }
 
+    $stage = 'BOOTSTRAP';
     require __DIR__ . '/../../../vendor/autoload.php';
     $app = require __DIR__ . '/../../../bootstrap/app.php';
     $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+    $stage = 'EFFECTIVE_CONFIG';
     $config = $app->make('config');
     $connectionName = $config->get('database.default');
     $target = $config->get('database.connections.' . $connectionName);
@@ -44,12 +47,14 @@ try {
         throw new RuntimeException('Effective Laravel database configuration mismatch');
     }
 
+    $stage = 'CONNECTION';
     $db = $app->make('db')->connection();
     if ($db->getDriverName() !== 'pgsql'
         || $db->getDatabaseName() !== 'performance_phase4_ci') {
         throw new RuntimeException('Effective Laravel connection mismatch');
     }
 
+    $stage = 'SQL_ENDPOINT';
     $row = $db->selectOne(
         'SELECT current_database() AS name, current_user AS role, ' .
         "current_setting('server_version_num')::int AS version, " .
@@ -70,5 +75,7 @@ try {
 } catch (\Throwable $error) {
     // Deliberately never print exception messages, DSNs or secrets.
     fwrite(STDERR, "PHASE8_DISPOSABLE_PREFLIGHT_FAIL_CLOSED\n");
+    // Fixed stage codes only; never expose Throwable messages/DSNs/values.
+    fwrite(STDERR, "PHASE8_PREFLIGHT_STAGE_{$stage}\n");
     exit(1);
 }
