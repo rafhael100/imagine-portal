@@ -94,12 +94,24 @@ fingerprint() {
     query "$database" "SELECT row_to_json(t)::text FROM public.portal_performance_account_mandates t ORDER BY id" | sha256sum | awk '{print $1}'
     query "$database" "SELECT row_to_json(t)::text FROM public.portal_performance_account_mandate_events t ORDER BY id" | sha256sum | awk '{print $1}'
 }
+# Cross-provider synthetic identities are separate even when account digits
+# match within one company. CI fixtures are not official account authority.
+check_channel_separation() {
+    local database="$1" pairs events
+    pairs="$(query "$database" "SELECT count(*) FROM public.portal_performance_account_mandates g JOIN public.portal_performance_account_mandates m ON m.company_id=g.company_id AND m.account_id=g.account_id AND m.service_principal=g.service_principal WHERE g.account_id='2345678901' AND g.provider='google_ads' AND g.status='revoked' AND g.revision=2 AND g.revoked_at IS NOT NULL AND g.source_kind='synthetic_candidate' AND g.operational_enabled=false AND m.provider='meta_ads' AND m.status='candidate' AND m.revision=2 AND m.revoked_at IS NULL AND m.credential_ref='synthetic-vault-meta-002' AND m.source_kind='synthetic_candidate' AND m.operational_enabled=false")"
+    events="$(query "$database" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates a ON a.id=e.mandate_id AND a.company_id=e.company_id AND a.service_principal=e.service_principal WHERE a.account_id='2345678901' AND ((a.provider='google_ads' AND e.event_kind='revoked' AND e.revision=2) OR (a.provider='meta_ads' AND e.event_kind='revised' AND e.revision=2))")"
+    if [[ "$pairs" != 1 || "$events" != 2 ]]; then
+        echo "PHASE15_PROVIDER_SELECTIVE_REVOCATION_MISMATCH"
+        return 1
+    fi
+}
 mandates="$(query "$source_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE status='revoked' AND source_kind='synthetic_candidate' AND operational_enabled=false")"
 events="$(query "$source_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events")"
 [[ "$mandates" =~ ^[0-9]+$ && "$mandates" -ge 1 ]]
 [[ "$events" =~ ^[0-9]+$ && "$events" -ge 3 ]]
 [[ "$(query "$source_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE operational_enabled=true OR source_kind<>'synthetic_candidate'")" == 0 ]]
 check_scope_policies "$source_db"
+check_channel_separation "$source_db"
 # Only in this composed CI candidate: the terminal revoked→revoked guard
 # copied verbatim from the independently tested draft #989 must exist BEFORE
 # dump; no SQL grant or real account permission is changed.
@@ -121,6 +133,8 @@ target_created=1
 docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-error --single-transaction < "$archive"
 [[ "$(sha256sum "$archive" | awk '{print $1}')" == "$digest" ]]
 [[ "$(fingerprint "$target_db")" == "$original" ]]
+check_channel_separation "$target_db"
+echo "PASS PHASE15 RESTORED PROVIDER SELECTIVE REVOCATION"
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND relrowsecurity AND relforcerowsecurity")" == 2 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
