@@ -87,7 +87,7 @@ jobs:
             PHASE8_RW_MODE="$override_kind" php -r '
               require "vendor/autoload.php";
               $app = require "bootstrap/app.php";
-              $app->make(\\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+              $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
               $settings = $app->make("config")->all();
               $mode = getenv("PHASE8_RW_MODE");
               if (!in_array($mode, ["read", "write"], true)
