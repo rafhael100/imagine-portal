@@ -42,6 +42,13 @@ check_scope_policies() {
         return 1
     fi
 }
+# Compare the complete, deterministically ordered policy definitions
+# on both sides of pg_restore, not just whether expected predicate names occur.
+# A destination-only policy broadening with an OR clause must not pass.
+policy_fingerprint() {
+    local database="$1"
+    query "$database" "SELECT row_to_json(p)::text FROM (SELECT schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check FROM pg_policies WHERE schemaname='public' AND tablename IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') ORDER BY tablename,policyname) p" | sha256sum | awk '{print $1}'
+}
 # Execute an actual negative SELECT as the restricted SQL role, even if a
 # caller forges a matching company/principal session claim. No role is created,
 # no GRANT is added, and the database is the already-attested disposable CI DB.
@@ -72,6 +79,7 @@ events="$(query "$source_db" "SELECT count(*) FROM public.portal_performance_acc
 [[ "$events" =~ ^[0-9]+$ && "$events" -ge 3 ]]
 [[ "$(query "$source_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE operational_enabled=true OR source_kind<>'synthetic_candidate'")" == 0 ]]
 check_scope_policies "$source_db"
+source_policy_fingerprint="$(policy_fingerprint "$source_db")"
 for table in portal_performance_account_mandates portal_performance_account_mandate_events; do
     check_runtime_denied "$source_db" "$table"
 done
@@ -89,6 +97,10 @@ docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
 check_scope_policies "$target_db"
+if [[ "$(policy_fingerprint "$target_db")" != "$source_policy_fingerprint" ]]; then
+    echo "PHASE15_RESTORE_POLICY_FINGERPRINT_MISMATCH"
+    exit 1
+fi
 for table in portal_performance_account_mandates portal_performance_account_mandate_events; do
     check_runtime_denied "$target_db" "$table"
 done
