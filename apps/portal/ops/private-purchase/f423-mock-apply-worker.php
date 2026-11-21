@@ -3,7 +3,9 @@ declare(strict_types=1);
 // CI-only: read approved exact Google-only proposal by S2S, then invoke ONLY
 // the mock service on the internal Docker network. No real Ads account or API.
 if (getenv('GITHUB_ACTIONS') !== 'true'
-    || getenv('PORTAL_PREVIEW_LOOPBACK_TEST') !== '1' || $argc !== 3) exit(78);
+    || getenv('PORTAL_PREVIEW_LOOPBACK_TEST') !== '1'
+    || !in_array($argc,[3,4],true)
+    || ($argc===4 && ($argv[3] ?? '')!=='--expect-no-approval')) exit(78);
 [$script,$company,$order] = $argv;
 if (preg_match('/\Ademo-[a-f0-9]{32}\z/D',$company) !== 1
     || preg_match('/\ATEST-[a-f0-9]{32}\z/D',$order) !== 1) exit(78);
@@ -28,6 +30,26 @@ $signature=hash_hmac('sha256',"GET\n".$path."\n".$company."\n".
 [$status,$snap]=jsonHttp('http://application:8080'.$path,'GET',[
     'X-F423-Company: '.$company,'X-F423-Timestamp: '.$timestamp,
     'X-F423-Nonce: '.$nonce,'X-F423-Signature: '.$signature]);
+// Negative phase in the SAME real CI flow: source must be readable, and
+// proposal must exist but have NO buyer approval or applied offline result.
+// An HTTP failure cannot count as a successful default-deny assertion.
+if ($argc===4) {
+    if ($status!==200 || !is_array($snap)
+        || ($snap['company_id'] ?? null)!==$company
+        || ($snap['order_id'] ?? null)!==$order
+        || ($snap['purchase_state'] ?? null)!=='synthetic_confirmed'
+        || ($snap['briefing_review_state'] ?? null)!=='synthetic_buyer_approved'
+        || ($snap['plan_approved'] ?? null)!==true
+        || ($snap['internal_campaign_draft']['state'] ?? null)!=='ci_internal_unpublished'
+        || ($snap['improvement_proposal']['action'] ?? null)!=='audit_search_terms_offline_simulation'
+        || ($snap['improvement_proposal']['separate_approval_recorded'] ?? null)!==false
+        || ($snap['offline_improvement_simulation'] ?? null)!==null
+        || ($snap['operational_enabled'] ?? null)!==false
+        || ($snap['ads_write_enabled'] ?? null)!==false)
+        throw new RuntimeException('Mock pre-approval guard failed closed');
+    echo "PASS F423 MOCK PRE-APPROVAL: actual same-order S2S source readable, buyer approval absent, no apply performed\n";
+    exit(0);
+}
 if ($status!==200 || !is_array($snap)
     || ($snap['company_id'] ?? null)!==$company
     || ($snap['order_id'] ?? null)!==$order
