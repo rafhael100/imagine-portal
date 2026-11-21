@@ -75,6 +75,7 @@ jobs:
             exit 1
           fi
           grep -Fxq 'PHASE8_DISPOSABLE_PREFLIGHT_FAIL_CLOSED' "$override_log"
+          grep -Fxq 'PHASE8_PREFLIGHT_STAGE_EFFECTIVE_CONFIG' "$override_log"
           echo 'PASS PHASE8 DB_URL OVERRIDE REFUSED BEFORE MIGRATION'
           # Positive: effective Laravel settings and connected SQL endpoint.
           php tests/Fixtures/phase4/preflight-disposable-laravel.php
