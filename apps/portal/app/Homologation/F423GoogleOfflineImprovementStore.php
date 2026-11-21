@@ -289,16 +289,29 @@ final class F423GoogleOfflineImprovementStore
             $post=json_decode($result['post_samples'],true,512,JSON_THROW_ON_ERROR);
             $before=json_decode($result['before_totals'],true,512,JSON_THROW_ON_ERROR);
             $after=json_decode($result['after_totals'],true,512,JSON_THROW_ON_ERROR);
-            if($post!==self::offlinePostSamples()
-              ||$before!==['impressions'=>2200,'clicks'=>86,'conversions'=>4]
-              ||$after!==['impressions'=>2300,'clicks'=>84,'conversions'=>4]
-              ||!hash_equals($result['post_sha256'],self::offlinePostSha($post))
+            // jsonb changes object key order. Preserve exact columns and values,
+            // while reconstructing canonical fixture sample object key order.
+            $normalized=[];
+            if(is_array($post))foreach($post as $s) {
+                if(!is_array($s)||count($s)!==5
+                  ||array_diff(array_keys($s),['sample_date','impressions','clicks','conversions','source'])!==[])
+                    return null;
+                $normalized[]=['sample_date'=>$s['sample_date'],
+                  'impressions'=>$s['impressions'],'clicks'=>$s['clicks'],
+                  'conversions'=>$s['conversions'],'source'=>$s['source']];
+            }
+            if($normalized!==self::offlinePostSamples()
+              ||!is_array($before)||!is_array($after)||count($before)!==3||count($after)!==3
+              ||$before!=['impressions'=>2200,'clicks'=>86,'conversions'=>4]
+              ||$after!=['impressions'=>2300,'clicks'=>84,'conversions'=>4]
+              ||!hash_equals($result['post_sha256'],self::offlinePostSha($normalized))
               ||!hash_equals($result['result_fingerprint'],self::offlineResultFingerprint(
                 $owner,$order,$revision,$digest,$proposalFingerprint,
                 $result['evidence_sha256'],$result['post_sha256']))) return null;
             return ['state'=>'ci_offline_fixture_applied',
                 'simulated_application_recorded'=>true,
-                'post_samples'=>$post,'before_totals'=>$before,'after_totals'=>$after,
+                'post_samples'=>$normalized,'before_totals'=>['impressions'=>2200,'clicks'=>86,'conversions'=>4],
+                'after_totals'=>['impressions'=>2300,'clicks'=>84,'conversions'=>4],
                 'post_sha256'=>$result['post_sha256'],
                 'result_fingerprint'=>$result['result_fingerprint'],
                 'metric_origin'=>'ci_offline_google_ads_post_fixture',
