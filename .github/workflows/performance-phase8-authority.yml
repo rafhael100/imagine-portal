@@ -77,6 +77,38 @@ jobs:
           grep -Fxq 'PHASE8_DISPOSABLE_PREFLIGHT_FAIL_CLOSED' "$override_log"
           grep -Fxq 'PHASE8_PREFLIGHT_STAGE_EFFECTIVE_CONFIG' "$override_log"
           echo 'PASS PHASE8 DB_URL OVERRIDE REFUSED BEFORE MIGRATION'
+          # Exercise the effective Laravel config guard for read/write splits.
+          # Only generate temporary config caches in this disposable Actions job.
+          # The mismatched host is never connected to; fail at EFFECTIVE_CONFIG.
+          cache=''
+          trap 'rm -f -- "$override_log" "${cache:-}"' EXIT
+          for override_kind in read write; do
+            cache="$(mktemp "$RUNNER_TEMP/phase8-${override_kind}-XXXXXXXX.php")"
+            PHASE8_RW_MODE="$override_kind" php -r '
+              require "vendor/autoload.php";
+              $app = require "bootstrap/app.php";
+              $app->make(\\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+              $settings = $app->make("config")->all();
+              $mode = getenv("PHASE8_RW_MODE");
+              if (!in_array($mode, ["read", "write"], true)
+                  || !is_array($settings["database"]["connections"]["pgsql"] ?? null)) {
+                exit(2);
+              }
+              $settings["database"]["connections"]["pgsql"][$mode] = ["host" => "127.0.0.2"];
+              if (file_put_contents($argv[1], "<?php return " . var_export($settings, true) . ";") === false) {
+                exit(2);
+              }
+            ' "$cache"
+            if APP_CONFIG_CACHE="$cache" php tests/Fixtures/phase4/preflight-disposable-laravel.php >"$override_log" 2>&1; then
+              echo "FAIL PHASE8 ${override_kind} SPLIT ACCEPTED"
+              exit 1
+            fi
+            grep -Fxq 'PHASE8_DISPOSABLE_PREFLIGHT_FAIL_CLOSED' "$override_log"
+            grep -Fxq 'PHASE8_PREFLIGHT_STAGE_EFFECTIVE_CONFIG' "$override_log"
+            echo "PASS PHASE8 EFFECTIVE ${override_kind} SPLIT REFUSED BEFORE MIGRATION"
+            rm -f -- "$cache"
+            cache=''
+          done
           # Positive: effective Laravel settings and connected SQL endpoint.
           php tests/Fixtures/phase4/preflight-disposable-laravel.php
           php artisan migrate --force --no-interaction
