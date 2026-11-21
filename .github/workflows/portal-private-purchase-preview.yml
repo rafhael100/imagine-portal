@@ -155,6 +155,40 @@ jobs:
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
           # Run the new channel activation LAST to preserve existing account
           # and report-throttle tests. It respects Retry-After itself.
+          # Distinct single-Google-only order, not a re-label of the
+          # Google+Meta case. Actual registration/checkout, provider mock,
+          # buyer briefing approval, SQL quote and HTTP readback. No new DDL.
+          F423_GOOGLE_ONLY=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
+          cd apps/portal/ops/private-purchase
+          single=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT b.customer_id||'|'||b.order_id FROM purchase_rehearsal.f423_briefing_reviews b
+               JOIN purchase_rehearsal.customer_orders o ON o.id=b.order_id AND o.customer_id=b.customer_id
+               WHERE (o.offer_snapshot::jsonb->'media_by_channel_cents') ? 'google_ads'
+                 AND NOT ((o.offer_snapshot::jsonb->'media_by_channel_cents') ? 'meta_ads')
+               ORDER BY b.approved_at DESC LIMIT 1")
+          [[ "$single" =~ ^demo-[a-f0-9]{32}\|TEST-[a-f0-9]{32}$ ]] || exit 1
+          single_owner=${single%%|*}; single_order=${single#*|}
+          # Performance #458 adapter intentionally requires TWO channels.
+          # Assert the single-only contract FAILS at that exact gate, not
+          # an unrelated container failure; do not fake a single-channel
+          # readiness decision or claim a campaign/plan draft.
+          if docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab \
+              /lab/worker.php "$single_owner" "$single_order" >/tmp/f423-google-only-gate.log 2>&1; then
+            echo 'CRITICAL: two-channel Performance worker accepted single-channel checkout' >&2
+            exit 1
+          fi
+          grep -F 'Not the exact synthetic Google+Meta order' /tmp/f423-google-only-gate.log >/dev/null
+          rm -f /tmp/f423-google-only-gate.log
+          single_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+             -U postgres -d portal_purchase_rehearsal -c \
+             "SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions
+               WHERE customer_id='$single_owner' AND order_id='$single_order'")
+          test "$single_rows" = 0
+          echo 'PASS F423 GOOGLE-ONLY boundary: approved briefing, no S2S policy/decision adapter and zero persisted decisions' >> "$GITHUB_STEP_SUMMARY"
+          cd ../../../..
+          # Preserve existing distinct two-channel S2S/SQL/browser/restart
+          # regression on its own later, buyer-approved order.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
           # The buyer actually approved the briefing in PG18. Fetch its exact
           # synthetic owner/order from SQL; never mint an independent signal.
