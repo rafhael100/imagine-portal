@@ -295,11 +295,14 @@ final class PerformanceOrderSnapshotLabController
         ];
         // Associative map order from HTTP JSON is irrelevant; exact fields,
         // values, types and zero side effects are mandatory.
-        abort_unless(is_array($receipt)&&is_array($record)&&is_array($packet)
+        $packetExact=is_array($packet)&&count($packet)===count($expected);
+        if($packetExact) foreach($expected as $field=>$value) {
+            if(!array_key_exists($field,$packet) || $packet[$field]!==$value) {
+                $packetExact=false; break;
+            }
+        }
+        abort_unless(is_array($receipt)&&is_array($record)&&$packetExact
           && ($receipt['schema']??null)==='f423_paused_stage_read_ci_v1'
-          && count($packet)===count($expected)
-          && !array_diff_assoc($expected,$packet)
-          && !array_diff_assoc($packet,$expected)
           && ($record['stage_count']??null)===1
           && ($receipt['activated']??null)===false
           && ($receipt['delivered']??null)===false
