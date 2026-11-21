@@ -100,6 +100,13 @@ events="$(query "$source_db" "SELECT count(*) FROM public.portal_performance_acc
 [[ "$events" =~ ^[0-9]+$ && "$events" -ge 3 ]]
 [[ "$(query "$source_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE operational_enabled=true OR source_kind<>'synthetic_candidate'")" == 0 ]]
 check_scope_policies "$source_db"
+# Only in this composed CI candidate: the terminal revoked→revoked guard
+# copied verbatim from the independently tested draft #989 must exist BEFORE
+# dump; no SQL grant or real account permission is changed.
+if [[ "$(query "$source_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_revoked_immutable' AND tgenabled='O'")" != 1 ]]; then
+    echo "PHASE15_ORIGIN_TERMINAL_REVOKED_GUARD_MISSING"
+    exit 1
+fi
 source_policy_fingerprint="$(policy_fingerprint "$source_db")"
 for table in portal_performance_account_mandates portal_performance_account_mandate_events; do
     check_runtime_denied "$source_db" "$table"
@@ -118,6 +125,10 @@ docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname IN ('portal_performance_account_mandate_auto_audit','portal_performance_account_mandate_no_delete','portal_performance_account_mandate_no_truncate','portal_performance_account_event_no_truncate') AND tgenabled='O'")" == 4 ]]
 [[ "$(query "$target_db" "SELECT count(*) FROM pg_class WHERE relname IN ('portal_performance_account_mandates','portal_performance_account_mandate_events') AND has_table_privilege('portal_performance_runtime',oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')")" == 0 ]]
 check_scope_policies "$target_db"
+if [[ "$(query "$target_db" "SELECT count(*) FROM pg_trigger WHERE tgname='portal_performance_account_revoked_immutable' AND tgenabled='O'")" != 1 ]]; then
+    echo "PHASE15_RESTORE_TERMINAL_REVOKED_GUARD_MISSING"
+    exit 1
+fi
 if [[ "$(policy_fingerprint "$target_db")" != "$source_policy_fingerprint" ]]; then
     echo "PHASE15_RESTORE_POLICY_FINGERPRINT_MISMATCH"
     exit 1
@@ -154,6 +165,18 @@ if [[ "$(fingerprint "$target_db")" != "$restored_before" ]]; then
     echo "PHASE15_RESTORED_REVOKED_REPLAY_CHANGED_DATA"
     exit 1
 fi
+# The older restore check only rejected revoked→candidate. Verify the
+# historical draft #989 protection also rejects a *same-status* write:
+# mutating an opaque credential reference/expiry after revocation must not
+# create a second revoked audit event or change the restored row.
+assert_restored_history_denied RESTORED_REVOKED_SAME_STATUS_REWRITE \
+    "UPDATE public.portal_performance_account_mandates SET status='revoked',credential_ref='synthetic-vault-rewritten-001',expires_at=expires_at+30,revision=revision+1 WHERE id=(SELECT id FROM public.portal_performance_account_mandates WHERE status='revoked' AND source_kind='synthetic_candidate' ORDER BY id LIMIT 1)" \
+    "Revoked account mandate is immutable"
+if [[ "$(fingerprint "$target_db")" != "$restored_before" || "$(fingerprint "$source_db")" != "$original" ]]; then
+    echo "PHASE15_TERMINAL_REVOKED_REWRITE_CHANGED_DATA"
+    exit 1
+fi
+echo "PASS PHASE15 RESTORED TERMINAL REVOKED SNAPSHOT"
 echo "PASS PHASE15 RESTORED REVOKED REMAINS REVOKED"
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
 INSERT INTO public.portal_performance_account_mandates
@@ -186,6 +209,16 @@ if [[ "$(fingerprint "$target_db")" != "$revoked_after" || "$(fingerprint "$sour
     echo "PHASE15_POST_RESTORE_REACTIVATION_CHANGED_DATA"
     exit 1
 fi
+# Repeat after a fresh candidate→revoked transition in a different SQL
+# connection, preventing an allowed revoked→revoked consent rewrite.
+assert_restored_history_denied POST_RESTORE_REVOKED_CONSENT_REWRITE \
+    "UPDATE public.portal_performance_account_mandates SET status='revoked',consent_reference='synthetic-consent-rewritten-001',revision=revision+1 WHERE account_id='5555555555' AND status='revoked'" \
+    "Revoked account mandate is immutable"
+if [[ "$(fingerprint "$target_db")" != "$revoked_after" || "$(fingerprint "$source_db")" != "$original" ]]; then
+    echo "PHASE15_POST_RESTORE_TERMINAL_REWRITE_CHANGED_DATA"
+    exit 1
+fi
+echo "PASS PHASE15 POST-RESTORE TERMINAL REVOKED SNAPSHOT"
 echo "PASS PHASE15 POST-RESTORE REVOCATION IS DURABLE"
 [[ "$(fingerprint "$source_db")" == "$original" ]]
 echo "PHASE15_POPULATED_MANDATE_RESTORE_PASS: nonempty revoked candidate and events restored, FORCE RLS, scope-policy metadata and executed runtime SELECT denials preserved, source untouched"
