@@ -1,0 +1,88 @@
+name: Portal Landing buyer same-order private GET (synthetic NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-same-order-click-approved-brief-2026-11-21-r21']
+    paths:
+      - '.github/workflows/landing-same-order-private-get-lab.yml'
+      - 'apps/portal/labs/landing-contract-click/**'
+permissions:
+  contents: read
+concurrency:
+  group: landing-private-get-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  same-order-buyer-private-get:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-same-order-private-get-2026-11-21-r22' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-same-order-click-approved-brief-2026-11-21-r21' &&
+      github.event.pull_request.base.sha == 'c62b7cdb617b6f36ee4f81349ef5845bacbf6c4b'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      APP_ENV: testing
+      LANDING_EXACT_CLICK_LAB: '1'
+      LANDING_PREVIEW_GET_LAB: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Lint test-only routes, readback and browser code
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/landing-contract-click/setup.php
+          php -l apps/portal/labs/landing-contract-click/router.php
+          php -l apps/portal/labs/landing-contract-click/same_order_approved_brief_bridge.php
+          php -l apps/portal/labs/landing-contract-click/private_preview_fixture.php
+          php -l apps/portal/labs/landing-contract-click/private_preview_router.php
+          php -m | grep -x pdo_pgsql
+          python3 -m py_compile apps/portal/labs/landing-contract-click/private_preview_browser.py
+      - name: Install disposable Chromium
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/landing-get-venv"
+          source "$RUNNER_TEMP/landing-get-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Persist browser click, correlate same approved fixture, then GET exact buyer bytes
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/landing-get-venv/bin/activate"
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/landing-order-server.log" 2>&1 &
+          AUTH_PID=$!
+          php -S 127.0.0.1:8766 apps/portal/labs/landing-contract-click/private_preview_router.php > "$RUNNER_TEMP/landing-preview-server.log" 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$AUTH_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/lab/login >/dev/null; then break; fi
+            sleep 1
+          done
+          python apps/portal/labs/landing-contract-click/browser_test.py > "$RUNNER_TEMP/click.log"
+          grep -F 'LANDING EXACT CLICK BROWSER PASS:' "$RUNNER_TEMP/click.log"
+          LANDING_PREVIEW_HOLD=1 php apps/portal/labs/landing-contract-click/same_order_approved_brief_bridge.php > "$RUNNER_TEMP/bridge.log"
+          grep -F 'LANDING BRIDGE HELD FOR HTTP TEST:' "$RUNNER_TEMP/bridge.log"
+          php apps/portal/labs/landing-contract-click/private_preview_fixture.php seed > "$RUNNER_TEMP/fixture.log"
+          grep -F 'LANDING LAB PREVIEW FIXTURE SEEDED:' "$RUNNER_TEMP/fixture.log"
+          python apps/portal/labs/landing-contract-click/private_preview_browser.py | tee "$RUNNER_TEMP/preview-proof.log"
+          grep -F 'LANDING PRIVATE BUYER HTTP GET LAB PASS:' "$RUNNER_TEMP/preview-proof.log"
+          grep -F 'CLIENT_FINAL_ACCEPTANCE=NOT_TESTED; PUBLISH=NO_GO;' "$RUNNER_TEMP/preview-proof.log"
