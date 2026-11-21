@@ -61,6 +61,10 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-performance-bridge-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-performance-decisions-schema.sql
+          # Distinct read-only effective Laravel/TCP SQL preflight BEFORE plan DDL.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-plan-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-plan-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
