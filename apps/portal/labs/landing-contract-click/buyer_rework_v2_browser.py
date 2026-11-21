@@ -110,10 +110,19 @@ with sync_playwright() as p:
     check("BUYER REWORK REQUEST PERSISTED" in page.locator("body").inner_text(),
           "distinct buyer click persists a request instead of acceptance")
     requested = rework_state()
+    original_brief_bytes = b'{"headline":"Landing ficticia para testar leitura conjunta","description":"Sem cliente real"}'
     check(requested["requested"] and requested["requestKind"] == "clarify-benefits"
-          and requested["v1Digest"] == requested["v1Digest"].strip()
+          and requested["v1Digest"] == hashlib.sha256(original_brief_bytes).hexdigest()
           and requested["v2Digest"] is None,
-          "independent process reads one buyer-authored v1 rework request")
+          "independent process reads the exact original approved v1 request")
+    check(not artifact_state()["labFinalAccepted"]
+          and not artifact_state()["currentSource"],
+          "buyer request immediately suspends prior v1 final consent, before editor draft")
+    check(buyer.request.get(FINAL).status == 403,
+          "new final v1 acceptance is denied while buyer-requested rework is pending")
+    check(buyer.request.post(ACCEPT, form={**old_accept_form,
+          "confirm": "yes"}).status == 409,
+          "v1 challenge captured before request cannot be reused after request")
     check(buyer.request.post(REQUEST, form={**request_form,
           "confirm": "yes"}).status == 409,
           "consumed request challenge cannot be replayed")
