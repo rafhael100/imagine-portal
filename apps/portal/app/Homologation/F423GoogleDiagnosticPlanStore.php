@@ -34,6 +34,14 @@ final class F423GoogleDiagnosticPlanStore
             $rows=$q->fetchAll(PDO::FETCH_ASSOC);
             if(count($rows)!==1) return null;
             $row=$rows[0];
+            $approval=$this->db->prepare("SELECT approved_by,plan_fingerprint
+              FROM purchase_rehearsal.f423_google_plan_approvals
+              WHERE customer_id=? AND order_id=? AND order_revision=?
+               AND briefing_sha256=? AND provider='google_ads' AND plan_version=1");
+            $approval->execute([$owner,$order,$revision,$digest]);
+            $review=$approval->fetch(PDO::FETCH_ASSOC);
+            $buyerApproved=is_array($review)
+              && hash_equals($row['plan_fingerprint'],$review['plan_fingerprint']);
             return [
                 'state'=>$row['plan_state'],'plan_version'=>(int)$row['plan_version'],
                 'diagnostic_version'=>(int)$row['diagnostic_version'],
@@ -44,7 +52,9 @@ final class F423GoogleDiagnosticPlanStore
                 'media_cents'=>(int)$row['media_cents'],
                 'proposed_action'=>$row['proposed_action'],
                 'plan_fingerprint'=>$row['plan_fingerprint'],
-                'buyer_plan_approved'=>false,'campaign_draft_created'=>false,
+                'buyer_plan_approved'=>$buyerApproved,
+                'plan_approval_state'=>$buyerApproved?'synthetic_buyer_approved':'not_approved',
+                'campaign_draft_created'=>false,
                 'operational_enabled'=>false
             ];
         });
@@ -138,6 +148,65 @@ final class F423GoogleDiagnosticPlanStore
               throw new RuntimeException('Conflicting plan replay');
             return ['persisted_plans'=>1,'plan_state'=>'awaiting_separate_approval',
               'campaign_drafts_created'=>0,'plan_approved'=>false];
+        });
+    }
+
+    /** Distinct CI buyer review, bound to exact immutable plan SHA and order revision. */
+    public function approve(string $owner,string $order,string $buyer,int $revision,int $version,string $fingerprint): bool
+    {
+        if(!preg_match('/\\Ademo-[a-f0-9]{32}\\z/D',$owner)
+          ||!preg_match('/\\ATEST-[a-f0-9]{32}\\z/D',$order)
+          ||!preg_match('/\\Ademo-[a-z0-9-]{3,40}\\z/D',$buyer)
+          ||$revision<1||$version!==1
+          ||!preg_match('/\\A[a-f0-9]{64}\\z/D',$fingerprint)) return false;
+        return $this->customer->withVerifiedScope($owner,function() use($owner,$order,$buyer,$revision,$fingerprint):bool {
+            $q=$this->db->prepare("SELECT revision,briefing,product,payment,payment_source,payment_hold,
+                  offer_snapshot FROM purchase_rehearsal.customer_orders
+                  WHERE customer_id=? AND id=? FOR UPDATE");
+            $q->execute([$owner,$order]);$o=$q->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($o)||$o['product']!=='performance'||$o['payment']!=='approved'
+              ||$o['payment_source']!=='asaas_sandbox'
+              ||in_array($o['payment_hold'],[true,'t',1,'1'],true)
+              ||(int)$o['revision']!==$revision) return false;
+            $briefing=json_decode((string)$o['briefing'],true,512,JSON_THROW_ON_ERROR);
+            if(!is_array($briefing))return false;
+            $digest=hash('sha256',json_encode($briefing,JSON_THROW_ON_ERROR));
+            $offer=json_decode((string)$o['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
+            $channels=$offer['media_by_channel_cents']??null;
+            if(!is_array($channels)||array_keys($channels)!==['google_ads']
+              ||$channels['google_ads']!==100000
+              ||($offer['activation_per_channel_cents']??null)!==49000) return false;
+            $q=$this->db->prepare("SELECT approved_by FROM purchase_rehearsal.f423_briefing_reviews
+                  WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?");
+            $q->execute([$owner,$order,$revision,$digest]);
+            if($q->fetchColumn()!==$buyer)return false;
+            $q=$this->db->prepare("SELECT p.plan_fingerprint
+                FROM purchase_rehearsal.f423_google_diagnostic_plans p
+                JOIN purchase_rehearsal.f423_performance_decisions d
+                  ON d.customer_id=p.customer_id AND d.order_id=p.order_id
+                  AND d.order_revision=p.order_revision AND d.provider=p.provider
+                  AND d.briefing_sha256=p.briefing_sha256
+                  AND d.decision_fingerprint=p.decision_fingerprint
+                WHERE p.customer_id=? AND p.order_id=? AND p.order_revision=?
+                  AND p.briefing_sha256=? AND p.provider='google_ads'
+                  AND p.plan_version=1 AND p.plan_state='awaiting_separate_approval'
+                  AND d.decision_state='internal_review_only'");
+            $q->execute([$owner,$order,$revision,$digest]);
+            if($q->fetchColumn()!==$fingerprint)return false;
+            $q=$this->db->prepare("INSERT INTO purchase_rehearsal.f423_google_plan_approvals
+               (customer_id,order_id,order_revision,briefing_sha256,provider,
+                plan_version,plan_fingerprint,approved_by)
+               VALUES(?,?,?,?,'google_ads',1,?,?)
+               ON CONFLICT DO NOTHING");
+            $q->execute([$owner,$order,$revision,$digest,$fingerprint,$buyer]);
+            $q=$this->db->prepare("SELECT plan_fingerprint,approved_by
+              FROM purchase_rehearsal.f423_google_plan_approvals
+              WHERE customer_id=? AND order_id=? AND order_revision=?
+               AND briefing_sha256=? AND provider='google_ads' AND plan_version=1");
+            $q->execute([$owner,$order,$revision,$digest]);$saved=$q->fetchAll(PDO::FETCH_ASSOC);
+            return count($saved)===1
+                &&hash_equals($saved[0]['plan_fingerprint'],$fingerprint)
+                &&$saved[0]['approved_by']===$buyer;
         });
     }
 }
