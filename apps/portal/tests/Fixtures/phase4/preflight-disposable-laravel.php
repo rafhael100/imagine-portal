@@ -57,7 +57,13 @@ try {
     );
     if ($row === null || $row->name !== 'performance_phase4_ci'
         || $row->role !== 'postgres' || (int) $row->version < 180000
-        || $row->server_addr !== '127.0.0.1' || (int) $row->server_port !== 5432) {
+        // In Actions the PostgreSQL server is inside a container: TCP is
+        // routed through Docker NAT, so server_addr is NOT necessarily 127.0.0.1.
+        // Enforce TCP (not a Unix socket) and the expected server port; the
+        // client-side Laravel host/port remain independently checked above.
+        || !is_string($row->server_addr)
+        || filter_var($row->server_addr, FILTER_VALIDATE_IP) === false
+        || (int) $row->server_port !== 5432) {
         throw new RuntimeException('SQL endpoint mismatch');
     }
     echo "PASS PHASE8 EFFECTIVE LARAVEL AND SQL DISPOSABLE PREFLIGHT\n";
