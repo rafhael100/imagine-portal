@@ -13,14 +13,14 @@ if (getenv('GITHUB_ACTIONS') !== 'true'
 }
 require __DIR__.'/vendor/autoload.php';
 $app = require __DIR__.'/bootstrap/app.php';
-$app->make(\\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 if (config('app.env') !== 'staging'
     || config('app.url') !== 'http://127.0.0.1:18083'
     || config('app.debug') !== false) exit(1);
 $st = @stat('/run/secrets/preview-runtime.json');
 if (!is_array($st) || ($st['mode'] & 077) !== 0 || $st['uid'] !== 82 || $st['size'] > 2048) exit(1);
 $cfg = json_decode((string) @file_get_contents('/run/secrets/preview-runtime.json'), true);
-if (!is_array($cfg) || !preg_match('/\\A[a-f0-9]{64}\\z/D', $cfg['database_password'] ?? '')) exit(1);
+if (!is_array($cfg) || !preg_match('/\A[a-f0-9]{64}\z/D', $cfg['database_password'] ?? '')) exit(1);
 try {
     $db = new PDO(
         'pgsql:host=database;port=5432;dbname=portal_purchase_rehearsal;connect_timeout=3',
