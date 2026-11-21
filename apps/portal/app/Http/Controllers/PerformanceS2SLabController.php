@@ -77,9 +77,9 @@ final class PerformanceS2SLabController
         $payload=json_decode($request->getContent(),true);
         abort_unless(is_array($payload),422);
         try {
-            $out=app(\\App\\Homologation\\F423GoogleDiagnosticPlanStore::class)
+            $out=app(\App\Homologation\F423GoogleDiagnosticPlanStore::class)
                 ->persist((string)$company,$id,$payload);
-        } catch (\\Throwable $failure) {
+        } catch (\Throwable $failure) {
             // No untrusted diagnostics, consent, request data or SQL in responses.
             error_log('F423 CI-only diagnostic plan denied');
             abort(409,'Synthetic diagnostic plan conflict.');
