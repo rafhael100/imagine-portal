@@ -87,6 +87,26 @@ final class PerformanceS2SLabController
           'ads_write_enabled'=>false,'billable'=>false])->header('Cache-Control','no-store');
     }
 
+    /** Never contacts Google. Two immutable synthetic fixture samples only. */
+    public function persistMonitoringSamples(Request $request,string $id)
+    {
+        $company=$request->header('X-F423-Company','');
+        $this->verify($request,$id,(string)$company);
+        abort_unless(str_starts_with((string)$request->header('Content-Type',''),'application/json'),415);
+        abort_unless(strlen($request->getContent())<=4096,413);
+        $payload=json_decode($request->getContent(),true);
+        abort_unless(is_array($payload),422);
+        try {
+            $out=app(\App\Homologation\F423GoogleMonitoringSampleStore::class)
+                ->persist((string)$company,$id,$payload);
+        } catch (\Throwable) {
+            error_log('F423 offline monitoring rejected');
+            abort(409,'Offline synthetic sample conflict.');
+        }
+        return response()->json(['schema'=>'f423_ci_only_offline_google_monitoring_v1',...$out,
+            'ads_write_enabled'=>false,'billable'=>false])->header('Cache-Control','no-store');
+    }
+
     /** CI S2S plan candidate after the existing persisted internal-only decision. */
     public function persistDiagnosticPlan(Request $request,string $id)
     {
