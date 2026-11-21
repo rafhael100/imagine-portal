@@ -90,6 +90,11 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-google-improvement-approval-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-improvement-approval-schema.sql
+          # Final OFFLINE-only result ledger, only AFTER effective Laravel and
+          # unprivileged TCP PG18 attest disposable database before DDL.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-offline-application-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-offline-application-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
@@ -278,6 +283,25 @@ jobs:
           # approves it on a separate route, with a new immutable PG18 event.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_improvement_approval.py
           echo 'PASS F423 IMPROVEMENT APPROVAL: same buyer, exact proposal fingerprint, 1 SQL event, no application' >> "$GITHUB_STEP_SUMMARY"
+          cd apps/portal/ops/private-purchase
+          # Only after the browser's explicit separate approval, two distinct
+          # sandbox workers persist ONE OFFLINE comparison; no real Ads network.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/application-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/application-worker.php "$single_owner" "$single_order"
+          offline_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_applied_results
+              WHERE customer_id='$single_owner' AND order_id='$single_order'
+                AND provider='google_ads' AND application_state='ci_offline_fixture_applied'")
+          test "$offline_rows" = 1
+          wrong_offline_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_applied_results
+              WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
+                OR provider<>'google_ads'")
+          test "$wrong_offline_rows" = 0
+          echo 'PASS F423 OFFLINE APPLICATION: same approved Google-only proposal, 1 PG18 result, 2 processes replay, no real Ads' >> "$GITHUB_STEP_SUMMARY"
+          cd ../../../..
           cd apps/portal/ops/private-purchase
           cd ../../../..
           # Preserve existing distinct two-channel S2S/SQL/browser/restart
