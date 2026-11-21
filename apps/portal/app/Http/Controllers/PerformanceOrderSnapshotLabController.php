@@ -263,4 +263,65 @@ final class PerformanceOrderSnapshotLabController
         ),409,'O plano mudou ou o comprador não tem autorização.');
         return redirect('/_preview/portal/shop/orders/'.$id.'/plan-review');
     }
+    /** Separate explicit browser review of the exact OFFLINE improvement only. */
+    public function improvementReviewForm(Request $request,string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+          && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+          && config('app.env')==='staging',404);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile)&&($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null),403);
+        $snapshot=$this->source($profile['customer_id'],$id)->getData(true);
+        $proposal=$snapshot['improvement_proposal']??null;
+        abort_unless(is_array($proposal)
+          && ($snapshot['purchase_state']??null)==='synthetic_confirmed'
+          && ($snapshot['briefing_review_state']??null)==='synthetic_buyer_approved'
+          && ($snapshot['plan_approved']??null)===true
+          && ($snapshot['campaign_drafts_created']??null)===1
+          && count($snapshot['channels']??[])===1
+          && isset($snapshot['channels']['google_ads'])
+          && ($proposal['proposal_version']??null)===1,404);
+        return response()->view('portal.preview.f423-google-improvement-review',[
+          'id'=>$id,'revision'=>$snapshot['order_revision'],'proposal'=>$proposal
+        ])->header('Cache-Control','no-store, private');
+    }
+
+    /** Buyer session + CSRF, immutable proposal revision/SHA; no Ads rights. */
+    public function approveImprovement(Request $request,string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+          && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+          && config('app.env')==='staging',404);
+        abort_unless(array_diff(array_keys($request->all()),
+          ['_token','revision','proposal_version','proposal_fingerprint','approval_ack'])===[],422);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile)&&($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null)
+          && is_string($profile['id']??null),403);
+        $v=$request->validate([
+          'revision'=>'required|integer|min:1|max:100000',
+          'proposal_version'=>'required|integer|in:1',
+          'proposal_fingerprint'=>['required','string','regex:/\A[a-f0-9]{64}\z/D'],
+          'approval_ack'=>'accepted',
+        ]);
+        $source=$this->source($profile['customer_id'],$id)->getData(true);
+        $proposal=$source['improvement_proposal']??null;
+        abort_unless(is_array($proposal)
+          && count($source['channels']??[])===1
+          && isset($source['channels']['google_ads'])
+          && ($source['purchase_state']??null)==='synthetic_confirmed'
+          && ($source['briefing_review_state']??null)==='synthetic_buyer_approved'
+          && ($source['plan_approved']??null)===true
+          && ($source['campaign_drafts_created']??null)===1
+          && (int)$source['order_revision']===(int)$v['revision']
+          && (int)$proposal['proposal_version']===(int)$v['proposal_version']
+          && hash_equals($proposal['proposal_fingerprint'],$v['proposal_fingerprint']),409);
+        abort_unless(app(\App\Homologation\F423GoogleOfflineImprovementStore::class)->approve(
+          $profile['customer_id'],$id,$profile['id'],(int)$v['revision'],
+          (int)$v['proposal_version'],$v['proposal_fingerprint']
+        ),409,'Proposta offline alterada ou comprador sem autorização.');
+        return redirect('/_preview/portal/shop/orders/'.$id.'/improvement-review');
+    }
+
 }

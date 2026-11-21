@@ -53,12 +53,30 @@ final class F423GoogleOfflineImprovementStore
             $rows=$q->fetchAll(PDO::FETCH_ASSOC);
             if(count($rows)!==1||$rows[0]['proposal_state']!=='awaiting_separate_approval'
               ||$rows[0]['action']!==self::ACTION) return null;
+            // Approval lives in a SECOND immutable ledger, never in the proposal row.
+            $approvedSql=$this->db->prepare("SELECT a.approved_by FROM
+              purchase_rehearsal.f423_google_improvement_approvals a
+              JOIN purchase_rehearsal.f423_google_plan_approvals pa
+                ON pa.customer_id=a.customer_id AND pa.order_id=a.order_id
+               AND pa.order_revision=a.order_revision AND pa.provider=a.provider
+               AND pa.plan_version=a.plan_version AND pa.briefing_sha256=a.briefing_sha256
+               AND pa.approved_by=a.approved_by
+              JOIN purchase_rehearsal.f423_briefing_reviews br
+                ON br.customer_id=a.customer_id AND br.order_id=a.order_id
+               AND br.order_revision=a.order_revision AND br.briefing_sha256=a.briefing_sha256
+               AND br.approved_by=a.approved_by
+              WHERE a.customer_id=? AND a.order_id=? AND a.order_revision=?
+                AND a.briefing_sha256=? AND a.provider='google_ads' AND a.plan_version=1
+                AND a.proposal_version=1 AND a.proposal_fingerprint=?");
+            $approvedSql->execute([$owner,$order,$revision,$digest,$rows[0]['proposal_fingerprint']]);
+            $approved=count($approvedSql->fetchAll(PDO::FETCH_ASSOC))===1;
             return ['state'=>'awaiting_separate_approval','proposal_version'=>1,
               'action'=>self::ACTION,'evidence_sha256'=>$rows[0]['evidence_sha256'],
               'proposal_fingerprint'=>$rows[0]['proposal_fingerprint'],
               'plan_fingerprint'=>$rows[0]['plan_fingerprint'],
               'draft_fingerprint'=>$rows[0]['draft_fingerprint'],
-              'metric_origin'=>self::ORIGIN,'separate_approval_recorded'=>false,
+              'metric_origin'=>self::ORIGIN,'separate_approval_recorded'=>$approved,
+               'approval_state'=>$approved?'synthetic_buyer_approved':'not_approved',
               'applied'=>false,'published'=>false,'operational_enabled'=>false];
         });
     }
@@ -171,4 +189,77 @@ final class F423GoogleOfflineImprovementStore
               'published'=>false,'billable'=>false,'operational_enabled'=>false];
         });
     }
+    /** Explicit buyer approval of the exact OFFLINE proposal. No Ads permission or application. */
+    public function approve(string $owner,string $order,string $buyer,int $revision,
+      int $version,string $fingerprint):bool
+    {
+        if(!self::valid($owner,$order,$revision,$fingerprint)
+          ||!preg_match('/\Ademo-[a-z0-9-]{3,40}\z/D',$buyer)
+          ||$version!==1) return false;
+        return $this->customer->withVerifiedScope($owner,function() use($owner,$order,$buyer,$revision,$fingerprint):bool {
+            $q=$this->db->prepare("SELECT revision,briefing,product,payment,payment_source,payment_hold,
+              offer_snapshot FROM purchase_rehearsal.customer_orders
+              WHERE customer_id=? AND id=? FOR UPDATE");
+            $q->execute([$owner,$order]);$o=$q->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($o)||$o['product']!=='performance'||$o['payment']!=='approved'
+              ||$o['payment_source']!=='asaas_sandbox'
+              ||in_array($o['payment_hold'],[true,'t','1',1],true)
+              ||(int)$o['revision']!==$revision) return false;
+            $briefing=json_decode((string)$o['briefing'],true,512,JSON_THROW_ON_ERROR);
+            if(!is_array($briefing))return false;
+            $digest=hash('sha256',json_encode($briefing,JSON_THROW_ON_ERROR));
+            $offer=json_decode((string)$o['offer_snapshot'],true,512,JSON_THROW_ON_ERROR);
+            if(($offer['media_by_channel_cents']??null)!==['google_ads'=>100000]
+              ||($offer['activation_per_channel_cents']??null)!==49000) return false;
+            $q=$this->db->prepare("SELECT b.approved_by
+              FROM purchase_rehearsal.f423_briefing_reviews b
+              JOIN purchase_rehearsal.f423_google_plan_approvals pa
+                ON pa.customer_id=b.customer_id AND pa.order_id=b.order_id
+               AND pa.order_revision=b.order_revision AND pa.briefing_sha256=b.briefing_sha256
+               AND pa.provider='google_ads' AND pa.plan_version=1
+               AND pa.approved_by=b.approved_by
+              WHERE b.customer_id=? AND b.order_id=? AND b.order_revision=?
+                AND b.briefing_sha256=?");
+            $q->execute([$owner,$order,$revision,$digest]);
+            if($q->fetchColumn()!==$buyer)return false;
+            $q=$this->db->prepare("SELECT p.proposal_fingerprint,p.draft_fingerprint,p.plan_fingerprint
+              FROM purchase_rehearsal.f423_google_offline_improvements p
+              JOIN purchase_rehearsal.f423_google_internal_drafts d
+                ON d.customer_id=p.customer_id AND d.order_id=p.order_id
+               AND d.order_revision=p.order_revision AND d.briefing_sha256=p.briefing_sha256
+               AND d.provider=p.provider AND d.plan_version=p.plan_version
+               AND d.plan_fingerprint=p.plan_fingerprint AND d.draft_fingerprint=p.draft_fingerprint
+              WHERE p.customer_id=? AND p.order_id=? AND p.order_revision=?
+                AND p.briefing_sha256=? AND p.provider='google_ads'
+                AND p.plan_version=1 AND p.proposal_version=1
+                AND p.proposal_state='awaiting_separate_approval'
+                AND d.draft_state='ci_internal_unpublished'");
+            $q->execute([$owner,$order,$revision,$digest]);$rows=$q->fetchAll(PDO::FETCH_ASSOC);
+            if(count($rows)!==1 || !hash_equals($rows[0]['proposal_fingerprint'],$fingerprint))
+              return false;
+            $q=$this->db->prepare("SELECT count(*) FROM
+              purchase_rehearsal.f423_google_monitoring_samples
+              WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?
+                AND provider='google_ads' AND plan_version=1
+                AND plan_fingerprint=? AND draft_fingerprint=?");
+            $q->execute([$owner,$order,$revision,$digest,
+               $rows[0]['plan_fingerprint'],$rows[0]['draft_fingerprint']]);
+            if((int)$q->fetchColumn()!==2)return false;
+            $q=$this->db->prepare("INSERT INTO purchase_rehearsal.f423_google_improvement_approvals
+              (customer_id,order_id,order_revision,briefing_sha256,provider,
+               plan_version,proposal_version,proposal_fingerprint,approved_by)
+              VALUES(?,?,?,?,'google_ads',1,1,?,?) ON CONFLICT DO NOTHING");
+            $q->execute([$owner,$order,$revision,$digest,$fingerprint,$buyer]);
+            $q=$this->db->prepare("SELECT proposal_fingerprint,approved_by FROM
+              purchase_rehearsal.f423_google_improvement_approvals
+              WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?
+                AND provider='google_ads' AND plan_version=1 AND proposal_version=1");
+            $q->execute([$owner,$order,$revision,$digest]);
+            $saved=$q->fetchAll(PDO::FETCH_ASSOC);
+            return count($saved)===1
+              &&hash_equals($saved[0]['proposal_fingerprint'],$fingerprint)
+              &&$saved[0]['approved_by']===$buyer;
+        });
+    }
+
 }

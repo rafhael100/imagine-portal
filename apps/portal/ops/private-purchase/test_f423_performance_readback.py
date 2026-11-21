@@ -74,7 +74,8 @@ with sync_playwright() as playwright:
         assert suggestion['state']=='awaiting_separate_approval'
         assert suggestion['proposal_version']==1
         assert suggestion['action']=='audit_search_terms_offline_simulation'
-        assert suggestion['separate_approval_recorded'] is False
+        assert suggestion['separate_approval_recorded'] is bool(os.getenv('F423_RESTARTED'))
+        assert suggestion['approval_state']==('synthetic_buyer_approved' if os.getenv('F423_RESTARTED') else 'not_approved')
         assert suggestion['applied'] is False and suggestion['published'] is False
         assert suggestion['metric_origin']=='ci_offline_google_ads_provider_fixture'
         assert suggestion['draft_fingerprint']==data['internal_campaign_draft']['draft_fingerprint']
@@ -82,6 +83,9 @@ with sync_playwright() as playwright:
         assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_offline_improvements WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads' AND proposal_state='awaiting_separate_approval'"%(owner,order,revision,digest))=='1'
         assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_offline_improvements'::regclass")=='t'
         assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_offline_improvements','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_offline_improvements','DELETE'))")=='t'
+        assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_improvement_approvals WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads' AND proposal_fingerprint='%s' AND approved_by='%s'"%(owner,order,revision,digest,suggestion['proposal_fingerprint'],user))==str(int(bool(os.getenv('F423_RESTARTED'))))
+        assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_improvement_approvals'::regclass")=='t'
+        assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_improvement_approvals','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_improvement_approvals','DELETE'))")=='t'
     assert data['monitoring_state']==('two_dated_offline_fixture_samples' if DRAFT_EXPECTED else 'not_started')
     if DRAFT_EXPECTED:
         assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads'"%(owner,order,revision,digest))=='2'
