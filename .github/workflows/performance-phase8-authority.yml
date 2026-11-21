@@ -70,6 +70,40 @@ jobs:
       - name: Operation-specific navigation, filters, signatures and denial events
         working-directory: apps/portal
         run: php artisan test --no-ansi --filter='NativePerformanceAuthorityTest|NativePerformanceReadNavigationTest|NativePerformanceAccountMandateStoreTest|NativePerformanceAccountMandateTenantCollisionTest|SignedServiceReadClientTest|PerformanceSecurityEventsTest'
+      - name: Reject pre-existing restore destination without deleting it
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          DOCKER_HOST: ''
+          DOCKER_CONTEXT: ''
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_ACTIONS" == true && "$CI" == true && "$ADMIN_PHASE4_PG_CI" == 1 ]]
+          [[ "$DB_DATABASE" == performance_phase4_ci && "$APP_ENV" == testing ]]
+          [[ "$PG_CONTAINER" =~ ^[0-9a-f]{12,64}$ ]]
+          [[ "$(docker inspect -f '{{.Config.Image}}' "$PG_CONTAINER")" == postgres:18 ]]
+          # This CI database is disposable; never disturb a pre-existing destination.
+          exists() {
+            docker exec "$PG_CONTAINER" psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d performance_phase4_ci -c "SELECT count(*) FROM pg_database WHERE datname='performance_mandate_restore_ci'"
+          }
+          [[ "$(exists)" == 0 ]]
+          docker exec "$PG_CONTAINER" createdb -U postgres performance_mandate_restore_ci
+          created_by_this_test=1
+          refusal_log="$(mktemp "$RUNNER_TEMP/phase15-target-refusal-XXXXXXXX.log")"
+          cleanup() {
+            rm -f -- "$refusal_log"
+            if [[ "$created_by_this_test" == 1 ]]; then
+              docker exec "$PG_CONTAINER" dropdb -U postgres --if-exists performance_mandate_restore_ci >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          if bash apps/portal/tests/Fixtures/phase15-mandate-restore/run.sh >"$refusal_log" 2>&1; then
+            echo 'FAIL PHASE15 EXISTING DESTINATION ACCEPTED'
+            exit 1
+          fi
+          # Require the *specific* destination guard, not an unrelated script error.
+          grep -Fxq 'PHASE15_RESTORE_DESTINATION_PREEXISTS_NO_DELETE' "$refusal_log"
+          [[ "$(exists)" == 1 ]]
+          echo 'PASS PHASE15 EXISTING DESTINATION PRESERVED'
       - name: Restore populated synthetic mandate and event tables in disposable PostgreSQL
         env:
           PG_CONTAINER: ${{ job.services.postgres.id }}

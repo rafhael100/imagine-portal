@@ -11,14 +11,24 @@ source_db=performance_phase4_ci
 target_db=performance_mandate_restore_ci
 umask 077
 archive="$(mktemp "$RUNNER_TEMP/performance-mandate-restore-XXXXXXXX.dump")"
+target_created=0
 cleanup() {
     rm -f -- "$archive"
-    docker exec "$PG_CONTAINER" dropdb -U postgres --if-exists "$target_db" >/dev/null 2>&1 || true
+    # Never delete a database that this run did not create.
+    if [[ "$target_created" == 1 ]]; then
+        docker exec "$PG_CONTAINER" dropdb -U postgres --if-exists "$target_db" >/dev/null 2>&1 || true
+    fi
 }
 trap cleanup EXIT
 query() {
     docker exec "$PG_CONTAINER" psql -X -qAt -v ON_ERROR_STOP=1 -U postgres -d "$1" -c "$2"
 }
+# Abort BEFORE pg_dump/createdb/pg_restore if another run already owns this
+# destination. The EXIT trap must not remove the pre-existing database.
+if [[ "$(query "$source_db" "SELECT count(*) FROM pg_database WHERE datname='$target_db'")" != 0 ]]; then
+    echo "PHASE15_RESTORE_DESTINATION_PREEXISTS_NO_DELETE"
+    exit 1
+fi
 fingerprint() {
     local database="$1"
     query "$database" "SELECT row_to_json(t)::text FROM public.portal_performance_account_mandates t ORDER BY id" | sha256sum | awk '{print $1}'
@@ -35,6 +45,7 @@ docker exec "$PG_CONTAINER" pg_dump -U postgres -d "$source_db" -Fc > "$archive"
 [[ -s "$archive" ]]
 digest="$(sha256sum "$archive" | awk '{print $1}')"
 docker exec "$PG_CONTAINER" createdb -U postgres "$target_db"
+target_created=1
 docker exec -i "$PG_CONTAINER" pg_restore -U postgres -d "$target_db" --exit-on-error --single-transaction < "$archive"
 [[ "$(sha256sum "$archive" | awk '{print $1}')" == "$digest" ]]
 [[ "$(fingerprint "$target_db")" == "$original" ]]
