@@ -35,7 +35,7 @@ final class NativePerformanceAccountMandateStaleWriterTest extends TestCase
             'DB_USERNAME' => 'postgres',
         ] as $name => $expected) {
             if (getenv($name) !== $expected) {
-                $this->fail('Only attested disposable PostgreSQL18 CI may run this test');
+                $this->fail('Disposable CI flag mismatch: ' . $name);
             }
         }
         if (DB::getDriverName() !== 'pgsql'
