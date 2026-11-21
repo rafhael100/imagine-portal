@@ -70,6 +70,10 @@ with sync_playwright() as playwright:
     assert data['monitoring_samples']==expected_samples
     assert data['monitoring_state']==('two_dated_offline_fixture_samples' if DRAFT_EXPECTED else 'not_started')
     if DRAFT_EXPECTED:
+        assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads'"%(owner,order,revision,digest))=='2'
+        assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_monitoring_samples'::regclass")=='t'
+        assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_monitoring_samples','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_monitoring_samples','DELETE'))")=='t'
+    if DRAFT_EXPECTED:
         draft=data['internal_campaign_draft']
         assert draft['state']=='ci_internal_unpublished' and draft['provider']=='google_ads'
         assert draft['published'] is False and draft['operational_enabled'] is False
