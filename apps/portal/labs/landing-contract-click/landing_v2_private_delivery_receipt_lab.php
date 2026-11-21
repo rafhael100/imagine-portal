@@ -30,16 +30,26 @@ function r29db(string $user='postgres'): PDO {
 function r29http(string $url): ?array {
     // Fixed loopback endpoints only; no user-provided URL or redirects.
     if (!in_array($url, [R29_STATE_URL, R29_HTML_URL], true)) return null;
+    // R33: enforce the transport budget *during* streaming, not after
+    // curl_exec has already buffered an untrusted mock provider response.
+    $limit=$url===R29_STATE_URL?4096:32768;
+    $data='';
     $h=curl_init($url);
     curl_setopt_array($h, [
-        CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>false,
+        CURLOPT_RETURNTRANSFER=>false, CURLOPT_FOLLOWLOCATION=>false,
         CURLOPT_MAXREDIRS=>0, CURLOPT_PROXY=>'',
-        CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000
+        CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000,
+        CURLOPT_WRITEFUNCTION=>static function($handle,string $chunk) use (&$data,$limit):int {
+            $length=strlen($chunk);
+            if($length>$limit-strlen($data))return 0; // abort transfer
+            $data.=$chunk;
+            return $length;
+        },
     ]);
-    $data=curl_exec($h);
-    $status=(int)curl_getinfo($h, CURLINFO_RESPONSE_CODE);
+    $ok=curl_exec($h);
+    $status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);
     curl_close($h);
-    return $status===200 && is_string($data) ? [$data,$status] : null;
+    return $ok===true && $status===200 ? [$data,$status] : null;
 }
 function r29source(): ?array {
     $e=r26evidence(); // current clicked v2 and current approved briefing, not historical ACK
@@ -173,6 +183,14 @@ if(PHP_SAPI==='cli-server') {
 }
 
 $mode=$argv[1]??'';
+if($mode==='probe-http-bounds') {
+    // The R33 CI-only adverse server returns HTTP 200 with oversize state and
+    // HTML. Neither may be accepted or buffered to completion by r29http().
+    if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
+        throw new RuntimeException('R33 oversized local provider was accepted');
+    echo "R33_OVERSIZED_PROVIDER_STATE_AND_HTML_ABORTED; NO_GO; NO_REAL_EGRESS\n";
+    exit;
+}
 if($mode==='init') {
     r29db()->exec(<<<'SQL'
 CREATE SCHEMA landing_delivery_r29;
