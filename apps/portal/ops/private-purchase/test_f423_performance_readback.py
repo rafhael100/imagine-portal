@@ -99,8 +99,8 @@ with sync_playwright() as playwright:
                  'plan_fingerprint':plan['plan_fingerprint'],'approval_ack':'1'}
         assert page.context.request.post(review_url,form=dict(payload,plan_fingerprint='0'*64)).status==409
         assert page.context.request.post(review_url,form=dict(payload,revision=str(int(revision)+1))).status==409
-        assert page.context.request.post(review_url,form=dict(payload,plan_version='2')).status==422
-        assert page.context.request.post(review_url,form=dict(payload,approval_ack='')).status==422
+        assert page.context.request.post(review_url,form=dict(payload,plan_version='2'),headers={'Accept':'application/json'}).status==422
+        assert page.context.request.post(review_url,form=dict(payload,approval_ack=''),headers={'Accept':'application/json'}).status==422
         assert page.context.request.get(endpoint).json()['plan_approved'] is False
         page.locator('[name=approval_ack]').check()
         page.get_by_role('button',name='Aprovar plano fictício exibido').click()
