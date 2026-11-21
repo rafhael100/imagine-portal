@@ -52,9 +52,12 @@ final class F423PerformanceDecisionStore
             || $payload['operational_enabled']!==false || $payload['ads_write_enabled']!==false || $payload['billable']!==false
             || !is_array($payload['channels'])) throw new RuntimeException('Invalid laboratory decision contract');
         $providers=array_keys($payload['channels']);sort($providers);
-        if($providers!==['google_ads','meta_ads']) throw new RuntimeException('Missing or unknown laboratory channel');
+        // Exact lab offer sets only: existing Google+Meta or newly approved
+        // Google-only order. Do not infer Meta or open arbitrary providers.
+        if($providers!==['google_ads'] && $providers!==['google_ads','meta_ads'])
+            throw new RuntimeException('Missing or unknown laboratory channel');
 
-        return $this->customer->withVerifiedScope($owner,function() use ($owner,$orderId,$payload): array {
+        return $this->customer->withVerifiedScope($owner,function() use ($owner,$orderId,$payload,$providers): array {
             $q=$this->db->prepare("SELECT revision,product,payment,payment_source,payment_hold,briefing,offer_snapshot
                   FROM purchase_rehearsal.customer_orders WHERE customer_id=? AND id=? FOR UPDATE");
             $q->execute([$owner,$orderId]);$order=$q->fetch(PDO::FETCH_ASSOC);
@@ -83,17 +86,22 @@ final class F423PerformanceDecisionStore
             $mediaKeys=is_array($media)?array_keys($media):[];
             sort($mediaKeys,SORT_STRING);
             if(!is_array($media) || ($offer['activation_per_channel_cents']??null)!==49000
-                || $mediaKeys!==['google_ads','meta_ads']
-                || !is_int($media['google_ads']) || !is_int($media['meta_ads'])
-                || $media['google_ads']!==100000 || $media['meta_ads']!==70000) {
+                || $mediaKeys!==$providers
+                || ($offer['activation_total_cents']??null)!==49000*count($providers)
+                || ($offer['amount_now_cents']??null)!==49000*count($providers)) {
                 throw new RuntimeException('Different synthetic offer');
+            }
+            $expectedMedia=['google_ads'=>100000,'meta_ads'=>70000];
+            foreach($providers as $provider) {
+                if(!is_int($media[$provider]) || $media[$provider]!==$expectedMedia[$provider])
+                    throw new RuntimeException('Different synthetic channel budget');
             }
 
             $insert=$this->db->prepare("INSERT INTO purchase_rehearsal.f423_performance_decisions
                 (customer_id,order_id,order_revision,briefing_sha256,provider,
                  media_cents,source_order_alias,account_fingerprint,decision_state,decision_reason,decision_fingerprint)
                  VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING");
-            foreach(['google_ads','meta_ads'] as $provider) {
+            foreach($providers as $provider) {
                 $row=$payload['channels'][$provider];
                 if(!is_array($row)) throw new RuntimeException('Invalid channel');
                 $keys=array_keys($row);$expected=['state','reason','media_cents','account_fingerprint','fingerprint'];
@@ -123,7 +131,7 @@ final class F423PerformanceDecisionStore
                     WHERE customer_id=? AND order_id=? AND order_revision=? AND briefing_sha256=?");
             $q->execute([$owner,$orderId,$payload['order_revision'],$payload['briefing_sha256']]);
             $stored=$q->fetchAll(PDO::FETCH_ASSOC);
-            if(count($stored)!==2) throw new RuntimeException('Incomplete persisted decision');
+            if(count($stored)!==count($providers)) throw new RuntimeException('Incomplete persisted decision');
             $ready=0;
             foreach($stored as $saved) {
                 if($saved['decision_state']==='internal_review_only') ++$ready;
@@ -136,7 +144,7 @@ final class F423PerformanceDecisionStore
                     || $saved['decision_fingerprint']!==$row['fingerprint'])
                     throw new RuntimeException('Conflicting interprocess replay');
             }
-            return ['persisted_channels'=>2,'ready_channels_count'=>$ready,'campaign_drafts_created'=>0];
+            return ['persisted_channels'=>count($providers),'ready_channels_count'=>$ready,'campaign_drafts_created'=>0];
         });
     }
 }
