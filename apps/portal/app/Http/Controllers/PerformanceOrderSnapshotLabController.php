@@ -159,7 +159,15 @@ final class PerformanceOrderSnapshotLabController
             $channels['google_ads']['campaign_state']='internal_draft_unpublished';
             $plan['campaign_draft_created']=true;
         }
+        // Fixture dates are persisted independently of the unpublished draft.
+        // Two complete, exact OFFLINE samples only; never Google analytics.
+        $samples=is_array($draft)
+            ? app(\App\Homologation\F423GoogleMonitoringSampleStore::class)
+               ->read($owner,$id,(int)$order['revision'],$digest,$draft['draft_fingerprint'])
+            : [];
         $response = [
+            'monitoring_samples' => $samples,
+            'monitoring_state' => count($samples)===2 ? 'two_dated_offline_fixture_samples' : 'not_started',
             'internal_campaign_draft' => $draft,
             'diagnostic_plan' => $plan,
             'plan_approved' => is_array($plan) && ($plan['buyer_plan_approved']??false)===true,
