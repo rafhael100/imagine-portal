@@ -69,6 +69,12 @@ $ok($clicked['contract_ref']==='contract-landing-lab-001',
     'exact contract identity is recorded, never inferred from an offer');
 $ok($acceptance('tenant-A','buyer-B')===null,'same tenant different buyer cannot claim click');
 $ok($acceptance('tenant-B','buyer-A')===null,'different tenant cannot claim click');
+// Mutation of contract identity alone must invalidate any previously clicked receipt.
+$mutate=$admin->prepare('UPDATE landing_exact_click_lab.orders SET contract_ref=? WHERE order_ref=?');
+$mutate->execute(['contract-forged-after-click',$orderRef]);
+$ok($acceptance($tenantRef,$buyerRef)===null,'changed contract identity invalidates old click');
+$mutate->execute(['contract-landing-lab-001',$orderRef]);
+$ok($acceptance($tenantRef,$buyerRef)!==null,'restoring fixture identity restores exact read');
 
 // Reuse #1019 source/schema with non-owner RLS. The SQL below writes
 // disposable test data, NOT an application writer or approval service.
