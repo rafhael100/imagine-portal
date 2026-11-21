@@ -252,6 +252,13 @@ jobs:
               WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
                 OR provider<>'google_ads'")
           test "$wrong_draft_rows" = 0
+          # The separate activation simulator MUST reject a signed exercise
+          # before the exact draft has reached the PAUSED mock, even when the
+          # approved plan and internal draft already exist in PostgreSQL.
+          docker compose -f compose.yaml -f compose.ci.yaml up -d f423-mock-activation
+          test "$(docker inspect imagine-purchase-preview-f423-mock-activation-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          sleep 2
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-activation-worker.php "$single_owner" "$single_order" --expect-no-stage
           # Same draft in two independent workers, one PAUSED mock state.
           # Staging != buyer delivery, provider activation, publishing or Ads.
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-stage-worker.php "$single_owner" "$single_order"
@@ -261,7 +268,13 @@ jobs:
           F423_STAGE_OWNER="$single_owner" F423_STAGE_ORDER="$single_order" /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_paused_buyer_receipt.py paused
           echo 'PASS F423 BUYER RECEIPT: buyer-visible same order/revision/briefing/plan/draft paused fingerprint, no activation or delivery' >> "$GITHUB_STEP_SUMMARY"
           cd apps/portal/ops/private-purchase
-          docker compose -f compose.yaml -f compose.ci.yaml stop f423-mock-stage
+          # Explicit lab-only fixture decision exercises a separate mock
+          # transition, NEVER a provider activation. Workers are independent,
+          # replay stays one row and the PAUSED source remains immutable.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-activation-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-activation-worker.php "$single_owner" "$single_order"
+          echo 'PASS F423 MOCK ACTIVATION: exact CI fixture and PAUSED draft, independent GET, 1 idempotent exercise; no Ads/delivery/publication/billing' >> "$GITHUB_STEP_SUMMARY"
+          docker compose -f compose.yaml -f compose.ci.yaml stop f423-mock-activation f423-mock-stage
           cd ../../../..
           F423_STAGE_OWNER="$single_owner" F423_STAGE_ORDER="$single_order" /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_paused_buyer_receipt.py unavailable
           cd apps/portal/ops/private-purchase
