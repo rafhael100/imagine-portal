@@ -141,7 +141,18 @@ final class PerformanceOrderSnapshotLabController
         $ready=0;
         if($complete) foreach($channels as $channel)
             if($channel['decision_state']==='internal_review_only') ++$ready;
+        // CI-only versioned diagnostic: never a draft, buyer plan approval
+        // or Ads operation. Only from the already persisted Google decision.
+        $googleOnly=count($channels)===1 && isset($channels['google_ads']);
+        $plan=$confirmed && $buyerApproved && $complete && $googleOnly
+            && $channels['google_ads']['decision_state']==='internal_review_only'
+            ? app(\App\Homologation\F423GoogleDiagnosticPlanStore::class)
+                ->read($owner,$id,(int)$order['revision'],$digest)
+            : null;
         $response = [
+            'diagnostic_plan' => $plan,
+            'plan_approved' => false,
+            'campaign_drafts_created' => 0,
             'schema' => 'portal_f423_ci_authenticated_order_source_v1',
             'source' => 'ci_only_portal_customer_purchase_pg18',
             'order_id' => $order['id'],
