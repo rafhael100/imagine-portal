@@ -1,8 +1,8 @@
-name: Portal Landing R35 canonical provider state before receipt (NO-GO)
+name: Portal Landing R36 reject wrong provider MIME before receipt (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r34-canonical-delivery-ref-2026-11-21']
+    branches: ['test/portal-landing-r35-canonical-provider-state-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -11,6 +11,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_ACK_STATE_NO_GO.md'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_oversized_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -24,9 +25,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r35-canonical-provider-state-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r34-canonical-delivery-ref-2026-11-21' &&
-      github.event.pull_request.base.sha == '2dd8029f2f4e695385888f1c04d9e235e1809f0f'
+      github.event.pull_request.head.ref == 'test/portal-landing-r36-provider-mime-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r35-canonical-provider-state-2026-11-21' &&
+      github.event.pull_request.base.sha == '5cdbd586b819f0514cd325445c62774f7951793b'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -263,6 +264,47 @@ jobs:
           wait "$BAD_PROVIDER" 2>/dev/null || true
           trap - EXIT
           echo 'R33_FIXED_LOOPBACK_SOURCE_ONLY; NORMAL_R28_PROVIDER_UNMODIFIED'
+      - name: R36 deny HTTP 200 provider state and HTML with wrong media type
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-wrong-mime.log" 2>&1 & BAD_MIME=$!
+          trap 'kill "$BAD_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && printf '%s' "$headers" | grep -Eqi '^content-type: text/plain'; then
+              ready=1; break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' --max-time 2 http://127.0.0.1:8791/ci/served)" = 200
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-mime-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-mime-proof.txt"
+          kill "$BAD_MIME"
+          wait "$BAD_MIME" 2>/dev/null || true
+          # The other negative is two contradictory Content-Type fields in
+          # one HTTP 200, not a missing field or a wrong JSON/body digest.
+          LANDING_R36_DUPLICATE=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-duplicate-mime.log" 2>&1 & DUP_MIME=$!
+          trap 'kill "$DUP_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            n="$(printf '%s' "$headers" | grep -Eic '^content-type:' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && test "$n" -eq 2; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          kill "$DUP_MIME"
+          wait "$DUP_MIME" 2>/dev/null || true
+          trap - EXIT
+          echo 'R36_WRONG_AND_DUPLICATE_MIME_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; NORMAL_R28_PROVIDER_UNMODIFIED'
       - name: R35 deny ambiguous provider state before any receipt or release authority
         run: |
           set -euo pipefail
