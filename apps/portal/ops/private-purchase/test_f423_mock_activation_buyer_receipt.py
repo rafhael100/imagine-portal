@@ -87,7 +87,8 @@ with sync_playwright() as p:
         assert buyer.locator("#activation-briefing").inner_text() == snap["approved_briefing_sha256"]
         assert buyer.locator("#activation-plan").inner_text() == snap["diagnostic_plan"]["plan_fingerprint"]
         assert buyer.locator("#activation-draft").inner_text() == snap["internal_campaign_draft"]["draft_fingerprint"]
-        assert re.fullmatch(r"[a-f0-9]{64}", buyer.locator("#activation-stage").inner_text())
+        stage_digest_before = buyer.locator("#activation-stage").inner_text()
+        assert re.fullmatch(r"[a-f0-9]{64}", stage_digest_before)
         assert buyer.locator("#activation-state").inner_text() == "ci_mock_activation_exercised_not_delivered"
         assert buyer.locator("#activation-count").inner_text() == "um único exercício"
         limits = buyer.locator("#activation-limits").inner_text()
@@ -155,8 +156,8 @@ with sync_playwright() as p:
             "ci_mock_activation_exercised_not_delivered"
         )
         assert buyer.locator("#activation-count").inner_text() == "um único exercício"
-        assert buyer.locator("#activation-stage").inner_text() == (
-            re.fullmatch(r"[a-f0-9]{64}", buyer.locator("#activation-stage").inner_text()).group()
+        assert buyer.locator("#activation-stage").inner_text() == stage_digest_before, (
+            "Only mock exercise state may be reset; PAUSED stage digest is unchanged"
         )
         assert buyer.context.request.get(receipt).status == 200
         subprocess.run(compose + ["stop", "f423-mock-activation"], check=True)
