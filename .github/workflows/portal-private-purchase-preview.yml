@@ -75,6 +75,11 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-google-internal-draft-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-internal-draft-schema.sql
+          # Separate OFFLINE fixture sample table, only after effective
+          # Laravel+SQL PG18 preflight attests the fresh disposable database.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-monitoring-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-monitoring-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
@@ -223,6 +228,24 @@ jobs:
                 OR provider<>'google_ads'")
           test "$wrong_draft_rows" = 0
           echo 'PASS F423 INTERNAL DRAFT: same Google-only order, approved plan, two signed PHP processes, exactly one UNPUBLISHED PG18 row, no Ads/provider/publication' >> "$GITHUB_STEP_SUMMARY"
+          # Two dated metrics from an OFFLINE provider fixture, NOT a Google API.
+          # Same confirmed buyer/plan/draft; two independent PHP containers
+          # re-send, SQL must retain exactly two immutable rows.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/monitor-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/monitor-worker.php "$single_owner" "$single_order"
+          monitoring_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples
+               WHERE customer_id='$single_owner' AND order_id='$single_order'
+                 AND provider='google_ads' AND source='ci_offline_google_ads_provider_fixture'")
+          test "$monitoring_rows" = 2
+          unrelated_monitoring=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples
+               WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
+                 OR provider<>'google_ads'")
+          test "$unrelated_monitoring" = 0
+          echo 'PASS F423 OFFLINE MONITOR: same Google draft, 2 dated fixture-only samples, independent process replay, exact SQL RLS, no Ads API or revenue claim' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           # Preserve existing distinct two-channel S2S/SQL/browser/restart
           # regression on its own later, buyer-approved order.
