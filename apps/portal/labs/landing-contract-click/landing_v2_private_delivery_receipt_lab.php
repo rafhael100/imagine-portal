@@ -235,7 +235,7 @@ if($mode==='probe-state-canonical') {
     foreach($invalid as $i=>$candidate)
         if(r29decodeState($candidate)!==null)
             throw new RuntimeException('R35 ambiguous provider state accepted: case '.($i+1));
-    echo "R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS\\n";
+    echo "R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-http-bounds') {
