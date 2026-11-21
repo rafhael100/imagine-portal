@@ -1,8 +1,8 @@
-name: Portal Landing R38 refuse state drift between provider reads (NO-GO)
+name: Portal Landing R39 refuse misleading HTTP content encoding (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r37-presentation-headers-2026-11-21']
+    branches: ['test/portal-landing-r38-provider-state-drift-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -14,6 +14,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_presentation_header_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_content_encoding_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -27,9 +28,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r37-presentation-headers-2026-11-21' &&
-      github.event.pull_request.base.sha == '4b49a18d94c4f820489885d9c05db9de2e7a9a74'
+      github.event.pull_request.head.ref == 'test/portal-landing-r39-content-encoding-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
+      github.event.pull_request.base.sha == '84e1fe2b98e4ab6e1907be35bb92645c4449be8b'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -299,6 +300,36 @@ jobs:
             trap - EXIT
           done
           echo 'R37_PRESENTATION_CONTROL_DENIAL_PASS: 4 NEW NEGATIVE_ENDPOINT_CHECKS; NO_REAL_EGRESS'
+      - name: R39 reject misleading content coding on state and HTML before receipt
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_content_encoding_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          for coding in gzip br; do
+            LANDING_R39_ENCODING="$coding" php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r39-$coding-provider.log" 2>&1 & P=$!
+            trap 'kill "$P" 2>/dev/null || true' EXIT
+            ready=0
+            for i in $(seq 1 30); do
+              if curl --noproxy '*' --raw -fsS --max-time 2 -D "$RUNNER_TEMP/r39-$coding-state.headers" -o /dev/null http://127.0.0.1:8791/ci/state &&
+                 grep -Eqi "^Content-Encoding: $coding" "$RUNNER_TEMP/r39-$coding-state.headers"; then ready=1; break; fi
+              sleep 1
+            done
+            test "$ready" = 1
+            for endpoint in state served; do
+              curl --noproxy '*' --raw -fsS --max-time 2 -D "$RUNNER_TEMP/r39-$coding-$endpoint.headers" -o "$RUNNER_TEMP/r39-$coding-$endpoint.bytes" "http://127.0.0.1:8791/ci/$endpoint"
+              grep -Eqi "^Content-Encoding: $coding" "$RUNNER_TEMP/r39-$coding-$endpoint.headers"
+              grep -Eq '^HTTP/[^ ]+ 200 ' "$RUNNER_TEMP/r39-$coding-$endpoint.headers"
+              test -s "$RUNNER_TEMP/r39-$coding-$endpoint.bytes"
+            done
+            php "$receipt" probe-content-encoding | tee "$RUNNER_TEMP/r39-$coding-denial.log"
+            grep -F 'R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r39-$coding-denial.log"
+            kill "$P"
+            wait "$P" 2>/dev/null || true
+            trap - EXIT
+          done
+          echo 'R39_MISLEADING_ENCODING_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; R28_UNMODIFIED; NO_REAL_EGRESS'
       - name: R36 deny HTTP 200 provider state and HTML with wrong media type
         run: |
           set -euo pipefail

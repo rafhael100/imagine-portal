@@ -40,22 +40,30 @@ function r29http(string $url): ?array {
     // R37: Content-Disposition and Refresh change what a browser observes,
     // even with a 200 status, correct media type and identical response bytes.
     $presentationHeaders=[];
+    // R39: bytes hashed by the server must be the bytes a browser would
+    // render. A misleading Content-Encoding can make them differ.
+    $representationHeaders=[];
     $data='';
     $h=curl_init($url);
     curl_setopt_array($h, [
         CURLOPT_RETURNTRANSFER=>false, CURLOPT_FOLLOWLOCATION=>false,
         CURLOPT_MAXREDIRS=>0, CURLOPT_PROXY=>'',
         CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000,
-        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders):int {
+        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders,&$representationHeaders):int {
             // Reset only on a new HTTP status line. Duplicate Content-Type
             // headers within the final response are ambiguous and refused.
             if(preg_match('/\\AHTTP\\/[0-9.]+ [0-9]{3}[^\\r\\n]*\\r?\\n\\z/', $line)===1) {
                 $mimeHeaders=[];
                 $presentationHeaders=[];
+                $representationHeaders=[];
             } else if(preg_match('/\\Acontent-type:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
                 $mimeHeaders[]=trim($m[1]);
             } else if(preg_match('/\\A(?:content-disposition|refresh):[^\\r\\n]*\\r?\\n\\z/i',$line)===1) {
                 $presentationHeaders[]=trim($line);
+            } else if(preg_match('/\\Acontent-encoding:[^\\r\\n]*\\r?\\n\\z/i', $line)===1) {
+                // R28 has no content coding; refuse even identity to keep
+                // the exact approved HTML and HTTP representation aligned.
+                $representationHeaders[]=trim($line);
             }
             return strlen($line);
         },
@@ -70,7 +78,8 @@ function r29http(string $url): ?array {
     $status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);
     curl_close($h);
     return $ok===true && $status===200 && $mimeHeaders===[$expectedMime]
-        && $presentationHeaders===[] ? [$data,$status] : null;
+        && $presentationHeaders===[] && $representationHeaders===[]
+        ? [$data,$status] : null;
 }
 /**
  * R35: the R28 provider emits one canonical state envelope. A JSON object
@@ -270,6 +279,14 @@ if($mode==='probe-state-drift') {
     if(r29source()!==null)
         throw new RuntimeException('R38 stale first APPLIED accepted despite current state drift');
     echo "R38_STATE_DRIFT_BETWEEN_GETS_DENIED; NO_NEW_RECEIPT; NO_GO; LOOPBACK_ONLY\n";
+    exit;
+}
+if($mode==='probe-content-encoding') {
+    // R39: malicious Content-Encoding on either otherwise-200 endpoint
+    // must never be interpreted as evidence of browser-visible bytes.
+    if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
+        throw new RuntimeException('R39 encoded representation accepted as exact delivery');
+    echo "R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-presentation-headers') {
