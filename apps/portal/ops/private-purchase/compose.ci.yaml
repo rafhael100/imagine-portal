@@ -23,6 +23,7 @@ services:
       - ./f423-google-improvement-proposal-worker.php:/lab/proposal-worker.php:ro
       - ./f423-google-offline-application-worker.php:/lab/application-worker.php:ro
       - ./f423-mock-apply-worker.php:/lab/mock-apply-worker.php:ro
+      - ./f423-mock-stage-worker.php:/lab/mock-stage-worker.php:ro
       - ./f423-google-only-readiness.php:/lab/f423-google-only-readiness.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
       - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro
@@ -48,6 +49,27 @@ services:
       PORTAL_PREVIEW_LOOPBACK_TEST: '1'
     volumes:
       - ./f423-mock-ads-router.php:/lab/f423-mock-ads-router.php:ro
+      - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
+    networks: [private]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=4m']
+    restart: 'no'
+    mem_limit: 64m
+    cpus: 0.25
+
+  # Dedicated ephemeral PAUSED handoff sink, never operational activation.
+  f423-mock-stage:
+    profiles: [on-demand]
+    image: php:8.3-cli-alpine
+    entrypoint: [php, -S, '0.0.0.0:8100', /lab/f423-mock-stage-router.php]
+    user: '70:70'
+    environment:
+      GITHUB_ACTIONS: 'true'
+      PORTAL_PREVIEW_LOOPBACK_TEST: '1'
+    volumes:
+      - ./f423-mock-stage-router.php:/lab/f423-mock-stage-router.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
     networks: [private]
     read_only: true
