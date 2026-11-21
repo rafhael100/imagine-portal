@@ -103,6 +103,26 @@ SQL);
         || !hash_equals($head->sourceSha256, hash('sha256', $head->sourceBytes()))) {
         return null;
     }
+    // NEW #1055 CI-only gate: an explicitly requested adjustment suspends
+    // final consent for exactly the old briefing/HTML generation immediately,
+    // before a synthetic editor produces the revised draft. It does not revoke
+    // official review authority or prevent viewing the old HTML as reference.
+    if (getenv('LANDING_REWORK_V2_LAB') === '1'
+        && $db->query("SELECT to_regclass('landing_exact_click_lab.rework_requests')")
+              ->fetchColumn() !== null) {
+        $pending = $db->prepare(<<<'SQL'
+SELECT 1 FROM landing_exact_click_lab.rework_requests
+ WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND site_ref=?
+   AND prior_brief_version=? AND prior_brief_sha256=?
+   AND prior_artifact_generation=? AND prior_html_sha256=?
+ LIMIT 1
+SQL);
+        $pending->execute([LAB_TENANT, LAB_BUYER, LAB_ORDER,
+            trim($r['site_ref']), (int)$r['brief_version'],
+            trim($r['brief_sha256']), (int)$r['artifact_generation'],
+            trim($r['html_sha256'])]);
+        if ($pending->fetchColumn() !== false) return null;
+    }
     return $r;
 }
 function labAccepted(PDO $db, ?array $r): bool {
