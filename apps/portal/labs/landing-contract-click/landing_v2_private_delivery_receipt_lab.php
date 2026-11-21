@@ -265,7 +265,7 @@ if($mode==='probe-presentation-headers') {
     // This is not a real publisher or a native buyer acceptance test.
     if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
         throw new RuntimeException('R37 presentation-changing provider header accepted');
-    echo "R37_PRESENTATION_HEADERS_DENIED: state=1 html=1; NO_GO; NO_EGRESS\\n";
+    echo "R37_PRESENTATION_HEADERS_DENIED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-provider-mime') {
