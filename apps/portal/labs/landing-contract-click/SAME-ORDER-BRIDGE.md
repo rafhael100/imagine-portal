@@ -1,0 +1,11 @@
+# Landing — mesma ordem, clique contratual e leitura de briefing PG18 (CI-only)
+
+Candidata filha de Portal #1041 na SHA imutável `932eddddca39cc73e6a9fcf9af0ab9079928b42e`, sem modificar o trabalho de outras PRs. Sites #580 é apenas a fronteira futura de correlação. Portal #1019 fornece o leitor já existente `Pg18LandingPageApprovedBriefHeadSourceCandidate`.
+
+O teste executa o Chromium de #1041 **como preparação necessária do mesmo banco**, não conta essa repetição como nova conquista. A seguir, um processo PHP diferente relê o aceite realmente gerado pelo clique no pedido fictício `landing-order-001`, empresa A, comprador A, contrato identificado, revisão 2, digest dos bytes e identidade do site. É recusado qualquer outro comprador, mesmo na mesma empresa.
+
+Só então uma **fixture aprovada sintética**, distinta do aceite, é criada no esquema de laboratório `portal_landing_candidate`. O reader #1019 funciona com role PostgreSQL18 não proprietária, SELECT com RLS restrita ao tenant A. A mesma identidade empresa/pedido/site/contrato/revisão e SHA do briefing precisa coincidir. Sem evento de aprovação, não há head; após revogação ou contrato revisado, a composição deixa de ser válida. Nenhum writer operacional ou autoridade humana é criado.
+
+**Limites explícitos:** a origem do aceite é navegador e sessão *de fixture* de #1041, não login oficial nem documento contratual autorizado. A aprovação do briefing é inserida pelo administrador do CI como fixture, não pelo revisor autorizado do Portal. Não há autenticação nativa, PSP, artefato visual privado servido ao comprador, aceite final, publisher ou lead. O resultado positivo é somente uma **correlação de laboratório**, nunca permissão para prévia HTTP, publicação ou entrega.
+
+Para avançar: fonte operacional do Portal que forneça (1) sessão real, documento contratual exato e aceite de compra, (2) revisão imutável de briefing, bytes, aprovação e revogação, vinculados ao mesmo pedido, além de (3) autorização de leitura privada. Depois ligar estes readers à Sites #580 e verificar GET com digest do HTML no navegador do comprador. Até lá, Sites #38 e demais gates ficam NO-GO. Sem merge, deploy, checkout, API OpenAI ou alterações em infraestrutura.

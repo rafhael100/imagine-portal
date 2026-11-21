@@ -45,12 +45,12 @@ if ($path==='/lab/terms' && $method==='GET') {
     $db=db();$r=ownedOrder($db,$order);
     $challenge=bin2hex(random_bytes(16));$csrf=bin2hex(random_bytes(32));
     $_SESSION['csrf']=$csrf;
-    $s=$db->prepare('INSERT INTO landing_exact_click_lab.presentations(challenge_ref,order_ref,tenant_ref,buyer_ref,session_sha256,csrf_sha256,terms_revision,terms_sha256) VALUES(?,?,?,?,?,?,?,?)');
-    $s->execute([$challenge,$order,$_SESSION['tenant'],$_SESSION['buyer'],hash('sha256',session_id()),hash('sha256',$csrf),(int)$r['terms_revision'],trim($r['terms_sha256'])]);
+    $s=$db->prepare('INSERT INTO landing_exact_click_lab.presentations(challenge_ref,order_ref,tenant_ref,buyer_ref,contract_ref,session_sha256,csrf_sha256,terms_revision,terms_sha256) VALUES(?,?,?,?,?,?,?,?,?)');
+    $s->execute([$challenge,$order,$_SESSION['tenant'],$_SESSION['buyer'],$r['contract_ref'],hash('sha256',session_id()),hash('sha256',$csrf),(int)$r['terms_revision'],trim($r['terms_sha256'])]);
     header('Content-Type: text/html; charset=utf-8');
     echo '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Contrato fictício Landing</title><h1>Revisar contrato fictício Landing</h1>';
     echo '<p>Laboratório sem contrato oficial, cobrança ou publicação.</p>';
-    echo '<p id="order">'.esc($order).'</p><p id="revision">'.esc((string)$r['terms_revision']).'</p>';
+    echo '<p id="order">'.esc($order).'</p><p id="contract-ref">'.esc($r['contract_ref']).'</p><p id="revision">'.esc((string)$r['terms_revision']).'</p>';
     echo '<p id="digest">'.esc(trim($r['terms_sha256'])).'</p><pre id="terms">'.esc($r['terms_bytes']).'</pre>';
     echo '<form id="accept-form" method="post" action="/lab/accept">';
     foreach(['order'=>$order,'revision'=>(string)$r['terms_revision'],'digest'=>trim($r['terms_sha256']),'challenge'=>$challenge,'csrf'=>$csrf] as $k=>$v) echo '<input type="hidden" name="'.esc($k).'" value="'.esc($v).'">';
@@ -76,12 +76,13 @@ if ($path==='/lab/accept' && $method==='POST') {
             || !hash_equals(hash('sha256',$o['terms_bytes']),$digest)
             || !hash_equals(trim($p['csrf_sha256']),hash('sha256',$csrf))
             || !hash_equals(trim($p['session_sha256']),hash('sha256',session_id()))
+            || !hash_equals($p['contract_ref'],$o['contract_ref'])
             || $p['consumed_at']!==null || strtotime($p['expires_at'])<=time()) {$db->rollBack();deny(409);}
         $s=$db->prepare('UPDATE landing_exact_click_lab.presentations SET consumed_at=clock_timestamp() WHERE challenge_ref=? AND consumed_at IS NULL');
         $s->execute([$challenge]);
         if ($s->rowCount()!==1) {$db->rollBack();deny(409);}
-        $s=$db->prepare('INSERT INTO landing_exact_click_lab.acceptances(challenge_ref,order_ref,tenant_ref,buyer_ref,terms_revision,terms_sha256,explicit_accept) VALUES(?,?,?,?,?,?,true)');
-        $s->execute([$challenge,$order,$_SESSION['tenant'],$_SESSION['buyer'],(int)$rev,$digest]);
+        $s=$db->prepare('INSERT INTO landing_exact_click_lab.acceptances(challenge_ref,order_ref,tenant_ref,buyer_ref,contract_ref,terms_revision,terms_sha256,explicit_accept) VALUES(?,?,?,?,?,?,?,true)');
+        $s->execute([$challenge,$order,$_SESSION['tenant'],$_SESSION['buyer'],$o['contract_ref'],(int)$rev,$digest]);
         $db->commit();unset($_SESSION['csrf']);
         header('Content-Type: text/plain; charset=utf-8');
         echo "LAB_ACCEPTED_ONLY: receipt persisted for exact order/revision/SHA; releaseGate=NO_GO\n";exit;
