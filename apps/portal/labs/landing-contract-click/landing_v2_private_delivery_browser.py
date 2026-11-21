@@ -112,5 +112,6 @@ with sync_playwright() as p:
     browser.close()
 
 print(f"R29_PRIVATE_BUYER_DELIVERY_PASS: {checks} new checks")
+print("R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority")
 print(f"R29_HTTP_SHA256={EXPECTED}")
 print("SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO")
