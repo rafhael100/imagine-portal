@@ -21,6 +21,7 @@ services:
       - ./f423-google-internal-draft-worker.php:/lab/draft-worker.php:ro
       - ./f423-google-monitoring-worker.php:/lab/monitor-worker.php:ro
       - ./f423-google-improvement-proposal-worker.php:/lab/proposal-worker.php:ro
+      - ./f423-google-offline-application-worker.php:/lab/application-worker.php:ro
       - ./f423-google-only-readiness.php:/lab/f423-google-only-readiness.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
       - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro
