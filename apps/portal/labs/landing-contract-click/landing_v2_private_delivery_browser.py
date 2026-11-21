@@ -109,9 +109,23 @@ with sync_playwright() as p:
     restored = buyer.request.get(private_url)
     check(restored.status == 200 and hashlib.sha256(restored.body()).hexdigest() == EXPECTED,
           "independent bytes reverified after isolated restoration")
+    # R31: same authenticated buyer and same verified release, but expired or
+    # future-issued receipt must not be resurrected by an old link. Both
+    # timestamps are compared against the PostgreSQL clock, not the PHP host.
+    check("R31_EXPIRED_RECEIPT_DENIED_BY_PG_CLOCK" in cli("expire-receipt"),
+          "database expiry is enforced even though release remains applied")
+    check(buyer.request.get(DELIVERY).status == 403
+          and buyer.request.get(private_url).status == 403,
+          "expired receipt and private HTML link are both denied")
+    check("R31_FUTURE_ISSUED_RECEIPT_DENIED_BY_PG_CLOCK" in cli("future-issue"),
+          "future-issued receipt cannot pre-authorize delivery")
+    check(buyer.request.get(DELIVERY).status == 403
+          and buyer.request.get(private_url).status == 403,
+          "future-issued receipt and private HTML link are denied")
     browser.close()
 
 print(f"R29_PRIVATE_BUYER_DELIVERY_PASS: {checks} new checks")
 print("R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority")
+print("R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority")
 print(f"R29_HTTP_SHA256={EXPECTED}")
 print("SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO")

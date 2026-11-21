@@ -98,6 +98,7 @@ SELECT receipt_ref,tenant_ref,buyer_ref,order_ref,site_ref,release_ref,
        request_ref,issued_at,expires_at
 FROM landing_delivery_r29.receipts
 WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND release_ref=?
+  AND issued_at <= clock_timestamp() AND expires_at > clock_timestamp()
 SQL;
     if ($ref!==null) $sql.=' AND receipt_ref=?';
     $q=$db->prepare($sql);
@@ -112,8 +113,7 @@ SQL;
         || $r['request_ref']!==R29_REQUEST
         || (int)$r['artifact_generation']!==(int)$e['artifact_generation']
         || !hash_equals((string)$r['html_sha256'],(string)$e['html_sha256'])
-        || !hash_equals((string)$r['brief_sha256'],(string)$e['brief_sha256'])
-        || strtotime((string)$r['expires_at'])<=time()) return null;
+        || !hash_equals((string)$r['brief_sha256'],(string)$e['brief_sha256'])) return null;
     return ['receipt'=>$r,'snapshot'=>$snapshot];
 }
 function r29deny():never {
@@ -233,6 +233,28 @@ SQL);
     $q->execute([$bytes,R26_TENANT,R26_ORDER,R29_REQUEST]);
     if($q->rowCount()!==1)throw new RuntimeException('Cannot isolate tamper');
     echo "R29_".strtoupper($mode)."_LOCAL_MOCK_ONLY\n";exit;
+}
+// R31: mutate ONLY the ephemeral laboratory ledger to demonstrate that a
+// receipt outside the database clock window is denied on both buyer endpoints.
+// These controls never run in a server route, nor mint a new receipt.
+if($mode==='expire-receipt' || $mode==='future-issue') {
+    $q=r29db()->prepare(<<<'SQL'
+UPDATE landing_delivery_r29.receipts
+SET issued_at=CASE WHEN ?='future-issue'
+                  THEN clock_timestamp()+INTERVAL '2 minutes'
+                  ELSE issued_at END,
+    expires_at=CASE WHEN ?='expire-receipt'
+                    THEN clock_timestamp()-INTERVAL '1 second'
+                    ELSE clock_timestamp()+INTERVAL '10 minutes' END
+WHERE tenant_ref=? AND buyer_ref=? AND order_ref=? AND release_ref=?
+SQL);
+    $q->execute([$mode,$mode,R26_TENANT,R26_BUYER,R26_ORDER,R29_RELEASE]);
+    if($q->rowCount()!==1 || r29receipt()!==null)
+        throw new RuntimeException('R31 temporal validity must deny the buyer receipt');
+    echo $mode==='expire-receipt'
+        ? "R31_EXPIRED_RECEIPT_DENIED_BY_PG_CLOCK; LAB_ONLY\n"
+        : "R31_FUTURE_ISSUED_RECEIPT_DENIED_BY_PG_CLOCK; LAB_ONLY\n";
+    exit;
 }
 if($mode==='readback-revoked') {
     if(r26evidence()!==null || r29receipt()!==null)
