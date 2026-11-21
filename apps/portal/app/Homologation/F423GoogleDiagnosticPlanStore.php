@@ -154,11 +154,11 @@ final class F423GoogleDiagnosticPlanStore
     /** Distinct CI buyer review, bound to exact immutable plan SHA and order revision. */
     public function approve(string $owner,string $order,string $buyer,int $revision,int $version,string $fingerprint): bool
     {
-        if(!preg_match('/\\Ademo-[a-f0-9]{32}\\z/D',$owner)
-          ||!preg_match('/\\ATEST-[a-f0-9]{32}\\z/D',$order)
-          ||!preg_match('/\\Ademo-[a-z0-9-]{3,40}\\z/D',$buyer)
+        if(!preg_match('/\Ademo-[a-f0-9]{32}\z/D',$owner)
+          ||!preg_match('/\ATEST-[a-f0-9]{32}\z/D',$order)
+          ||!preg_match('/\Ademo-[a-z0-9-]{3,40}\z/D',$buyer)
           ||$revision<1||$version!==1
-          ||!preg_match('/\\A[a-f0-9]{64}\\z/D',$fingerprint)) return false;
+          ||!preg_match('/\A[a-f0-9]{64}\z/D',$fingerprint)) return false;
         return $this->customer->withVerifiedScope($owner,function() use($owner,$order,$buyer,$revision,$fingerprint):bool {
             $q=$this->db->prepare("SELECT revision,briefing,product,payment,payment_source,payment_hold,
                   offer_snapshot FROM purchase_rehearsal.customer_orders
