@@ -165,7 +165,14 @@ final class PerformanceOrderSnapshotLabController
             ? app(\App\Homologation\F423GoogleMonitoringSampleStore::class)
                ->read($owner,$id,(int)$order['revision'],$digest,$draft['draft_fingerprint'])
             : [];
+        // Suggestion is only based on exact persisted OFFLINE samples and
+        // is NOT buyer-approved or applied to any Ads campaign.
+        $proposal=count($samples)===2 && is_array($draft)
+            ? app(\App\Homologation\F423GoogleOfflineImprovementStore::class)
+                ->read($owner,$id,(int)$order['revision'],$digest,$draft['draft_fingerprint'])
+            : null;
         $response = [
+            'improvement_proposal' => $proposal,
             'monitoring_samples' => $samples,
             'monitoring_state' => count($samples)===2 ? 'two_dated_offline_fixture_samples' : 'not_started',
             'internal_campaign_draft' => $draft,
