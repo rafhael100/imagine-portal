@@ -1,8 +1,8 @@
-name: Portal Landing R37 deny presentation-changing provider headers (NO-GO)
+name: Portal Landing R38 refuse state drift between provider reads (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r36-provider-mime-2026-11-21']
+    branches: ['test/portal-landing-r37-presentation-headers-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -13,6 +13,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/landing_v2_oversized_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_wrong_mime_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_presentation_header_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -26,9 +27,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r37-presentation-headers-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r36-provider-mime-2026-11-21' &&
-      github.event.pull_request.base.sha == '5417f50a64ed5a14cd865bba5ead3e22cc946c4c'
+      github.event.pull_request.head.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r37-presentation-headers-2026-11-21' &&
+      github.event.pull_request.base.sha == '4b49a18d94c4f820489885d9c05db9de2e7a9a74'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -420,6 +421,45 @@ jobs:
           grep -F 'R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R34_CANONICAL_DELIVERY_REF_PASS: 3 new negative browser checks; NO_GO' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
+      - name: R38 refuse APPLIED-to-PENDING provider drift between state and HTML reads
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          counter=/tmp/landing-r38-ci-state-counter
+          printf '0' > "$counter"
+          LANDING_R38_STATE_DRIFT_LAB=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r38-adversarial-provider.log" 2>&1 & BAD_PROVIDER=$!
+          trap 'kill "$BAD_PROVIDER" 2>/dev/null || true; rm -f "$counter"' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:8791/ci/r38-ready | grep -Fq CI_ONLY_STATE_DRIFT_READY; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-first.json"
+          grep -F '"state":"APPLIED","sideEffects":1' "$RUNNER_TEMP/r38-first.json"
+          curl --noproxy '*' -fsS http://127.0.0.1:8791/ci/served > "$RUNNER_TEMP/r38-served.html"
+          sha="$(sed -n 's/^V2_LANDING_HTML_SHA256=//p' "$RUNNER_TEMP/r26-evidence.log")"
+          test -n "$sha"
+          test "$(sha256sum "$RUNNER_TEMP/r38-served.html" | cut -d' ' -f1)" = "$sha"
+          curl --noproxy '*' -fsS "$state_url" > "$RUNNER_TEMP/r38-second.json"
+          grep -F '"state":"PENDING","sideEffects":1' "$RUNNER_TEMP/r38-second.json"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          php "$receipt" probe-state-drift | tee "$RUNNER_TEMP/r38-denial.log"
+          grep -F 'R38_STATE_DRIFT_BETWEEN_GETS_DENIED; NO_NEW_RECEIPT; NO_GO; LOOPBACK_ONLY' "$RUNNER_TEMP/r38-denial.log"
+          test "$(cat "$counter")" = 2
+          printf '0' > "$counter"
+          if php "$receipt" issue > "$RUNNER_TEMP/r38-issue-denied.log" 2>&1; then
+            echo 'ERROR: R38 stale provider state issued a receipt'; exit 1
+          fi
+          test "$(cat "$counter")" = 2
+          count="$(PGPASSWORD=ci-only psql -h 127.0.0.1 -U postgres -d postgres -Atqc "SELECT count(*) FROM landing_delivery_r29.receipts WHERE tenant_ref='tenant-A' AND buyer_ref='buyer-A' AND order_ref='landing-order-001'")"
+          test "$count" = 1
+          echo 'R38_PROVIDER_DRIFT_DENIED; EXISTING_RECEIPTS=1; NEW_RECEIPTS=0; NO_REAL_EGRESS'
       - name: Revocation invalidates independent source despite stale mTLS fixture
         run: |
           set -euo pipefail
