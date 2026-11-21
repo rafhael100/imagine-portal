@@ -29,6 +29,7 @@ COPY apps/portal/ops/private-purchase/f423-google-internal-draft-preflight.php .
 COPY apps/portal/ops/private-purchase/f423-google-monitoring-preflight.php ./f423-google-monitoring-preflight.php
 COPY apps/portal/ops/private-purchase/f423-google-improvement-proposal-preflight.php ./f423-google-improvement-proposal-preflight.php
 COPY apps/portal/ops/private-purchase/f423-google-improvement-approval-preflight.php ./f423-google-improvement-approval-preflight.php
+COPY apps/portal/ops/private-purchase/f423-google-offline-application-preflight.php ./f423-google-offline-application-preflight.php
 COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 COPY apps/portal/ops/private-purchase/test_route_gate.php ./private-preview-route-gate.test.php
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
