@@ -24,6 +24,7 @@ COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehea
 COPY apps/portal/ops/private-purchase/f423-approval-preflight.php ./f423-approval-preflight.php
 COPY apps/portal/ops/private-purchase/f423-performance-bridge-preflight.php ./f423-performance-bridge-preflight.php
 COPY apps/portal/ops/private-purchase/f423-google-plan-preflight.php ./f423-google-plan-preflight.php
+COPY apps/portal/ops/private-purchase/f423-google-plan-approval-preflight.php ./f423-google-plan-approval-preflight.php
 COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 COPY apps/portal/ops/private-purchase/test_route_gate.php ./private-preview-route-gate.test.php
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
