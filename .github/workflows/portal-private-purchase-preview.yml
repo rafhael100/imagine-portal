@@ -301,6 +301,15 @@ jobs:
                 OR provider<>'google_ads'")
           test "$wrong_offline_rows" = 0
           echo 'PASS F423 OFFLINE APPLICATION: same approved Google-only proposal, 1 PG18 result, 2 processes replay, no real Ads' >> "$GITHUB_STEP_SUMMARY"
+          # Exercise the proposal action in an ISOLATED HTTP FAKE provider, not
+          # merely in the Portal's result ledger. Only private CI Docker network,
+          # no published ports, no account/credential or provider integration.
+          docker compose -f compose.yaml -f compose.ci.yaml up -d f423-mock-ads
+          test "$(docker inspect imagine-purchase-preview-f423-mock-ads-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-apply-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-apply-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml stop f423-mock-ads
+          echo 'PASS F423 MOCK PROVIDER: 1 action applied in private CI-only HTTP simulator, 2 independent PHP workers, strict negative cases, 0 Ads calls' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           cd apps/portal/ops/private-purchase
           cd ../../../..
@@ -410,4 +419,4 @@ jobs:
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase
-        run: docker compose down --volumes
+        run: docker compose -f compose.yaml -f compose.ci.yaml down --volumes --remove-orphans
