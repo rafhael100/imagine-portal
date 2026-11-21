@@ -53,6 +53,8 @@ try {
    new App\Homologation\F423GoogleCampaignDraftStore($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
  if($ci) $app->instance(App\Homologation\F423GoogleMonitoringSampleStore::class,
    new App\Homologation\F423GoogleMonitoringSampleStore($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
+ if($ci) $app->instance(App\Homologation\F423GoogleOfflineImprovementStore::class,
+   new App\Homologation\F423GoogleOfflineImprovementStore($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
  $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);

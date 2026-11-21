@@ -80,6 +80,11 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-google-monitoring-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-monitoring-schema.sql
+          # Proposal only after effective Laravel + actual disposable SQL PG18
+          # attestation. Never legal consent or provider authorization.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-improvement-proposal-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-improvement-proposal-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
@@ -246,6 +251,23 @@ jobs:
                  OR provider<>'google_ads'")
           test "$unrelated_monitoring" = 0
           echo 'PASS F423 OFFLINE MONITOR: same Google draft, 2 dated fixture-only samples, independent process replay, exact SQL RLS, no Ads API or revenue claim' >> "$GITHUB_STEP_SUMMARY"
+          # Same exact buyer order/draft/revision, two immutable OFFLINE metrics:
+          # one UNAPPROVED versioned improvement proposal, no operational effect.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/proposal-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/proposal-worker.php "$single_owner" "$single_order"
+          proposal_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_improvements
+               WHERE customer_id='$single_owner' AND order_id='$single_order'
+                 AND provider='google_ads' AND proposal_state='awaiting_separate_approval'")
+          test "$proposal_rows" = 1
+          wrong_proposal_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_improvements
+               WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
+                 OR provider<>'google_ads'")
+          test "$wrong_proposal_rows" = 0
+          echo 'PASS F423 IMPROVEMENT PROPOSAL: same draft and 2 offline samples, 1 versioned awaiting-approval PG18 row, no Ads action' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           # Preserve existing distinct two-channel S2S/SQL/browser/restart
           # regression on its own later, buyer-approved order.
