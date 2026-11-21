@@ -40,6 +40,10 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'planReviewForm']);
                 Route::post('shop/orders/{id}/plan-review',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approvePlan']);
+                Route::get('shop/orders/{id}/improvement-review',
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'improvementReviewForm']);
+                Route::post('shop/orders/{id}/improvement-review',
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approveImprovement']);
             }
             Route::post('shop/orders/{id}/payment',[\App\Http\Controllers\CustomerPreviewController::class,'payment']);
             Route::post('shop/orders/{id}/future-billing',[\App\Http\Controllers\CustomerPreviewController::class,'future'])->middleware('throttle:preview-sandbox');
