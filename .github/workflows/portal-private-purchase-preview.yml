@@ -279,6 +279,12 @@ jobs:
           test "$wrong_proposal_rows" = 0
           echo 'PASS F423 IMPROVEMENT PROPOSAL: same draft and 2 offline samples, 1 versioned awaiting-approval PG18 row, no Ads action' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
+          # Extra negative gate: BEFORE buyer approval, require the actual
+          # same-order authenticated S2S snapshot to say not approved.
+          # This cannot pass due to a failed HTTP read or a missing fixture.
+          cd apps/portal/ops/private-purchase
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-apply-worker.php "$single_owner" "$single_order" --expect-no-approval
+          cd ../../../..
           # The buyer sees the exact recommendation in Chromium and explicitly
           # approves it on a separate route, with a new immutable PG18 event.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_improvement_approval.py
@@ -301,6 +307,15 @@ jobs:
                 OR provider<>'google_ads'")
           test "$wrong_offline_rows" = 0
           echo 'PASS F423 OFFLINE APPLICATION: same approved Google-only proposal, 1 PG18 result, 2 processes replay, no real Ads' >> "$GITHUB_STEP_SUMMARY"
+          # Exercise the proposal action in an ISOLATED HTTP FAKE provider, not
+          # merely in the Portal's result ledger. Only private CI Docker network,
+          # no published ports, no account/credential or provider integration.
+          docker compose -f compose.yaml -f compose.ci.yaml up -d f423-mock-ads
+          test "$(docker inspect imagine-purchase-preview-f423-mock-ads-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-apply-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-apply-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml stop f423-mock-ads
+          echo 'PASS F423 MOCK PROVIDER: 1 action applied in private CI-only HTTP simulator, 2 independent PHP workers, strict negative cases, 0 Ads calls' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           cd apps/portal/ops/private-purchase
           cd ../../../..
@@ -410,4 +425,4 @@ jobs:
       - name: Stop only disposable CI stack
         if: always()
         working-directory: apps/portal/ops/private-purchase
-        run: docker compose down --volumes
+        run: docker compose -f compose.yaml -f compose.ci.yaml down --volumes --remove-orphans
