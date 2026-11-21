@@ -50,7 +50,7 @@ if ($path==='/lab/terms' && $method==='GET') {
     header('Content-Type: text/html; charset=utf-8');
     echo '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Contrato fictício Landing</title><h1>Revisar contrato fictício Landing</h1>';
     echo '<p>Laboratório sem contrato oficial, cobrança ou publicação.</p>';
-    echo '<p id="order">'.esc($order).'</p><p id="revision">'.esc((string)$r['terms_revision']).'</p>';
+    echo '<p id="order">'.esc($order).'</p><p id="contract-ref">'.esc($r['contract_ref']).'</p><p id="revision">'.esc((string)$r['terms_revision']).'</p>';
     echo '<p id="digest">'.esc(trim($r['terms_sha256'])).'</p><pre id="terms">'.esc($r['terms_bytes']).'</pre>';
     echo '<form id="accept-form" method="post" action="/lab/accept">';
     foreach(['order'=>$order,'revision'=>(string)$r['terms_revision'],'digest'=>trim($r['terms_sha256']),'challenge'=>$challenge,'csrf'=>$csrf] as $k=>$v) echo '<input type="hidden" name="'.esc($k).'" value="'.esc($v).'">';
