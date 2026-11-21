@@ -88,16 +88,20 @@ jobs:
           [[ "$(exists)" == 0 ]]
           docker exec "$PG_CONTAINER" createdb -U postgres performance_mandate_restore_ci
           created_by_this_test=1
+          refusal_log="$(mktemp "$RUNNER_TEMP/phase15-target-refusal-XXXXXXXX.log")"
           cleanup() {
+            rm -f -- "$refusal_log"
             if [[ "$created_by_this_test" == 1 ]]; then
               docker exec "$PG_CONTAINER" dropdb -U postgres --if-exists performance_mandate_restore_ci >/dev/null 2>&1 || true
             fi
           }
           trap cleanup EXIT
-          if bash apps/portal/tests/Fixtures/phase15-mandate-restore/run.sh >/dev/null 2>&1; then
+          if bash apps/portal/tests/Fixtures/phase15-mandate-restore/run.sh >"$refusal_log" 2>&1; then
             echo 'FAIL PHASE15 EXISTING DESTINATION ACCEPTED'
             exit 1
           fi
+          # Require the *specific* destination guard, not an unrelated script error.
+          grep -Fxq 'PHASE15_RESTORE_DESTINATION_PREEXISTS_NO_DELETE' "$refusal_log"
           [[ "$(exists)" == 1 ]]
           echo 'PASS PHASE15 EXISTING DESTINATION PRESERVED'
       - name: Restore populated synthetic mandate and event tables in disposable PostgreSQL
