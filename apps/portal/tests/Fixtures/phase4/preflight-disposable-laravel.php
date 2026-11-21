@@ -36,7 +36,11 @@ try {
         || ($target['host'] ?? '') !== '127.0.0.1'
         || (int) ($target['port'] ?? 0) !== 5432
         || ($target['database'] ?? '') !== 'performance_phase4_ci'
-        || ($target['username'] ?? '') !== 'postgres') {
+        || ($target['username'] ?? '') !== 'postgres'
+        // A URL can override Laravel's effective endpoint. Read/write
+        // sub-connections can route migrations to a different writer.
+        || !empty($target['url']) || isset($target['read']) || isset($target['write'])
+        || !empty($target['unix_socket'])) {
         throw new RuntimeException('Effective Laravel database configuration mismatch');
     }
 
@@ -48,10 +52,12 @@ try {
 
     $row = $db->selectOne(
         'SELECT current_database() AS name, current_user AS role, ' .
-        "current_setting('server_version_num')::int AS version"
+        "current_setting('server_version_num')::int AS version, " .
+        "inet_server_addr()::text AS server_addr, inet_server_port() AS server_port"
     );
     if ($row === null || $row->name !== 'performance_phase4_ci'
-        || $row->role !== 'postgres' || (int) $row->version < 180000) {
+        || $row->role !== 'postgres' || (int) $row->version < 180000
+        || $row->server_addr !== '127.0.0.1' || (int) $row->server_port !== 5432) {
         throw new RuntimeException('SQL endpoint mismatch');
     }
     echo "PASS PHASE8 EFFECTIVE LARAVEL AND SQL DISPOSABLE PREFLIGHT\n";
