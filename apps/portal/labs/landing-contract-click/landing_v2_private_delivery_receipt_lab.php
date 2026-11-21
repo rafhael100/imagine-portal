@@ -51,6 +51,31 @@ function r29http(string $url): ?array {
     curl_close($h);
     return $ok===true && $status===200 ? [$data,$status] : null;
 }
+/**
+ * R35: the R28 provider emits one canonical state envelope. A JSON object
+ * with duplicate fields, a second authority flag, reordered fields, or
+ * strings in place of integers must not silently become publication evidence.
+ * This is only a shape check; independent PG18 and HTML SHA checks still apply.
+ */
+function r29decodeState(string $raw): ?array {
+    try {
+        $value=json_decode($raw,true,8,JSON_THROW_ON_ERROR);
+        if(!is_array($value) || array_is_list($value))return null;
+        if(array_keys($value)!==[
+            'requestRef','tenantRef','orderRef','releaseRef',
+            'artifactDigest','deadlineEpoch','state','sideEffects'
+        ])return null;
+        foreach(['requestRef','tenantRef','orderRef','releaseRef','artifactDigest','state'] as $field)
+            if(!is_string($value[$field]))return null;
+        if(!is_int($value['deadlineEpoch']) || !is_int($value['sideEffects']))
+            return null;
+        // Exact round trip forbids duplicate JSON members and noncanonical
+        // representations before the provider's fields can authorize a receipt.
+        if(json_encode($value,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)!==$raw)
+            return null;
+        return $value;
+    } catch(Throwable) { return null; }
+}
 function r29source(): ?array {
     $e=r26evidence(); // current clicked v2 and current approved briefing, not historical ACK
     if ($e===null) return null;
@@ -74,9 +99,8 @@ SQL);
     $state=r29http(R29_STATE_URL);
     $served=r29http(R29_HTML_URL);
     if (!$state || !$served || strlen($served[0])>32768) return null;
-    try { $reply=json_decode($state[0],true,8,JSON_THROW_ON_ERROR); }
-    catch(Throwable) { return null; }
-    if (!is_array($reply)
+    $reply=r29decodeState($state[0]);
+    if ($reply===null
         || ($reply['state']??null)!=='APPLIED'
         || ($reply['sideEffects']??null)!==1
         || ($reply['tenantRef']??null)!==R26_TENANT
@@ -188,6 +212,32 @@ if(PHP_SAPI==='cli-server') {
 }
 
 $mode=$argv[1]??'';
+if($mode==='probe-state-canonical') {
+    // Pure negative cases exercise the exact decoder used by HTTP readback.
+    // No provider dispatch, PG mutation, buyer auth or network access.
+    $valid=[
+        'requestRef'=>R29_REQUEST,'tenantRef'=>R26_TENANT,
+        'orderRef'=>R26_ORDER,'releaseRef'=>R29_RELEASE,
+        'artifactDigest'=>str_repeat('a',64),'deadlineEpoch'=>1234567890,
+        'state'=>'APPLIED','sideEffects'=>1
+    ];
+    $raw=json_encode($valid,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+    if(r29decodeState($raw)!==$valid)
+        throw new RuntimeException('R35 exact canonical state rejected');
+    $invalid=[
+        json_encode([...$valid,'operationalAuthority'=>true],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES),
+        str_replace('"state":"APPLIED"', '"state":"PENDING","state":"APPLIED"', $raw),
+        ' '.$raw,
+        json_encode(['state'=>'APPLIED']+$valid,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES),
+        json_encode([...$valid,'sideEffects'=>'1'],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES),
+        json_encode([...$valid,'deadlineEpoch'=>'1234567890'],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)
+    ];
+    foreach($invalid as $i=>$candidate)
+        if(r29decodeState($candidate)!==null)
+            throw new RuntimeException('R35 ambiguous provider state accepted: case '.($i+1));
+    echo "R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS\n";
+    exit;
+}
 if($mode==='probe-http-bounds') {
     // The R33 CI-only adverse server returns HTTP 200 with oversize state and
     // HTML. Neither may be accepted or buffered to completion by r29http().

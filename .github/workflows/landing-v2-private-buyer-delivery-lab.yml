@@ -1,8 +1,8 @@
-name: Portal Landing R34 canonical buyer delivery reference (NO-GO)
+name: Portal Landing R35 canonical provider state before receipt (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21']
+    branches: ['test/portal-landing-r34-canonical-delivery-ref-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -24,9 +24,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r34-canonical-delivery-ref-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21' &&
-      github.event.pull_request.base.sha == 'b21008132d363e0052aeecb6d27e83db90d332ae'
+      github.event.pull_request.head.ref == 'test/portal-landing-r35-canonical-provider-state-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r34-canonical-delivery-ref-2026-11-21' &&
+      github.event.pull_request.base.sha == '2dd8029f2f4e695385888f1c04d9e235e1809f0f'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -263,6 +263,13 @@ jobs:
           wait "$BAD_PROVIDER" 2>/dev/null || true
           trap - EXIT
           echo 'R33_FIXED_LOOPBACK_SOURCE_ONLY; NORMAL_R28_PROVIDER_UNMODIFIED'
+      - name: R35 deny ambiguous provider state before any receipt or release authority
+        run: |
+          set -euo pipefail
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$receipt"
+          php "$receipt" probe-state-canonical | tee "$RUNNER_TEMP/r35-canonical-proof.txt"
+          grep -F 'R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r35-canonical-proof.txt"
       - name: IN127-R05 local provider loses ACK after durable apply, state first and no retry
         run: |
           set -euo pipefail
