@@ -224,6 +224,15 @@ jobs:
           echo 'PASS F423 GOOGLE-ONLY: exact buyer-approved SQL order consumed S2S, one Google-only internal-review decision stored, second process replay idempotent, no Meta or campaign draft' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           F423_GOOGLE_ONLY=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_performance_readback.py
+          # First material handoff toward stage 14: only a PAUSED,
+          # undelivered candidate in a separate private CI HTTP simulator.
+          # Before the draft exists, no mock stage can exist (real S2S read).
+          cd apps/portal/ops/private-purchase
+          docker compose -f compose.yaml -f compose.ci.yaml up -d f423-mock-stage
+          test "$(docker inspect imagine-purchase-preview-f423-mock-stage-1 --format '{{len .HostConfig.PortBindings}}')" = 0
+          sleep 2
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-stage-worker.php "$single_owner" "$single_order" --expect-no-draft
+          cd ../../../..
           # Buyer has just approved the precise v1 plan in the real PG18
           # browser path. A DIFFERENT signed, stateless Performance PHP worker
           # may now create an UNPUBLISHED internal draft for that exact order.
@@ -242,6 +251,12 @@ jobs:
               WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
                 OR provider<>'google_ads'")
           test "$wrong_draft_rows" = 0
+          # Same draft in two independent workers, one PAUSED mock state.
+          # Staging != buyer delivery, provider activation, publishing or Ads.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-stage-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/mock-stage-worker.php "$single_owner" "$single_order"
+          echo 'PASS F423 PAUSED STAGE: S2S exact draft → isolated mock, 1 paused state, two process replay, negative scopes; no delivery or activation' >> "$GITHUB_STEP_SUMMARY"
+          docker compose -f compose.yaml -f compose.ci.yaml stop f423-mock-stage
           echo 'PASS F423 INTERNAL DRAFT: same Google-only order, approved plan, two signed PHP processes, exactly one UNPUBLISHED PG18 row, no Ads/provider/publication' >> "$GITHUB_STEP_SUMMARY"
           # Two dated metrics from an OFFLINE provider fixture, NOT a Google API.
           # Same confirmed buyer/plan/draft; two independent PHP containers
