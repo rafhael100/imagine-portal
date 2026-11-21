@@ -47,6 +47,8 @@ try {
  $app->instance(App\Homologation\Commerce\PerformanceSettlement::class,new App\Homologation\Commerce\PerformanceSettlement($pdo));
  $app->instance(App\Homologation\CustomerPreviewStore::class,new App\Homologation\CustomerPreviewStore($pdo,$config['customer_scope_key']));
  $app->instance(App\Homologation\F423PerformanceDecisionStore::class,new App\Homologation\F423PerformanceDecisionStore($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
+ if($ci) $app->instance(App\Homologation\F423GoogleDiagnosticPlanStore::class,
+   new App\Homologation\F423GoogleDiagnosticPlanStore($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
  $app->instance(App\Homologation\CustomerWorkPreview::class,new App\Homologation\CustomerWorkPreview($pdo,$app->make(App\Homologation\CustomerPreviewStore::class)));
 } catch (Throwable) { http_response_code(503); echo 'Ambiente de teste temporariamente indisponível.'; exit; }
 unset($config,$pdo);

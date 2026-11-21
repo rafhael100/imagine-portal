@@ -10,6 +10,7 @@ COPY apps/portal/ops/private-purchase/full-layout.blade.php ./resources/views/co
 COPY apps/portal/app/Http/Controllers/CustomerWorkPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/CustomerPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/PerformanceOrderSnapshotLabController.php ./app/Http/Controllers/
+COPY apps/portal/app/Http/Controllers/PerformanceS2SLabController.php ./app/Http/Controllers/
 COPY apps/portal/app/Http/Controllers/FullPortalPreviewController.php ./app/Http/Controllers/
 COPY apps/portal/app/Providers/FullPortalPreviewServiceProvider.php ./app/Providers/
 COPY apps/portal/app/Homologation ./app/Homologation
@@ -22,6 +23,7 @@ COPY apps/portal/app/Providers/PurchaseRehearsalServiceProvider.php ./app/Provid
 COPY apps/portal/resources/views/portal/rehearsal ./resources/views/portal/rehearsal
 COPY apps/portal/ops/private-purchase/f423-approval-preflight.php ./f423-approval-preflight.php
 COPY apps/portal/ops/private-purchase/f423-performance-bridge-preflight.php ./f423-performance-bridge-preflight.php
+COPY apps/portal/ops/private-purchase/f423-google-plan-preflight.php ./f423-google-plan-preflight.php
 COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 COPY apps/portal/ops/private-purchase/test_route_gate.php ./private-preview-route-gate.test.php
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
