@@ -158,10 +158,43 @@ $wrongPrice['channels']['meta_ads']['fingerprint']=hash('sha256',implode("\0",[
 ]));
 [$wrongPriceStatus]=signedRequest('POST',$path.'/decisions',$company,$key,$wrongPrice);
 if($wrongPriceStatus!==409) throw new RuntimeException('Mismatched signed Meta amount must be denied');
+// Signed and re-fingerprinted swapped account must be refused by the
+// exact test-account contract, not merely by HMAC validity.
+$wrongAccount=$packet;
+$wrongAccount['channels']['google_ads']['account_fingerprint']=
+  hash('sha256','f423-account-reference-v1:1234567891');
+$wrongAccount['channels']['google_ads']['fingerprint']=hash('sha256',implode("\0",[
+ $company,$orderId,(string)$order['briefing_revision'],$order['briefing_sha256'],
+ 'google_ads',(string)$out['google_ads']['media_cents'],
+ $wrongAccount['channels']['google_ads']['account_fingerprint'],
+ $out['google_ads']['state'],$out['google_ads']['reason']
+]));
+[$accountStatus]=signedRequest('POST',$path.'/decisions',$company,$key,$wrongAccount);
+if($accountStatus!==409) throw new RuntimeException('Signed swapped Google account not denied');
+
+// Correctly re-fingerprinted newer revision must not bypass the actual SQL
+// buyer approval or the current order revision.
+$wrongRevision=$packet;$wrongRevision['order_revision']++;
+foreach($wrongRevision['channels'] as $provider=>&$r) {
+ $r['fingerprint']=hash('sha256',implode("\0",[
+  $company,$orderId,(string)$wrongRevision['order_revision'],
+  $order['briefing_sha256'],$provider,(string)$r['media_cents'],
+  $r['account_fingerprint'],$r['state'],$r['reason']
+ ]));
+}
+unset($r);
+[$revisionStatus]=signedRequest('POST',$path.'/decisions',$company,$key,$wrongRevision);
+if($revisionStatus!==409) throw new RuntimeException('Signed unapproved revision not denied');
+
+$otherCompany='demo-'.str_repeat('a',32);
+[$companyStatus]=signedRequest('POST',$path.'/decisions',$otherCompany,$key,
+ array_replace($packet,['company_id'=>$otherCompany]));
+if($companyStatus!==409) throw new RuntimeException('Signed other-company order not denied');
 [$wrongCompany]=signedRequest('GET',$path,'demo-'.str_repeat('a',32),$key);
 if($wrongCompany!==404) throw new RuntimeException('Other company must not read synthetic order');
 [$status,$response]=signedRequest('POST',$path.'/decisions',$company,$key,$packet);
-if($status!==200||$response['persisted_channels']!==2||$response['ready_channels_count']!==1)
+if($status!==200||$response['schema']!=='f423_ci_only_persisted_channel_decisions_v1'
+ ||$response['persisted_channels']!==2||$response['ready_channels_count']!==1)
  throw new RuntimeException('Performance decision not persisted: '.$status);
 [$status,$back]=signedRequest('GET',$path,$company,$key);
 if($status!==200||$back['decision_persisted_by_performance']!==true
