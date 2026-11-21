@@ -286,7 +286,7 @@ if($mode==='probe-content-encoding') {
     // must never be interpreted as evidence of browser-visible bytes.
     if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
         throw new RuntimeException('R39 encoded representation accepted as exact delivery');
-    echo "R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS\\n";
+    echo "R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-presentation-headers') {
