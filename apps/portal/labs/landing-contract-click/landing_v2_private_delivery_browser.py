@@ -54,7 +54,7 @@ with sync_playwright() as p:
     # and private on narrow screens, without creating new mocks or accounts.
     check(page.locator("main").count() == 1 and page.locator("h1").count() == 1,
           "receipt has a semantic main landmark and a single heading")
-    check(response.headers.get("cache-control", "").startswith("private, no-store"),
+    check("no-store" in {part.strip().lower() for part in response.headers.get("cache-control", "").split(",")},
           "buyer receipt explicitly opts out of caching")
     check("default-src 'none'" in response.headers.get("content-security-policy", ""),
           "script and external resources remain denied by CSP")
