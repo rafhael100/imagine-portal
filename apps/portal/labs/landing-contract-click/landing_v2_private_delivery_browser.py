@@ -50,6 +50,31 @@ with sync_playwright() as p:
     login(page, "buyer-A")
     response = page.goto(DELIVERY)
     check(response is not None and response.status == 200, "buyer sees local receipt only after R28 state readback")
+    # R30: assert actual R29 buyer receipt remains legible, keyboard-operable
+    # and private on narrow screens, without creating new mocks or accounts.
+    check(page.locator("main").count() == 1 and page.locator("h1").count() == 1,
+          "receipt has a semantic main landmark and a single heading")
+    check(response.headers.get("cache-control", "").startswith("private, no-store"),
+          "buyer receipt explicitly opts out of caching")
+    check("default-src 'none'" in response.headers.get("content-security-policy", ""),
+          "script and external resources remain denied by CSP")
+    check(response.headers.get("x-robots-tag") == "noindex, nofollow",
+          "buyer receipt is not indexable")
+    check(page.locator('meta[name="viewport"]').get_attribute("content")
+          == "width=device-width,initial-scale=1", "mobile viewport is explicit")
+    check(page.locator("#download").is_visible(), "receipt's only action is visible")
+    page.keyboard.press("Tab")
+    check(page.evaluate("document.activeElement.id") == "download",
+          "private receipt link is reachable by keyboard")
+    check(page.eval_on_selector_all("a[href]", """elements => elements.length === 1 &&
+          elements.every(el => el.getAttribute('href').startsWith('/lab/delivery/html?ref='))"""),
+          "no external navigation link in receipt")
+    for width in (320, 360, 768):
+        page.set_viewport_size({"width": width, "height": 640})
+        check(page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"),
+              f"receipt has no horizontal overflow at {width}px")
+        check(page.locator("#download").is_visible(),
+              f"private link remains visible at {width}px")
     check(page.locator("#order").inner_text() == "landing-order-001", "exact same order")
     check(page.locator("#release").inner_text() == "landing-v2-generation-2-ci", "exact release")
     check(page.locator("#generation").inner_text() == "2", "exact generation")
