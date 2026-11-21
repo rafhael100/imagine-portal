@@ -127,6 +127,13 @@ $ok($reader->readCurrent($tenantRef,$orderRef,
     '22222222-2222-4222-8222-222222222222')===null,
     'other site cannot borrow approved head');
 
+// A separate CI-only successor may keep the identical accepted order and
+// approved fixture HEAD current for a browser GET. Never an operational grant.
+if (getenv('LANDING_PREVIEW_HOLD') === '1') {
+    echo "LANDING BRIDGE HELD FOR HTTP TEST: exact clicked terms and approved fixture HEAD only; RELEASE=NO_GO\n";
+    exit(0);
+}
+
 // A contract mutation invalidates the earlier acceptance even though
 // the synthetic brief approval event still exists independently.
 $change=$admin->prepare('UPDATE landing_exact_click_lab.orders SET terms_revision=3,terms_bytes=?,terms_sha256=? WHERE order_ref=?');
