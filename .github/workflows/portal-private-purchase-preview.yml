@@ -361,6 +361,12 @@ jobs:
           CUSTOMER_WORK_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_customer_work.py
           PERFORMANCE_REPORT_REOPEN=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_performance_settlement_flow.py
           echo 'PASS preview reload after database/app restart, synthetic clients only'
+      - name: Restore same F423 synthetic Google-only ledgers into independently attested disposable PostgreSQL18
+        working-directory: apps/portal/ops/private-purchase
+        run: |
+          set -euo pipefail
+          bash ./f423-google-disposable-restore.sh
+          echo 'PASS F423 isolated restore: nine ledgers match by SHA256, FORCE RLS and restricted UPDATE; no external backup/RTO or Ads authority' >> "$GITHUB_STEP_SUMMARY"
       - name: Audit five individual-customer screenshots and SHA256
         run: |
           python3 - <<'PY'
