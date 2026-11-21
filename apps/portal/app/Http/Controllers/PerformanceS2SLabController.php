@@ -63,7 +63,7 @@ final class PerformanceS2SLabController
             error_log('F423 CI decision denied: '.substr((string)$reason,0,96));
             abort(409,'Synthetic purchase, approval, or decision conflict.');
         }
-        return response()->json(['schema'=>'f423_ci_only_persisted_blocked_decisions_v1',...$out,
+        return response()->json(['schema'=>'f423_ci_only_persisted_channel_decisions_v1',...$out,
             'operational_enabled'=>false,'billable'=>false])->header('Cache-Control','no-store');
     }
 }

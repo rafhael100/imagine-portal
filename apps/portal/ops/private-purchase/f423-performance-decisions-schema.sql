@@ -18,8 +18,13 @@ CREATE TABLE purchase_rehearsal.f423_performance_decisions (
  media_cents integer NOT NULL CHECK(media_cents>=0),
  source_order_alias text NOT NULL CHECK(source_order_alias ~ '^order_[a-f0-9]{32}$'),
  account_fingerprint text NOT NULL CHECK(account_fingerprint ~ '^[a-f0-9]{64}$'),
- decision_state text NOT NULL CHECK(decision_state='blocked'),
- decision_reason text NOT NULL CHECK(decision_reason='mandate_or_s2s_denied'),
+ decision_state text NOT NULL CHECK(decision_state IN('blocked','internal_review_only')),
+ decision_reason text NOT NULL,
+ CONSTRAINT f423_internal_only_pairs CHECK (
+   (decision_state='blocked' AND decision_reason='mandate_or_s2s_denied') OR
+   (decision_state='internal_review_only'
+      AND decision_reason='synthetic_gate_accepted_for_internal_review')
+ ),
  decision_fingerprint text NOT NULL CHECK(decision_fingerprint ~ '^[a-f0-9]{64}$'),
  created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(customer_id,order_id,order_revision,provider),
