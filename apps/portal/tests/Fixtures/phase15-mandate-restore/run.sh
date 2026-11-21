@@ -145,6 +145,16 @@ if [[ "$(fingerprint "$target_db")" != "$restored_before" || "$(fingerprint "$so
     exit 1
 fi
 echo "PASS PHASE15 RESTORED AUDIT IMMUTABILITY"
+# A revoked fixture restored from the SOURCE must remain irrevocable.
+# Catch a specific trigger denial, not an unrelated CHECK/permission failure.
+assert_restored_history_denied RESTORED_REVOKED_REACTIVATION \
+    "UPDATE public.portal_performance_account_mandates SET status='candidate',revoked_at=NULL,revision=revision+1 WHERE id=(SELECT id FROM public.portal_performance_account_mandates WHERE status='revoked' AND source_kind='synthetic_candidate' ORDER BY id LIMIT 1)" \
+    "Revoked mandate cannot be reactivated"
+if [[ "$(fingerprint "$target_db")" != "$restored_before" ]]; then
+    echo "PHASE15_RESTORED_REVOKED_REPLAY_CHANGED_DATA"
+    exit 1
+fi
+echo "PASS PHASE15 RESTORED REVOKED REMAINS REVOKED"
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
 INSERT INTO public.portal_performance_account_mandates
   (id,company_id,provider,account_id,service_principal,consent_reference,credential_ref,status,revision,expires_at)
@@ -152,5 +162,30 @@ SELECT gen_random_uuid(),company_id,'google_ads','5555555555','imagine_portal_s2
        'synthetic-restore-probe-001','synthetic-vault-restore-001','candidate',1,extract(epoch from now())::bigint+600
 FROM public.portal_performance_services LIMIT 1" >/dev/null
 [[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id WHERE m.account_id='5555555555' AND e.event_kind='created'")" == 1 ]]
+# The newly inserted candidate must also be revocable AFTER pg_restore.
+# Use independent psql/docker processes for insert, transition and readback.
+if [[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE account_id='5555555555' AND status='candidate' AND source_kind='synthetic_candidate' AND operational_enabled=false")" != 1 ]]; then
+    echo "PHASE15_POST_RESTORE_CANDIDATE_MISSING"
+    exit 1
+fi
+docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
+UPDATE public.portal_performance_account_mandates
+SET status='revoked',revoked_at=extract(epoch from now())::bigint,revision=revision+1
+WHERE account_id='5555555555' AND status='candidate' AND source_kind='synthetic_candidate' AND operational_enabled=false" >/dev/null
+if [[ "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandates WHERE account_id='5555555555' AND status='revoked' AND revoked_at IS NOT NULL AND revision=2 AND source_kind='synthetic_candidate' AND operational_enabled=false")" != 1 ||
+      "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id AND m.company_id=e.company_id AND m.service_principal=e.service_principal WHERE m.account_id='5555555555' AND e.event_kind='revoked' AND e.revision=2")" != 1 ||
+      "$(query "$target_db" "SELECT count(*) FROM public.portal_performance_account_mandate_events e JOIN public.portal_performance_account_mandates m ON m.id=e.mandate_id WHERE m.account_id='5555555555'")" != 2 ]]; then
+    echo "PHASE15_POST_RESTORE_REVOCATION_AUDIT_MISMATCH"
+    exit 1
+fi
+revoked_after="$(fingerprint "$target_db")"
+assert_restored_history_denied NEWLY_REVOKED_REACTIVATION \
+    "UPDATE public.portal_performance_account_mandates SET status='candidate',revoked_at=NULL,revision=revision+1 WHERE account_id='5555555555' AND status='revoked'" \
+    "Revoked mandate cannot be reactivated"
+if [[ "$(fingerprint "$target_db")" != "$revoked_after" || "$(fingerprint "$source_db")" != "$original" ]]; then
+    echo "PHASE15_POST_RESTORE_REACTIVATION_CHANGED_DATA"
+    exit 1
+fi
+echo "PASS PHASE15 POST-RESTORE REVOCATION IS DURABLE"
 [[ "$(fingerprint "$source_db")" == "$original" ]]
 echo "PHASE15_POPULATED_MANDATE_RESTORE_PASS: nonempty revoked candidate and events restored, FORCE RLS, scope-policy metadata and executed runtime SELECT denials preserved, source untouched"
