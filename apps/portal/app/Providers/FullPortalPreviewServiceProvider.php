@@ -34,6 +34,9 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                 && getenv('PORTAL_PREVIEW_LOOPBACK_TEST') === '1') {
                 Route::get('shop/orders/{id}/performance-snapshot',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'show']);
+                // Exact buyer-visible PAUSED mock receipt, no delivery or Ads rights.
+                Route::get('shop/orders/{id}/paused-stage-receipt',
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'pausedStageReceipt']);
                 Route::post('shop/orders/{id}/briefing-review',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approve']);
                 Route::get('shop/orders/{id}/plan-review',
