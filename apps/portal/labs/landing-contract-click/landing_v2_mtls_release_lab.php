@@ -128,6 +128,9 @@ function r26projection(array $r): array {
     ];
 }
 
+// Allows a later CI-only composition to reuse the verified PG18 source without re-running its dispatcher.
+if (defined('LANDING_R27_READ_ONLY_LIBRARY') && LANDING_R27_READ_ONLY_LIBRARY === true) return;
+
 if(PHP_SAPI==='cli-server') {
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
