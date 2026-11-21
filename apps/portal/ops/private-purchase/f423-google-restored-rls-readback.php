@@ -55,12 +55,14 @@ function requireCounts(array $found, array $expected): void
         throw new RuntimeException('Restored tenant RLS returned unexpected rows');
     }
 }
+$stage = 'connect';
 try {
     $db = new PDO(
         'pgsql:host=database;port=5432;dbname=portal_f423_restore_disposable_ci;connect_timeout=3',
         'purchase_rehearsal_a', $cfg['database_password'],
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]
     );
+    $stage = 'sql_identity';
     $identity = $db->query("SELECT current_database() db,current_user usr,session_user sess,
         current_setting('server_version_num')::int version,inet_server_addr() IS NOT NULL tcp")
         ->fetch(PDO::FETCH_ASSOC);
@@ -71,6 +73,7 @@ try {
         || !in_array($identity['tcp'], [true,'t','1',1], true)) {
         throw new RuntimeException('Restored TCP SQL target mismatch');
     }
+    $stage = 'restricted_role';
     $role = $db->query("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole
         FROM pg_roles WHERE rolname=current_user")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($role)) throw new RuntimeException('Missing restricted role');
@@ -79,6 +82,7 @@ try {
             throw new RuntimeException('Restored role unexpectedly privileged');
         }
     }
+    $stage = 'force_rls_flags';
     foreach ($tables as $table => $expected) {
         $flags = $db->query("SELECT relrowsecurity,relforcerowsecurity FROM pg_class
             WHERE oid='purchase_rehearsal.".$table."'::regclass")->fetch(PDO::FETCH_ASSOC);
@@ -89,37 +93,65 @@ try {
             }
         }
     }
-    // The actual LOGIN has no scoped claim and must not see any ledger.
+    // Read the exact buyer from the already-attested SOURCE fixture over STDIN.
+    // Never discover a buyer through an admin claim in the restored database.
+    $stage = 'source_fixture_buyer';
+    $buyerLine = fgets(STDIN);
+    if (!is_string($buyerLine) || !preg_match('/\Ademo-[a-f0-9]{32}\n\z/D', $buyerLine)
+        || fgets(STDIN) !== false) {
+        throw new RuntimeException('Missing unique source fixture buyer');
+    }
+    $owner = substr($buyerLine, 0, -1);
+
+    // The restricted login without a signed scope must see no ledger rows.
+    $stage = 'unscoped_select';
     requireCounts(rlsCounts($db,$tables), array_fill_keys(array_keys($tables),0));
 
-    // This is a generated *test* scope, not a real customer or IAM grant.
-    $store = new \App\Homologation\CustomerPreviewStore($db,$cfg['customer_scope_key']);
-    $owner = $store->withVerifiedScope(null, function () use ($db):string {
-        $rows = $db->query("SELECT DISTINCT customer_id
-            FROM purchase_rehearsal.f423_google_offline_applied_results")->fetchAll(PDO::FETCH_COLUMN);
-        if (count($rows) !== 1 || !preg_match('/\Ademo-[a-f0-9]{32}\z/D', $rows[0])) {
-            throw new RuntimeException('Expected one synthetic owner');
+    // Reuse the same signed, transaction-local claim contract as the CI
+    // CustomerPreviewStore, without constructing its SOURCE-db-only adapter.
+    // This is not an IAM principal and cannot authorize a real Ads account.
+    $scopedCounts = static function (string $principal) use ($db,$cfg,$tables): array {
+        if (!preg_match('/\Ademo-[a-f0-9]{32}\z/D',$principal) || $db->inTransaction()) {
+            throw new RuntimeException('Invalid isolated fixture scope');
         }
-        return $rows[0];
-    });
-    $verified = $store->withVerifiedScope($owner, fn() => rlsCounts($db,$tables));
-    requireCounts($verified,$tables);
-    // A second (even correctly signed) buyer cannot reuse the original row.
+        $key = hex2bin($cfg['customer_scope_key']);
+        if ($key === false) throw new RuntimeException('Invalid fixture verifier');
+        $mac = hash_hmac('sha256','imagine-owned-preview-v1:'.$principal,$key);
+        $db->beginTransaction();
+        try {
+            $stmt=$db->prepare("SELECT set_config('imagine.preview_principal',?,true),
+                                      set_config('imagine.preview_mac',?,true)");
+            $stmt->execute([$principal,$mac]);
+            $counts=rlsCounts($db,$tables);
+            $db->commit();
+            return $counts;
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $error;
+        }
+    };
+
+    $stage = 'source_buyer_signed_scope';
+    requireCounts($scopedCounts($owner),$tables);
+    // A different validly signed synthetic buyer cannot see the source rows.
+    $stage = 'other_buyer_signed_scope';
     $other = 'demo-'.str_repeat($owner === 'demo-'.str_repeat('e',32) ? 'd' : 'e',32);
-    $foreign = $store->withVerifiedScope($other, fn() => rlsCounts($db,$tables));
-    requireCounts($foreign,array_fill_keys(array_keys($tables),0));
-    // Arbitrarily setting the GUC principal without its correct MAC must fail.
+    requireCounts($scopedCounts($other),array_fill_keys(array_keys($tables),0));
+    // An unsigned/forged GUC must never bypass the database policy.
+    $stage = 'forged_scope';
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare("SELECT set_config('imagine.preview_principal',?,true),
-            set_config('imagine.preview_mac',?,true)");
+        $stmt=$db->prepare("SELECT set_config('imagine.preview_principal',?,true),
+                                   set_config('imagine.preview_mac',?,true)");
         $stmt->execute([$owner,str_repeat('0',64)]);
         requireCounts(rlsCounts($db,$tables),array_fill_keys(array_keys($tables),0));
     } finally {
         $db->rollBack();
     }
-    // SET LOCAL scope must not survive either committed or rolled-back transaction.
+    // Every SET LOCAL scope must have vanished on commit or rollback.
+    $stage = 'post_transaction_unscoped';
     requireCounts(rlsCounts($db,$tables),array_fill_keys(array_keys($tables),0));
+    $stage = 'signing_secret_privilege';
     if (in_array($db->query("SELECT has_table_privilege(current_user,
         'purchase_rehearsal.preview_scope_secret','SELECT')")->fetchColumn(),[true,'t','1',1],true)) {
         throw new RuntimeException('Restricted role can read signing key');
@@ -128,6 +160,6 @@ try {
 wrong signed buyer 0 rows, forged MAC 0 rows, unscoped 0 rows, signing secret unreadable; PG18 TCP, NO-GO\n";
 } catch (Throwable $error) {
     // No exception details: avoid accidentally printing identifiers or secrets.
-    fwrite(STDERR, "F423 restored RLS: fail closed\n");
+    fwrite(STDERR, "F423 restored RLS: fail closed at ".$stage."\n");
     exit(1);
 }
