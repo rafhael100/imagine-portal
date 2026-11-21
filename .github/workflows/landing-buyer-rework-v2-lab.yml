@@ -1,0 +1,112 @@
+name: Portal Landing buyer rework v1 to Sites revision v2 (synthetic NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-final-accept-same-artifact-2026-11-21-r24']
+    paths:
+      - '.github/workflows/landing-buyer-rework-v2-lab.yml'
+      - 'apps/portal/labs/landing-contract-click/buyer_rework_v2_*'
+permissions:
+  contents: read
+concurrency:
+  group: landing-rework-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-same-order-buyer-rework:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-buyer-rework-v2-exact-2026-11-21-r25' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-final-accept-same-artifact-2026-11-21-r24' &&
+      github.event.pull_request.base.sha == '50ae0cabae33bee3dd443b63e831450cc2d1c6c7'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      APP_ENV: testing
+      LANDING_EXACT_CLICK_LAB: '1'
+      LANDING_PREVIEW_GET_LAB: '1'
+      LANDING_SITES_RENDER_LAB: '1'
+      LANDING_FINAL_ACCEPT_LAB: '1'
+      LANDING_REWORK_V2_LAB: '1'
+    steps:
+      - name: Checkout exact Portal pull request SHA without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout exact public Sites renderer source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 8172e5cc14e97951e529c843059c214e05c33db5
+          path: sites-snapshot
+          sparse-checkout: |
+            src/Production
+          persist-credentials: false
+      - name: Verify exact SHAs and fail-closed test source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git -C sites-snapshot rev-parse HEAD)" = '8172e5cc14e97951e529c843059c214e05c33db5'
+          test -f sites-snapshot/src/Production/StaticSiteRenderer.php
+          test -f sites-snapshot/src/Production/StructuredCopyCandidate.php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring
+          coverage: none
+      - name: Validate new PHP/Python test files
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/landing-contract-click/buyer_rework_v2_lab.php
+          php -l apps/portal/labs/landing-contract-click/final_preview_acceptance_lab.php
+          php -m | grep -x pdo_pgsql
+          python3 -m py_compile apps/portal/labs/landing-contract-click/buyer_rework_v2_browser.py
+      - name: Install isolated browser, no provider credentials
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/landing-v2-venv"
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Same buyer, order and site — click rework v1, editorial v2, exact final click
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/contracts.log" 2>&1 &
+          P1=$!
+          php -S 127.0.0.1:8766 apps/portal/labs/landing-contract-click/private_preview_router.php > "$RUNNER_TEMP/preview.log" 2>&1 &
+          P2=$!
+          php -S 127.0.0.1:8767 apps/portal/labs/landing-contract-click/final_preview_acceptance_lab.php > "$RUNNER_TEMP/final.log" 2>&1 &
+          P3=$!
+          php -S 127.0.0.1:8768 apps/portal/labs/landing-contract-click/buyer_rework_v2_lab.php > "$RUNNER_TEMP/rework.log" 2>&1 &
+          P4=$!
+          trap 'kill "$P1" "$P2" "$P3" "$P4" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/lab/login >/dev/null; then break; fi
+            sleep 1
+          done
+          python apps/portal/labs/landing-contract-click/browser_test.py > "$RUNNER_TEMP/prereq-click.log"
+          grep -F 'LANDING EXACT CLICK BROWSER PASS:' "$RUNNER_TEMP/prereq-click.log"
+          LANDING_PREVIEW_HOLD=1 php apps/portal/labs/landing-contract-click/same_order_approved_brief_bridge.php > "$RUNNER_TEMP/prereq-bridge.log"
+          grep -F 'LANDING BRIDGE HELD FOR HTTP TEST:' "$RUNNER_TEMP/prereq-bridge.log"
+          php apps/portal/labs/landing-contract-click/private_preview_fixture.php seed > "$RUNNER_TEMP/prereq-preview.log"
+          php apps/portal/labs/landing-contract-click/sites_renderer_same_order_lab.php render > "$RUNNER_TEMP/prereq-render.log"
+          grep -F 'LANDING SITES REAL RENDER LAB PASS:' "$RUNNER_TEMP/prereq-render.log"
+          php apps/portal/labs/landing-contract-click/final_preview_acceptance_lab.php init
+          php apps/portal/labs/landing-contract-click/buyer_rework_v2_lab.php init
+          python apps/portal/labs/landing-contract-click/buyer_rework_v2_browser.py | tee "$RUNNER_TEMP/v2-proof.log"
+          grep -F 'LANDING BUYER REWORK SAME ORDER V1-V2 LAB PASS:' "$RUNNER_TEMP/v2-proof.log"
+          grep -F 'PSP=NOT_CALLED; FORM=DISABLED; PUBLISH=NO_GO; LEAD=NOT_TESTED' "$RUNNER_TEMP/v2-proof.log"
