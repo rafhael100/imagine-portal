@@ -58,20 +58,20 @@ try {
     $row = $db->selectOne(
         'SELECT current_database() AS name, current_user AS role, ' .
         "current_setting('server_version_num')::int AS version, " .
-        "inet_server_addr()::text AS server_addr, inet_server_port() AS server_port"
+        "CASE WHEN inet_server_addr() IS NULL THEN 0 ELSE 1 END AS tcp_transport, " .
+        "inet_server_port() AS server_port"
     );
     $stage = 'SQL_IDENTITY';
     if ($row === null || $row->name !== 'performance_phase4_ci'
         || $row->role !== 'postgres' || (int) $row->version < 180000) {
         throw new RuntimeException('SQL identity mismatch');
     }
-    // Docker NAT can give the server a private container address rather than
-    // loopback. Do not equate the server-side IP with Laravel's client-side
-    // 127.0.0.1 host; require a real TCP address and the server's port.
+    // A PostgreSQL inet value can include a mask and the server runs behind
+    // Actions Docker NAT. Verify TCP, not the textual form of the address;
+    // Laravel's effective client endpoint was checked separately above.
     $stage = 'SQL_TCP_ADDRESS';
-    if (!is_string($row->server_addr)
-        || filter_var($row->server_addr, FILTER_VALIDATE_IP) === false) {
-        throw new RuntimeException('SQL TCP address missing');
+    if ((int) $row->tcp_transport !== 1) {
+        throw new RuntimeException('SQL TCP transport missing');
     }
     $stage = 'SQL_TCP_PORT';
     if ((int) $row->server_port !== 5432) {
