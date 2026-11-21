@@ -69,6 +69,24 @@ with sync_playwright() as playwright:
     ] if DRAFT_EXPECTED else [])
     assert data['monitoring_samples']==expected_samples
     assert (data['improvement_proposal'] is not None) is DRAFT_EXPECTED
+    assert (data['offline_improvement_simulation'] is not None) is DRAFT_EXPECTED
+    if DRAFT_EXPECTED:
+        offline=data['offline_improvement_simulation']
+        assert offline['state']=='ci_offline_fixture_applied'
+        assert offline['simulated_application_recorded'] is True
+        assert offline['published'] is False and offline['ads_write_enabled'] is False
+        assert offline['operational_enabled'] is False and offline['real_gain_claimed'] is False
+        assert offline['metric_origin']=='ci_offline_google_ads_post_fixture'
+        assert offline['before_totals']=={'impressions':2200,'clicks':86,'conversions':4}
+        assert offline['after_totals']=={'impressions':2300,'clicks':84,'conversions':4}
+        assert offline['post_samples']==[
+          {'sample_date':'2026-11-21','impressions':1100,'clicks':40,'conversions':2,'source':'ci_offline_google_ads_post_fixture'},
+          {'sample_date':'2026-11-22','impressions':1200,'clicks':44,'conversions':2,'source':'ci_offline_google_ads_post_fixture'}]
+        assert data['improvement_proposal']['applied'] is False
+        assert len(offline['result_fingerprint'])==64 and len(offline['post_sha256'])==64
+        assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_offline_applied_results WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads' AND proposal_fingerprint='%s'"%(owner,order,revision,digest,data['improvement_proposal']['proposal_fingerprint']))=='1'
+        assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_offline_applied_results'::regclass")=='t'
+        assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_offline_applied_results','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_offline_applied_results','DELETE'))")=='t'
     if DRAFT_EXPECTED:
         suggestion=data['improvement_proposal']
         assert suggestion['state']=='awaiting_separate_approval'
