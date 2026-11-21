@@ -113,7 +113,7 @@ final class F423GoogleMonitoringSampleStore
             $insert=$this->db->prepare("INSERT INTO purchase_rehearsal.f423_google_monitoring_samples
                (customer_id,order_id,order_revision,briefing_sha256,provider,plan_version,
                 plan_fingerprint,draft_fingerprint,sample_date,impressions,clicks,conversions,source)
-               VALUES(?,?,?,?,'google_ads',1,?,?,?::date,?,?,?,'ci_offline_google_ads_provider_fixture')
+               VALUES(?,?,?,?,'google_ads',1,?,?,CAST(? AS date),?,?,?,'ci_offline_google_ads_provider_fixture')
                ON CONFLICT DO NOTHING");
             foreach(self::EXPECTED as $m) {
                 $insert->execute([$owner,$order,$p['order_revision'],$p['briefing_sha256'],
