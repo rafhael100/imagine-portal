@@ -18,6 +18,7 @@ services:
       PORTAL_PREVIEW_LOOPBACK_TEST: '1'
     volumes:
       - ./f423-performance-lab-worker.php:/lab/worker.php:ro
+      - ./f423-google-internal-draft-worker.php:/lab/draft-worker.php:ro
       - ./f423-google-only-readiness.php:/lab/f423-google-only-readiness.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
       - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro

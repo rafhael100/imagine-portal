@@ -4,6 +4,7 @@ import os, subprocess, shutil
 from playwright.sync_api import sync_playwright
 BASE='http://127.0.0.1:18083/_preview/portal'
 GOOGLE_ONLY=os.getenv('F423_GOOGLE_ONLY')=='1'
+DRAFT_EXPECTED=GOOGLE_ONLY and bool(os.getenv('F423_RESTARTED'))
 def sql(query):
     p=subprocess.run(['docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
        '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
@@ -59,7 +60,18 @@ with sync_playwright() as playwright:
     assert data['ready_channels_count']==1
     assert data['operational_enabled'] is False and data['ads_write_enabled'] is False
     assert data['billable'] is False
-    assert data['plan_approved'] is (GOOGLE_ONLY and bool(os.getenv('F423_RESTARTED'))) and data['campaign_drafts_created']==0
+    assert data['plan_approved'] is (GOOGLE_ONLY and bool(os.getenv('F423_RESTARTED')))
+    assert data['campaign_drafts_created']==int(DRAFT_EXPECTED)
+    assert (data['internal_campaign_draft'] is not None) is DRAFT_EXPECTED
+    if DRAFT_EXPECTED:
+        draft=data['internal_campaign_draft']
+        assert draft['state']=='ci_internal_unpublished' and draft['provider']=='google_ads'
+        assert draft['published'] is False and draft['operational_enabled'] is False
+        assert draft['ads_connected'] is False and draft['plan_version']==1
+        assert len(draft['draft_fingerprint'])==64
+        assert sql("SELECT count(*) FROM purchase_rehearsal.f423_google_internal_drafts WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' AND provider='google_ads'"%(owner,order,revision,digest))=='1'
+        assert sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_google_internal_drafts'::regclass")=='t'
+        assert sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_internal_drafts','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_google_internal_drafts','DELETE'))")=='t'
     assert set(data['channels'])==({'google_ads'} if GOOGLE_ONLY else {'google_ads','meta_ads'})
     if GOOGLE_ONLY:
         plan=data['diagnostic_plan']
@@ -71,7 +83,9 @@ with sync_playwright() as playwright:
         assert plan['buyer_plan_approved'] is bool(os.getenv('F423_RESTARTED'))
         assert plan['plan_approval_state']==('synthetic_buyer_approved' if os.getenv('F423_RESTARTED') else 'not_approved')
         assert data['plan_approved'] is bool(os.getenv('F423_RESTARTED'))
-        assert plan['campaign_draft_created'] is False and plan['operational_enabled'] is False
+        assert plan['campaign_draft_created'] is DRAFT_EXPECTED and plan['operational_enabled'] is False
+        if DRAFT_EXPECTED:
+            assert data['internal_campaign_draft']['plan_fingerprint']==plan['plan_fingerprint']
         assert len(plan['plan_fingerprint'])==64
     else:
         assert data['diagnostic_plan'] is None
@@ -84,7 +98,7 @@ with sync_playwright() as playwright:
             assert channel['decision_state']=='blocked'
             assert channel['decision_reason']=='mandate_or_s2s_denied'
         assert channel['connection_state']=='not_connected'
-        assert channel['campaign_state']=='not_created'
+        assert channel['campaign_state']==('internal_draft_unpublished' if DRAFT_EXPECTED and provider=='google_ads' else 'not_created')
     if GOOGLE_ONLY and not os.getenv('F423_RESTARTED'):
         review_url=BASE+'/shop/orders/'+order+'/plan-review'
         unauthenticated=browser.new_context()

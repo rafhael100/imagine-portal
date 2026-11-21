@@ -65,6 +65,8 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                     [\App\Http\Controllers\PerformanceS2SLabController::class,'persist']);
                 Route::post('orders/{id}/diagnostic-plan',
                     [\App\Http\Controllers\PerformanceS2SLabController::class,'persistDiagnosticPlan']);
+                Route::post('orders/{id}/internal-draft',
+                    [\App\Http\Controllers\PerformanceS2SLabController::class,'persistInternalDraft']);
             });
         }
         $this->app['router']->getRoutes()->refreshNameLookups();
