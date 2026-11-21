@@ -53,6 +53,12 @@ manifest() {
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 manifest "$src" > "$work/source.manifest"
+# One and only one buyer from the attested SOURCE F423 fixture, not from an
+# admin-scope query against the restored DB. Never print this synthetic ID.
+fixture_buyer=$(sql "$src" "SELECT DISTINCT customer_id FROM purchase_rehearsal.f423_google_offline_applied_results ORDER BY customer_id")
+[[ "$fixture_buyer" =~ ^demo-[a-f0-9]{32}$ ]] || {
+    echo "F423 RESTORE: ambiguous source fixture buyer" >&2; exit 1;
+}
 # Before any DDL, confirm the EFFECTIVE Laravel bootstrap + TCP role;
 # the absence of the target database is verified both there and above.
 compose exec -T application php f423-google-restore-preflight.php
@@ -80,7 +86,7 @@ cmp "$work/source.manifest" "$work/restored.manifest"
 # Prove row-level isolation by the REAL restricted SQL login in the newly
 # restored database, not merely by catalog flags or superuser SELECTs.
 # The verifier also rejects absent/forged/buyer-mismatched signed GUC scopes.
-compose exec -T application php f423-google-restored-rls-readback.php
+printf '%s\n' "$fixture_buyer" | compose exec -T application php f423-google-restored-rls-readback.php
 # Source was never rewritten or modified by the new restore candidate.
 manifest "$src" > "$work/after.manifest"
 cmp "$work/source.manifest" "$work/after.manifest"
