@@ -87,10 +87,12 @@ with sync_playwright() as playwright:
         assert channel['campaign_state']=='not_created'
     if GOOGLE_ONLY and not os.getenv('F423_RESTARTED'):
         review_url=BASE+'/shop/orders/'+order+'/plan-review'
-        assert anonymous.request.get(review_url).status==403, 'Anonymous plan review forbidden'
+        unauthenticated=browser.new_context()
+        assert unauthenticated.request.get(review_url).status==403, 'Anonymous plan review forbidden'
+        unauthenticated.close()
         rendered=page.goto(review_url)
         assert rendered.status==200
-        assert '1.000' not in page.locator('body').inner_text() or '1000' in page.locator('body').inner_text() or 'fict' in page.locator('body').inner_text().lower()
+        assert '1000' in page.locator('body').inner_text() and 'fict' in page.locator('body').inner_text().lower()
         assert plan['plan_fingerprint'] in page.locator('body').inner_text(), 'Exact plan fingerprint must be shown before approval'
         token=page.locator('form[action$="/plan-review"] [name=_token]').input_value()
         payload={'_token':token,'revision':revision,'plan_version':'1',
