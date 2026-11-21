@@ -48,9 +48,12 @@ with sync_playwright() as playwright:
     page.locator("[name=username]").fill(actor)
     page.locator("[name=password]").fill("ci-owned-customer-only-2026")
     page.get_by_role("button", name="Entrar", exact=True).click()
-    assert page.context.request.get(
+    wrong_order_status = page.context.request.get(
         base + "/shop/orders/TEST-" + "f" * 32 + "/paused-stage-receipt"
-    ).status == 404, "Wrong order must not expose a stage"
+    ).status
+    assert wrong_order_status == 404, (
+        f"Wrong order must not expose a stage (HTTP {wrong_order_status})"
+    )
 
     snapshot_response = page.context.request.get(snapshot_url)
     assert snapshot_response.status == 200
