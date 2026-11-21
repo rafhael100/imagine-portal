@@ -143,10 +143,10 @@ final class NativePerformanceAccountMandateTenantCollisionTest extends TestCase
         foreach (['portal_performance_account_mandates',
                   'portal_performance_account_mandate_events'] as $table) {
             $allowed = DB::selectOne(
-                'SELECT has_table_privilege(?, ?, ?) AS allowed',
+                'SELECT CASE WHEN has_table_privilege(?, ?, ?) THEN 1 ELSE 0 END AS allowed',
                 ['portal_performance_runtime', $table, 'SELECT']
             );
-            $this->assertFalse((bool) $allowed->allowed);
+            $this->assertSame(0, (int) $allowed->allowed);
         }
     }
 }
