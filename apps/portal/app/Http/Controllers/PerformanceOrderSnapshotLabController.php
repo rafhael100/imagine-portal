@@ -217,6 +217,103 @@ final class PerformanceOrderSnapshotLabController
         ]);
     }
 
+    /**
+     * CI-only browser receipt from the OTHER container's live, HMAC-signed
+     * PAUSED staging ledger. Not an Ads activation, delivery or contract.
+     * Never accepts a mock URL, account authority or fingerprint from buyer input.
+     */
+    public function pausedStageReceipt(Request $request, string $id)
+    {
+        abort_unless(getenv('GITHUB_ACTIONS')==='true'
+          && getenv('PORTAL_PREVIEW_LOOPBACK_TEST')==='1'
+          && config('app.env')==='staging'
+          && preg_match('/\ATEST-[a-f0-9]{32}\z/D',$id)===1,404);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile)
+          && ($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null)
+          && is_string($profile['id']??null),403);
+        $snap=$this->source($profile['customer_id'],$id)->getData(true);
+        $plan=$snap['diagnostic_plan']??null;
+        $draft=$snap['internal_campaign_draft']??null;
+        abort_unless(
+          ($snap['briefing_review_actor']??null)===$profile['id']
+          && ($snap['purchase_state']??null)==='synthetic_confirmed'
+          && ($snap['briefing_review_state']??null)==='synthetic_buyer_approved'
+          && ($snap['plan_approved']??null)===true
+          && ($snap['campaign_drafts_created']??null)===1
+          && array_keys($snap['channels']??[])===['google_ads']
+          && ($snap['channels']['google_ads']['decision_state']??null)==='internal_review_only'
+          && ($snap['channels']['google_ads']['connection_state']??null)==='not_connected'
+          && ($snap['channels']['google_ads']['campaign_state']??null)==='internal_draft_unpublished'
+          && ($snap['operational_enabled']??null)===false
+          && ($snap['ads_write_enabled']??null)===false
+          && ($snap['billable']??null)===false
+          && is_array($plan) && is_array($draft)
+          && ($draft['state']??null)==='ci_internal_unpublished'
+          && ($draft['published']??null)===false
+          && ($draft['ads_connected']??null)===false
+          && ($draft['plan_fingerprint']??null)===($plan['plan_fingerprint']??null)
+          && is_int($snap['approved_briefing_revision']??null)
+          && ($snap['approved_briefing_revision']??null)===($snap['order_revision']??null),404);
+
+        $secret='/run/secrets/f423-performance-key';
+        $stat=@stat($secret);
+        abort_unless(is_array($stat)&&($stat['mode']&077)===0
+          && $stat['uid']===82 && $stat['size']===64,503);
+        $hex=@file_get_contents($secret);
+        abort_unless(is_string($hex)&&preg_match('/\A[a-f0-9]{64}\z/D',$hex)===1,503);
+        $sig=hash_hmac('sha256',"GET\n/stage-state\n",hex2bin($hex));
+        unset($hex);
+        // Fixed name on the Docker internal network. Never follow redirects;
+        // do not use user supplied host/path or expose the machine signature.
+        $context=stream_context_create(['http'=>[
+          'method'=>'GET','header'=>"X-F423-Mock-Signature: $sig\r\n",
+          'timeout'=>3,'follow_location'=>0,'ignore_errors'=>true]]);
+        $raw=@file_get_contents('http://f423-mock-stage:8100/stage-state',false,$context);
+        $status=0;
+        if(isset($http_response_header[0])
+          && preg_match('/\AHTTP\/\S+\s+([0-9]{3})/',$http_response_header[0],$m))
+          $status=(int)$m[1];
+        if($status===404) abort(404);
+        abort_unless($status===200 && is_string($raw) && strlen($raw)<=2048,503);
+        try { $receipt=json_decode($raw,true,8,JSON_THROW_ON_ERROR); }
+        catch (\Throwable) { abort(503); }
+        $record=$receipt['record']??null;
+        $packet=is_array($record)?($record['packet']??null):null;
+        $expected=[
+          'schema'=>'f423_paused_stage_ci_v1',
+          'company_id'=>$profile['customer_id'],'order_id'=>$id,
+          'order_revision'=>$snap['approved_briefing_revision'],
+          'briefing_sha256'=>$snap['approved_briefing_sha256'],
+          'provider'=>'google_ads',
+          'plan_fingerprint'=>$plan['plan_fingerprint'],
+          'draft_fingerprint'=>$draft['draft_fingerprint'],
+          'stage_state'=>'ci_staged_paused_not_delivered',
+          'activated'=>false,'delivered'=>false,'published'=>false,
+          'ads_write_enabled'=>false,'operational_enabled'=>false,'billable'=>false
+        ];
+        // Associative map order from HTTP JSON is irrelevant; exact fields,
+        // values, types and zero side effects are mandatory.
+        abort_unless(is_array($receipt)&&is_array($record)&&is_array($packet)
+          && ($receipt['schema']??null)==='f423_paused_stage_read_ci_v1'
+          && count($packet)===count($expected)
+          && !array_diff_assoc($expected,$packet)
+          && !array_diff_assoc($packet,$expected)
+          && ($record['stage_count']??null)===1
+          && ($receipt['activated']??null)===false
+          && ($receipt['delivered']??null)===false
+          && ($receipt['published']??null)===false
+          && ($receipt['external_ads_calls']??null)===0,409);
+        return response()->view('portal.preview.f423-google-paused-stage-receipt',[
+          'id'=>$id,'revision'=>$snap['order_revision'],
+          'briefingSha'=>$snap['approved_briefing_sha256'],
+          'planSha'=>$plan['plan_fingerprint'],
+          'draftSha'=>$draft['draft_fingerprint'],
+          'stageState'=>$packet['stage_state'],
+        ])->header('Cache-Control','no-store, private');
+    }
+
     /** The buyer sees the exact immutable lab plan in the browser, separate from briefing. */
     public function planReviewForm(Request $request,string $id)
     {
