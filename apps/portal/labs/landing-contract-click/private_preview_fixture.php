@@ -80,13 +80,21 @@ SQL);
     echo 'HTML_SHA256='.hash('sha256',$html).' BRIEF_SHA256='.$head->sourceSha256."\n";
     exit(0);
 }
+if ($mode==='inspect') {
+    $s=$db->prepare('SELECT html_sha256,brief_sha256,contract_revision FROM landing_exact_click_lab.preview_artifacts WHERE order_ref=?');
+    $s->execute([$order]); $r=$s->fetch(PDO::FETCH_ASSOC);
+    if (!$r) exit(3);
+    echo json_encode(['htmlSha256'=>trim($r['html_sha256']),
+        'briefSha256'=>trim($r['brief_sha256']),
+        'contractRevision'=>(int)$r['contract_revision'],
+        'operational'=>false],JSON_THROW_ON_ERROR)."\n"; exit(0);
+}
 if ($mode==='corrupt') {
     $s=$db->prepare("UPDATE landing_exact_click_lab.preview_artifacts SET html_sha256=repeat('0',64) WHERE order_ref=?");
     $s->execute([$order]); if ($s->rowCount()!==1) exit(3);
     echo "LAB PREVIEW HASH CORRUPTED\n"; exit(0);
 }
 if ($mode==='restore') {
-    $s=$db->prepare('UPDATE landing_exact_click_lab.preview_artifacts SET html_sha256=encode(sha256(convert_to(html_bytes,\'UTF8\')),\'hex\') WHERE order_ref=?');
     // pgcrypto SHA function availability varies: use PHP digest instead.
     $s=$db->prepare('SELECT html_bytes FROM landing_exact_click_lab.preview_artifacts WHERE order_ref=?');
     $s->execute([$order]);$html=$s->fetchColumn();
