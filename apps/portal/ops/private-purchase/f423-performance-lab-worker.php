@@ -10,6 +10,7 @@ if(!preg_match('/\Ademo-[a-f0-9]{32}\z/D',$company)
 $key=trim((string)@file_get_contents('/run/secrets/f423-performance-key'));
 if(!preg_match('/\A[a-f0-9]{64}\z/D',$key)) exit(1);
 require '/lab/SyntheticTwoChannelOrderReadiness.php';
+require '/lab/f423-google-only-readiness.php';
 require '/lab/AdministrativeAdsAccountMandateGate.php';
 
 function signedRequest(string $method,string $path,string $company,string $key,?array $payload=null,?string $corrupt=null):array {
@@ -49,14 +50,17 @@ if($source['schema']!=='portal_f423_ci_authenticated_order_source_v1'
   ||!preg_match('/\A[a-f0-9]{64}\z/D',$source['approved_briefing_sha256']))
     throw new RuntimeException('Unapproved or inexact Portal buyer briefing');
 $providers=array_keys($source['channels']);sort($providers);
-if($providers!==['google_ads','meta_ads'])throw new RuntimeException('Not the exact synthetic Google+Meta order');
+$singleGoogle=$providers===['google_ads'];
+if(!$singleGoogle && $providers!==['google_ads','meta_ads'])
+    throw new RuntimeException('Not an exact selected synthetic F423 order');
 $sourceAlias='order_'.substr(hash('sha256',"f423-alias-v1\0".$company."\0".$orderId),0,32);
 $otherAlias='order_'.substr(hash('sha256',"f423-alias-v1\0".$company."\0".'TEST-'.str_repeat('a',32)),0,32);
 if($sourceAlias===$otherAlias) throw new RuntimeException('Alias collision');
 $accounts=['google_ads'=>'1234567890','meta_ads'=>'98765432109876'];$channels=[];
 foreach($providers as $provider) {
  $row=$source['channels'][$provider];
- if(!is_int($row['media_cents'])||$row['activation_cents']!==49000
+ if(!is_int($row['media_cents'])||$row['media_cents']!==($provider==='google_ads'?100000:70000)
+  ||$row['activation_cents']!==49000
   ||$row['connection_state']!=='not_connected'||$row['campaign_state']!=='not_created')
    throw new RuntimeException('Unexpected Portal channel source');
  $channels[$provider]=['account_id'=>$accounts[$provider],'media_cents'=>$row['media_cents'],
@@ -64,7 +68,7 @@ foreach($providers as $provider) {
 }
 $order=['order_id'=>$sourceAlias,'company_id'=>$company,'purchase_state'=>$source['purchase_state'],
  'purchase_evidence'=>$source['purchase_evidence'],'catalog_version'=>'performance-f423-v5-lab',
- 'activation_total_cents'=>98000,'channels'=>$channels,
+ 'activation_total_cents'=>49000*count($providers),'channels'=>$channels,
  'briefing_revision'=>$source['approved_briefing_revision'],
  'briefing_sha256'=>$source['approved_briefing_sha256']];
 $briefing=['order_id'=>$sourceAlias,'company_id'=>$company,'state'=>'synthetic_review_approved',
@@ -99,23 +103,45 @@ $gate=new $gateClass($principal,
  static fn():int=>$now
 );
 $authorize=static fn(string $c,string $p,string $a):?string=>$gate->lease($c,$p,$a);
-$decide=static function(array &$ledger) use($order,$briefing,$authorize):array {
+$decide=static function(array &$ledger) use($order,$briefing,$authorize,$singleGoogle):array {
+ if($singleGoogle) return F423GoogleOnlyReadiness::decide($order,$briefing,$authorize,$ledger);
  return \Imagine\Performance\Tests\Fixtures\SyntheticTwoChannelOrderReadiness::decide(
    $order,$briefing,$authorize,$ledger);
 };
+// Strict Google-only contract adversarial probes before any decision write.
+// These cannot be satisfied by fabricating a Meta channel or approving a
+// different SQL revision; none consult Ads or the provider mock.
+if($singleGoogle) {
+ foreach(['extra_provider','wrong_amount','wrong_revision','other_company','wrong_briefing_sha'] as $attack) {
+   $altered=$order;$alteredBriefing=$briefing;
+   if($attack==='extra_provider')$altered['channels']['meta_ads']=[
+     'account_id'=>'98765432109876','media_cents'=>70000,'activation_cents'=>49000];
+   if($attack==='wrong_amount')$altered['channels']['google_ads']['media_cents']=100001;
+   if($attack==='wrong_revision')$altered['briefing_revision']++;
+   if($attack==='other_company')$altered['company_id']='demo-'.str_repeat('a',32);
+   if($attack==='wrong_briefing_sha')$alteredBriefing['sha256']=str_repeat('0',64);
+   try {
+     $testLedger=[];F423GoogleOnlyReadiness::decide($altered,$alteredBriefing,$authorize,$testLedger);
+     throw new RuntimeException('Google-only malformed contract accepted: '.$attack);
+   } catch (\InvalidArgumentException) {
+     if($testLedger!==[])throw new RuntimeException('Invalid order obtained local decision');
+   }
+ }
+}
 $ledger=[];
 $result=$decide($ledger);
 if($result['state']!=='internal_review_only'||count($ledger)!==1
  ||$result['channels']['google_ads']['state']!=='internal_review_only'
- ||$result['channels']['meta_ads']['state']!=='blocked')
+ ||(!$singleGoogle && $result['channels']['meta_ads']['state']!=='blocked'))
  throw new RuntimeException('Only Google can enter synthetic internal review');
 // Pre-persistence adversarial probes; the ledger is immutable after INSERT.
 $mandates['google_ads'][$accounts['google_ads']]['revoked_at']=$now;
 $revokedLedger=[];$afterRevoke=$decide($revokedLedger);
 if($revokedLedger!==[]||$afterRevoke['channels']['google_ads']['state']!=='blocked'
- ||$afterRevoke['channels']['meta_ads']['state']!=='blocked')
+ ||(!$singleGoogle && $afterRevoke['channels']['meta_ads']['state']!=='blocked'))
  throw new RuntimeException('Synthetic Google revocation not isolated');
 $mandates['google_ads'][$accounts['google_ads']]['revoked_at']=null;
+if(!$singleGoogle) {
 $mandates['google_ads'][$accounts['google_ads']]['status']='revoked';
 $mandates['meta_ads'][$accounts['meta_ads']]['status']='active';
 $invertedLedger=[];$inverted=$decide($invertedLedger);
@@ -125,6 +151,7 @@ if(count($invertedLedger)!==1
  throw new RuntimeException('Reverse synthetic channel gate not isolated');
 $mandates['google_ads'][$accounts['google_ads']]['status']='active';
 $mandates['meta_ads'][$accounts['meta_ads']]['status']='revoked';
+}
 $out=[];
 foreach($providers as $provider) {
  $decision=$result['channels'][$provider];
@@ -150,14 +177,16 @@ if($tampered!==409) throw new RuntimeException('Mismatched signed digest must be
 // A correctly signed and internally consistent (rehashed) packet with a
 // different Meta amount must still fail against the Portal's exact offer.
 $wrongPrice=$packet;
-$wrongPrice['channels']['meta_ads']['media_cents']=70001;
-$wrongPrice['channels']['meta_ads']['fingerprint']=hash('sha256',implode("\0",[
+$priceProvider=$singleGoogle?'google_ads':'meta_ads';
+$wrongPrice['channels'][$priceProvider]['media_cents']++;
+$wrongPrice['channels'][$priceProvider]['fingerprint']=hash('sha256',implode("\0",[
  $company,$orderId,(string)$order['briefing_revision'],$order['briefing_sha256'],
- 'meta_ads','70001',$out['meta_ads']['account_fingerprint'],
- 'blocked','mandate_or_s2s_denied'
+ $priceProvider,(string)$wrongPrice['channels'][$priceProvider]['media_cents'],
+ $out[$priceProvider]['account_fingerprint'],
+ $out[$priceProvider]['state'],$out[$priceProvider]['reason']
 ]));
 [$wrongPriceStatus]=signedRequest('POST',$path.'/decisions',$company,$key,$wrongPrice);
-if($wrongPriceStatus!==409) throw new RuntimeException('Mismatched signed Meta amount must be denied');
+if($wrongPriceStatus!==409) throw new RuntimeException('Mismatched signed selected-channel amount must be denied');
 // Signed and re-fingerprinted swapped account must be refused by the
 // exact test-account contract, not merely by HMAC validity.
 $wrongAccount=$packet;
@@ -194,15 +223,15 @@ if($companyStatus!==409) throw new RuntimeException('Signed other-company order 
 if($wrongCompany!==404) throw new RuntimeException('Other company must not read synthetic order');
 [$status,$response]=signedRequest('POST',$path.'/decisions',$company,$key,$packet);
 if($status!==200||$response['schema']!=='f423_ci_only_persisted_channel_decisions_v1'
- ||$response['persisted_channels']!==2||$response['ready_channels_count']!==1)
+ ||$response['persisted_channels']!==count($providers)||$response['ready_channels_count']!==1)
  throw new RuntimeException('Performance decision not persisted: '.$status);
 [$status,$back]=signedRequest('GET',$path,$company,$key);
 if($status!==200||$back['decision_persisted_by_performance']!==true
  ||$back['ready_channels_count']!==1||$back['performance_s2s_proven']!==true)
  throw new RuntimeException('Portal S2S readback missing persisted decision');
 if($back['channels']['google_ads']['decision_state']!=='internal_review_only'
- ||$back['channels']['meta_ads']['decision_state']!=='blocked'
+ ||(!$singleGoogle && $back['channels']['meta_ads']['decision_state']!=='blocked')
  ||$back['channels']['google_ads']['campaign_state']!=='not_created'
- ||$back['channels']['meta_ads']['campaign_state']!=='not_created')
+ ||(!$singleGoogle && $back['channels']['meta_ads']['campaign_state']!=='not_created'))
  throw new RuntimeException('Portal internal review must not imply campaign or connection');
-echo "PASS F423 S2S: synthetic Google internal review and Meta blocked; PG18 readback/replay; revocation + inverted gate probes before SQL, no Ads/draft\n";
+echo "PASS F423 S2S: ".($singleGoogle?"Google-only exact selected order":"Google+Meta selected order")."; Google internal-only".($singleGoogle?"":", Meta blocked")."; PG18 readback/replay; revoke and signed negative probes, no Ads/draft\n";

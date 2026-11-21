@@ -3,6 +3,7 @@ No payment operations, no Ads account access, no real campaigns."""
 import os, subprocess, shutil
 from playwright.sync_api import sync_playwright
 BASE='http://127.0.0.1:18083/_preview/portal'
+GOOGLE_ONLY=os.getenv('F423_GOOGLE_ONLY')=='1'
 def sql(query):
     p=subprocess.run(['docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
        '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
@@ -10,12 +11,19 @@ def sql(query):
        '-U','postgres','-d','portal_purchase_rehearsal','-c',query],
        capture_output=True,text=True,check=True)
     return p.stdout.strip()
-identity=sql("SELECT b.customer_id||'|'||b.order_id||'|'||b.approved_by||'|'||b.order_revision||'|'||b.briefing_sha256 FROM purchase_rehearsal.f423_briefing_reviews b ORDER BY b.approved_at DESC LIMIT 1")
+selection="AND NOT (o.offer_snapshot::jsonb->'media_by_channel_cents' ? 'meta_ads')" if GOOGLE_ONLY else "AND (o.offer_snapshot::jsonb->'media_by_channel_cents' ? 'meta_ads')"
+identity=sql("SELECT b.customer_id||'|'||b.order_id||'|'||b.approved_by||'|'||b.order_revision||'|'||b.briefing_sha256 "
+             "FROM purchase_rehearsal.f423_briefing_reviews b "
+             "JOIN purchase_rehearsal.customer_orders o ON o.id=b.order_id AND o.customer_id=b.customer_id "
+             "WHERE o.offer_snapshot::jsonb->'media_by_channel_cents' ? 'google_ads' "+selection+" ORDER BY b.approved_at DESC LIMIT 1")
 owner,order,user,revision,digest=identity.split('|')
 assert len(owner)==37 and len(order)==37 and len(digest)==64
 stored=sql("SELECT provider||'|'||decision_state||'|'||decision_reason||'|'||media_cents FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' ORDER BY provider"%(owner,order,revision,digest)).splitlines()
-assert stored==['google_ads|internal_review_only|synthetic_gate_accepted_for_internal_review|100000','meta_ads|blocked|mandate_or_s2s_denied|70000'],stored
-assert sql("SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s'"%(owner,order))=='2'
+expected=['google_ads|internal_review_only|synthetic_gate_accepted_for_internal_review|100000']
+if not GOOGLE_ONLY:
+    expected.append('meta_ads|blocked|mandate_or_s2s_denied|70000')
+assert stored==expected,stored
+assert sql("SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s'"%(owner,order))==str(len(expected))
 guard=sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_performance_decisions'::regclass")
 assert guard=='t','Decision ledger must enforce FORCE RLS'
 privileges=sql("SELECT NOT (has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','UPDATE') OR has_table_privilege('purchase_rehearsal_a','purchase_rehearsal.f423_performance_decisions','DELETE'))")
@@ -47,8 +55,8 @@ with sync_playwright() as playwright:
     assert data['ready_channels_count']==1
     assert data['operational_enabled'] is False and data['ads_write_enabled'] is False
     assert data['billable'] is False
-    assert set(data['channels'])=={'google_ads','meta_ads'}
-    for provider in ('google_ads','meta_ads'):
+    assert set(data['channels'])==({'google_ads'} if GOOGLE_ONLY else {'google_ads','meta_ads'})
+    for provider in (('google_ads',) if GOOGLE_ONLY else ('google_ads','meta_ads')):
         channel=data['channels'][provider]
         if provider=='google_ads':
             assert channel['decision_state']=='internal_review_only'
@@ -60,4 +68,4 @@ with sync_playwright() as playwright:
         assert channel['campaign_state']=='not_created'
     assert page.context.request.get(endpoint).json()==data
     browser.close()
-print('PASS F423: Portal buyer HTTP re-read of same exact PG18 order/review, Google synthetic internal-only and Meta blocked, exactly one internal review, durable after fresh process'+(' and SQL restart' if os.getenv('F423_RESTARTED') else ''))
+print('PASS F423: Portal buyer HTTP re-read of same exact PG18 '+('Google-only' if GOOGLE_ONLY else 'Google+Meta')+' order/review, Google synthetic internal-only'+('' if GOOGLE_ONLY else ', Meta blocked')+', exactly one internal review, durable after fresh process'+(' and SQL restart' if os.getenv('F423_RESTARTED') else ''))
