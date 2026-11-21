@@ -91,6 +91,14 @@ with sync_playwright() as p:
     check(href is not None and href.startswith("/lab/delivery/html?ref=")
           and len(href.split("ref=")[1]) == 32, "private link is local and receipt scoped")
     private_url = "http://127.0.0.1:8792" + href
+    # R34: prevent ambiguous private delivery references. These three checks
+    # are new; all preceding buyer/tenant/hash cases remain prerequisites.
+    check(buyer.request.get(private_url + "&audit=1").status == 403,
+          "extra query value never changes the identity of a receipt")
+    check(buyer.request.get(private_url + "&ref=" + href.split("ref=", 1)[1]).status == 403,
+          "duplicate ref is denied, not collapsed by PHP")
+    check(buyer.request.get(private_url.replace("?ref=", "?%72ef=")).status == 403,
+          "percent-encoded ref key is denied rather than normalized")
     check(anon.request.get(private_url).status == 403, "link alone grants no anonymous access")
     check(other.request.get(private_url).status == 403, "link grants no access to buyer B of same tenant")
     check(foreign.request.get(private_url).status == 403, "link grants no access cross tenant")
@@ -137,5 +145,6 @@ print(f"R29_PRIVATE_BUYER_DELIVERY_PASS: {checks} new checks")
 print("R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority")
 print("R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority")
 print("R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal")
+print("R34_CANONICAL_DELIVERY_REF_PASS: 3 new negative browser checks; NO_GO")
 print(f"R29_HTTP_SHA256={EXPECTED}")
 print("SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO")

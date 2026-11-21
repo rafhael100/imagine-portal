@@ -22,3 +22,9 @@ Pendente operacional: writers oficiais de autenticação/MFA, contrato e aprova�
 A R32 confirma idempotência na emissão concorrente, mas `r29http()` ainda aceitava o corpo completo de HTTP 200 em memória antes de verificar o limite da prévia. Nesta candidata, o estado JSON tem orçamento de **4.096 bytes** e o HTML de **32.768 bytes**, aplicados por callback de streaming do cURL. Exceder qualquer orçamento interrompe o recebimento e falha fechado antes do parse e do recibo. Sem follow redirects, sem URL dinâmica, retries ou tráfego externo.
 
 O ensaio usa exclusivamente servidor adversarial em `127.0.0.1:8791` que devolve HTTP 200 com estado de 12.288 bytes e HTML de 65.536 bytes; ambos são rejeitados. Depois o servidor é encerrado e a prova integrada anterior com provider local normal continua, verificando que o limite não impede a release sintética válida. Não é teste de OpenAI, CRM/VEN, login nativo, dados reais nem publicação.
+
+## R34 — identidade única e canônica do link privado
+
+O receptor da entrega local recusava URLs com parâmetros extras, chave `ref` duplicada ou alias codificado de `ref` de maneira apenas parcial: o PHP transforma `$_GET` antes de fazer a leitura. Agora só aceita a forma exata `/lab/delivery/html?ref=<32 hex minúsculos>`, comparando `QUERY_STRING` integral e `$_GET` sem parâmetros adicionais. Isso impede que duas representações distintas de URL sejam tratadas como um único recibo no registro/auditoria, mantendo sessão do comprador e digest atual obrigatórios.
+
+Novo ensaio negativo em Chromium: comprador válido recebe HTTP 403 para parâmetro extra, chave repetida e nome de chave percent-encoded; o link original continua verificado pelo SHA e protegido por sessão. Os testes preexistentes R29–R33 são pré-requisitos, não novos marcos. Sem autenticação nativa, writer oficial, CRM/VEN, publicação, rede externa ou mudança de gates.

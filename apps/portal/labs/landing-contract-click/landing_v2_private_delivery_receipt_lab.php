@@ -157,8 +157,13 @@ if(PHP_SAPI==='cli-server') {
     try {
         $ref=null;
         if($path==='/lab/delivery/html') {
-            $ref=$_GET['ref']??null;
-            if(!is_string($ref) || preg_match('/\A[a-f0-9]{32}\z/D',$ref)!==1)r29deny();
+            // R34: the private link is a single canonical receipt reference.
+            // PHP otherwise collapses duplicate query keys and URL-decodes aliases,
+            // which makes audit evidence ambiguous even when the SHA is correct.
+            $query=(string)($_SERVER['QUERY_STRING']??'');
+            if(preg_match('/\Aref=([a-f0-9]{32})\z/D',$query,$match)!==1
+                || count($_GET)!==1 || ($_GET['ref']??null)!==$match[1])r29deny();
+            $ref=$match[1];
         } else if(($_GET??[])!==[])r29deny();
         $record=r29receipt($ref);
         if(!$record)r29deny();
