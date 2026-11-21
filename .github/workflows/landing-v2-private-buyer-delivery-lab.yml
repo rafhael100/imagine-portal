@@ -1,8 +1,8 @@
-name: Portal Landing R30 responsive buyer receipt and keyboard smoke (NO-GO)
+name: Portal Landing R31 PG clock receipt expiry and future-issue denial (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-v2-buyer-delivery-receipt-2026-11-21-r29']
+    branches: ['test/portal-landing-v2-buyer-receipt-mobile-a11y-2026-11-21-r30']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -23,9 +23,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-v2-buyer-receipt-mobile-a11y-2026-11-21-r30' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-v2-buyer-delivery-receipt-2026-11-21-r29' &&
-      github.event.pull_request.base.sha == 'd0fc098a4632a632fdbaa49eb1ec43c5208ee5ea'
+      github.event.pull_request.head.ref == 'test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-v2-buyer-receipt-mobile-a11y-2026-11-21-r30' &&
+      github.event.pull_request.base.sha == 'ce69f8f6575514623761c050a2f5d6e730ebbcda'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -293,6 +293,7 @@ jobs:
           python apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py | tee "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R29_PRIVATE_BUYER_DELIVERY_PASS:' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
       - name: Revocation invalidates independent source despite stale mTLS fixture
         run: |
