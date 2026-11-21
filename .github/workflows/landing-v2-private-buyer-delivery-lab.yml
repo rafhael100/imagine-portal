@@ -1,8 +1,8 @@
-name: Portal Landing R33 bounded local provider transport before receipt (NO-GO)
+name: Portal Landing R34 canonical buyer delivery reference (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r32-receipt-idempotent-replay-2026-11-21']
+    branches: ['test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -24,9 +24,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r32-receipt-idempotent-replay-2026-11-21' &&
-      github.event.pull_request.base.sha == 'e47aa711a3805ac824349a3e3e1fc5611a609213'
+      github.event.pull_request.head.ref == 'test/portal-landing-r34-canonical-delivery-ref-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21' &&
+      github.event.pull_request.base.sha == 'b21008132d363e0052aeecb6d27e83db90d332ae'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -335,6 +335,7 @@ jobs:
           grep -F 'R30_BUYER_RECEIPT_MOBILE_A11Y_PASS: 14 additional checks; no new authority' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R31_PG_CLOCK_WINDOW_PASS: 4 new temporal checks; no operational authority' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'R32_EXPIRED_AND_FUTURE_REPLAY_DENIED: 2 new checks; no renewal' "$RUNNER_TEMP/r29-browser.txt"
+          grep -F 'R34_CANONICAL_DELIVERY_REF_PASS: 3 new negative browser checks; NO_GO' "$RUNNER_TEMP/r29-browser.txt"
           grep -F 'SESSION=LAB_ONLY; RECEIPT=UNSIGNED_CI; FORM=OFF; URL=LOOPBACK_ONLY; PUBLISH=NO_GO' "$RUNNER_TEMP/r29-browser.txt"
       - name: Revocation invalidates independent source despite stale mTLS fixture
         run: |
