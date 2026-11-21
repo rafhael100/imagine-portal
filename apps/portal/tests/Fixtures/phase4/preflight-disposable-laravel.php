@@ -54,22 +54,28 @@ try {
         throw new RuntimeException('Effective Laravel connection mismatch');
     }
 
-    $stage = 'SQL_ENDPOINT';
+    $stage = 'SQL_QUERY';
     $row = $db->selectOne(
         'SELECT current_database() AS name, current_user AS role, ' .
         "current_setting('server_version_num')::int AS version, " .
         "inet_server_addr()::text AS server_addr, inet_server_port() AS server_port"
     );
+    $stage = 'SQL_IDENTITY';
     if ($row === null || $row->name !== 'performance_phase4_ci'
-        || $row->role !== 'postgres' || (int) $row->version < 180000
-        // In Actions the PostgreSQL server is inside a container: TCP is
-        // routed through Docker NAT, so server_addr is NOT necessarily 127.0.0.1.
-        // Enforce TCP (not a Unix socket) and the expected server port; the
-        // client-side Laravel host/port remain independently checked above.
-        || !is_string($row->server_addr)
-        || filter_var($row->server_addr, FILTER_VALIDATE_IP) === false
-        || (int) $row->server_port !== 5432) {
-        throw new RuntimeException('SQL endpoint mismatch');
+        || $row->role !== 'postgres' || (int) $row->version < 180000) {
+        throw new RuntimeException('SQL identity mismatch');
+    }
+    // Docker NAT can give the server a private container address rather than
+    // loopback. Do not equate the server-side IP with Laravel's client-side
+    // 127.0.0.1 host; require a real TCP address and the server's port.
+    $stage = 'SQL_TCP_ADDRESS';
+    if (!is_string($row->server_addr)
+        || filter_var($row->server_addr, FILTER_VALIDATE_IP) === false) {
+        throw new RuntimeException('SQL TCP address missing');
+    }
+    $stage = 'SQL_TCP_PORT';
+    if ((int) $row->server_port !== 5432) {
+        throw new RuntimeException('SQL TCP port mismatch');
     }
     echo "PASS PHASE8 EFFECTIVE LARAVEL AND SQL DISPOSABLE PREFLIGHT\n";
 } catch (\Throwable $error) {
