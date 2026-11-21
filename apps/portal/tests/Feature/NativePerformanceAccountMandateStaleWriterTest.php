@@ -21,6 +21,12 @@ final class NativePerformanceAccountMandateStaleWriterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // The general no-database Laravel suites must skip this PG18-only
+        // fixture, while the opted-in authority job still fails closed on
+        // every environment or SQL-identity mismatch.
+        if (getenv('ADMIN_PHASE4_PG_CI') !== '1') {
+            $this->markTestSkipped('Only the disposable Phase8 PostgreSQL18 job runs stale writers');
+        }
         foreach ([
             'GITHUB_ACTIONS' => 'true', 'CI' => 'true',
             'ADMIN_PHASE4_PG_CI' => '1', 'APP_ENV' => 'testing',
