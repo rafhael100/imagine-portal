@@ -149,10 +149,21 @@ final class PerformanceOrderSnapshotLabController
             ? app(\App\Homologation\F423GoogleDiagnosticPlanStore::class)
                 ->read($owner,$id,(int)$order['revision'],$digest)
             : null;
+        // A distinct, insert-only, internal UNPUBLISHED draft exists only after
+        // the exact buyer-approved plan. It is neither an Ads campaign nor a lease.
+        $draft=is_array($plan) && ($plan['buyer_plan_approved']??false)===true
+            ? app(\App\Homologation\F423GoogleCampaignDraftStore::class)
+               ->read($owner,$id,(int)$order['revision'],$digest)
+            : null;
+        if(is_array($draft)) {
+            $channels['google_ads']['campaign_state']='internal_draft_unpublished';
+            $plan['campaign_draft_created']=true;
+        }
         $response = [
+            'internal_campaign_draft' => $draft,
             'diagnostic_plan' => $plan,
             'plan_approved' => is_array($plan) && ($plan['buyer_plan_approved']??false)===true,
-            'campaign_drafts_created' => 0,
+            'campaign_drafts_created' => is_array($draft) ? 1 : 0,
             'schema' => 'portal_f423_ci_authenticated_order_source_v1',
             'source' => 'ci_only_portal_customer_purchase_pg18',
             'order_id' => $order['id'],
