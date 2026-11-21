@@ -77,6 +77,23 @@ with sync_playwright() as playwright:
         assert "Publicado: não" in page.locator("#receipt-limits").inner_text()
         assert "Cobrável: não" in page.locator("#receipt-limits").inner_text()
         assert page.context.request.get(receipt_url).status == 200, "Repeat is read-only"
+        # A real but unrelated synthetic customer session must not see this
+        # exact receipt. Distinct from an anonymous or forged signature.
+        other = browser.new_page()
+        assert other.goto(base + "/").status == 200
+        other.locator("[name=username]").fill("cliente.teste")
+        other.locator("[name=password]").fill("ci-client-only-2026")
+        other.get_by_role("button", name="Entrar", exact=True).click()
+        assert other.context.request.get(receipt_url).status == 404, "Other buyer cannot enumerate the receipt"
+        other.close()
+        # An administrator role is not a buyer for this exact presentation.
+        operator = browser.new_page()
+        assert operator.goto(base + "/").status == 200
+        operator.locator("[name=username]").fill("administrador.teste")
+        operator.locator("[name=password]").fill("ci-admin-only-2026")
+        operator.get_by_role("button", name="Entrar", exact=True).click()
+        assert operator.context.request.get(receipt_url).status == 403, "Admin role has no buyer receipt"
+        operator.close()
     else:
         response = page.context.request.get(receipt_url)
         expected = 404 if mode == "absent" else 503
