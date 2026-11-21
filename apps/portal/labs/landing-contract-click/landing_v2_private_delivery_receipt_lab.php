@@ -37,19 +37,26 @@ function r29http(string $url): ?array {
     // is not an observed browser-renderable release or canonical state source.
     $expectedMime=$url===R29_STATE_URL?'application/json':'text/html; charset=utf-8';
     $mimeHeaders=[];
+    // R37: Content-Disposition and Refresh change what a browser observes,
+    // even with a 200 status, correct media type and identical response bytes.
+    $presentationHeaders=[];
     $data='';
     $h=curl_init($url);
     curl_setopt_array($h, [
         CURLOPT_RETURNTRANSFER=>false, CURLOPT_FOLLOWLOCATION=>false,
         CURLOPT_MAXREDIRS=>0, CURLOPT_PROXY=>'',
         CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000,
-        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders):int {
+        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders):int {
             // Reset only on a new HTTP status line. Duplicate Content-Type
             // headers within the final response are ambiguous and refused.
-            if(preg_match('/\\AHTTP\\/[0-9.]+ [0-9]{3}[^\\r\\n]*\\r?\\n\\z/', $line)===1)
+            if(preg_match('/\\AHTTP\\/[0-9.]+ [0-9]{3}[^\\r\\n]*\\r?\\n\\z/', $line)===1) {
                 $mimeHeaders=[];
-            else if(preg_match('/\\Acontent-type:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1)
+                $presentationHeaders=[];
+            } else if(preg_match('/\\Acontent-type:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
                 $mimeHeaders[]=trim($m[1]);
+            } else if(preg_match('/\\A(?:content-disposition|refresh):[^\\r\\n]*\\r?\\n\\z/i',$line)===1) {
+                $presentationHeaders[]=trim($line);
+            }
             return strlen($line);
         },
         CURLOPT_WRITEFUNCTION=>static function($handle,string $chunk) use (&$data,$limit):int {
@@ -63,7 +70,7 @@ function r29http(string $url): ?array {
     $status=(int)curl_getinfo($h,CURLINFO_RESPONSE_CODE);
     curl_close($h);
     return $ok===true && $status===200 && $mimeHeaders===[$expectedMime]
-        ? [$data,$status] : null;
+        && $presentationHeaders===[] ? [$data,$status] : null;
 }
 /**
  * R35: the R28 provider emits one canonical state envelope. A JSON object
@@ -250,6 +257,15 @@ if($mode==='probe-state-canonical') {
         if(r29decodeState($candidate)!==null)
             throw new RuntimeException('R35 ambiguous provider state accepted: case '.($i+1));
     echo "R35_CANONICAL_PROVIDER_STATE_PASS: 1 accepted, 6 rejected; NO_GO; NO_EGRESS\n";
+    exit;
+}
+if($mode==='probe-presentation-headers') {
+    // R37: an origin cannot prove that HTML was browser-visible merely by
+    // returning the right MIME when it orders a download or Refresh navigation.
+    // This is not a real publisher or a native buyer acceptance test.
+    if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
+        throw new RuntimeException('R37 presentation-changing provider header accepted');
+    echo "R37_PRESENTATION_HEADERS_DENIED: state=1 html=1; NO_GO; NO_EGRESS\\n";
     exit;
 }
 if($mode==='probe-provider-mime') {
