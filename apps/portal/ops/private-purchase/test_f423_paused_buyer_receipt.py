@@ -2,6 +2,8 @@
 Never proves Ads connection, delivery, contract acceptance or activation."""
 import os
 import re
+import json
+from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -79,12 +81,20 @@ with sync_playwright() as playwright:
         assert page.context.request.get(receipt_url).status == 200, "Repeat is read-only"
         # A real but unrelated synthetic customer session must not see this
         # exact receipt. Distinct from an anonymous or forged signature.
+        # demo-b was created by the already executed two-customer CI flow.
+        # Use that distinct, not-yet-logged-in synthetic principal rather
+        # than a shared static profile that can hit login throttling.
+        previous = json.loads(Path("/tmp/portal-customer-ci.json").read_text())
+        assert re.fullmatch(r"demo-a-[0-9a-f]{10}", previous["user"])
+        other_user = previous["user"].replace("demo-a-", "demo-b-", 1)
         other = browser.new_page()
         assert other.goto(base + "/").status == 200
-        other.locator("[name=username]").fill("cliente.teste")
-        other.locator("[name=password]").fill("ci-client-only-2026")
+        other.locator("[name=username]").fill(other_user)
+        other.locator("[name=password]").fill("ci-owned-customer-only-2026")
         other.get_by_role("button", name="Entrar", exact=True).click()
-        assert other.context.request.get(receipt_url).status == 404, "Other buyer cannot enumerate the receipt"
+        assert "/client/" in other.url, "Unrelated buyer must authenticate before the denial test"
+        status = other.context.request.get(receipt_url).status
+        assert status == 404, f"Authenticated unrelated buyer receipt status {status}"
         other.close()
         # An administrator role is not a buyer for this exact presentation.
         operator = browser.new_page()
@@ -92,7 +102,9 @@ with sync_playwright() as playwright:
         operator.locator("[name=username]").fill("administrador.teste")
         operator.locator("[name=password]").fill("ci-admin-only-2026")
         operator.get_by_role("button", name="Entrar", exact=True).click()
-        assert operator.context.request.get(receipt_url).status == 403, "Admin role has no buyer receipt"
+        assert "/admin/" in operator.url, "Administrator must authenticate before the role denial test"
+        status = operator.context.request.get(receipt_url).status
+        assert status == 403, f"Authenticated admin receipt status {status}"
         operator.close()
     else:
         response = page.context.request.get(receipt_url)
