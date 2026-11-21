@@ -98,17 +98,25 @@ final class F423PerformanceDecisionStore
                 if(!is_array($row)) throw new RuntimeException('Invalid channel');
                 $keys=array_keys($row);$expected=['state','reason','media_cents','account_fingerprint','fingerprint'];
                 sort($keys);sort($expected);
-                if($keys!==$expected || $row['state']!=='blocked' || $row['reason']!=='mandate_or_s2s_denied'
+                if($keys!==$expected
+                    || !in_array($row['state'],['blocked','internal_review_only'],true)
+                    || ($row['state']==='blocked'
+                        ? $row['reason']!=='mandate_or_s2s_denied'
+                        : $row['reason']!=='synthetic_gate_accepted_for_internal_review')
                     || !is_int($row['media_cents']) || $row['media_cents']!==$media[$provider]
                     || !is_string($row['account_fingerprint']) || !preg_match('/\A[a-f0-9]{64}\z/D',$row['account_fingerprint'])
+                    // Only the two test-owned accounts are valid in this CI-only
+                    // seam; a correctly signed swapped account must still fail.
+                    || $row['account_fingerprint']!==hash('sha256','f423-account-reference-v1:'
+                        .($provider==='google_ads'?'1234567890':'98765432109876'))
                     || !is_string($row['fingerprint']) || !preg_match('/\A[a-f0-9]{64}\z/D',$row['fingerprint'])
                     || $row['fingerprint']!==hash('sha256',implode("\0",[
                         $owner,$orderId,(string)$payload['order_revision'],$payload['briefing_sha256'],
-                        $provider,(string)$row['media_cents'],$row['account_fingerprint'],'blocked','mandate_or_s2s_denied'
+                        $provider,(string)$row['media_cents'],$row['account_fingerprint'],$row['state'],$row['reason']
                     ]))) throw new RuntimeException('Unexpected channel decision');
                 $insert->execute([$owner,$orderId,$payload['order_revision'],$payload['briefing_sha256'],
                     $provider,$row['media_cents'],$payload['source_order_alias'],$row['account_fingerprint'],
-                    'blocked','mandate_or_s2s_denied',$row['fingerprint']]);
+                    $row['state'],$row['reason'],$row['fingerprint']]);
             }
             $q=$this->db->prepare("SELECT provider,media_cents,source_order_alias,account_fingerprint,
                     decision_state,decision_reason,decision_fingerprint FROM purchase_rehearsal.f423_performance_decisions
@@ -116,7 +124,9 @@ final class F423PerformanceDecisionStore
             $q->execute([$owner,$orderId,$payload['order_revision'],$payload['briefing_sha256']]);
             $stored=$q->fetchAll(PDO::FETCH_ASSOC);
             if(count($stored)!==2) throw new RuntimeException('Incomplete persisted decision');
+            $ready=0;
             foreach($stored as $saved) {
+                if($saved['decision_state']==='internal_review_only') ++$ready;
                 $row=$payload['channels'][$saved['provider']]??null;
                 if(!is_array($row) || (int)$saved['media_cents']!==$row['media_cents']
                     || $saved['source_order_alias']!==$payload['source_order_alias']
@@ -126,7 +136,7 @@ final class F423PerformanceDecisionStore
                     || $saved['decision_fingerprint']!==$row['fingerprint'])
                     throw new RuntimeException('Conflicting interprocess replay');
             }
-            return ['persisted_channels'=>2,'ready_channels_count'=>0,'campaign_drafts_created'=>0];
+            return ['persisted_channels'=>2,'ready_channels_count'=>$ready,'campaign_drafts_created'=>0];
         });
     }
 }

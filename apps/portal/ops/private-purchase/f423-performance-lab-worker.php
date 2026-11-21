@@ -10,6 +10,7 @@ if(!preg_match('/\Ademo-[a-f0-9]{32}\z/D',$company)
 $key=trim((string)@file_get_contents('/run/secrets/f423-performance-key'));
 if(!preg_match('/\A[a-f0-9]{64}\z/D',$key)) exit(1);
 require '/lab/SyntheticTwoChannelOrderReadiness.php';
+require '/lab/AdministrativeAdsAccountMandateGate.php';
 
 function signedRequest(string $method,string $path,string $company,string $key,?array $payload=null,?string $corrupt=null):array {
  $body=$payload===null?'':json_encode($payload,JSON_THROW_ON_ERROR);
@@ -68,21 +69,77 @@ $order=['order_id'=>$sourceAlias,'company_id'=>$company,'purchase_state'=>$sourc
  'briefing_sha256'=>$source['approved_briefing_sha256']];
 $briefing=['order_id'=>$sourceAlias,'company_id'=>$company,'state'=>'synthetic_review_approved',
  'revision'=>$order['briefing_revision'],'sha256'=>$order['briefing_sha256']];
+// Synthetic snapshots INJECTED into the actual Performance gate, not Portal
+// SQL001 or provider IAM/consent. Leases are test digests only.
+$gateClass=\Imagine\Performance\Administration\AdministrativeAdsAccountMandateGate::class;
+$principal='imagine_portal_s2s';$now=2000000000;
+$service=[
+ 'version'=>$gateClass::SERVICE_VERSION,'principal'=>$principal,'company_id'=>$company,
+ 'operation'=>$gateClass::OPERATION,'active'=>true,'revision'=>2,
+ 'expires_at'=>$now+600,'revoked_at'=>null
+];
+$mandates=[];
+foreach($providers as $provider) {
+ $mandates[$provider][$accounts[$provider]]=[
+   'version'=>$gateClass::VERSION,'company_id'=>$company,
+   'service_principal'=>$principal,'provider'=>$provider,
+   'account_id'=>$accounts[$provider],'purpose'=>$gateClass::PURPOSE,
+   'operation'=>$gateClass::OPERATION,
+   'consent_reference'=>'synthetic-test-only-'.$provider,
+   'credential_ref'=>'opaque-lab-only-'.$provider,
+   'status'=>$provider==='google_ads'?'active':'revoked',
+   'revision'=>2,'expires_at'=>$now+500,'revoked_at'=>null
+ ];
+}
+$gate=new $gateClass($principal,
+ static function() use (&$service):array { return $service; },
+ static function(string $c,string $p,string $account) use (&$mandates):?array {
+    return $mandates[$p][$account]??null;
+ },
+ static fn():int=>$now
+);
+$authorize=static fn(string $c,string $p,string $a):?string=>$gate->lease($c,$p,$a);
+$decide=static function(array &$ledger) use($order,$briefing,$authorize):array {
+ return \Imagine\Performance\Tests\Fixtures\SyntheticTwoChannelOrderReadiness::decide(
+   $order,$briefing,$authorize,$ledger);
+};
 $ledger=[];
-$result=\Imagine\Performance\Tests\Fixtures\SyntheticTwoChannelOrderReadiness::decide(
- $order,$briefing,static fn(string $company,string $provider,string $account):?string=>null,$ledger);
-if($result['state']!=='internal_review_only'||count($ledger)!==0
- ||count($result['channels'])!==2) throw new RuntimeException('Performance fixture policy not invoked');
+$result=$decide($ledger);
+if($result['state']!=='internal_review_only'||count($ledger)!==1
+ ||$result['channels']['google_ads']['state']!=='internal_review_only'
+ ||$result['channels']['meta_ads']['state']!=='blocked')
+ throw new RuntimeException('Only Google can enter synthetic internal review');
+// Pre-persistence adversarial probes; the ledger is immutable after INSERT.
+$mandates['google_ads'][$accounts['google_ads']]['revoked_at']=$now;
+$revokedLedger=[];$afterRevoke=$decide($revokedLedger);
+if($revokedLedger!==[]||$afterRevoke['channels']['google_ads']['state']!=='blocked'
+ ||$afterRevoke['channels']['meta_ads']['state']!=='blocked')
+ throw new RuntimeException('Synthetic Google revocation not isolated');
+$mandates['google_ads'][$accounts['google_ads']]['revoked_at']=null;
+$mandates['google_ads'][$accounts['google_ads']]['status']='revoked';
+$mandates['meta_ads'][$accounts['meta_ads']]['status']='active';
+$invertedLedger=[];$inverted=$decide($invertedLedger);
+if(count($invertedLedger)!==1
+ ||$inverted['channels']['google_ads']['state']!=='blocked'
+ ||$inverted['channels']['meta_ads']['state']!=='internal_review_only')
+ throw new RuntimeException('Reverse synthetic channel gate not isolated');
+$mandates['google_ads'][$accounts['google_ads']]['status']='active';
+$mandates['meta_ads'][$accounts['meta_ads']]['status']='revoked';
 $out=[];
 foreach($providers as $provider) {
  $decision=$result['channels'][$provider];
- if($decision['state']!=='blocked'||$decision['reason']!=='mandate_or_s2s_denied') throw new RuntimeException('No mandate may enable a channel');
+ $state=$decision['state'];
+ $reason=$state==='internal_review_only'
+    ?'synthetic_gate_accepted_for_internal_review':'mandate_or_s2s_denied';
+ if(!in_array($state,['blocked','internal_review_only'],true)
+    ||($state==='blocked' && $decision['reason']!=='mandate_or_s2s_denied'))
+    throw new RuntimeException('Unexpected synthetic Performance decision');
  $accountHash=hash('sha256','f423-account-reference-v1:'.$accounts[$provider]);
- $out[$provider]=['state'=>'blocked','reason'=>'mandate_or_s2s_denied',
+ $out[$provider]=['state'=>$state,'reason'=>$reason,
    'media_cents'=>$channels[$provider]['media_cents'],'account_fingerprint'=>$accountHash,
    'fingerprint'=>hash('sha256',implode("\0",[$company,$orderId,(string)$order['briefing_revision'],
      $order['briefing_sha256'],$provider,(string)$channels[$provider]['media_cents'],
-     $accountHash,'blocked','mandate_or_s2s_denied']))];
+     $accountHash,$state,$reason]))];
 }
 $packet=['company_id'=>$company,'order_id'=>$orderId,'source_order_alias'=>$sourceAlias,
  'order_revision'=>$order['briefing_revision'],'briefing_sha256'=>$order['briefing_sha256'],
@@ -104,12 +161,15 @@ if($wrongPriceStatus!==409) throw new RuntimeException('Mismatched signed Meta a
 [$wrongCompany]=signedRequest('GET',$path,'demo-'.str_repeat('a',32),$key);
 if($wrongCompany!==404) throw new RuntimeException('Other company must not read synthetic order');
 [$status,$response]=signedRequest('POST',$path.'/decisions',$company,$key,$packet);
-if($status!==200||$response['persisted_channels']!==2||$response['ready_channels_count']!==0)
+if($status!==200||$response['persisted_channels']!==2||$response['ready_channels_count']!==1)
  throw new RuntimeException('Performance decision not persisted: '.$status);
 [$status,$back]=signedRequest('GET',$path,$company,$key);
 if($status!==200||$back['decision_persisted_by_performance']!==true
- ||$back['ready_channels_count']!==0||$back['performance_s2s_proven']!==true)
+ ||$back['ready_channels_count']!==1||$back['performance_s2s_proven']!==true)
  throw new RuntimeException('Portal S2S readback missing persisted decision');
-foreach($providers as $provider) if($back['channels'][$provider]['decision_state']!=='blocked')
- throw new RuntimeException('Blocked channel incorrectly promoted');
-echo "PASS F423 S2S: authenticated Portal HTTP -> pinned Performance fixture -> actual PostgreSQL -> Portal HTTP; both channels blocked, idempotent across processes, no draft or Ads\n";
+if($back['channels']['google_ads']['decision_state']!=='internal_review_only'
+ ||$back['channels']['meta_ads']['decision_state']!=='blocked'
+ ||$back['channels']['google_ads']['campaign_state']!=='not_created'
+ ||$back['channels']['meta_ads']['campaign_state']!=='not_created')
+ throw new RuntimeException('Portal internal review must not imply campaign or connection');
+echo "PASS F423 S2S: synthetic Google internal review and Meta blocked; PG18 readback/replay; revocation + inverted gate probes before SQL, no Ads/draft\n";

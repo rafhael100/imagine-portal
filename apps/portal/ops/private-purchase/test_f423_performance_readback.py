@@ -14,7 +14,7 @@ identity=sql("SELECT b.customer_id||'|'||b.order_id||'|'||b.approved_by||'|'||b.
 owner,order,user,revision,digest=identity.split('|')
 assert len(owner)==37 and len(order)==37 and len(digest)==64
 stored=sql("SELECT provider||'|'||decision_state||'|'||decision_reason||'|'||media_cents FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s' AND order_revision=%s AND briefing_sha256='%s' ORDER BY provider"%(owner,order,revision,digest)).splitlines()
-assert stored==['google_ads|blocked|mandate_or_s2s_denied|100000','meta_ads|blocked|mandate_or_s2s_denied|70000'],stored
+assert stored==['google_ads|internal_review_only|synthetic_gate_accepted_for_internal_review|100000','meta_ads|blocked|mandate_or_s2s_denied|70000'],stored
 assert sql("SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions WHERE customer_id='%s' AND order_id='%s'"%(owner,order))=='2'
 guard=sql("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='purchase_rehearsal.f423_performance_decisions'::regclass")
 assert guard=='t','Decision ledger must enforce FORCE RLS'
@@ -44,16 +44,20 @@ with sync_playwright() as playwright:
     assert data['purchase_state']=='synthetic_confirmed'
     assert data['decision_persisted_by_performance'] is True
     assert data['performance_s2s_proven'] is True
-    assert data['ready_channels_count']==0
+    assert data['ready_channels_count']==1
     assert data['operational_enabled'] is False and data['ads_write_enabled'] is False
     assert data['billable'] is False
     assert set(data['channels'])=={'google_ads','meta_ads'}
     for provider in ('google_ads','meta_ads'):
         channel=data['channels'][provider]
-        assert channel['decision_state']=='blocked'
-        assert channel['decision_reason']=='mandate_or_s2s_denied'
+        if provider=='google_ads':
+            assert channel['decision_state']=='internal_review_only'
+            assert channel['decision_reason']=='synthetic_gate_accepted_for_internal_review'
+        else:
+            assert channel['decision_state']=='blocked'
+            assert channel['decision_reason']=='mandate_or_s2s_denied'
         assert channel['connection_state']=='not_connected'
         assert channel['campaign_state']=='not_created'
     assert page.context.request.get(endpoint).json()==data
     browser.close()
-print('PASS F423: Portal buyer HTTP re-read of same exact PG18 order/review, 2 blocked Performance S2S decisions, zero ready, durable after fresh process'+(' and SQL restart' if os.getenv('F423_RESTARTED') else ''))
+print('PASS F423: Portal buyer HTTP re-read of same exact PG18 order/review, Google synthetic internal-only and Meta blocked, exactly one internal review, durable after fresh process'+(' and SQL restart' if os.getenv('F423_RESTARTED') else ''))

@@ -20,6 +20,7 @@ services:
       - ./f423-performance-lab-worker.php:/lab/worker.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
       - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro
+      - ../../../../perf-f423/src/Domain/Administration/AdministrativeAdsAccountMandateGate.php:/lab/AdministrativeAdsAccountMandateGate.php:ro
     networks: [private]
     read_only: true
     cap_drop: [ALL]
