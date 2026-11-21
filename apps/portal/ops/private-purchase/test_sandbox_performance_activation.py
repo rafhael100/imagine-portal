@@ -32,6 +32,10 @@ class PerOrderSyntheticAPI(API):
             result['id']=ref
         return result
 
+# Separate single-Google order proof from the existing Google+Meta regression.
+# It stops at buyer briefing approval; the two-channel S2S/plan/draft path
+# is deliberately NOT claimed for this different purchase.
+GOOGLE_ONLY = os.environ.get('F423_GOOGLE_ONLY') == '1'
 BASE = os.environ.get(
     'PURCHASE_PREVIEW_BASE',
     'http://127.0.0.1:18083/_rehearsal/purchase'
@@ -62,7 +66,9 @@ with sync_playwright() as playwright:
 
     assert page.goto(BASE+'/shop?product=performance').status == 200
     page.locator('[name=google_media]').fill('1000')
-    page.locator('[name=meta_media]').fill('700')
+    if not GOOGLE_ONLY:
+        page.locator('[name=meta_media]').fill('700')
+    assert re.fullmatch(r'[a-f0-9]{64}', page.locator('[name=offer_version]').input_value())
     page.locator('[name=offer_ack]').check()
     page.get_by_role('button', name='Criar pedido de teste', exact=True).click()
     url = page.url
@@ -85,9 +91,10 @@ with sync_playwright() as playwright:
         assert payload['operational_enabled'] is False
         assert payload['ads_write_enabled'] is False
         assert payload['billable'] is False
-        assert set(payload['channels']) == {'google_ads','meta_ads'}
+        assert set(payload['channels']) == ({'google_ads'} if GOOGLE_ONLY else {'google_ads','meta_ads'})
         assert payload['channels']['google_ads']['media_cents'] == 100000
-        assert payload['channels']['meta_ads']['media_cents'] == 70000
+        if not GOOGLE_ONLY:
+            assert payload['channels']['meta_ads']['media_cents'] == 70000
         for channel in payload['channels'].values():
             assert channel['activation_cents'] == 49000
             assert channel['decision_state'] == 'blocked'
@@ -114,7 +121,9 @@ with sync_playwright() as playwright:
         BASE + '/shop/orders/TEST-' + uuid.uuid4().hex + '/performance-snapshot'
     ).status == 404, 'Missing order fails closed'
     text = page.locator('body').inner_text()
-    assert 'R$ 980,00' in text and 'R$ 370,00' in text
+    assert ('R$ 490,00' if GOOGLE_ONLY else 'R$ 980,00') in text
+    if not GOOGLE_ONLY:
+        assert 'R$ 370,00' in text
     assert 'Ativação única' in text
     assert page.locator('[name=sandbox_ack]').count() == 1
 
@@ -158,7 +167,7 @@ with sync_playwright() as playwright:
     rows = [row for row in db.rows() if row['order_id'] == oid]
     assert len(rows) == 1, 'Exactly one owned Performance sandbox intent'
     row = rows[0]
-    assert row['amount_cents'] == 98000, 'Only the activation is charged'
+    assert row['amount_cents'] == (49000 if GOOGLE_ONLY else 98000), 'Only selected channel activation is quoted in fake PSP intent'
     assert row['state']=='queued'
 
     api = PerOrderSyntheticAPI(oid)
@@ -168,7 +177,7 @@ with sync_playwright() as playwright:
     payment_requests=[entry[1] for entry in api.posts if entry[0]=='/payments']
     assert len(payment_requests)==1
     payment = payment_requests[0]
-    assert payment['value']==980.0
+    assert payment['value']==(490.0 if GOOGLE_ONLY else 980.0)
     assert not ({'media_budget','management_fee','planned_spend','ads_spend'} & set(payment)), 'No media or management fields sent to PSP'
     assert payment['externalReference']=='imagine:'+oid+':initial'
     assert api.posts[0][1]['notificationDisabled'] is True
@@ -190,7 +199,7 @@ with sync_playwright() as playwright:
     assert len(api.posts)==2, 'No duplicated provider writes'
     assert page.locator('form[action$="/future-billing"]').count()==0
     assert page.locator('form[action$="/performance-report"]').count()==0
-    assert 'R$ 980,00' in page.locator('body').inner_text()
+    assert ('R$ 490,00' if GOOGLE_ONLY else 'R$ 980,00') in page.locator('body').inner_text()
 
     # Persist actual briefing submission via the real Portal HTTP form.
     # Submission is NOT an approval and must never mint a channel mandate.
@@ -252,6 +261,22 @@ with sync_playwright() as playwright:
     assert rows == [[approved['company_id'],oid,str(approved['approved_briefing_revision']),
                     approved['approved_briefing_sha256'],user]], (
         'One exact row in actual disposable PG18, never in-memory-only')
+    if GOOGLE_ONLY:
+        # Ground channel identity in the order persisted by Laravel/PG18,
+        # not merely in a Python fixture or in the HTTP presentation.
+        offer_sql = ("SELECT offer_snapshot::text FROM purchase_rehearsal.customer_orders "
+                     "WHERE customer_id='%s' AND id='%s'" % (approved['company_id'],oid))
+        offer_query = subprocess.run([
+            'docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
+            '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
+            'exec','-T','database','psql','-X','-q','-t','-A','-v','ON_ERROR_STOP=1',
+            '-U','postgres','-d','portal_purchase_rehearsal','-c',offer_sql],
+            check=True,capture_output=True,text=True)
+        import json
+        quote = json.loads(offer_query.stdout.strip())
+        assert quote['media_by_channel_cents'] == {'google_ads':100000}, 'No Meta in purchased SQL order'
+        assert quote['activation_per_channel_cents'] == 49000
+        assert len(rows) == 1
     guard = subprocess.run([
         'docker','compose','-f','apps/portal/ops/private-purchase/compose.yaml',
         '-f','apps/portal/ops/private-purchase/compose.ci.yaml',
@@ -280,4 +305,4 @@ with sync_playwright() as playwright:
     assert other.request.get(snapshot_url).status == 404, 'Cross-customer order read blocked by signed FORCE RLS'
     other.close()
     browser.close()
-print('PASS F423: buyer-approved exact briefing persisted once in PG18 under FORCE RLS and read by Portal HTTP; both channels still NO-GO, no Performance S2S or decision persistence.')
+print('PASS F423 '+('GOOGLE-ONLY' if GOOGLE_ONLY else 'GOOGLE+META')+': fake checkout, synthetic payment and exact buyer briefing approval read in disposable PG18 HTTP; 0 ready, no campaign, no Performance S2S decision for this order')
