@@ -36,7 +36,7 @@ final class FullPortalPreviewServiceProvider extends ServiceProvider
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'show']);
                 // Exact buyer-visible PAUSED mock receipt, no delivery or Ads rights.
                 Route::get('shop/orders/{id}/paused-stage-receipt',
-                    [\\App\\Http\\Controllers\\PerformanceOrderSnapshotLabController::class,'pausedStageReceipt']);
+                    [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'pausedStageReceipt']);
                 Route::post('shop/orders/{id}/briefing-review',
                     [\App\Http\Controllers\PerformanceOrderSnapshotLabController::class,'approve']);
                 Route::get('shop/orders/{id}/plan-review',
