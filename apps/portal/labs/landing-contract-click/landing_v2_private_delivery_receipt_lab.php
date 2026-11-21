@@ -158,14 +158,16 @@ if(PHP_SAPI==='cli-server') {
             echo $record['snapshot']['bytes'];exit;
         }
         header('Content-Type: text/html; charset=utf-8');
-        echo '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Entrega local fictícia Landing</title>';
+        echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Entrega local fictícia Landing</title>';
+        // Standalone, accessible laboratory readback; never a client-facing publisher.
+        echo '<style>*,*::before,*::after{box-sizing:border-box}body{max-width:46rem;margin:0 auto;padding:clamp(1rem,4vw,2rem);font:1rem/1.5 system-ui,sans-serif;color:#292929}main{min-width:0}p{overflow-wrap:anywhere}a{color:#874000;text-underline-offset:.2em;overflow-wrap:anywhere}a:focus-visible{outline:3px solid #F9941D;outline-offset:3px}</style></head><body><main>';
         echo '<h1>Entrega privada de laboratório — não é publicação</h1>';
-        echo '<p id="order">'.r29escape($r['order_ref']).'</p>';
-        echo '<p id="release">'.r29escape($r['release_ref']).'</p>';
-        echo '<p id="digest">'.r29escape($r['html_sha256']).'</p>';
-        echo '<p id="generation">'.(int)$r['artifact_generation'].'</p>';
-        echo '<a id="download" href="/lab/delivery/html?ref='.r29escape($r['receipt_ref']).'">Ver HTML local deste pedido</a>';
-        echo '<p>Somente CI descartável. Formulário desligado, sem URL pública, sem autorização de publicação.</p></html>';
+        echo '<p>Pedido: <span id="order">'.r29escape($r['order_ref']).'</span></p>';
+        echo '<p>Release: <span id="release">'.r29escape($r['release_ref']).'</span></p>';
+        echo '<p>SHA-256: <span id="digest">'.r29escape($r['html_sha256']).'</span></p>';
+        echo '<p>Geração: <span id="generation">'.(int)$r['artifact_generation'].'</span></p>';
+        echo '<p><a id="download" href="/lab/delivery/html?ref='.r29escape($r['receipt_ref']).'">Ver HTML local deste pedido</a></p>';
+        echo '<p>Somente CI descartável. Formulário desligado, sem URL pública, sem autorização de publicação.</p></main></body></html>';
         exit;
     } catch(Throwable) {r29deny();}
 }
