@@ -31,7 +31,9 @@ final class NativePerformanceAccountMandateStaleWriterTest extends TestCase
             'GITHUB_ACTIONS' => 'true', 'CI' => 'true',
             'ADMIN_PHASE4_PG_CI' => '1', 'APP_ENV' => 'testing',
             'DB_CONNECTION' => 'pgsql', 'DB_HOST' => '127.0.0.1',
-            'DB_PORT' => '5432', 'DB_DATABASE' => 'performance_phase4_ci',
+            // phpunit.xml intentionally forces DB_DATABASE=portal_test_not_connected;
+            // rely on the effective Laravel connection and live SQL identity below.
+            'DB_PORT' => '5432',
             'DB_USERNAME' => 'postgres',
         ] as $name => $expected) {
             if (getenv($name) !== $expected) {
