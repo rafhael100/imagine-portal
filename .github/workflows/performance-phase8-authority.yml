@@ -65,7 +65,19 @@ jobs:
           composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
           cp .env.example .env
           php artisan key:generate --force --no-interaction
-          # Fail closed on effective Laravel settings AND the live SQL endpoint before DDL.
+          # A DB_URL override can redirect writes even if DB_HOST/DB_DATABASE
+          # look like our disposable target. Test fail-closed BEFORE any DDL.
+          override_log="$(mktemp "$RUNNER_TEMP/phase8-db-url-XXXXXXXX.log")"
+          trap 'rm -f -- "$override_log"' EXIT
+          if DB_URL='postgresql://127.0.0.1:5432/performance_phase4_ci' \
+              php tests/Fixtures/phase4/preflight-disposable-laravel.php >"$override_log" 2>&1; then
+            echo 'FAIL PHASE8 DB_URL OVERRIDE ACCEPTED'
+            exit 1
+          fi
+          grep -Fxq 'PHASE8_DISPOSABLE_PREFLIGHT_FAIL_CLOSED' "$override_log"
+          grep -Fxq 'PHASE8_PREFLIGHT_STAGE_EFFECTIVE_CONFIG' "$override_log"
+          echo 'PASS PHASE8 DB_URL OVERRIDE REFUSED BEFORE MIGRATION'
+          # Positive: effective Laravel settings and connected SQL endpoint.
           php tests/Fixtures/phase4/preflight-disposable-laravel.php
           php artisan migrate --force --no-interaction
           php tests/Fixtures/phase4/authority-role.php
