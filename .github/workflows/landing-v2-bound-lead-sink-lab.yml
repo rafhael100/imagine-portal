@@ -1,0 +1,248 @@
+name: Portal Landing R27 CI-bound lead sink and independent PG18 readback (NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-v2-local-mtls-proof-2026-11-21-r26']
+    paths:
+      - '.github/workflows/landing-v2-bound-lead-sink-lab.yml'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_bound_lead_sink_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php'
+      - 'apps/portal/labs/landing-contract-click/LANDING_V2_BOUND_LEAD_NO_GO.md'
+permissions:
+  contents: read
+concurrency:
+  group: landing-v2-bound-lead-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  same-order-acceptance-to-mtls:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-v2-local-lead-binding-2026-11-21-r27' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-v2-local-mtls-proof-2026-11-21-r26' &&
+      github.event.pull_request.base.sha == '77d1be2db2bcc45bc62909050025dca0531fe077'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      LANDING_R27_LEAD_LAB: '1'
+      APP_ENV: testing
+      LANDING_EXACT_CLICK_LAB: '1'
+      LANDING_PREVIEW_GET_LAB: '1'
+      LANDING_SITES_RENDER_LAB: '1'
+      LANDING_FINAL_ACCEPT_LAB: '1'
+      LANDING_REWORK_V2_LAB: '1'
+      LANDING_V2_MTLS_LAB: '1'
+      SITES_F388_MTLS_LAB: '1'
+      SITES_F395_MTLS_LAB: '1'
+      F388_FIXTURE_DIR: /tmp/f388-fixture
+      R26_SITES_MTLS_ROOT: ${{ github.workspace }}/sites-mtls-snapshot
+    steps:
+      - name: Exact Portal HEAD, no persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Exact existing Sites renderer, not v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 8172e5cc14e97951e529c843059c214e05c33db5
+          path: sites-snapshot
+          sparse-checkout: |
+            src/Production
+          persist-credentials: false
+      - name: Historical real mTLS source and server from Sites #474
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 24b1451db8039f3e4cb8835368637f6173ce1b15
+          path: sites-mtls-snapshot
+          sparse-checkout: |
+            src/Domain
+            src/Publication
+            src/Application
+            apps/sites/app/Providers
+            apps/sites/routes
+            tests/f388-prepare-mtls-certs.sh
+            tests/fixtures/f395-portal-approval-mtls-server.py
+          persist-credentials: false
+      - name: Verify all exact SHAs, boundaries, and script syntax
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git -C sites-snapshot rev-parse HEAD)" = 8172e5cc14e97951e529c843059c214e05c33db5
+          test "$(git -C sites-mtls-snapshot rev-parse HEAD)" = 24b1451db8039f3e4cb8835368637f6173ce1b15
+          test -f sites-mtls-snapshot/src/Publication/PortalClientApprovalMtlsHttpSource.php
+          test -f sites-mtls-snapshot/tests/fixtures/f395-portal-approval-mtls-server.py
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, curl, sodium
+          coverage: none
+      - name: Syntax and isolated browser dependencies
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php
+          php -l apps/portal/labs/landing-contract-click/landing_v2_bound_lead_sink_lab.php
+          php -m | grep -i -x pdo_pgsql
+          php -m | grep -i -x curl
+          python3 -m venv "$RUNNER_TEMP/landing-v2-venv"
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Reuse required same-order v1-to-v2 synthetic browser chain (not counted as new tests)
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/landing-v2-venv/bin/activate"
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/contract.log" 2>&1 & P1=$!
+          php -S 127.0.0.1:8766 apps/portal/labs/landing-contract-click/private_preview_router.php > "$RUNNER_TEMP/preview.log" 2>&1 & P2=$!
+          php -S 127.0.0.1:8767 apps/portal/labs/landing-contract-click/final_preview_acceptance_lab.php > "$RUNNER_TEMP/final.log" 2>&1 & P3=$!
+          php -S 127.0.0.1:8768 apps/portal/labs/landing-contract-click/buyer_rework_v2_lab.php > "$RUNNER_TEMP/rework.log" 2>&1 & P4=$!
+          trap 'kill "$P1" "$P2" "$P3" "$P4" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/lab/login >/dev/null; then break; fi
+            sleep 1
+          done
+          python apps/portal/labs/landing-contract-click/browser_test.py > "$RUNNER_TEMP/prereq-click.log"
+          grep -F 'LANDING EXACT CLICK BROWSER PASS:' "$RUNNER_TEMP/prereq-click.log"
+          LANDING_PREVIEW_HOLD=1 php apps/portal/labs/landing-contract-click/same_order_approved_brief_bridge.php > "$RUNNER_TEMP/prereq-bridge.log"
+          grep -F 'LANDING BRIDGE HELD FOR HTTP TEST:' "$RUNNER_TEMP/prereq-bridge.log"
+          php apps/portal/labs/landing-contract-click/private_preview_fixture.php seed > "$RUNNER_TEMP/prereq-preview.log"
+          php apps/portal/labs/landing-contract-click/sites_renderer_same_order_lab.php render > "$RUNNER_TEMP/prereq-render.log"
+          php apps/portal/labs/landing-contract-click/final_preview_acceptance_lab.php init
+          php apps/portal/labs/landing-contract-click/buyer_rework_v2_lab.php init
+          python apps/portal/labs/landing-contract-click/buyer_rework_v2_browser.py > "$RUNNER_TEMP/v2-proof.log"
+          grep -F 'LANDING BUYER REWORK SAME ORDER V1-V2 LAB PASS:' "$RUNNER_TEMP/v2-proof.log"
+          grep -F 'PSP=NOT_CALLED; FORM=DISABLED; PUBLISH=NO_GO; LEAD=NOT_TESTED' "$RUNNER_TEMP/v2-proof.log"
+      - name: Existing F1-395 ephemeral mTLS identities, loopback only
+        run: |
+          set -euo pipefail
+          bash sites-mtls-snapshot/tests/f388-prepare-mtls-certs.sh
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php emit | tee "$RUNNER_TEMP/r26-evidence.log"
+          grep -F 'UNSIGNED=YES; IAM=LAB_ONLY; FORM=OFF; PUBLISH=NO_GO' "$RUNNER_TEMP/r26-evidence.log"
+      - name: Sites #474 original mTLS server with actual PG18-clicked v2 evidence
+        run: |
+          set -euo pipefail
+          python3 sites-mtls-snapshot/tests/fixtures/f395-portal-approval-mtls-server.py \
+            --ca "$F388_FIXTURE_DIR/ca.crt" \
+            --server-cert "$F388_FIXTURE_DIR/server.crt" \
+            --server-key "$F388_FIXTURE_DIR/server.key" \
+            --fixture-dir "$F388_FIXTURE_DIR" > "$RUNNER_TEMP/f395.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/f395.pid"
+          ready=0
+          for i in $(seq 1 30); do
+            status="$(curl --noproxy '*' --silent --max-time 2 \
+              --cacert "$F388_FIXTURE_DIR/ca.crt" \
+              --cert "$F388_FIXTURE_DIR/client.crt" \
+              --key "$F388_FIXTURE_DIR/client.key" \
+              -o /dev/null -w '%{http_code}' \
+              https://localhost:18444/internal/sites/v1/approvals/resolve || true)"
+            if [ "$status" = 501 ]; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+      - name: Fresh independent PG18 readback vs Sites #474 exact mTLS response, negative matrix
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php check | tee "$RUNNER_TEMP/mtls-proof.log"
+          grep -F 'LANDING_V2_PG18_TO_SITES474_MTLS_PASS' "$RUNNER_TEMP/mtls-proof.log"
+          grep -F 'SIGNED_PUBLISH_GATE=DENIED' "$RUNNER_TEMP/mtls-proof.log"
+      - name: Local simulated static delivery observes SHA, form OFF and backend lead refusal
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8770 apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php > "$RUNNER_TEMP/local-static.log" 2>&1 &
+          P="$!"
+          trap 'kill "$P" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -fsS --noproxy '*' http://127.0.0.1:8770/lab/static-release -o "$RUNNER_TEMP/landed-v2.html"; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          actual="$(sha256sum "$RUNNER_TEMP/landed-v2.html" | cut -d' ' -f1)"
+          expected="$(sed -n 's/^V2_LANDING_HTML_SHA256=//p' "$RUNNER_TEMP/r26-evidence.log")"
+          test -n "$expected" && test "$actual" = "$expected"
+          ! grep -Ei '<form|<script' "$RUNNER_TEMP/landed-v2.html"
+          test "$(curl --noproxy '*' -s -o "$RUNNER_TEMP/post-response" -w '%{http_code}' \
+            -X POST -d 'lead=fictional' http://127.0.0.1:8770/lead)" = 403
+          grep -F 'NO_DESTINATION_NO_LEAD' "$RUNNER_TEMP/post-response"
+          echo "LOCAL_SHA256_OBSERVED=$actual; FORM=OFF; LEAD_403; NO_GO"
+      - name: Explicit synthetic destination binding and separate receiver, no customer form
+        run: |
+          set -euo pipefail
+          file=apps/portal/labs/landing-contract-click/landing_v2_bound_lead_sink_lab.php
+          php "$file" init
+          php -S 127.0.0.1:8781 "$file" > "$RUNNER_TEMP/r27-receiver.log" 2>&1 & SINK=$!
+          php -S 127.0.0.1:8780 "$file" > "$RUNNER_TEMP/r27-gateway.log" 2>&1 & GATE=$!
+          trap 'kill "$SINK" "$GATE" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            status="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8780/lead || true)"
+            if [ "$status" = 403 ]; then break; fi
+            sleep 1
+          done
+          test "$status" = 403
+          sha="$(sed -n 's/^V2_LANDING_HTML_SHA256=//p' "$RUNNER_TEMP/r26-evidence.log")"
+          test -n "$sha"
+          payload="$(printf '{"tenantRef":"tenant-A","releaseRef":"landing-v2-generation-2-ci","artifactDigest":"%s","eventRef":"ci-event-001","leadRef":"ci-lead-A"}' "$sha")"
+          send() {
+            curl --noproxy '*' -s -o "$RUNNER_TEMP/r27-response.txt" -w '%{http_code}' \
+              --max-time 5 -X POST -H 'Content-Type: application/json' \
+              --data "$1" http://127.0.0.1:8780/lab/synthetic-send
+          }
+          test "$(send "$payload")" = 403
+          grep -F NO_CURRENT_LAB_BINDING "$RUNNER_TEMP/r27-response.txt"
+          php "$file" bind
+          test "$(send "$payload")" = 201
+          grep -F SYNTHETIC_SINK_STORED "$RUNNER_TEMP/r27-response.txt"
+          test "$(send "$payload")" = 200
+          grep -F SYNTHETIC_SINK_REPLAY "$RUNNER_TEMP/r27-response.txt"
+          conflict="$(printf '%s' "$payload" | sed 's/ci-lead-A/ci-lead-B/')"
+          test "$(send "$conflict")" = 409
+          grep -F IDEMPOTENCY_CONFLICT "$RUNNER_TEMP/r27-response.txt"
+          foreign="$(printf '%s' "$payload" | sed 's/tenant-A/tenant-B/')"
+          test "$(send "$foreign")" = 403
+          stale="$(printf '%s' "$payload" | sed "s/$sha/0000000000000000000000000000000000000000000000000000000000000000/")"
+          test "$(send "$stale")" = 403
+          test "$(curl --noproxy '*' -s -o "$RUNNER_TEMP/r27-public.txt" -w '%{http_code}' \
+            -X POST --data "$payload" http://127.0.0.1:8780/lead)" = 403
+          grep -F NO_OFFICIAL_DESTINATION "$RUNNER_TEMP/r27-public.txt"
+          php "$file" readback | tee "$RUNNER_TEMP/r27-proof.log"
+          grep -F 'R27_INDEPENDENT_SINK_READBACK=1' "$RUNNER_TEMP/r27-proof.log"
+          grep -F 'CRM_VEN=NOT_CONNECTED; PUBLISH=NO_GO' "$RUNNER_TEMP/r27-proof.log"
+          php "$file" revoke-binding
+          test "$(send "$payload")" = 403
+          grep -F NO_CURRENT_LAB_BINDING "$RUNNER_TEMP/r27-response.txt"
+          echo "R27_CI_DESTINATION_REVOKED; PUBLIC_FORM_403; NO_GO"
+      - name: Revocation invalidates independent source despite stale mTLS fixture
+        run: |
+          set -euo pipefail
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php revoke
+          php apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php check-revoked
+      - name: Confirm no operational endpoint, IAM writer or publisher bound
+        run: |
+          set -euo pipefail
+          test -d sites-mtls-snapshot/apps/sites/app/Providers
+          test -d sites-mtls-snapshot/apps/sites/routes
+          test -f sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          ! grep -R -n -E 'PortalClientApprovalMtlsHttpSource|SignedPortalClientApprovalGate' \
+            sites-mtls-snapshot/apps/sites/app/Providers sites-mtls-snapshot/apps/sites/routes
+          grep -F 'new DenyingPortalAuthorityGateway()' \
+            sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          echo 'F1-395 transport is unbound; default-deny publisher. Sites #38 NO-GO.'
+      - name: Destroy ephemeral PKI and listener
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/f395.pid" ]; then kill "$(cat "$RUNNER_TEMP/f395.pid")" 2>/dev/null || true; fi
+          rm -rf -- /tmp/f388-fixture
