@@ -171,7 +171,15 @@ final class PerformanceOrderSnapshotLabController
             ? app(\App\Homologation\F423GoogleOfflineImprovementStore::class)
                 ->read($owner,$id,(int)$order['revision'],$digest,$draft['draft_fingerprint'])
             : null;
+        // A signed OFFLINE fixture result exists only after distinct buyer approval.
+        // This receipt never sets campaign/Ads application or operational consent.
+        $offlineResult=is_array($proposal)&&($proposal['separate_approval_recorded']??false)===true
+            ? app(\App\Homologation\F423GoogleOfflineImprovementStore::class)
+                 ->readOfflineApplication($owner,$id,(int)$order['revision'],$digest,
+                    $proposal['proposal_fingerprint'])
+            : null;
         $response = [
+            'offline_improvement_simulation' => $offlineResult,
             'improvement_proposal' => $proposal,
             'monitoring_samples' => $samples,
             'monitoring_state' => count($samples)===2 ? 'two_dated_offline_fixture_samples' : 'not_started',
