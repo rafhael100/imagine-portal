@@ -287,8 +287,24 @@ jobs:
           grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-mime-proof.txt"
           kill "$BAD_MIME"
           wait "$BAD_MIME" 2>/dev/null || true
+          # The other negative is two contradictory Content-Type fields in
+          # one HTTP 200, not a missing field or a wrong JSON/body digest.
+          LANDING_R36_DUPLICATE=1 php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r36-duplicate-mime.log" 2>&1 & DUP_MIME=$!
+          trap 'kill "$DUP_MIME" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            headers="$(curl --noproxy '*' -s -D - -o /dev/null --max-time 2 'http://127.0.0.1:8791/ci/state' || true)"
+            n="$(printf '%s' "$headers" | grep -Eic '^content-type:' || true)"
+            if printf '%s' "$headers" | grep -Eqi '^HTTP/[^ ]+ 200 ' && test "$n" -eq 2; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          php "$receipt" probe-provider-mime | tee "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          grep -F 'R36_WRONG_PROVIDER_MIME_DENIED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r36-duplicate-proof.txt"
+          kill "$DUP_MIME"
+          wait "$DUP_MIME" 2>/dev/null || true
           trap - EXIT
-          echo 'R36_MIME_ADVERSARY_STOPPED; NORMAL_R28_PROVIDER_UNMODIFIED'
+          echo 'R36_WRONG_AND_DUPLICATE_MIME_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; NORMAL_R28_PROVIDER_UNMODIFIED'
       - name: R35 deny ambiguous provider state before any receipt or release authority
         run: |
           set -euo pipefail
