@@ -235,3 +235,58 @@ if($back['channels']['google_ads']['decision_state']!=='internal_review_only'
  ||(!$singleGoogle && $back['channels']['meta_ads']['campaign_state']!=='not_created'))
  throw new RuntimeException('Portal internal review must not imply campaign or connection');
 echo "PASS F423 S2S: ".($singleGoogle?"Google-only exact selected order":"Google+Meta selected order")."; Google internal-only".($singleGoogle?"":", Meta blocked")."; PG18 readback/replay; revoke and signed negative probes, no Ads/draft\n";
+
+
+if($singleGoogle) {
+    // The plan is PRODUCED by the separate Performance lab worker after
+    // authenticating the same exact buyer-approved order and persisting its
+    // internal-only decision. All metrics are fixture values, NEVER Google.
+    $plan=[
+      'schema'=>'f423_google_diagnostic_plan_ci_v1','company_id'=>$company,
+      'order_id'=>$orderId,'order_revision'=>$order['briefing_revision'],
+      'briefing_sha256'=>$order['briefing_sha256'],'provider'=>'google_ads',
+      'diagnostic_version'=>1,'plan_version'=>1,
+      'decision_fingerprint'=>$out['google_ads']['fingerprint'],
+      'metric_origin'=>'ci_synthetic_fixture_no_ads',
+      'sample_impressions'=>1000,'sample_clicks'=>40,'sample_conversions'=>2,
+      'media_cents'=>100000,'proposed_action'=>'review_search_terms_only',
+      'plan_state'=>'awaiting_separate_approval',
+      'operational_enabled'=>false,'campaign_draft_created'=>false,'billable'=>false
+    ];
+    $plan['plan_fingerprint']=hash('sha256',implode("\0",[
+      $company,$orderId,(string)$order['briefing_revision'],$order['briefing_sha256'],
+      'google_ads',$out['google_ads']['fingerprint'],'1','1',
+      '1000','40','2','100000','review_search_terms_only'
+    ]));
+    $planPath=$path.'/diagnostic-plan';
+    [$unsigned]=signedRequest('POST',$planPath,$company,$key,$plan,'signature');
+    if($unsigned!==403) throw new RuntimeException('Forged plan signature not denied');
+    $bad=$plan;$bad['sample_clicks']=41;
+    [$badStatus]=signedRequest('POST',$planPath,$company,$key,$bad);
+    if($badStatus!==409) throw new RuntimeException('Altered synthetic metric not denied');
+    $bad=$plan;$bad['order_revision']++;
+    [$badStatus]=signedRequest('POST',$planPath,$company,$key,$bad);
+    if($badStatus!==409) throw new RuntimeException('Plan revision change not denied');
+    $bad=$plan;$bad['decision_fingerprint']=str_repeat('0',64);
+    [$badStatus]=signedRequest('POST',$planPath,$company,$key,$bad);
+    if($badStatus!==409) throw new RuntimeException('Plan decision substitution not denied');
+    $bad=$plan;$bad['company_id']='demo-'.str_repeat('a',32);
+    [$badStatus]=signedRequest('POST',$planPath,$company,$key,$bad);
+    if($badStatus!==409) throw new RuntimeException('Cross-company signed plan not denied');
+    [$planStatus,$saved]=signedRequest('POST',$planPath,$company,$key,$plan);
+    if($planStatus!==200||$saved['persisted_plans']!==1
+      ||$saved['plan_state']!=='awaiting_separate_approval'
+      ||$saved['campaign_drafts_created']!==0||$saved['plan_approved']!==false)
+       throw new RuntimeException('Exact synthetic diagnostic plan not persisted');
+    [$readStatus,$updated]=signedRequest('GET',$path,$company,$key);
+    if($readStatus!==200||!is_array($updated['diagnostic_plan']??null)
+      ||$updated['diagnostic_plan']['plan_version']!==1
+      ||$updated['diagnostic_plan']['diagnostic_version']!==1
+      ||$updated['diagnostic_plan']['plan_fingerprint']!==$plan['plan_fingerprint']
+      ||$updated['diagnostic_plan']['metric_origin']!=='ci_synthetic_fixture_no_ads'
+      ||$updated['diagnostic_plan']['buyer_plan_approved']!==false
+      ||$updated['diagnostic_plan']['campaign_draft_created']!==false
+      ||$updated['plan_approved']!==false||$updated['campaign_drafts_created']!==0)
+       throw new RuntimeException('Plan not readable from actual buyer order');
+    echo "PASS F423 GOOGLE PLAN: isolated signed Performance PHP to PG18, v1 synthetic diagnosis and plan awaiting separate approval, no draft, no Ads; replay safe\n";
+}
