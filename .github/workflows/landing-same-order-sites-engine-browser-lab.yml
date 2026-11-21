@@ -1,0 +1,106 @@
+name: Portal Landing same-order Sites engine HTML via buyer GET (synthetic NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-same-order-private-get-2026-11-21-r22']
+    paths:
+      - '.github/workflows/landing-same-order-sites-engine-browser-lab.yml'
+      - 'apps/portal/labs/landing-contract-click/**'
+permissions:
+  contents: read
+concurrency:
+  group: landing-same-order-sites-engine-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-sites-engine-browser:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/portal-landing-render-sites-same-order-2026-11-21-r23' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-same-order-private-get-2026-11-21-r22' &&
+      github.event.pull_request.base.sha == '58add8def49b09f4dfc50fe7a082cb4e48e12fe1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      pg18:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      APP_ENV: testing
+      LANDING_EXACT_CLICK_LAB: '1'
+      LANDING_PREVIEW_GET_LAB: '1'
+      LANDING_SITES_RENDER_LAB: '1'
+    steps:
+      - name: Checkout exact Portal PR HEAD without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout immutable public Imagine Sites renderer source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 8172e5cc14e97951e529c843059c214e05c33db5
+          path: sites-snapshot
+          sparse-checkout: |
+            src/Production
+          persist-credentials: false
+      - name: Prove exact Portal and Sites SHA pins before any test
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git -C sites-snapshot rev-parse HEAD)" = '8172e5cc14e97951e529c843059c214e05c33db5'
+          test -f sites-snapshot/src/Production/StaticSiteRenderer.php
+          test -f sites-snapshot/src/Production/StructuredCopyCandidate.php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring
+          coverage: none
+      - name: Verify new test code and required extensions
+        run: |
+          set -euo pipefail
+          php -l apps/portal/labs/landing-contract-click/sites_renderer_same_order_lab.php
+          php -l sites-snapshot/src/Production/StaticSiteRenderer.php
+          php -l sites-snapshot/src/Production/StructuredCopyCandidate.php
+          php -m | grep -x mbstring
+          php -m | grep -x pdo_pgsql
+          python3 -m py_compile apps/portal/labs/landing-contract-click/sites_renderer_same_order_browser.py
+      - name: Set up isolated Chromium browser
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/landing-sites-engine-venv"
+          source "$RUNNER_TEMP/landing-sites-engine-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Same order click and approved fixture then ACTUAL Sites render, HTTP SHA, drift denial
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/landing-sites-engine-venv/bin/activate"
+          php -S 127.0.0.1:8765 apps/portal/labs/landing-contract-click/router.php > "$RUNNER_TEMP/login-server.log" 2>&1 &
+          AUTH_PID=$!
+          php -S 127.0.0.1:8766 apps/portal/labs/landing-contract-click/private_preview_router.php > "$RUNNER_TEMP/preview-server.log" 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$AUTH_PID" "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/lab/login >/dev/null; then break; fi
+            sleep 1
+          done
+          python apps/portal/labs/landing-contract-click/browser_test.py > "$RUNNER_TEMP/click.log"
+          grep -F 'LANDING EXACT CLICK BROWSER PASS:' "$RUNNER_TEMP/click.log"
+          LANDING_PREVIEW_HOLD=1 php apps/portal/labs/landing-contract-click/same_order_approved_brief_bridge.php > "$RUNNER_TEMP/bridge.log"
+          grep -F 'LANDING BRIDGE HELD FOR HTTP TEST:' "$RUNNER_TEMP/bridge.log"
+          php apps/portal/labs/landing-contract-click/private_preview_fixture.php seed > "$RUNNER_TEMP/fixture.log"
+          php apps/portal/labs/landing-contract-click/sites_renderer_same_order_lab.php render | tee "$RUNNER_TEMP/renderer-proof.log"
+          grep -F 'LANDING SITES REAL RENDER LAB PASS:' "$RUNNER_TEMP/renderer-proof.log"
+          python apps/portal/labs/landing-contract-click/sites_renderer_same_order_browser.py | tee "$RUNNER_TEMP/browser-proof.log"
+          grep -F 'LANDING SAME-ORDER SITES REAL RENDER BROWSER PASS:' "$RUNNER_TEMP/browser-proof.log"
+          grep -F 'CLIENT_FINAL_ACCEPTANCE=NOT_TESTED; PUBLISH=NO_GO;' "$RUNNER_TEMP/browser-proof.log"
