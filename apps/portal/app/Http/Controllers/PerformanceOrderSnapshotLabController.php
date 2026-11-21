@@ -317,6 +317,95 @@ final class PerformanceOrderSnapshotLabController
         ])->header('Cache-Control','no-store, private');
     }
 
+    /**
+     * Buyer-visible evidence of ONE CI mock exercise, not activation/delivery.
+     * The pre-existing live PAUSED receipt is the mandatory first gate: it
+     * rechecks the buyer's session, real PG18 order, revision and mock state.
+     * A second independent HMAC GET checks the exercise without trusting any
+     * buyer-supplied endpoint, signature, fixture authority or account token.
+     */
+    public function mockActivationReceipt(Request $request, string $id)
+    {
+        $this->pausedStageReceipt($request,$id);
+        $profile=app(PreviewProfiles::class)->current($request);
+        abort_unless(is_array($profile) && ($profile['role']??null)==='client'
+          && is_string($profile['customer_id']??null),403);
+        $snap=$this->source($profile['customer_id'],$id)->getData(true);
+        $plan=$snap['diagnostic_plan']??null;
+        $draft=$snap['internal_campaign_draft']??null;
+        abort_unless(is_array($plan) && is_array($draft),404);
+
+        $secret='/run/secrets/f423-performance-key';
+        $stat=@stat($secret);
+        abort_unless(is_array($stat) && ($stat['mode']&077)===0
+          && $stat['uid']===82 && $stat['size']===64,503);
+        $hex=@file_get_contents($secret);
+        abort_unless(is_string($hex)
+          && preg_match('/\A[a-f0-9]{64}\z/D',$hex)===1,503);
+        $sig=hash_hmac('sha256',"GET\n/exercise-state\n",hex2bin($hex));
+        unset($hex);
+        $context=stream_context_create(['http'=>[
+          'method'=>'GET','header'=>"X-F423-Mock-Signature: $sig\r\n",
+          'timeout'=>3,'follow_location'=>0,'ignore_errors'=>true]]);
+        $raw=@file_get_contents('http://f423-mock-activation:8101/exercise-state',
+            false,$context);
+        $status=0;
+        if(isset($http_response_header[0])
+          && preg_match('/\AHTTP\/\S+\s+([0-9]{3})/',$http_response_header[0],$m))
+          $status=(int)$m[1];
+        if($status===404) abort(404);
+        abort_unless($status===200 && is_string($raw)
+          && strlen($raw)<=2048,503);
+        try { $receipt=json_decode($raw,true,10,JSON_THROW_ON_ERROR); }
+        catch (\Throwable) { abort(503); }
+        $record=is_array($receipt)?($receipt['record']??null):null;
+        $packet=is_array($record)?($record['packet']??null):null;
+        $expected=[
+          'schema'=>'f423_mock_activation_ci_v1',
+          'fixture_decision'=>'ci_explicit_exact_draft_exercise_only',
+          'company_id'=>$profile['customer_id'],
+          'order_id'=>$id,
+          'order_revision'=>$snap['approved_briefing_revision'],
+          'briefing_sha256'=>$snap['approved_briefing_sha256'],
+          'provider'=>'google_ads',
+          'plan_fingerprint'=>$plan['plan_fingerprint'],
+          'draft_fingerprint'=>$draft['draft_fingerprint'],
+          'simulator_action'=>'exercise_mock_activation',
+          'external_ads_allowed'=>false,
+          'provider_activated'=>false,'delivered'=>false,'published'=>false,
+          'ads_write_enabled'=>false,'operational_enabled'=>false,
+          'billable'=>false,
+        ];
+        $match=is_array($packet)&&count($packet)===count($expected)+1;
+        if($match) foreach($expected as $field=>$value) {
+            if(!array_key_exists($field,$packet) || $packet[$field]!==$value) {
+                $match=false; break;
+            }
+        }
+        abort_unless($match
+          && is_string($packet['stage_sha256']??null)
+          && preg_match('/\A[a-f0-9]{64}\z/D',$packet['stage_sha256'])===1
+          && count($packet)===count($expected)+1
+          && ($receipt['schema']??null)==='f423_mock_activation_read_ci_v1'
+          && ($record['exercise_count']??null)===1
+          && ($record['state']??null)==='ci_mock_activation_exercised_not_delivered'
+          && ($receipt['simulator_activated']??null)===true
+          && ($receipt['provider_activated']??null)===false
+          && ($receipt['delivered']??null)===false
+          && ($receipt['published']??null)===false
+          && ($receipt['billable']??null)===false
+          && ($receipt['external_ads_calls']??null)===0,409);
+        return response()->view('portal.preview.f423-google-mock-activation-receipt',[
+          'id'=>$id,'revision'=>$snap['order_revision'],
+          'briefingSha'=>$snap['approved_briefing_sha256'],
+          'planSha'=>$plan['plan_fingerprint'],
+          'draftSha'=>$draft['draft_fingerprint'],
+          'stageSha'=>$packet['stage_sha256'],
+          'exerciseState'=>$record['state'],
+        ])->header('Cache-Control','no-store, private')
+          ->header('X-Robots-Tag','noindex, nofollow');
+    }
+
     /** The buyer sees the exact immutable lab plan in the browser, separate from briefing. */
     public function planReviewForm(Request $request,string $id)
     {
