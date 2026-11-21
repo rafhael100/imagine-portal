@@ -12,7 +12,7 @@ sql() {
     compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d "$1" -c "$2"
 }
 origin=$(sql "$src" "SELECT current_database()||'|'||current_user||'|'||current_setting('server_version_num')")
-[[ "$origin" =~ ^portal_purchase_rehearsal\\|postgres\\|18[0-9]{4}$ ]] || {
+[[ "$origin" =~ ^portal_purchase_rehearsal\|postgres\|18[0-9]{4}$ ]] || {
     echo 'F423 RESTORE: source is not attested disposable PG18' >&2; exit 1;
 }
 [[ "$(sql postgres "SELECT count(*) FROM pg_database WHERE datname='$dst'")" == 0 ]] || {
@@ -40,7 +40,7 @@ manifest() {
         digest=$(compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 -U postgres -d "$db" -c \
           "COPY (SELECT row_to_json(x)::text AS payload FROM purchase_rehearsal.$t x ORDER BY payload) TO STDOUT" \
           | sha256sum | cut -d' ' -f1)
-        printf '%s|%s|%s|%s\\n' "$t" "$flags" "$count" "$digest"
+        printf '%s|%s|%s|%s\n' "$t" "$flags" "$count" "$digest"
     done
 }
 [[ "$(sql "$src" "SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples")" == 2 ]] || exit 1
@@ -65,7 +65,7 @@ dump_hash=$(sha256sum "$work/source.dump" | cut -d' ' -f1)
 # Create only a fresh, explicitly named SECOND database in the short-lived
 # CI PostgreSQL container; never touch the original, VPS or main/production.
 compose exec -T database createdb -U postgres -T template0 "$dst"
-[[ "$(sql "$dst" "SELECT current_database()||'|'||current_setting('server_version_num')")" =~ ^portal_f423_restore_disposable_ci\\|18[0-9]{4}$ ]] || exit 1
+[[ "$(sql "$dst" "SELECT current_database()||'|'||current_setting('server_version_num')")" =~ ^portal_f423_restore_disposable_ci\|18[0-9]{4}$ ]] || exit 1
 compose exec -T database pg_restore -U postgres --exit-on-error --no-owner -d "$dst" < "$work/source.dump"
 [[ "$(sha256sum "$work/source.dump" | cut -d' ' -f1)" == "$dump_hash" ]] || exit 1
 
