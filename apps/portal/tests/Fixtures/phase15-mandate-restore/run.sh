@@ -68,6 +68,27 @@ check_runtime_denied() {
     rm -f -- "$output"
 }
 
+# Exercise restored append-only triggers, not merely their names in pg_trigger.
+# All attempts target the attested disposable restore DB. Generic failures are
+# NOT success: each attempt must hit its specific immutable-history trigger.
+# Never print the raw SQL error or captured output.
+assert_restored_history_denied() {
+    local label="$1" statement="$2" expected="$3" output
+    output="$(mktemp "$RUNNER_TEMP/phase15-history-XXXXXXXX.log")"
+    if docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "$statement" >"$output" 2>&1; then
+        rm -f -- "$output"
+        echo "PHASE15_HISTORY_${label}_UNEXPECTED_ALLOW"
+        return 1
+    fi
+    if ! grep -Fq "$expected" "$output"; then
+        rm -f -- "$output"
+        echo "PHASE15_HISTORY_${label}_WRONG_DENIAL"
+        return 1
+    fi
+    rm -f -- "$output"
+}
+
+
 fingerprint() {
     local database="$1"
     query "$database" "SELECT row_to_json(t)::text FROM public.portal_performance_account_mandates t ORDER BY id" | sha256sum | awk '{print $1}'
@@ -104,6 +125,26 @@ fi
 for table in portal_performance_account_mandates portal_performance_account_mandate_events; do
     check_runtime_denied "$target_db" "$table"
 done
+# The privileged CI SQL identity can inspect synthetic fixtures, but it must
+# still be unable to destroy the restored audit history. Verify rows unchanged.
+restored_before="$(fingerprint "$target_db")"
+assert_restored_history_denied EVENT_UPDATE \
+    "UPDATE public.portal_performance_account_mandate_events SET revision=revision+1 WHERE id=(SELECT id FROM public.portal_performance_account_mandate_events ORDER BY id LIMIT 1)" \
+    "Account mandate events are append-only"
+assert_restored_history_denied EVENT_DELETE \
+    "DELETE FROM public.portal_performance_account_mandate_events WHERE id=(SELECT id FROM public.portal_performance_account_mandate_events ORDER BY id LIMIT 1)" \
+    "Account mandate events are append-only"
+assert_restored_history_denied MANDATE_DELETE \
+    "DELETE FROM public.portal_performance_account_mandates WHERE id=(SELECT id FROM public.portal_performance_account_mandates ORDER BY id LIMIT 1)" \
+    "Account mandate history cannot be deleted or truncated"
+assert_restored_history_denied TRUNCATE_BOTH \
+    "TRUNCATE TABLE public.portal_performance_account_mandate_events,public.portal_performance_account_mandates" \
+    "Account mandate history cannot be deleted or truncated"
+if [[ "$(fingerprint "$target_db")" != "$restored_before" || "$(fingerprint "$source_db")" != "$original" ]]; then
+    echo "PHASE15_HISTORY_REJECTED_MUTATION_CHANGED_DATA"
+    exit 1
+fi
+echo "PASS PHASE15 RESTORED AUDIT IMMUTABILITY"
 docker exec "$PG_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$target_db" -c "
 INSERT INTO public.portal_performance_account_mandates
   (id,company_id,provider,account_id,service_principal,consent_reference,credential_ref,status,revision,expires_at)
