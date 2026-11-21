@@ -77,6 +77,10 @@ compose exec -T database pg_restore -U postgres --exit-on-error --no-owner -d "$
 
 manifest "$dst" > "$work/restored.manifest"
 cmp "$work/source.manifest" "$work/restored.manifest"
+# Prove row-level isolation by the REAL restricted SQL login in the newly
+# restored database, not merely by catalog flags or superuser SELECTs.
+# The verifier also rejects absent/forged/buyer-mismatched signed GUC scopes.
+compose exec -T application php f423-google-restored-rls-readback.php
 # Source was never rewritten or modified by the new restore candidate.
 manifest "$src" > "$work/after.manifest"
 cmp "$work/source.manifest" "$work/after.manifest"

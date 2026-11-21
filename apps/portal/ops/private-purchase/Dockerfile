@@ -31,6 +31,7 @@ COPY apps/portal/ops/private-purchase/f423-google-improvement-proposal-preflight
 COPY apps/portal/ops/private-purchase/f423-google-improvement-approval-preflight.php ./f423-google-improvement-approval-preflight.php
 COPY apps/portal/ops/private-purchase/f423-google-offline-application-preflight.php ./f423-google-offline-application-preflight.php
 COPY apps/portal/ops/private-purchase/f423-google-restore-preflight.php ./f423-google-restore-preflight.php
+COPY apps/portal/ops/private-purchase/f423-google-restored-rls-readback.php ./f423-google-restored-rls-readback.php
 COPY apps/portal/ops/private-purchase/private-preview-route-gate.php ./private-preview-route-gate.php
 COPY apps/portal/ops/private-purchase/test_route_gate.php ./private-preview-route-gate.test.php
 COPY apps/portal/ops/private-purchase/router.php ./private-purchase-router.php
