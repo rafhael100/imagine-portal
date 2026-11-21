@@ -70,6 +70,9 @@ jobs:
           sparse-checkout: |
             src/Domain
             src/Publication
+            src/Application
+            apps/sites/app/Providers
+            apps/sites/routes
             tests/f388-prepare-mtls-certs.sh
             tests/fixtures/f395-portal-approval-mtls-server.py
           persist-credentials: false
@@ -181,8 +184,14 @@ jobs:
       - name: Confirm no operational endpoint, IAM writer or publisher bound
         run: |
           set -euo pipefail
-          ! grep -R -n 'PortalClientApprovalMtlsHttpSource' sites-mtls-snapshot/apps/sites/app/Providers sites-mtls-snapshot/apps/sites/routes 2>/dev/null
-          echo 'F1-395 transport is test-only; Sites #38 remains NO-GO.'
+          test -d sites-mtls-snapshot/apps/sites/app/Providers
+          test -d sites-mtls-snapshot/apps/sites/routes
+          test -f sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          ! grep -R -n -E 'PortalClientApprovalMtlsHttpSource|SignedPortalClientApprovalGate' \
+            sites-mtls-snapshot/apps/sites/app/Providers sites-mtls-snapshot/apps/sites/routes
+          grep -F 'new DenyingPortalAuthorityGateway()' \
+            sites-mtls-snapshot/src/Application/PublicationPreflightService.php
+          echo 'F1-395 transport is unbound; default-deny publisher. Sites #38 NO-GO.'
       - name: Destroy ephemeral PKI and listener
         if: always()
         run: |
