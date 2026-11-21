@@ -18,6 +18,7 @@ services:
       PORTAL_PREVIEW_LOOPBACK_TEST: '1'
     volumes:
       - ./f423-performance-lab-worker.php:/lab/worker.php:ro
+      - ./f423-google-lab-worker.php:/lab/google-worker.php:ro
       - ./.private/performance-worker-key:/run/secrets/f423-performance-key:ro
       - ../../../../perf-f423/tests/fixtures/SyntheticTwoChannelOrderReadiness.php:/lab/SyntheticTwoChannelOrderReadiness.php:ro
       - ../../../../perf-f423/src/Domain/Administration/AdministrativeAdsAccountMandateGate.php:/lab/AdministrativeAdsAccountMandateGate.php:ro
