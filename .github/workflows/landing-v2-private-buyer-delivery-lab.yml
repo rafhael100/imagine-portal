@@ -1,8 +1,8 @@
-name: Portal Landing R32 idempotent exact buyer receipt under concurrent retry (NO-GO)
+name: Portal Landing R33 bounded local provider transport before receipt (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21']
+    branches: ['test/portal-landing-r32-receipt-idempotent-replay-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -10,6 +10,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/landing_v2_mtls_release_lab.php'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_ACK_STATE_NO_GO.md'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_oversized_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -23,9 +24,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r32-receipt-idempotent-replay-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r31-pg-clock-receipt-expiry-2026-11-21' &&
-      github.event.pull_request.base.sha == '4e184caa0a3c484316fa27bd4bb6a250cf637c70'
+      github.event.pull_request.head.ref == 'test/portal-landing-r33-bounded-local-provider-receipt-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r32-receipt-idempotent-replay-2026-11-21' &&
+      github.event.pull_request.base.sha == 'e47aa711a3805ac824349a3e3e1fc5611a609213'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -234,6 +235,34 @@ jobs:
           test "$(send "$payload")" = 403
           grep -F NO_CURRENT_LAB_BINDING "$RUNNER_TEMP/r27-response.txt"
           echo "R27_CI_DESTINATION_REVOKED; PUBLIC_FORM_403; NO_GO"
+      - name: R33 bounded transport rejects oversize state and HTML before normal provider starts
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_oversized_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r33-adverse-provider.log" 2>&1 &
+          BAD_PROVIDER=$!
+          trap 'kill "$BAD_PROVIDER" 2>/dev/null || true' EXIT
+          state_url='http://127.0.0.1:8791/ci/state?tenantRef=tenant-A&orderRef=landing-order-001&releaseRef=landing-v2-generation-2-ci'
+          ready=0
+          for i in $(seq 1 30); do
+            status="$(curl --noproxy '*' --silent --max-time 2 -o /dev/null -w '%{http_code}' "$state_url" || true)"
+            if [ "$status" = 200 ]; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          state_len="$(curl --noproxy '*' --silent --max-time 3 "$state_url" | wc -c)"
+          html_len="$(curl --noproxy '*' --silent --max-time 3 http://127.0.0.1:8791/ci/served | wc -c)"
+          test "$state_len" -gt 4096
+          test "$html_len" -gt 32768
+          php "$receipt" probe-http-bounds | tee "$RUNNER_TEMP/r33-bounds-proof.txt"
+          grep -F 'R33_OVERSIZED_PROVIDER_STATE_AND_HTML_ABORTED; NO_GO; NO_REAL_EGRESS' "$RUNNER_TEMP/r33-bounds-proof.txt"
+          kill "$BAD_PROVIDER"
+          wait "$BAD_PROVIDER" 2>/dev/null || true
+          trap - EXIT
+          echo 'R33_FIXED_LOOPBACK_SOURCE_ONLY; NORMAL_R28_PROVIDER_UNMODIFIED'
       - name: IN127-R05 local provider loses ACK after durable apply, state first and no retry
         run: |
           set -euo pipefail
