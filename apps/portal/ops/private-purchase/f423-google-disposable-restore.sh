@@ -65,6 +65,12 @@ dump_hash=$(sha256sum "$work/source.dump" | cut -d' ' -f1)
 # Create only a fresh, explicitly named SECOND database in the short-lived
 # CI PostgreSQL container; never touch the original, VPS or main/production.
 compose exec -T database createdb -U postgres -T template0 "$dst"
+# Adversarial CI check: once the destination exists, an otherwise valid
+# Laravel/source SQL preflight MUST refuse a second restore invocation.
+if compose exec -T application php f423-google-restore-preflight.php >/dev/null 2>&1; then
+    echo "F423 RESTORE: preflight incorrectly accepted an existing target" >&2
+    exit 1
+fi
 [[ "$(sql "$dst" "SELECT current_database()||'|'||current_setting('server_version_num')")" =~ ^portal_f423_restore_disposable_ci\|18[0-9]{4}$ ]] || exit 1
 compose exec -T database pg_restore -U postgres --exit-on-error --no-owner -d "$dst" < "$work/source.dump"
 [[ "$(sha256sum "$work/source.dump" | cut -d' ' -f1)" == "$dump_hash" ]] || exit 1
@@ -77,6 +83,12 @@ cmp "$work/source.manifest" "$work/after.manifest"
 [[ "$(sql "$dst" "SELECT count(*) FROM purchase_rehearsal.f423_google_monitoring_samples")" == 2 ]] || exit 1
 [[ "$(sql "$dst" "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_applied_results")" == 1 ]] || exit 1
 [[ "$(sql "$dst" "SELECT has_table_privilege('purchase_rehearsal_a', 'purchase_rehearsal.f423_google_offline_applied_results', 'UPDATE')")" == f ]] || exit 1
+# Genuine negative SQL attempt in the restored database only: even an
+# UPDATE matching zero rows must be denied by SQL privileges. No mutation occurs.
+if sql "$dst" "SET ROLE purchase_rehearsal_a; UPDATE purchase_rehearsal.f423_google_offline_applied_results SET provider=provider WHERE false" >/dev/null 2>&1; then
+    echo "F423 RESTORE: restricted role unexpectedly obtained UPDATE" >&2
+    exit 1
+fi
 [[ "$(sql "$dst" "SELECT count(*) FROM purchase_rehearsal.f423_google_offline_applied_results WHERE provider<>'google_ads'")" == 0 ]] || exit 1
 
 manifest_hash=$(sha256sum "$work/source.manifest" | cut -d' ' -f1)
