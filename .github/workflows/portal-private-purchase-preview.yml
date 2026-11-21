@@ -70,6 +70,11 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
             --entrypoint php application f423-google-plan-approval-preflight.php
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-plan-approval-schema.sql
+          # Strictly AFTER a fresh effective Laravel and TCP PG18 disposable
+          # destination attestation, create ONLY an immutable internal draft.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T --no-deps \
+            --entrypoint php application f423-google-internal-draft-preflight.php
+          docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < f423-google-internal-draft-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-future-schema.sql
           docker compose exec -T database psql -v ON_ERROR_STOP=1 -U postgres -d portal_purchase_rehearsal < sandbox-webhook-schema.sql
           # Webhook ingress proves a real non-privileged LOGIN over private
@@ -199,6 +204,26 @@ jobs:
           echo 'PASS F423 GOOGLE-ONLY: exact buyer-approved SQL order consumed S2S, one Google-only internal-review decision stored, second process replay idempotent, no Meta or campaign draft' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
           F423_GOOGLE_ONLY=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_performance_readback.py
+          # Buyer has just approved the precise v1 plan in the real PG18
+          # browser path. A DIFFERENT signed, stateless Performance PHP worker
+          # may now create an UNPUBLISHED internal draft for that exact order.
+          cd apps/portal/ops/private-purchase
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/draft-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab /lab/draft-worker.php "$single_owner" "$single_order"
+          draft_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_internal_drafts
+              WHERE customer_id='$single_owner' AND order_id='$single_order'
+                AND provider='google_ads' AND draft_state='ci_internal_unpublished'")
+          test "$draft_rows" = 1
+          wrong_draft_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
+            -U postgres -d portal_purchase_rehearsal -c \
+            "SELECT count(*) FROM purchase_rehearsal.f423_google_internal_drafts
+              WHERE customer_id<>'$single_owner' OR order_id<>'$single_order'
+                OR provider<>'google_ads'")
+          test "$wrong_draft_rows" = 0
+          echo 'PASS F423 INTERNAL DRAFT: same Google-only order, approved plan, two signed PHP processes, exactly one UNPUBLISHED PG18 row, no Ads/provider/publication' >> "$GITHUB_STEP_SUMMARY"
+          cd ../../../..
           # Preserve existing distinct two-channel S2S/SQL/browser/restart
           # regression on its own later, buyer-approved order.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
