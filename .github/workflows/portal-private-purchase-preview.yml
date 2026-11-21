@@ -169,24 +169,22 @@ jobs:
                ORDER BY b.approved_at DESC LIMIT 1")
           [[ "$single" =~ ^demo-[a-f0-9]{32}\|TEST-[a-f0-9]{32}$ ]] || exit 1
           single_owner=${single%%|*}; single_order=${single#*|}
-          # Performance #458 adapter intentionally requires TWO channels.
-          # Assert the single-only contract FAILS at that exact gate, not
-          # an unrelated container failure; do not fake a single-channel
-          # readiness decision or claim a campaign/plan draft.
-          if docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab \
-              /lab/worker.php "$single_owner" "$single_order" >/tmp/f423-google-only-gate.log 2>&1; then
-            echo 'CRITICAL: two-channel Performance worker accepted single-channel checkout' >&2
-            exit 1
-          fi
-          grep -F 'Not the exact synthetic Google+Meta order' /tmp/f423-google-only-gate.log >/dev/null
-          rm -f /tmp/f423-google-only-gate.log
+          # Genuine CI-only S2S HTTP from the selected Google-only order,
+          # using the pinned Performance account-mandate gate with INJECTED
+          # synthetic snapshots, never SQL001 or provider IAM. Two workers
+          # must persist exactly ONE decision in PostgreSQL18.
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab \
+            /lab/google-worker.php "$single_owner" "$single_order"
+          docker compose -f compose.yaml -f compose.ci.yaml run --rm -T performance-lab \
+            /lab/google-worker.php "$single_owner" "$single_order"
           single_rows=$(docker compose exec -T database psql -X -q -t -A -v ON_ERROR_STOP=1 \
              -U postgres -d portal_purchase_rehearsal -c \
              "SELECT count(*) FROM purchase_rehearsal.f423_performance_decisions
                WHERE customer_id='$single_owner' AND order_id='$single_order'")
-          test "$single_rows" = 0
-          echo 'PASS F423 GOOGLE-ONLY boundary: approved briefing, no S2S policy/decision adapter and zero persisted decisions' >> "$GITHUB_STEP_SUMMARY"
+          test "$single_rows" = 1
+          echo 'PASS F423 GOOGLE-ONLY S2S: two workers, one immutable PG18 decision, synthetic internal-review only' >> "$GITHUB_STEP_SUMMARY"
           cd ../../../..
+          /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_google_readback.py
           # Preserve existing distinct two-channel S2S/SQL/browser/restart
           # regression on its own later, buyer-approved order.
           /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_sandbox_performance_activation.py
@@ -232,6 +230,7 @@ jobs:
           cmp /tmp/purchase-count-before /tmp/purchase-count-after
           cd ../../../..
           F423_RESTARTED=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_performance_readback.py
+          F423_RESTARTED=1 /tmp/private-purchase-browser/bin/python apps/portal/ops/private-purchase/test_f423_google_readback.py
           cd apps/portal/ops/private-purchase
       - name: Verify client and admin can reopen persisted orders after PostgreSQL restart
         env:
