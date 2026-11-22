@@ -17,7 +17,7 @@ INSERT INTO schema_version VALUES(2);COMMIT;`)}
 // Candidata Node legado: recibos locais, sem vincular o exportador Portal #976
 // ou declarar os arquivos anexos como snapshots imutaveis.
 export function migrateBriefingEvidence(db){
- if(db.prepare('SELECT version FROM schema_version WHERE version=4').get())return;
+ if(!db.prepare('SELECT version FROM schema_version WHERE version=4').get()){
  db.exec(`BEGIN IMMEDIATE;
  CREATE TABLE IF NOT EXISTS briefing_submission_receipts(
   order_id TEXT NOT NULL REFERENCES orders(id),briefing_version INTEGER NOT NULL,
@@ -42,13 +42,28 @@ export function migrateBriefingEvidence(db){
  CREATE TRIGGER IF NOT EXISTS briefing_review_no_delete BEFORE DELETE ON briefing_review_receipts
  BEGIN SELECT RAISE(ABORT,'briefing review receipt is append-only'); END;
  INSERT INTO schema_version VALUES(4);COMMIT;`);
+ }
+ if(db.prepare('SELECT version FROM schema_version WHERE version=5').get())return;
+ db.exec(`BEGIN IMMEDIATE;
+ CREATE TABLE IF NOT EXISTS briefing_revocation_receipts(
+  id TEXT PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),
+  approval_receipt_id TEXT NOT NULL UNIQUE REFERENCES briefing_review_receipts(id),
+  reviewer_id TEXT NOT NULL REFERENCES users(id),
+  data_sha256 TEXT NOT NULL CHECK(length(data_sha256)=64),
+  reason TEXT NOT NULL CHECK(length(trim(reason))>=5),
+  created_at TEXT NOT NULL);
+ CREATE TRIGGER IF NOT EXISTS briefing_revocation_no_update BEFORE UPDATE ON briefing_revocation_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing revocation receipt is append-only'); END;
+ CREATE TRIGGER IF NOT EXISTS briefing_revocation_no_delete BEFORE DELETE ON briefing_revocation_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing revocation receipt is append-only'); END;
+ INSERT INTO schema_version VALUES(5);COMMIT;`);
 }
 const sha256=bytes=>createHash('sha256').update(Buffer.from(bytes,'utf8')).digest('hex');
 
 export function createBriefing({db,uploadDir}){
  const get=(sql,...params)=>db.prepare(sql).get(...params),run=(sql,...params)=>db.prepare(sql).run(...params);
  function summary(id,detailed=true){const b=get('SELECT * FROM briefings WHERE order_id=?',id),base={status:b?.status||'not_started',version:b?.version||0,updated_at:b?.updated_at||null};if(!detailed)return base;const d=b?JSON.parse(b.data):{},files=db.prepare('SELECT kind FROM briefing_files WHERE order_id=?').all(id);const checklist=[['company','Dados da empresa',!!d.company_name],['services','Lista de serviços',!!d.services],['intro','Apresentação e conteúdo',!!(d.company_intro||d.ai_support)],['domain','Domínio para publicação',!!d.domain],['contacts','Contatos da empresa',!!(d.email||d.phone||d.whatsapp)],['logo','Logomarca',files.some(f=>f.kind==='logo')||d.logo_unavailable===true],['manual','Manual de identidade',files.some(f=>f.kind==='manual')||d.manual_unavailable===true]].map(([key,label,done])=>({key,label,done}));return {...base,review_note:b?.review_note||'',checklist,ready:checklist.filter(x=>x.done).length,total:checklist.length,file_count:files.length};}
- function ensure(order,user,edit=false){check(order.product_id==='site',400,'O briefing Onepage pertence somente a pedidos de site.');check(user.role==='admin'||paid.has(order.payment_status),403,'O briefing será liberado após a confirmação do pagamento do site.');if(edit){check(order.user_id===user.id&&user.role==='client',403,'Somente o cliente pode enviar os materiais deste pedido.');const b=get('SELECT status FROM briefings WHERE order_id=?',order.id);check(!b||['draft','revision_requested'].includes(b.status),409,'Briefing enviado para análise. Aguarde a revisão da Imagine.')}}
+ function ensure(order,user,edit=false){check(order.product_id==='site',400,'O briefing Onepage pertence somente a pedidos de site.');check(user.role==='admin'||paid.has(order.payment_status),403,'O briefing será liberado após a confirmação do pagamento do site.');if(edit){check(order.user_id===user.id&&user.role==='client',403,'Somente o cliente pode enviar os materiais deste pedido.');const b=get('SELECT status FROM briefings WHERE order_id=?',order.id);check(!b||['draft','revision_requested','revoked'].includes(b.status),409,'Briefing enviado para análise. Aguarde a revisão da Imagine.')}}
  async function fileManifest(id){
   const files=db.prepare('SELECT id,kind,mime,size,storage_name FROM briefing_files WHERE order_id=? ORDER BY id').all(id);
   const sealed=[];
@@ -75,7 +90,8 @@ export function createBriefing({db,uploadDir}){
       receipt.data_bytes!==b.data||receipt.data_sha256!==sha256(b.data)||
       reviewed.decision!=='approved'||reviewed.data_sha256!==receipt.data_sha256||
       reviewed.reviewer_id===order.user_id||
-      get('SELECT role FROM users WHERE id=?',reviewed.reviewer_id)?.role!=='admin')return false;
+      get('SELECT role FROM users WHERE id=?',reviewed.reviewer_id)?.role!=='admin'||
+      get('SELECT id FROM briefing_revocation_receipts WHERE approval_receipt_id=?',reviewed.id))return false;
    const expected=JSON.parse(receipt.file_manifest);
    if(!Array.isArray(expected)||expected.length>10)return false;
    const files=db.prepare('SELECT id,kind,mime,size,storage_name FROM briefing_files WHERE order_id=? ORDER BY id').all(order.id);
@@ -109,7 +125,31 @@ export function createBriefing({db,uploadDir}){
   db.exec('COMMIT');
  }catch(error){db.exec('ROLLBACK');throw error}
  return view(order.id)}
- async function review(order,user,body){ensure(order,user);check(user.role==='admin',403,'A revisão é exclusiva da Imagine.');const b=version(order.id,body.version);check(b.status==='submitted',409,'Somente briefings enviados podem ser revisados.');check(['approved','revision_requested'].includes(body.status),400,'Estado de revisão inválido.');/* A revisão de conteúdo não exige domínio; o URL HTTPS final é validado ao publicar. */const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Observação muito longa.');check(body.status!=='revision_requested'||note.length>=5,400,'Descreva o que o cliente precisa complementar.');const witness=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,b.version);
+ async function review(order,user,body){ensure(order,user);check(user.role==='admin',403,'A revisão é exclusiva da Imagine.');const b=version(order.id,body.version);check(['approved','revision_requested','revoked'].includes(body.status),400,'Estado de revisão inválido.');
+ const revoking=body.status==='revoked';
+ check(b.status===(revoking?'approved':'submitted'),409,'Esta versão não está disponível para esta decisão.');/* A revisão de conteúdo não exige domínio; o URL HTTPS final é validado ao publicar. */const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Observação muito longa.');check(!['revision_requested','revoked'].includes(body.status)||note.length>=5,400,'Descreva o motivo da decisão.');
+ if(revoking){
+  // Revogar não depende de arquivos ainda íntegros: a revogação deve funcionar
+  // inclusive quando houver deriva ou falta dos bytes da origem.
+  const approved=get('SELECT * FROM briefing_review_receipts WHERE order_id=? AND submission_version=?',order.id,b.version-1);
+  const receipt=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,b.version-1);
+  check(approved?.decision==='approved'&&receipt?.buyer_id===order.user_id&&
+    approved.data_sha256===receipt.data_sha256,409,'Aprovação versionada não comprovada.');
+  const stamp=timestamp();
+  db.exec('BEGIN IMMEDIATE');
+  try{
+   const current=get('SELECT * FROM briefings WHERE order_id=?',order.id);
+   check(current?.status==='approved'&&current.version===b.version,409,'Revisão alterada antes da revogação.');
+   check(!get('SELECT id FROM briefing_revocation_receipts WHERE approval_receipt_id=?',approved.id),409,'Aprovação já revogada.');
+   const changed=run("UPDATE briefings SET status='revoked',review_note=?,reviewed_at=?,version=version+1,updated_at=? WHERE order_id=? AND version=? AND status='approved'",note,stamp,stamp,order.id,b.version);
+   check(changed.changes===1,409,'Revisão alterada antes da revogação.');
+   run('INSERT INTO briefing_revocation_receipts(id,order_id,approval_receipt_id,reviewer_id,data_sha256,reason,created_at) VALUES(?,?,?,?,?,?,?)',randomUUID(),order.id,approved.id,user.id,approved.data_sha256,note,stamp);
+   log(user,'briefing.revoked',order.id);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error}
+  return view(order.id);
+ }
+ const witness=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,b.version);
  const manifest=await fileManifest(order.id);
  check(witness?.buyer_id===order.user_id&&witness.rights_confirmed===1&&witness.data_bytes===b.data&&witness.data_sha256===sha256(b.data)&&witness.file_manifest===manifest,409,'Confirmação exata do comprador ausente, obsoleta ou divergente.');
  const stamp=timestamp();
