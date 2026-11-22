@@ -237,3 +237,54 @@ test('OnePage Node R16: revisão aprovada não autoriza progresso após adultera
  await writeFile(path,original);
  assert.equal((await reviewer.call('/api/orders/'+o.id+'/production',{action:'progress',version:started.body.production.version,progress:25,note:'Progresso fictício com anexo íntegro.'})).status,200);
 });
+
+
+test('OnePage Node R17: revogação editorial append-only nega produção e exige novo aceite dos bytes (NO-GO)',async t=>{
+ const f=await fixture(t),buyer=await f.client('Titular R17'),other=await f.client('Mesmo laboratório, outro comprador'),reviewer=await f.client('Revisor R17','admin');
+ const o=await paidSite(f,buyer),brief='/api/orders/'+o.id+'/briefing',review='/api/orders/'+o.id+'/review-briefing',prod='/api/orders/'+o.id+'/production';
+ const saved=await buyer.call(brief,{version:0,data:{...briefingData,domain:'',services:'Versão original sintética R17'}});
+ assert.equal(saved.status,200);
+ const submitted=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true});
+ assert.equal(submitted.status,200);
+ const approved=await reviewer.call(review,{version:submitted.body.briefing.version,status:'approved',note:'Revisão do primeiro briefing.'});
+ assert.equal(approved.status,200);
+ const approvedVersion=approved.body.briefing.version;
+ const firstReceipt=f.db.prepare('SELECT * FROM briefing_review_receipts WHERE order_id=? AND decision=?').get(o.id,'approved');
+ assert.ok(firstReceipt);
+ const started=await reviewer.call(prod,{action:'start',version:0});
+ assert.equal(started.status,200);
+ assert.equal((await buyer.call(review,{version:approvedVersion,status:'revoked',note:'Revogar a versão.'})).status,403);
+ assert.equal((await other.call(review,{version:approvedVersion,status:'revoked',note:'Revogar a versão.'})).status,404);
+ assert.equal((await reviewer.call(review,{version:approvedVersion,status:'revoked',note:'não'})).status,400);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM briefing_revocation_receipts WHERE order_id=?').get(o.id).n,0);
+ const revoked=await reviewer.call(review,{version:approvedVersion,status:'revoked',note:'Revisão revogada pelo revisor autorizado.'});
+ assert.equal(revoked.status,200);
+ assert.equal(revoked.body.briefing.status,'revoked');
+ const revokeRecord=f.db.prepare('SELECT * FROM briefing_revocation_receipts WHERE order_id=?').get(o.id);
+ assert.equal(revokeRecord.approval_receipt_id,firstReceipt.id);
+ assert.equal(revokeRecord.reviewer_id,reviewer.user.id);
+ assert.equal(revokeRecord.data_sha256,firstReceipt.data_sha256);
+ assert.throws(()=>f.db.prepare('UPDATE briefing_revocation_receipts SET reason=? WHERE id=?').run('Alteração proibida',revokeRecord.id),/append-only/);
+ assert.throws(()=>f.db.prepare('DELETE FROM briefing_revocation_receipts WHERE id=?').run(revokeRecord.id),/append-only/);
+ assert.equal((await reviewer.call(review,{version:approvedVersion,status:'revoked',note:'Repetir'})).status,409);
+ assert.equal((await reviewer.call(prod,{action:'preview',version:started.body.production.version,url:'https://preview.example.test/r17',note:'Tentativa após revogação.'})).status,409);
+ assert.equal(f.db.prepare("SELECT COUNT(*) n FROM production_events WHERE order_id=? AND type='preview'").get(o.id).n,0);
+ // Uma simples adulteração de status e geração não apaga o recibo de revogação.
+ f.db.prepare("UPDATE briefings SET status='approved',version=? WHERE order_id=?").run(approvedVersion,o.id);
+ assert.equal((await reviewer.call(prod,{action:'preview',version:started.body.production.version,url:'https://preview.example.test/r17',note:'Tentativa com status forjado.'})).status,409);
+ f.db.prepare("UPDATE briefings SET status='revoked',version=? WHERE order_id=?").run(revoked.body.briefing.version,o.id);
+ const edited=await buyer.call(brief,{version:revoked.body.briefing.version,data:{...briefingData,domain:'',services:'Versão posterior à revogação R17'}});
+ assert.equal(edited.status,200);
+ assert.equal((await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:edited.body.briefing.version,confirmed:false})).status,400);
+ const newSubmission=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:edited.body.briefing.version,confirmed:true});
+ assert.equal(newSubmission.status,200);
+ assert.equal((await reviewer.call(review,{version:approvedVersion,status:'approved'})).status,409);
+ const secondApproved=await reviewer.call(review,{version:newSubmission.body.briefing.version,status:'approved',note:'Nova confirmação conferida.'});
+ assert.equal(secondApproved.status,200);
+ assert.equal(secondApproved.body.briefing.status,'approved');
+ const approvals=f.db.prepare("SELECT * FROM briefing_review_receipts WHERE order_id=? AND decision='approved' ORDER BY submission_version").all(o.id);
+ assert.equal(approvals.length,2);
+ assert.notEqual(approvals[0].data_sha256,approvals[1].data_sha256);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM briefing_revocation_receipts WHERE order_id=?').get(o.id).n,1);
+ assert.equal(f.db.prepare("SELECT COUNT(*) n FROM production_events WHERE order_id=? AND type='publish'").get(o.id).n,0);
+});
