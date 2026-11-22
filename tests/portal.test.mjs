@@ -186,3 +186,54 @@ test('OnePage: SHA dos bytes anexados não pode divergir entre confirmação e r
  assert.equal((await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version,status:'approved',note:'Arquivo conferido.'})).status,200);
  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM briefing_review_receipts WHERE order_id=?').get(o.id).n,1);
 });
+
+
+test('OnePage Node R16: produção nega aprovação forjada ou bytes correntes divergentes (NO-GO)',async t=>{
+ const f=await fixture(t),buyer=await f.client('Titular fictício'),reviewer=await f.client('Revisor fictício','admin');
+ const o=await paidSite(f,buyer),brief='/api/orders/'+o.id+'/briefing',production='/api/orders/'+o.id+'/production';
+ const saved=await buyer.call(brief,{version:0,data:{...briefingData,domain:'',services:'Serviços sintéticos versão única'}});
+ assert.equal(saved.status,200);
+ const submitted=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true});
+ assert.equal(submitted.status,200);
+ const v=submitted.body.briefing.version;
+ const old=f.db.prepare('SELECT data FROM briefings WHERE order_id=?').get(o.id).data;
+ // Status alterado sem um ato de revisão não equivale a aprovação editorial.
+ f.db.prepare("UPDATE briefings SET status='approved',version=version+1 WHERE order_id=?").run(o.id);
+ assert.equal((await reviewer.call(production,{action:'start',version:0})).status,409);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM production_events WHERE order_id=?').get(o.id).n,0);
+ f.db.prepare("UPDATE briefings SET status='submitted',version=? WHERE order_id=?").run(v,o.id);
+ const approved=await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version:v,status:'approved',note:'Vistos os direitos e o briefing sintético.'});
+ assert.equal(approved.status,200);
+ const started=await reviewer.call(production,{action:'start',version:0});
+ assert.equal(started.status,200);
+ const stage=started.body.production;
+ // Mesmo com produção iniciada, alterar os bytes invalida o testemunho anterior.
+ f.db.prepare('UPDATE briefings SET data=? WHERE order_id=?').run(JSON.stringify({...briefingData,services:'Conteúdo adulterado'}),o.id);
+ assert.equal((await reviewer.call(production,{action:'preview',version:stage.version,url:'https://preview.example.test/release',note:'Prévia sintética.'})).status,409);
+ assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM production_events WHERE order_id=? AND type='preview'").get(o.id).n,0);
+ f.db.prepare('UPDATE briefings SET data=? WHERE order_id=?').run(old,o.id);
+ assert.equal((await reviewer.call(production,{action:'preview',version:stage.version,url:'https://preview.example.test/release',note:'Prévia sintética.'})).status,200);
+});
+
+test('OnePage Node R16: revisão aprovada não autoriza progresso após adulteração de anexo (NO-GO)',async t=>{
+ const f=await fixture(t),buyer=await f.client('Comprador exemplo'),reviewer=await f.client('Revisor exemplo','admin');
+ const o=await paidSite(f,buyer),original=Buffer.from('%PDF-1.7\\nManual de identidade sintético com direitos fictícios');
+ const uploaded=await uploadFile(f,buyer,o.id,'manual-sintetico.pdf',original,'manual');
+ assert.equal(uploaded.status,201);
+ const saved=await buyer.call('/api/orders/'+o.id+'/briefing',{version:(await uploaded.json()).briefing.version,data:{...briefingData,domain:'',manual_unavailable:false,logo_unavailable:true}});
+ assert.equal(saved.status,200);
+ const submitted=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true});
+ assert.equal(submitted.status,200);
+ const v=submitted.body.briefing.version;
+ assert.equal((await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version:v,status:'approved'})).status,200);
+ const started=await reviewer.call('/api/orders/'+o.id+'/production',{action:'start',version:0});
+ assert.equal(started.status,200);
+ const manifest=JSON.parse(f.db.prepare('SELECT file_manifest FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?').get(o.id,v).file_manifest);
+ const path=join(f.uploadDir,manifest[0].storage_name),changed=Buffer.from(original);
+ changed[changed.length-1]^=1;
+ await writeFile(path,changed);
+ assert.equal((await reviewer.call('/api/orders/'+o.id+'/production',{action:'progress',version:started.body.production.version,progress:25,note:'Progresso fictício com anexo alterado.'})).status,409);
+ assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM production_events WHERE order_id=? AND type='progress'").get(o.id).n,0);
+ await writeFile(path,original);
+ assert.equal((await reviewer.call('/api/orders/'+o.id+'/production',{action:'progress',version:started.body.production.version,progress:25,note:'Progresso fictício com anexo íntegro.'})).status,200);
+});

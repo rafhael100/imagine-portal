@@ -27,7 +27,7 @@ function problem(status,message){return Object.assign(new Error(message),{status
 function assert(condition,status,message){if(!condition)throw problem(status,message)}
 const cents=value=>Math.round(Number(value)*100);
 export function createApp({db,asaas,publicDir,origin,production=false,sellerName='',sellerDocument='',webhookToken='',clock=()=>new Date(),uploadDir=null,focus=createFocus(),mailer=createMailer(),focusWebhookToken='',billingTokenKey='',newSiteBilling=RECURRING_MODEL,trustProxy=false}){
- const root=resolve(publicDir),locks=new Set();let processing=false;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db);const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
+ const root=resolve(publicDir),locks=new Set();let processing=false;const briefings=createBriefing({db,uploadDir});const productionFlow=createProduction(db,order=>briefings.approvedCurrent(order));const team=createTeam(db);const orderOps=createOrderOps(db);const fiscal=createFiscal({db,focus,mailer,origin,clock});
  const accountProfile=createAccount(db,fiscal);
  const q=(sql,...args)=>db.prepare(sql).get(...args),list=(sql,...args)=>db.prepare(sql).all(...args),run=(sql,...args)=>db.prepare(sql).run(...args);
  db.exec("UPDATE orders SET billing_state='uncertain' WHERE billing_state='creating'; UPDATE maintenance SET status='uncertain' WHERE status='creating';");

@@ -1,5 +1,6 @@
 import {randomUUID,createHash} from 'node:crypto';
 import {mkdir,writeFile,readFile,unlink} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 export const MAX_FILE_BYTES=10*1024*1024;
 const MAX_ORDER_BYTES=50*1024*1024;
@@ -59,6 +60,37 @@ export function createBriefing({db,uploadDir}){
   }
   return JSON.stringify(sealed)
  }
+
+ // Verificador local do Node legado. Não é o leitor Laravel/PG #976.
+ // Exige fatos persistidos e bytes atuais; nunca inventa autoridade de publicação.
+ function approvedCurrent(order){
+  try{
+   if(order.product_id!=='site')return false;
+   const b=get('SELECT * FROM briefings WHERE order_id=?',order.id);
+   if(!b||b.status!=='approved'||!Number.isSafeInteger(b.version)||b.version<1)return false;
+   const submittedVersion=b.version-1;
+   const receipt=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,submittedVersion);
+   const reviewed=get('SELECT * FROM briefing_review_receipts WHERE order_id=? AND submission_version=?',order.id,submittedVersion);
+   if(!receipt||!reviewed||receipt.buyer_id!==order.user_id||receipt.rights_confirmed!==1||
+      receipt.data_bytes!==b.data||receipt.data_sha256!==sha256(b.data)||
+      reviewed.decision!=='approved'||reviewed.data_sha256!==receipt.data_sha256||
+      reviewed.reviewer_id===order.user_id||
+      get('SELECT role FROM users WHERE id=?',reviewed.reviewer_id)?.role!=='admin')return false;
+   const expected=JSON.parse(receipt.file_manifest);
+   if(!Array.isArray(expected)||expected.length>10)return false;
+   const files=db.prepare('SELECT id,kind,mime,size,storage_name FROM briefing_files WHERE order_id=? ORDER BY id').all(order.id);
+   if(expected.length!==files.length)return false;
+   for(let i=0;i<files.length;i++){
+    const file=files[i];
+    if(!uploadDir||!Number.isSafeInteger(file.size)||file.size<1||file.size>MAX_FILE_BYTES)return false;
+    const bytes=readFileSync(join(uploadDir,file.storage_name));
+    if(bytes.length!==file.size)return false;
+    const actual={...file,sha256:createHash('sha256').update(bytes).digest('hex')};
+    if(JSON.stringify(actual)!==JSON.stringify(expected[i]))return false;
+   }
+   return true;
+  }catch{return false}
+ }
  function seed(id){run('INSERT OR IGNORE INTO briefings(order_id,updated_at) VALUES(?,?)',id,timestamp())}
  function log(user,action,id){run('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)',user.id,action,id,timestamp())}
  function view(id){const b=get('SELECT * FROM briefings WHERE order_id=?',id);return {summary:summary(id),order_id:id,status:b?.status||'draft',version:b?.version||0,data:b?JSON.parse(b.data):{},submitted_at:b?.submitted_at||null,review_note:b?.review_note||'',reviewed_at:b?.reviewed_at||null,updated_at:b?.updated_at||null,files:db.prepare('SELECT id,kind,original_name,mime,size,created_at FROM briefing_files WHERE order_id=? ORDER BY created_at').all(id),limits:{file_bytes:MAX_FILE_BYTES,order_bytes:MAX_ORDER_BYTES,count:10}}}
@@ -96,5 +128,5 @@ export function createBriefing({db,uploadDir}){
  async function upload(order,user,req){ensure(order,user,true);check(uploadDir,503,'O armazenamento privado ainda não foi configurado.');const kind=req.headers['x-file-kind'];check(['logo','manual'].includes(kind),400,'Tipo de material inválido.');let name;try{name=decodeURIComponent(req.headers['x-file-name']||'')}catch{}check(typeof name==='string'&&name.length>0&&name.length<=180&&!/[\/\\\x00-\x1f\x7f]/.test(name),400,'Nome de arquivo inválido.');const length=Number(req.headers['content-length']);check(!Number.isFinite(length)||length<=MAX_FILE_BYTES,413,'Cada arquivo pode ter até 10 MB.');const existing=get('SELECT COUNT(*) AS n,COALESCE(SUM(size),0) AS bytes FROM briefing_files WHERE order_id=?',order.id);check(existing.n<10,409,'Limite de 10 arquivos por pedido.');let bytes=0;const chunks=[];for await(const chunk of req){bytes+=chunk.length;check(bytes<=MAX_FILE_BYTES&&existing.bytes+bytes<=MAX_ORDER_BYTES,413,'Limite excedido: 10 MB por arquivo e 50 MB por pedido.');chunks.push(chunk)}check(bytes>0,400,'O arquivo está vazio.');const buffer=Buffer.concat(chunks),mime=detect(buffer,name,kind),id=randomUUID(),storage=id+'.bin';await mkdir(uploadDir,{recursive:true,mode:0o700});await writeFile(join(uploadDir,storage),buffer,{flag:'wx',mode:0o600});try{ensure(get('SELECT * FROM orders WHERE id=?',order.id),user,true);seed(order.id);run('INSERT INTO briefing_files VALUES(?,?,?,?,?,?,?,?,?)',id,order.id,kind,name,storage,mime,bytes,user.id,timestamp());run('UPDATE briefings SET version=version+1,updated_at=? WHERE order_id=?',timestamp(),order.id);log(user,'briefing.file_uploaded',order.id)}catch(error){await unlink(join(uploadDir,storage)).catch(()=>{});throw error}return view(order.id)}
  async function download(order,user,id,res,method='GET'){ensure(order,user);const file=get('SELECT * FROM briefing_files WHERE id=? AND order_id=?',id,order.id);check(file,404,'Arquivo não encontrado.');check(uploadDir,503,'Armazenamento indisponível.');const content=await readFile(join(uploadDir,file.storage_name));res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':"attachment; filename=material; filename*=UTF-8''"+encodeURIComponent(file.original_name),'Content-Length':content.length,'Content-Security-Policy':"default-src 'none'; sandbox",'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});res.end(method==='HEAD'?undefined:content)}
  async function remove(order,user,id){ensure(order,user,true);const file=get('SELECT * FROM briefing_files WHERE id=? AND order_id=?',id,order.id);check(file,404,'Arquivo não encontrado.');check(uploadDir,503,'Armazenamento indisponível.');await unlink(join(uploadDir,file.storage_name));run('DELETE FROM briefing_files WHERE id=?',id);run('UPDATE briefings SET version=version+1,updated_at=? WHERE order_id=?',timestamp(),order.id);log(user,'briefing.file_removed',order.id);return view(order.id)}
- return {summary,view,ensure,save,submit,review,upload,download,remove};
+ return {summary,view,ensure,save,submit,review,upload,download,remove,approvedCurrent};
 }
