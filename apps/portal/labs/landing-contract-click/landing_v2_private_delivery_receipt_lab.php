@@ -43,19 +43,24 @@ function r29http(string $url): ?array {
     // R39: bytes hashed by the server must be the bytes a browser would
     // render. A misleading Content-Encoding can make them differ.
     $representationHeaders=[];
+    // R40: an APPLIED response must be fresh. Never promote a cacheable
+    // intermediary response to evidence of the current release.
+    $cacheHeaders=[];
     $data='';
     $h=curl_init($url);
     curl_setopt_array($h, [
         CURLOPT_RETURNTRANSFER=>false, CURLOPT_FOLLOWLOCATION=>false,
         CURLOPT_MAXREDIRS=>0, CURLOPT_PROXY=>'',
+        CURLOPT_HTTPHEADER=>['Cache-Control: no-cache, no-store','Pragma: no-cache'],
         CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000,
-        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders,&$representationHeaders):int {
+        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders,&$representationHeaders,&$cacheHeaders):int {
             // Reset only on a new HTTP status line. Duplicate Content-Type
             // headers within the final response are ambiguous and refused.
             if(preg_match('/\\AHTTP\\/[0-9.]+ [0-9]{3}[^\\r\\n]*\\r?\\n\\z/', $line)===1) {
                 $mimeHeaders=[];
                 $presentationHeaders=[];
                 $representationHeaders=[];
+                $cacheHeaders=[];
             } else if(preg_match('/\\Acontent-type:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
                 $mimeHeaders[]=trim($m[1]);
             } else if(preg_match('/\\A(?:content-disposition|refresh):[^\\r\\n]*\\r?\\n\\z/i',$line)===1) {
@@ -64,6 +69,8 @@ function r29http(string $url): ?array {
                 // R28 has no content coding; refuse even identity to keep
                 // the exact approved HTML and HTTP representation aligned.
                 $representationHeaders[]=trim($line);
+            } else if(preg_match('/\\Acache-control:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
+                $cacheHeaders[]=trim($m[1]);
             }
             return strlen($line);
         },
@@ -79,6 +86,7 @@ function r29http(string $url): ?array {
     curl_close($h);
     return $ok===true && $status===200 && $mimeHeaders===[$expectedMime]
         && $presentationHeaders===[] && $representationHeaders===[]
+        && $cacheHeaders===['no-store']
         ? [$data,$status] : null;
 }
 /**
@@ -287,6 +295,14 @@ if($mode==='probe-content-encoding') {
     if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
         throw new RuntimeException('R39 encoded representation accepted as exact delivery');
     echo "R39_CONTENT_ENCODING_DENIED: state=1 html=1; NO_GO; NO_EGRESS\n";
+    exit;
+}
+if($mode==='probe-cache-policy') {
+    // R40: stale or contradictory cache declarations cannot become a current
+    // APPLIED state or proof of the private HTML. No publish and no receipt.
+    if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
+        throw new RuntimeException('R40 cacheable provider response treated as fresh evidence');
+    echo "R40_CACHEABLE_PROVIDER_REFUSED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-presentation-headers') {
