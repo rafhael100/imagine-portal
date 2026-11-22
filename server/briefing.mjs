@@ -80,7 +80,6 @@ export function createBriefing({db,uploadDir}){
  async function review(order,user,body){ensure(order,user);check(user.role==='admin',403,'A revisão é exclusiva da Imagine.');const b=version(order.id,body.version);check(b.status==='submitted',409,'Somente briefings enviados podem ser revisados.');check(['approved','revision_requested'].includes(body.status),400,'Estado de revisão inválido.');/* A revisão de conteúdo não exige domínio; o URL HTTPS final é validado ao publicar. */const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Observação muito longa.');check(body.status!=='revision_requested'||note.length>=5,400,'Descreva o que o cliente precisa complementar.');const witness=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,b.version);
  const manifest=await fileManifest(order.id);
  check(witness?.buyer_id===order.user_id&&witness.rights_confirmed===1&&witness.data_bytes===b.data&&witness.data_sha256===sha256(b.data)&&witness.file_manifest===manifest,409,'Confirmação exata do comprador ausente, obsoleta ou divergente.');
- const manifest=await fileManifest(order.id);
  const stamp=timestamp();
  db.exec('BEGIN IMMEDIATE');
  try{
