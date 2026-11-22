@@ -1,4 +1,4 @@
-import {mkdtemp,rm,readdir} from 'node:fs/promises';
+import {mkdtemp,rm,readdir,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,basename} from 'node:path';
 import {migrateBriefing,MAX_FILE_BYTES} from '../server/briefing.mjs';
@@ -159,4 +159,30 @@ test('OnePage: confirmação de direitos sela bytes por versão e revisor decide
  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM briefing_submission_receipts WHERE order_id=?').get(o.id).n,2);
  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM briefing_review_receipts WHERE order_id=?').get(o.id).n,2);
  assert.throws(()=>f.db.prepare('DELETE FROM briefing_review_receipts WHERE order_id=?').run(o.id),/append-only/);
+});
+
+test('OnePage: SHA dos bytes anexados não pode divergir entre confirmação e revisão (Node legado)',async t=>{
+ const f=await fixture(t),buyer=await f.client('Titular sintético'),reviewer=await f.client('Revisor sintético','admin');
+ const o=await paidSite(f,buyer),document=Buffer.from('%PDF-1.7\\nMaterial sintético de identidade e uso autorizado');
+ const uploaded=await uploadFile(f,buyer,o.id,'manual-ficticio.pdf',document,'manual');
+ assert.equal(uploaded.status,201);
+ const data={...briefingData,domain:'',logo_unavailable:true,manual_unavailable:false};
+ const saved=await buyer.call('/api/orders/'+o.id+'/briefing',{version:(await uploaded.json()).briefing.version,data});
+ assert.equal(saved.status,200);
+ const submitted=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true});
+ assert.equal(submitted.status,200);
+ const version=submitted.body.briefing.version;
+ const receipt=f.db.prepare('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?').get(o.id,version);
+ const manifest=JSON.parse(receipt.file_manifest);
+ assert.equal(manifest.length,1);
+ assert.equal(manifest[0].sha256,createHash('sha256').update(document).digest('hex'));
+ const file=join(f.uploadDir,manifest[0].storage_name);
+ // Corrupção com o mesmo tamanho: a prova deve verificar os bytes e não só os metadados.
+ const corrupted=Buffer.from(document);corrupted[corrupted.length-1]^=1;
+ await writeFile(file,corrupted);
+ assert.equal((await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version,status:'approved'})).status,409);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM briefing_review_receipts WHERE order_id=?').get(o.id).n,0);
+ await writeFile(file,document);
+ assert.equal((await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version,status:'approved',note:'Arquivo conferido.'})).status,200);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM briefing_review_receipts WHERE order_id=?').get(o.id).n,1);
 });
