@@ -1,0 +1,99 @@
+name: Portal Landing R41 deny display-changing provider headers (NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/portal-landing-r40-fresh-state-cache-2026-11-21']
+    paths:
+      - '.github/workflows/landing-v2-display-policy-r41.yml'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_display_policy_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
+permissions:
+  contents: read
+concurrency:
+  group: portal-landing-r41-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  display-policy-denial:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'review/portal-landing-r41-provider-display-headers-2026-11-22' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r40-fresh-state-cache-2026-11-21' &&
+      github.event.pull_request.base.sha == 'e9a9b734f72397fef74777d7b7bd59983ccba36f'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      APP_ENV: testing
+      LANDING_R29_DELIVERY_LAB: '1'
+      LANDING_R28_ACK_LAB: '1'
+      LANDING_V2_MTLS_LAB: '1'
+      SITES_F395_MTLS_LAB: '1'
+      LANDING_R41_DISPLAY_LAB: '1'
+    steps:
+      - name: Checkout exact PR head without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify exact isolated source and PHP syntax
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          php -l apps/portal/labs/landing-contract-click/landing_v2_display_policy_provider_lab.php
+          php -l apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, pdo_pgsql
+          coverage: none
+      - name: Refuse valid 200/MIME/no-store with misleading display policy
+        run: |
+          set -euo pipefail
+          php -m | grep -i -x curl
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_display_policy_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          for mode in sandbox frame-deny clean; do
+            LANDING_R41_DISPLAY_MODE="$mode" php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r41-$mode.log" 2>&1 &
+            origin=$!
+            trap 'kill "$origin" 2>/dev/null || true' EXIT
+            ready=0
+            for i in $(seq 1 30); do
+              if curl --noproxy '*' -fsS --max-time 1 http://127.0.0.1:8791/ci/state >/dev/null 2>&1; then
+                ready=1; break
+              fi
+              sleep 0.2
+            done
+            test "$ready" = 1
+            for endpoint in state served; do
+              headers="$RUNNER_TEMP/r41-$mode-$endpoint.headers"
+              bytes="$RUNNER_TEMP/r41-$mode-$endpoint.bytes"
+              test "$(curl --noproxy '*' -sS --max-time 2 -D "$headers" -o "$bytes" -w '%{http_code}' "http://127.0.0.1:8791/ci/$endpoint")" = 200
+              test -s "$bytes"
+              grep -Eqi '^Cache-Control: no-store' "$headers"
+              if [ "$endpoint" = state ]; then
+                grep -Eqi '^Content-Type: application/json' "$headers"
+              else
+                grep -Eqi '^Content-Type: text/html; charset=utf-8' "$headers"
+              fi
+              if [ "$mode" = sandbox ]; then
+                grep -Eqi '^Content-Security-Policy: sandbox' "$headers"
+              elif [ "$mode" = frame-deny ]; then
+                grep -Eqi '^X-Frame-Options: DENY' "$headers"
+              else
+                ! grep -Eqi '^(Content-Security-Policy|X-Frame-Options):' "$headers"
+              fi
+            done
+            if [ "$mode" = clean ]; then
+              php "$receipt" probe-display-policy-positive | tee "$RUNNER_TEMP/r41-$mode-proof.txt"
+              grep -F 'R41_CANONICAL_DISPLAY_POLICY_ACCEPTED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r41-$mode-proof.txt"
+            else
+              php "$receipt" probe-display-policy | tee "$RUNNER_TEMP/r41-$mode-proof.txt"
+              grep -F 'R41_DISPLAY_POLICY_REFUSED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r41-$mode-proof.txt"
+            fi
+            kill "$origin" 2>/dev/null || true
+            wait "$origin" 2>/dev/null || true
+            trap - EXIT
+          done
+          echo 'R41_FOUR_NEGATIVES_TWO_POSITIVES_PASS; NO_DB; NO_RECEIPT; NO_OPERATIONAL_AUTHORITY'
