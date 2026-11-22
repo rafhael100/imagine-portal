@@ -78,3 +78,38 @@ test('Jornada bloqueia ações sem pagamento, após estorno e fora dos limites d
  f.db.prepare("UPDATE orders SET payment_status='REFUNDED' WHERE id=?").run(po.id);
  assert.equal((await c.call(pp,{action:'approve',version:0,release:3,confirmed:true})).status,409);
 });
+
+test('OnePage sem domínio: revisão e prévia privadas permitidas; publicação somente com URL HTTPS',async t=>{
+ const f=await fixture(t),buyer=await f.client('Comprador'),other=await f.client('Outro comprador'),reviewer=await f.client('Revisor','admin');
+ const o=await paidSite(f,buyer),brief='/api/orders/'+o.id+'/briefing',production='/api/orders/'+o.id+'/production';
+ const saved=await buyer.call(brief,{data:{...briefingData,domain:''},version:0});
+ assert.equal(saved.status,200);
+ let b=saved.body.briefing;
+ assert.equal(b.data.domain,'');
+ const submitted=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:b.version,confirmed:true});
+ assert.equal(submitted.status,200);
+ b=submitted.body.briefing;
+ assert.equal((await other.call('/api/orders/'+o.id+'/review-briefing',{version:b.version,status:'approved'})).status,404);
+ const approved=await reviewer.call('/api/orders/'+o.id+'/review-briefing',{version:b.version,status:'approved',note:'Conteúdo revisado.'});
+ assert.equal(approved.status,200);
+ assert.equal(approved.body.briefing.status,'approved');
+ assert.equal(approved.body.briefing.data.domain,'');
+ let r=await reviewer.call(production,{action:'start',version:0});
+ assert.equal(r.status,200);
+ let p=r.body.production;
+ r=await reviewer.call(production,{action:'preview',version:p.version,url:'https://preview.example.test/onepage',note:'Prévia privada revisável.'});
+ assert.equal(r.status,200);
+ p=r.body.production;
+ assert.equal((await other.call(production,{action:'approve',version:p.version,release:p.release,confirmed:true})).status,404);
+ r=await buyer.call(production,{action:'approve',version:p.version,release:p.release,confirmed:true});
+ assert.equal(r.status,200);
+ p=r.body.production;
+ assert.equal((await reviewer.call(production,{action:'publish',version:p.version,url:''})).status,400);
+ assert.equal((await reviewer.call(production,{action:'publish',version:p.version,url:'http://example.test'})).status,400);
+ assert.equal((await buyer.call(production,{action:'publish',version:p.version,url:'https://example.test'})).status,403);
+ assert.equal((await reviewer.call(production,{action:'publish',version:p.version,url:'https://example.test/onepage'})).status,200);
+ const row=f.db.prepare('SELECT data,status FROM briefings WHERE order_id=?').get(o.id);
+ assert.equal(row.status,'approved');
+ assert.equal(JSON.parse(row.data).domain,'');
+ assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM production_events WHERE order_id=? AND type='publish'").get(o.id).n,1);
+});
