@@ -302,7 +302,7 @@ if($mode==='probe-cache-policy') {
     // APPLIED state or proof of the private HTML. No publish and no receipt.
     if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
         throw new RuntimeException('R40 cacheable provider response treated as fresh evidence');
-    echo "R40_CACHEABLE_PROVIDER_REFUSED: state=1 html=1; NO_GO; NO_EGRESS\\n";
+    echo "R40_CACHEABLE_PROVIDER_REFUSED: state=1 html=1; NO_GO; NO_EGRESS\n";
     exit;
 }
 if($mode==='probe-presentation-headers') {
