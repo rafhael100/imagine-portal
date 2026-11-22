@@ -1,8 +1,8 @@
-name: Portal Landing R39 refuse misleading HTTP content encoding (NO-GO)
+name: Portal Landing R40 deny cacheable evidence after lost ACK (NO-GO)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/portal-landing-r38-provider-state-drift-2026-11-21']
+    branches: ['test/portal-landing-r39-content-encoding-2026-11-21']
     paths:
       - '.github/workflows/landing-v2-private-buyer-delivery-lab.yml'
       - 'apps/portal/labs/landing-contract-click/landing_v2_lost_ack_state_lab.php'
@@ -15,6 +15,7 @@ on:
       - 'apps/portal/labs/landing-contract-click/landing_v2_presentation_header_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_state_drift_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_content_encoding_provider_lab.php'
+      - 'apps/portal/labs/landing-contract-click/landing_v2_cacheable_provider_lab.php'
       - 'apps/portal/labs/landing-contract-click/landing_v2_private_delivery_browser.py'
       - 'apps/portal/labs/landing-contract-click/LANDING_V2_PRIVATE_BUYER_DELIVERY_NO_GO.md'
 permissions:
@@ -28,9 +29,9 @@ jobs:
       github.repository == 'rafhael100/imagine-portal' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/portal-landing-r39-content-encoding-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/portal-landing-r38-provider-state-drift-2026-11-21' &&
-      github.event.pull_request.base.sha == '84e1fe2b98e4ab6e1907be35bb92645c4449be8b'
+      github.event.pull_request.head.ref == 'test/portal-landing-r40-fresh-state-cache-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/portal-landing-r39-content-encoding-2026-11-21' &&
+      github.event.pull_request.base.sha == 'fd7947abae55120c3e8705e6910f62f75ff3e3cc'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     services:
@@ -330,6 +331,40 @@ jobs:
             trap - EXIT
           done
           echo 'R39_MISLEADING_ENCODING_DENIED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; R28_UNMODIFIED; NO_REAL_EGRESS'
+      - name: R40 deny cacheable provider state and HTML before issuing private receipt
+        run: |
+          set -euo pipefail
+          fixture=apps/portal/labs/landing-contract-click/landing_v2_cacheable_provider_lab.php
+          receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
+          php -l "$fixture"
+          php -l "$receipt"
+          for mode in public contradictory; do
+            LANDING_R40_CACHE_MODE="$mode" php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r40-$mode-origin.log" 2>&1 & P=$!
+            trap 'kill "$P" 2>/dev/null || true' EXIT
+            ready=0
+            for i in $(seq 1 30); do
+              if curl --noproxy '*' -fsS --max-time 2 -D "$RUNNER_TEMP/r40-$mode-probe.headers" -o /dev/null http://127.0.0.1:8791/ci/state &&
+                 grep -Eqi '^Cache-Control: public, max-age=600' "$RUNNER_TEMP/r40-$mode-probe.headers"; then ready=1; break; fi
+              sleep 1
+            done
+            test "$ready" = 1
+            for endpoint in state served; do
+              curl --noproxy '*' -fsS --max-time 2 -D "$RUNNER_TEMP/r40-$mode-$endpoint.headers" -o "$RUNNER_TEMP/r40-$mode-$endpoint.bytes" "http://127.0.0.1:8791/ci/$endpoint"
+              grep -Eqi '^HTTP/[^ ]+ 200 ' "$RUNNER_TEMP/r40-$mode-$endpoint.headers"
+              grep -Eqi '^Cache-Control: public, max-age=600' "$RUNNER_TEMP/r40-$mode-$endpoint.headers"
+              test -s "$RUNNER_TEMP/r40-$mode-$endpoint.bytes"
+              if [[ "$mode" = contradictory ]]; then
+                test "$(grep -Eic '^Cache-Control:' "$RUNNER_TEMP/r40-$mode-$endpoint.headers")" = 2
+                grep -Eqi '^Cache-Control: no-store' "$RUNNER_TEMP/r40-$mode-$endpoint.headers"
+              fi
+            done
+            php "$receipt" probe-cache-policy | tee "$RUNNER_TEMP/r40-$mode-denial.log"
+            grep -F 'R40_CACHEABLE_PROVIDER_REFUSED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r40-$mode-denial.log"
+            kill "$P"
+            wait "$P" 2>/dev/null || true
+            trap - EXIT
+          done
+          echo 'R40_STALE_CACHE_POLICY_REFUSED; 4 NEW NEGATIVE_ENDPOINT_CHECKS; NO_PUBLISH; NO_REAL_EGRESS'
       - name: R36 deny HTTP 200 provider state and HTML with wrong media type
         run: |
           set -euo pipefail
