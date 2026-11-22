@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {mkdir,writeFile,readFile,unlink} from 'node:fs/promises';
 import {join} from 'node:path';
 export const MAX_FILE_BYTES=10*1024*1024;
@@ -12,18 +12,75 @@ CREATE TABLE IF NOT EXISTS briefings(order_id TEXT PRIMARY KEY REFERENCES orders
 CREATE TABLE IF NOT EXISTS briefing_files(id TEXT PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),kind TEXT NOT NULL,original_name TEXT NOT NULL,storage_name TEXT NOT NULL UNIQUE,mime TEXT NOT NULL,size INTEGER NOT NULL,uploaded_by TEXT NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS briefing_files_order ON briefing_files(order_id);
 INSERT INTO schema_version VALUES(2);COMMIT;`)}
+
+// Candidata Node legado: recibos locais, sem vincular o exportador Portal #976
+// ou declarar os arquivos anexos como snapshots imutaveis.
+export function migrateBriefingEvidence(db){
+ if(db.prepare('SELECT version FROM schema_version WHERE version=4').get())return;
+ db.exec(`BEGIN IMMEDIATE;
+ CREATE TABLE IF NOT EXISTS briefing_submission_receipts(
+  order_id TEXT NOT NULL REFERENCES orders(id),briefing_version INTEGER NOT NULL,
+  buyer_id TEXT NOT NULL REFERENCES users(id),data_bytes TEXT NOT NULL,
+  data_sha256 TEXT NOT NULL CHECK(length(data_sha256)=64),file_manifest TEXT NOT NULL,
+  rights_confirmed INTEGER NOT NULL CHECK(rights_confirmed=1),
+  created_at TEXT NOT NULL,PRIMARY KEY(order_id,briefing_version));
+ CREATE TRIGGER IF NOT EXISTS briefing_receipt_no_update BEFORE UPDATE ON briefing_submission_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing submission receipt is append-only'); END;
+ CREATE TRIGGER IF NOT EXISTS briefing_receipt_no_delete BEFORE DELETE ON briefing_submission_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing submission receipt is append-only'); END;
+ CREATE TABLE IF NOT EXISTS briefing_review_receipts(
+  id TEXT PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),
+  submission_version INTEGER NOT NULL,reviewer_id TEXT NOT NULL REFERENCES users(id),
+  decision TEXT NOT NULL CHECK(decision IN ('approved','revision_requested')),
+  data_sha256 TEXT NOT NULL,created_at TEXT NOT NULL,
+  FOREIGN KEY(order_id,submission_version)
+   REFERENCES briefing_submission_receipts(order_id,briefing_version),
+  UNIQUE(order_id,submission_version));
+ CREATE TRIGGER IF NOT EXISTS briefing_review_no_update BEFORE UPDATE ON briefing_review_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing review receipt is append-only'); END;
+ CREATE TRIGGER IF NOT EXISTS briefing_review_no_delete BEFORE DELETE ON briefing_review_receipts
+ BEGIN SELECT RAISE(ABORT,'briefing review receipt is append-only'); END;
+ INSERT INTO schema_version VALUES(4);COMMIT;`);
+}
+const sha256=bytes=>createHash('sha256').update(Buffer.from(bytes,'utf8')).digest('hex');
+
 export function createBriefing({db,uploadDir}){
  const get=(sql,...params)=>db.prepare(sql).get(...params),run=(sql,...params)=>db.prepare(sql).run(...params);
  function summary(id,detailed=true){const b=get('SELECT * FROM briefings WHERE order_id=?',id),base={status:b?.status||'not_started',version:b?.version||0,updated_at:b?.updated_at||null};if(!detailed)return base;const d=b?JSON.parse(b.data):{},files=db.prepare('SELECT kind FROM briefing_files WHERE order_id=?').all(id);const checklist=[['company','Dados da empresa',!!d.company_name],['services','Lista de serviços',!!d.services],['intro','Apresentação e conteúdo',!!(d.company_intro||d.ai_support)],['domain','Domínio para publicação',!!d.domain],['contacts','Contatos da empresa',!!(d.email||d.phone||d.whatsapp)],['logo','Logomarca',files.some(f=>f.kind==='logo')||d.logo_unavailable===true],['manual','Manual de identidade',files.some(f=>f.kind==='manual')||d.manual_unavailable===true]].map(([key,label,done])=>({key,label,done}));return {...base,review_note:b?.review_note||'',checklist,ready:checklist.filter(x=>x.done).length,total:checklist.length,file_count:files.length};}
  function ensure(order,user,edit=false){check(order.product_id==='site',400,'O briefing Onepage pertence somente a pedidos de site.');check(user.role==='admin'||paid.has(order.payment_status),403,'O briefing será liberado após a confirmação do pagamento do site.');if(edit){check(order.user_id===user.id&&user.role==='client',403,'Somente o cliente pode enviar os materiais deste pedido.');const b=get('SELECT status FROM briefings WHERE order_id=?',order.id);check(!b||['draft','revision_requested'].includes(b.status),409,'Briefing enviado para análise. Aguarde a revisão da Imagine.')}}
+ function fileManifest(id){return JSON.stringify(db.prepare('SELECT id,kind,mime,size,storage_name FROM briefing_files WHERE order_id=? ORDER BY id').all(id))}
  function seed(id){run('INSERT OR IGNORE INTO briefings(order_id,updated_at) VALUES(?,?)',id,timestamp())}
  function log(user,action,id){run('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)',user.id,action,id,timestamp())}
  function view(id){const b=get('SELECT * FROM briefings WHERE order_id=?',id);return {summary:summary(id),order_id:id,status:b?.status||'draft',version:b?.version||0,data:b?JSON.parse(b.data):{},submitted_at:b?.submitted_at||null,review_note:b?.review_note||'',reviewed_at:b?.reviewed_at||null,updated_at:b?.updated_at||null,files:db.prepare('SELECT id,kind,original_name,mime,size,created_at FROM briefing_files WHERE order_id=? ORDER BY created_at').all(id),limits:{file_bytes:MAX_FILE_BYTES,order_bytes:MAX_ORDER_BYTES,count:10}}}
  function validate(data){check(data&&typeof data==='object'&&!Array.isArray(data),400,'Dados do briefing inválidos.');const result={};for(const [key,max] of Object.entries(fields)){const value=data[key]??'';check(typeof value==='string'&&value.length<=max,400,'Revise o campo '+key+'; limite de '+max+' caracteres.');result[key]=value.trim()}for(const key of ['ai_support','logo_unavailable','manual_unavailable'])result[key]=data[key]===true;for(const key of ['current_site','contact_site'])if(result[key]){let url;try{url=new URL(result[key])}catch{}check(url&&['https:','http:'].includes(url.protocol)&&!url.username&&!url.password,400,'Informe um endereço de site válido, começando por https:// ou http://.')}if(result.email)check(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email),400,'Informe um e-mail de contato válido.');if(result.domain)check(/^(?=.{1,253}$)(?:[a-z\d](?:[a-z\d-]{0,61}[a-z\d])?\.)+[a-z]{2,63}$/i.test(result.domain),400,'Informe somente o domínio, por exemplo minhaempresa.com.br.');return result}
  function version(id,expected){seed(id);const b=get('SELECT * FROM briefings WHERE order_id=?',id);check(Number.isSafeInteger(expected)&&expected===b.version,409,'O briefing foi atualizado em outra aba. Reabra o pedido para carregar a versão atual.');return b}
  function save(order,user,body){ensure(order,user,true);const data=validate(body.data);version(order.id,body.version);run('UPDATE briefings SET data=?,version=version+1,updated_at=? WHERE order_id=?',JSON.stringify(data),timestamp(),order.id);log(user,'briefing.saved',order.id);return view(order.id)}
- function submit(order,user,body){ensure(order,user,true);const b=version(order.id,body.version),data=JSON.parse(b.data);check(body.confirmed===true,400,'Confirme que revisou as informações e tem autorização para usar os materiais.');check(data.company_name&&data.services,400,'Preencha o nome da empresa e a lista de serviços.');check(data.company_intro||data.ai_support,400,'Envie a apresentação da empresa ou solicite apoio da Imagine com IA.');check(data.email||data.phone||data.whatsapp,400,'Informe ao menos um contato da empresa.');const files=view(order.id).files;check(files.some(f=>f.kind==='logo')||data.logo_unavailable,400,'Envie a logomarca ou informe que não possui o arquivo.');check(files.some(f=>f.kind==='manual')||data.manual_unavailable,400,'Envie o manual de identidade ou informe que não possui um.');run("UPDATE briefings SET status='submitted',version=version+1,submitted_at=?,review_note='',reviewed_at=NULL,updated_at=? WHERE order_id=?",timestamp(),timestamp(),order.id);log(user,'briefing.submitted',order.id);return view(order.id)}
- function review(order,user,body){ensure(order,user);check(user.role==='admin',403,'A revisão é exclusiva da Imagine.');const b=version(order.id,body.version);check(b.status==='submitted',409,'Somente briefings enviados podem ser revisados.');check(['approved','revision_requested'].includes(body.status),400,'Estado de revisão inválido.');/* A revisão de conteúdo não exige domínio; o URL HTTPS final é validado ao publicar. */const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Observação muito longa.');check(body.status!=='revision_requested'||note.length>=5,400,'Descreva o que o cliente precisa complementar.');run('UPDATE briefings SET status=?,review_note=?,reviewed_at=?,version=version+1,updated_at=? WHERE order_id=?',body.status,note,timestamp(),timestamp(),order.id);log(user,'briefing.'+body.status,order.id);return view(order.id)}
+ function submit(order,user,body){ensure(order,user,true);const b=version(order.id,body.version),data=JSON.parse(b.data);check(body.confirmed===true,400,'Confirme que revisou as informações e tem autorização para usar os materiais.');check(data.company_name&&data.services,400,'Preencha o nome da empresa e a lista de serviços.');check(data.company_intro||data.ai_support,400,'Envie a apresentação da empresa ou solicite apoio da Imagine com IA.');check(data.email||data.phone||data.whatsapp,400,'Informe ao menos um contato da empresa.');const files=view(order.id).files;check(files.some(f=>f.kind==='logo')||data.logo_unavailable,400,'Envie a logomarca ou informe que não possui o arquivo.');check(files.some(f=>f.kind==='manual')||data.manual_unavailable,400,'Envie o manual de identidade ou informe que não possui um.');const stamp=timestamp();
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const current=get('SELECT * FROM briefings WHERE order_id=?',order.id);
+  check(current?.version===b.version&&current.data===b.data,409,'Revisão do briefing alterada durante a confirmação.');
+  const changed=run("UPDATE briefings SET status='submitted',version=version+1,submitted_at=?,review_note='',reviewed_at=NULL,updated_at=? WHERE order_id=? AND version=?",stamp,stamp,order.id,b.version);
+  check(changed.changes===1,409,'A revisão do briefing mudou.');
+  run('INSERT INTO briefing_submission_receipts(order_id,briefing_version,buyer_id,data_bytes,data_sha256,file_manifest,rights_confirmed,created_at) VALUES(?,?,?,?,?,?,1,?)',order.id,b.version+1,user.id,b.data,sha256(b.data),fileManifest(order.id),stamp);
+  log(user,'briefing.submitted',order.id);
+  db.exec('COMMIT');
+ }catch(error){db.exec('ROLLBACK');throw error}
+ return view(order.id)}
+ function review(order,user,body){ensure(order,user);check(user.role==='admin',403,'A revisão é exclusiva da Imagine.');const b=version(order.id,body.version);check(b.status==='submitted',409,'Somente briefings enviados podem ser revisados.');check(['approved','revision_requested'].includes(body.status),400,'Estado de revisão inválido.');/* A revisão de conteúdo não exige domínio; o URL HTTPS final é validado ao publicar. */const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Observação muito longa.');check(body.status!=='revision_requested'||note.length>=5,400,'Descreva o que o cliente precisa complementar.');const witness=get('SELECT * FROM briefing_submission_receipts WHERE order_id=? AND briefing_version=?',order.id,b.version);
+ check(witness?.buyer_id===order.user_id&&witness.rights_confirmed===1&&witness.data_bytes===b.data&&witness.data_sha256===sha256(b.data)&&witness.file_manifest===fileManifest(order.id),409,'Confirmação exata do comprador ausente, obsoleta ou divergente.');
+ const stamp=timestamp();
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  const current=get('SELECT * FROM briefings WHERE order_id=?',order.id);
+  check(current?.status==='submitted'&&current.version===b.version&&current.data===b.data,409,'Revisão alterada antes da decisão.');
+  const changed=run("UPDATE briefings SET status=?,review_note=?,reviewed_at=?,version=version+1,updated_at=? WHERE order_id=? AND version=? AND status='submitted'",body.status,note,stamp,stamp,order.id,b.version);
+  check(changed.changes===1,409,'Revisão alterada antes da decisão.');
+  run('INSERT INTO briefing_review_receipts(id,order_id,submission_version,reviewer_id,decision,data_sha256,created_at) VALUES(?,?,?,?,?,?,?)',randomUUID(),order.id,b.version,user.id,body.status,witness.data_sha256,stamp);
+  log(user,'briefing.'+body.status,order.id);
+  db.exec('COMMIT');
+ }catch(error){db.exec('ROLLBACK');throw error}
+ return view(order.id)}
  function detect(buffer,name,kind){const ext=name.split('.').pop().toLowerCase();let mime;if(ext==='pdf'&&buffer.subarray(0,5).toString()==='%PDF-')mime='application/pdf';if(kind==='logo'){if(ext==='png'&&buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))mime='image/png';if(['jpg','jpeg'].includes(ext)&&buffer[0]===255&&buffer[1]===216&&buffer[2]===255)mime='image/jpeg';if(ext==='webp'&&buffer.subarray(0,4).toString()==='RIFF'&&buffer.subarray(8,12).toString()==='WEBP')mime='image/webp'}check(mime,400,kind==='manual'?'Envie o manual em PDF.':'Envie a logomarca em PNG, JPG, WebP ou PDF.');return mime}
  async function upload(order,user,req){ensure(order,user,true);check(uploadDir,503,'O armazenamento privado ainda não foi configurado.');const kind=req.headers['x-file-kind'];check(['logo','manual'].includes(kind),400,'Tipo de material inválido.');let name;try{name=decodeURIComponent(req.headers['x-file-name']||'')}catch{}check(typeof name==='string'&&name.length>0&&name.length<=180&&!/[\/\\\x00-\x1f\x7f]/.test(name),400,'Nome de arquivo inválido.');const length=Number(req.headers['content-length']);check(!Number.isFinite(length)||length<=MAX_FILE_BYTES,413,'Cada arquivo pode ter até 10 MB.');const existing=get('SELECT COUNT(*) AS n,COALESCE(SUM(size),0) AS bytes FROM briefing_files WHERE order_id=?',order.id);check(existing.n<10,409,'Limite de 10 arquivos por pedido.');let bytes=0;const chunks=[];for await(const chunk of req){bytes+=chunk.length;check(bytes<=MAX_FILE_BYTES&&existing.bytes+bytes<=MAX_ORDER_BYTES,413,'Limite excedido: 10 MB por arquivo e 50 MB por pedido.');chunks.push(chunk)}check(bytes>0,400,'O arquivo está vazio.');const buffer=Buffer.concat(chunks),mime=detect(buffer,name,kind),id=randomUUID(),storage=id+'.bin';await mkdir(uploadDir,{recursive:true,mode:0o700});await writeFile(join(uploadDir,storage),buffer,{flag:'wx',mode:0o600});try{ensure(get('SELECT * FROM orders WHERE id=?',order.id),user,true);seed(order.id);run('INSERT INTO briefing_files VALUES(?,?,?,?,?,?,?,?,?)',id,order.id,kind,name,storage,mime,bytes,user.id,timestamp());run('UPDATE briefings SET version=version+1,updated_at=? WHERE order_id=?',timestamp(),order.id);log(user,'briefing.file_uploaded',order.id)}catch(error){await unlink(join(uploadDir,storage)).catch(()=>{});throw error}return view(order.id)}
  async function download(order,user,id,res,method='GET'){ensure(order,user);const file=get('SELECT * FROM briefing_files WHERE id=? AND order_id=?',id,order.id);check(file,404,'Arquivo não encontrado.');check(uploadDir,503,'Armazenamento indisponível.');const content=await readFile(join(uploadDir,file.storage_name));res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':"attachment; filename=material; filename*=UTF-8''"+encodeURIComponent(file.original_name),'Content-Length':content.length,'Content-Security-Policy':"default-src 'none'; sandbox",'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});res.end(method==='HEAD'?undefined:content)}
