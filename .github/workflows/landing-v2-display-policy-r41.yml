@@ -54,7 +54,7 @@ jobs:
           php -m | grep -i -x curl
           fixture=apps/portal/labs/landing-contract-click/landing_v2_display_policy_provider_lab.php
           receipt=apps/portal/labs/landing-contract-click/landing_v2_private_delivery_receipt_lab.php
-          for mode in sandbox frame-deny; do
+          for mode in sandbox frame-deny clean; do
             LANDING_R41_DISPLAY_MODE="$mode" php -S 127.0.0.1:8791 "$fixture" > "$RUNNER_TEMP/r41-$mode.log" 2>&1 &
             origin=$!
             trap 'kill "$origin" 2>/dev/null || true' EXIT
@@ -79,14 +79,21 @@ jobs:
               fi
               if [ "$mode" = sandbox ]; then
                 grep -Eqi '^Content-Security-Policy: sandbox' "$headers"
-              else
+              elif [ "$mode" = frame-deny ]; then
                 grep -Eqi '^X-Frame-Options: DENY' "$headers"
+              else
+                ! grep -Eqi '^(Content-Security-Policy|X-Frame-Options):' "$headers"
               fi
             done
-            php "$receipt" probe-display-policy | tee "$RUNNER_TEMP/r41-$mode-proof.txt"
-            grep -F 'R41_DISPLAY_POLICY_REFUSED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r41-$mode-proof.txt"
+            if [ "$mode" = clean ]; then
+              php "$receipt" probe-display-policy-positive | tee "$RUNNER_TEMP/r41-$mode-proof.txt"
+              grep -F 'R41_CANONICAL_DISPLAY_POLICY_ACCEPTED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r41-$mode-proof.txt"
+            else
+              php "$receipt" probe-display-policy | tee "$RUNNER_TEMP/r41-$mode-proof.txt"
+              grep -F 'R41_DISPLAY_POLICY_REFUSED: state=1 html=1; NO_GO; NO_EGRESS' "$RUNNER_TEMP/r41-$mode-proof.txt"
+            fi
             kill "$origin" 2>/dev/null || true
             wait "$origin" 2>/dev/null || true
             trap - EXIT
           done
-          echo 'R41_FOUR_NEGATIVE_ENDPOINT_CASES_PASS; NO_DB; NO_RECEIPT; NO_OPERATIONAL_AUTHORITY'
+          echo 'R41_FOUR_NEGATIVES_TWO_POSITIVES_PASS; NO_DB; NO_RECEIPT; NO_OPERATIONAL_AUTHORITY'

@@ -19,7 +19,7 @@ $path=parse_url((string)($_SERVER['REQUEST_URI'] ?? ''),PHP_URL_PATH);
 $mode=getenv('LANDING_R41_DISPLAY_MODE');
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET'
     || !in_array($path,['/ci/state','/ci/served'],true)
-    || !in_array($mode,['sandbox','frame-deny'],true)) {
+    || !in_array($mode,['sandbox','frame-deny','clean'],true)) {
     http_response_code(403); exit;
 }
 header('Cache-Control: no-store');
@@ -27,7 +27,7 @@ header('Content-Type: '.($path === '/ci/state'
     ? 'application/json' : 'text/html; charset=utf-8'));
 if ($mode === 'sandbox') {
     header('Content-Security-Policy: sandbox');
-} else {
+} else if ($mode === 'frame-deny') {
     header('X-Frame-Options: DENY');
 }
 if ($path === '/ci/state') {

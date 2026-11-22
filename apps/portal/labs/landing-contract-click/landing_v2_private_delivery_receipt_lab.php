@@ -262,6 +262,13 @@ if(PHP_SAPI==='cli-server') {
 }
 
 $mode=$argv[1]??'';
+if($mode==='probe-display-policy-positive') {
+    // Normal R28 shape: no CSP/XFO, no DB, no receipt or publication.
+    if(r29http(R29_STATE_URL)===null || r29http(R29_HTML_URL)===null)
+        throw new RuntimeException('R41 valid no-store provider shape rejected');
+    echo "R41_CANONICAL_DISPLAY_POLICY_ACCEPTED: state=1 html=1; NO_GO; NO_EGRESS\n";
+    exit;
+}
 if($mode==='probe-display-policy') {
     // R41: no database and no receipt issuance. Two independent loopback
     // endpoints must both reject unexpected browser rendering policies.
