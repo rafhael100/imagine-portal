@@ -46,6 +46,10 @@ function r29http(string $url): ?array {
     // R40: an APPLIED response must be fresh. Never promote a cacheable
     // intermediary response to evidence of the current release.
     $cacheHeaders=[];
+    // R41: browser rendering can also change through a CSP sandbox or
+    // frame-denial header even when the HTML bytes and MIME are unchanged.
+    // The canonical R28 loopback provider emits neither header.
+    $displayHeaders=[];
     $data='';
     $h=curl_init($url);
     curl_setopt_array($h, [
@@ -53,7 +57,7 @@ function r29http(string $url): ?array {
         CURLOPT_MAXREDIRS=>0, CURLOPT_PROXY=>'',
         CURLOPT_HTTPHEADER=>['Cache-Control: no-cache, no-store','Pragma: no-cache'],
         CURLOPT_CONNECTTIMEOUT_MS=>500, CURLOPT_TIMEOUT_MS=>2000,
-        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders,&$representationHeaders,&$cacheHeaders):int {
+        CURLOPT_HEADERFUNCTION=>static function($handle,string $line) use (&$mimeHeaders,&$presentationHeaders,&$representationHeaders,&$cacheHeaders,&$displayHeaders):int {
             // Reset only on a new HTTP status line. Duplicate Content-Type
             // headers within the final response are ambiguous and refused.
             if(preg_match('/\\AHTTP\\/[0-9.]+ [0-9]{3}[^\\r\\n]*\\r?\\n\\z/', $line)===1) {
@@ -61,6 +65,7 @@ function r29http(string $url): ?array {
                 $presentationHeaders=[];
                 $representationHeaders=[];
                 $cacheHeaders=[];
+                $displayHeaders=[];
             } else if(preg_match('/\\Acontent-type:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
                 $mimeHeaders[]=trim($m[1]);
             } else if(preg_match('/\\A(?:content-disposition|refresh):[^\\r\\n]*\\r?\\n\\z/i',$line)===1) {
@@ -71,6 +76,8 @@ function r29http(string $url): ?array {
                 $representationHeaders[]=trim($line);
             } else if(preg_match('/\\Acache-control:[ \\t]*([^\\r\\n]+)\\r?\\n\\z/i',$line,$m)===1) {
                 $cacheHeaders[]=trim($m[1]);
+            } else if(preg_match('/\\A(?:content-security-policy|x-frame-options):[^\\r\\n]*\\r?\\n\\z/i',$line)===1) {
+                $displayHeaders[]=trim($line);
             }
             return strlen($line);
         },
@@ -86,7 +93,7 @@ function r29http(string $url): ?array {
     curl_close($h);
     return $ok===true && $status===200 && $mimeHeaders===[$expectedMime]
         && $presentationHeaders===[] && $representationHeaders===[]
-        && $cacheHeaders===['no-store']
+        && $cacheHeaders===['no-store'] && $displayHeaders===[]
         ? [$data,$status] : null;
 }
 /**
@@ -255,6 +262,14 @@ if(PHP_SAPI==='cli-server') {
 }
 
 $mode=$argv[1]??'';
+if($mode==='probe-display-policy') {
+    // R41: no database and no receipt issuance. Two independent loopback
+    // endpoints must both reject unexpected browser rendering policies.
+    if(r29http(R29_STATE_URL)!==null || r29http(R29_HTML_URL)!==null)
+        throw new RuntimeException('R41 display-changing response header accepted');
+    echo "R41_DISPLAY_POLICY_REFUSED: state=1 html=1; NO_GO; NO_EGRESS\n";
+    exit;
+}
 if($mode==='probe-state-canonical') {
     // Pure negative cases exercise the exact decoder used by HTTP readback.
     // No provider dispatch, PG mutation, buyer auth or network access.
