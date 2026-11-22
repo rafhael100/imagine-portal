@@ -288,3 +288,44 @@ test('OnePage Node R17: revogação editorial append-only nega produção e exig
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM briefing_revocation_receipts WHERE order_id=?').get(o.id).n,1);
  assert.equal(f.db.prepare("SELECT COUNT(*) n FROM production_events WHERE order_id=? AND type='publish'").get(o.id).n,0);
 });
+
+
+test('OnePage Node R18: release v1 não herda autorização editorial v2 para publicação (NO-GO)',async t=>{
+ const f=await fixture(t),buyer=await f.client('Titular sintético R18'),reviewer=await f.client('Revisor sintético R18','admin');
+ const o=await paidSite(f,buyer),brief='/api/orders/'+o.id+'/briefing',review='/api/orders/'+o.id+'/review-briefing',prod='/api/orders/'+o.id+'/production';
+ const saved=await buyer.call(brief,{version:0,data:{...briefingData,domain:'',services:'Serviços fictícios da versão R18 v1'}});
+ assert.equal(saved.status,200);
+ const sub=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:saved.body.briefing.version,confirmed:true});
+ assert.equal(sub.status,200);
+ const approved=await reviewer.call(review,{version:sub.body.briefing.version,status:'approved',note:'Revisão R18 v1.'});
+ assert.equal(approved.status,200);
+ const start=await reviewer.call(prod,{action:'start',version:0});
+ assert.equal(start.status,200);
+ const preview=await reviewer.call(prod,{action:'preview',version:start.body.production.version,url:'https://preview.example.test/r18-v1',note:'Prévia fictícia v1.'});
+ assert.equal(preview.status,200);
+ const pin=f.db.prepare('SELECT * FROM production_release_brief_pins WHERE order_id=? AND release=1').get(o.id);
+ const v1Review=f.db.prepare("SELECT * FROM briefing_review_receipts WHERE order_id=? AND decision='approved'").get(o.id);
+ assert.equal(pin.approval_receipt_id,v1Review.id);
+ assert.equal(pin.data_sha256,v1Review.data_sha256);
+ assert.throws(()=>f.db.prepare('UPDATE production_release_brief_pins SET data_sha256=? WHERE order_id=?').run('a'.repeat(64),o.id),/append-only/);
+ const accepted=await buyer.call(prod,{action:'approve',version:preview.body.production.version,release:1,confirmed:true});
+ assert.equal(accepted.status,200);
+ const revoke=await reviewer.call(review,{version:approved.body.briefing.version,status:'revoked',note:'Retirada explícita da aprovação R18 v1.'});
+ assert.equal(revoke.status,200);
+ const edited=await buyer.call(brief,{version:revoke.body.briefing.version,data:{...briefingData,domain:'',services:'Serviços fictícios da versão R18 v2'}});
+ assert.equal(edited.status,200);
+ const sub2=await buyer.call('/api/orders/'+o.id+'/submit-briefing',{version:edited.body.briefing.version,confirmed:true});
+ assert.equal(sub2.status,200);
+ const approved2=await reviewer.call(review,{version:sub2.body.briefing.version,status:'approved',note:'Nova revisão R18 v2.'});
+ assert.equal(approved2.status,200);
+ const v2Review=f.db.prepare("SELECT * FROM briefing_review_receipts WHERE order_id=? AND submission_version=?").get(o.id,sub2.body.briefing.version);
+ assert.notEqual(v1Review.id,v2Review.id);
+ assert.notEqual(v1Review.data_sha256,v2Review.data_sha256);
+ // Mesmo pedido, mesmo comprador e produção antiga: o briefing novo NÃO revalida a release antiga.
+ const denied=await reviewer.call(prod,{action:'publish',version:accepted.body.production.version,url:'https://published.example.test/r18-v1'});
+ assert.equal(denied.status,409);
+ assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM production_events WHERE order_id=? AND type='publish'").get(o.id).n,0);
+ assert.equal(f.db.prepare('SELECT stage FROM productions WHERE order_id=?').get(o.id).stage,'approved');
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM production_release_brief_pins WHERE order_id=?').get(o.id).n,1);
+ assert.equal(pin.approval_receipt_id,f.db.prepare('SELECT approval_receipt_id FROM production_release_brief_pins WHERE order_id=? AND release=1').get(o.id).approval_receipt_id);
+});

@@ -2,12 +2,45 @@ import {randomUUID} from 'node:crypto';
 const paid=new Set(['CONFIRMED','RECEIVED','RECEIVED_IN_CASH']);
 const check=(ok,status,message)=>{if(!ok)throw Object.assign(new Error(message),{status})};
 export function businessDue(start,days=7){const d=new Date(start);let n=0;while(n<days){d.setUTCDate(d.getUTCDate()+1);if(![0,6].includes(d.getUTCDay()))n++}return d.toISOString().slice(0,10)}
-export function migrateProduction(db){if(db.prepare('SELECT version FROM schema_version WHERE version=3').get())return;db.exec(`BEGIN IMMEDIATE;
+export function migrateProduction(db){if(!db.prepare('SELECT version FROM schema_version WHERE version=3').get()){db.exec(`BEGIN IMMEDIATE;
 CREATE TABLE productions(order_id TEXT PRIMARY KEY REFERENCES orders(id),stage TEXT NOT NULL DEFAULT 'preparation',version INTEGER NOT NULL DEFAULT 0,started_at TEXT,due_date TEXT,progress INTEGER NOT NULL DEFAULT 0,preview_url TEXT NOT NULL DEFAULT '',release INTEGER NOT NULL DEFAULT 0,adjustments INTEGER NOT NULL DEFAULT 0,approved_release INTEGER,approved_at TEXT,live_url TEXT NOT NULL DEFAULT '',updated_at TEXT NOT NULL);
 CREATE TABLE production_events(id TEXT PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),actor_id TEXT NOT NULL REFERENCES users(id),type TEXT NOT NULL,body TEXT NOT NULL,release INTEGER NOT NULL,created_at TEXT NOT NULL);
 CREATE INDEX production_events_order ON production_events(order_id,created_at);
 INSERT INTO schema_version VALUES(3);COMMIT;`)}
+ if(db.prepare('SELECT version FROM schema_version WHERE version=6').get())return;
+ // Aditiva: não altera dados de produções anteriores, que continuam sem prova de origem.
+ db.exec(`BEGIN IMMEDIATE;
+ CREATE TABLE production_release_brief_pins(
+  order_id TEXT NOT NULL REFERENCES orders(id),
+  release INTEGER NOT NULL CHECK(release>0),
+  approval_receipt_id TEXT NOT NULL REFERENCES briefing_review_receipts(id),
+  submission_version INTEGER NOT NULL CHECK(submission_version>0),
+  data_sha256 TEXT NOT NULL CHECK(length(data_sha256)=64),
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(order_id,release)
+ );
+ CREATE TRIGGER production_release_pin_no_update BEFORE UPDATE ON production_release_brief_pins
+ BEGIN SELECT RAISE(ABORT,'production release pin is append-only'); END;
+ CREATE TRIGGER production_release_pin_no_delete BEFORE DELETE ON production_release_brief_pins
+ BEGIN SELECT RAISE(ABORT,'production release pin is append-only'); END;
+ INSERT INTO schema_version VALUES(6);COMMIT;`);
+}
 export function createProduction(db,approvedBriefing=()=>false){migrateProduction(db);const get=(s,...p)=>db.prepare(s).get(...p),run=(s,...p)=>db.prepare(s).run(...p);
+ // Verificador restrito ao Node legado. Não certifica HTML, entrega ou autoridade Laravel.
+ function currentApprovedReceipt(orderId){
+  const witness=get(`SELECT r.id AS approval_receipt_id,r.submission_version,r.data_sha256
+   FROM briefing_review_receipts r
+   JOIN briefing_submission_receipts s ON s.order_id=r.order_id AND s.briefing_version=r.submission_version
+   JOIN briefings b ON b.order_id=r.order_id
+   WHERE r.order_id=? AND r.decision='approved' AND b.status='approved'
+   AND b.version=r.submission_version+1 AND s.rights_confirmed=1
+   AND r.data_sha256=s.data_sha256
+   AND NOT EXISTS(SELECT 1 FROM briefing_revocation_receipts v WHERE v.approval_receipt_id=r.id)`,orderId);
+  check(witness&&typeof witness.approval_receipt_id==='string'&&
+   Number.isSafeInteger(witness.submission_version)&&
+   /^[a-f0-9]{64}$/.test(witness.data_sha256),409,'Revisão aprovada exata não comprovada.');
+  return witness;
+ }
  function view(id){return {...(get('SELECT * FROM productions WHERE order_id=?',id)||{order_id:id,stage:'preparation',version:0,progress:0,release:0,adjustments:0,preview_url:'',live_url:''}),events:db.prepare('SELECT e.*,u.name,u.role FROM production_events e JOIN users u ON u.id=e.actor_id WHERE order_id=? ORDER BY e.created_at,e.rowid').all(id)}}
  function url(value){check(typeof value==='string'&&value.length<=800,400,'Informe o link do site.');let u;try{u=new URL(value)}catch{}check(u&&u.protocol==='https:'&&!u.username&&!u.password,400,'Use um link HTTPS válido, sem credenciais.');check(!['localhost','127.0.0.1','[::1]'].includes(u.hostname),400,'Use um endereço acessível ao cliente.');return u.href}
  function mutate(order,user,body){check(order.product_id==='site',400,'Fluxo exclusivo de sites.');check(paid.has(order.payment_status),409,'Confirme o pagamento antes de avançar.');const current=view(order.id);check(Number.isInteger(body.version)&&body.version===current.version,409,'O projeto foi atualizado. Reabra o pedido.');const action=body.action,admin=user.role==='admin';const note=typeof body.note==='string'?body.note.trim():'';check(note.length<=4000,400,'Comentário muito longo.');let next={...current};const timestamp=new Date().toISOString();let text=note;
@@ -18,7 +51,21 @@ export function createProduction(db,approvedBriefing=()=>false){migrateProductio
  if(['approve','request-changes'].includes(action)){check(!admin&&order.user_id===user.id,403,'Somente o cliente titular pode decidir.');check(current.stage==='review'&&body.release===current.release,409,'Esta prévia não está mais disponível para aprovação.');check(body.confirmed===true,400,'Confirme a revisão da versão atual.');if(action==='approve'){next.stage='approved';next.approved_release=current.release;next.approved_at=timestamp;text=note||'Cliente aprovou esta versão e autorizou sua publicação.';}else{check(note.length>=10,400,'Descreva os ajustes desejados.');check(current.adjustments<2,409,'As duas rodadas incluídas foram utilizadas. Alinhe ajustes adicionais na conversa do pedido.');next.stage='changes';next.adjustments=current.adjustments+1;next.progress=75;}}
  if(action==='publish'){check(current.stage==='approved'&&current.approved_release===current.release,409,'A versão atual precisa da aprovação do cliente antes da publicação.');next.live_url=url(body.url);next.stage='published';text=note||'Site publicado após a aprovação do cliente.';}
  const phase={preparation:'planejamento',production:'desenvolvimento',changes:'desenvolvimento',review:'revisao',approved:'revisao',published:'entregue'}[next.stage];
- db.exec('BEGIN IMMEDIATE');try{check(approvedBriefing(order)===true,409,'Confirmação do comprador e revisão atual não comprovadas.');run('INSERT OR IGNORE INTO productions(order_id,updated_at) VALUES(?,?)',order.id,timestamp);const result=run('UPDATE productions SET stage=?,version=version+1,started_at=?,due_date=?,progress=?,preview_url=?,release=?,adjustments=?,approved_release=?,approved_at=?,live_url=?,updated_at=? WHERE order_id=? AND version=?',next.stage,next.started_at||null,next.due_date||null,next.progress,next.preview_url,next.release,next.adjustments,next.approved_release??null,next.approved_at||null,next.live_url,timestamp,order.id,current.version);check(result.changes===1,409,'Projeto atualizado em outra aba.');run('INSERT INTO production_events VALUES(?,?,?,?,?,?,?)',randomUUID(),order.id,user.id,action,text,next.release,timestamp);run('UPDATE orders SET phase=?,updated_at=? WHERE id=?',phase,timestamp,order.id);run('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)',user.id,'production.'+action,order.id,timestamp);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}return view(order.id);
+ db.exec('BEGIN IMMEDIATE');try{
+  check(approvedBriefing(order)===true,409,'Confirmação do comprador e revisão atual não comprovadas.');
+  if(['preview','approve','request-changes','publish'].includes(action)){
+   const witness=currentApprovedReceipt(order.id);
+   if(action==='preview'){
+    run('INSERT INTO production_release_brief_pins(order_id,release,approval_receipt_id,submission_version,data_sha256,created_at) VALUES(?,?,?,?,?,?)',
+     order.id,next.release,witness.approval_receipt_id,witness.submission_version,witness.data_sha256,timestamp);
+   }else{
+    const pin=get('SELECT * FROM production_release_brief_pins WHERE order_id=? AND release=?',order.id,current.release);
+    check(pin&&pin.approval_receipt_id===witness.approval_receipt_id&&
+     pin.submission_version===witness.submission_version&&
+     pin.data_sha256===witness.data_sha256,409,'Release vinculada a outra revisão do briefing. Gere nova prévia e aceite.');
+   }
+  }
+  run('INSERT OR IGNORE INTO productions(order_id,updated_at) VALUES(?,?)',order.id,timestamp);const result=run('UPDATE productions SET stage=?,version=version+1,started_at=?,due_date=?,progress=?,preview_url=?,release=?,adjustments=?,approved_release=?,approved_at=?,live_url=?,updated_at=? WHERE order_id=? AND version=?',next.stage,next.started_at||null,next.due_date||null,next.progress,next.preview_url,next.release,next.adjustments,next.approved_release??null,next.approved_at||null,next.live_url,timestamp,order.id,current.version);check(result.changes===1,409,'Projeto atualizado em outra aba.');run('INSERT INTO production_events VALUES(?,?,?,?,?,?,?)',randomUUID(),order.id,user.id,action,text,next.release,timestamp);run('UPDATE orders SET phase=?,updated_at=? WHERE id=?',phase,timestamp,order.id);run('INSERT INTO audit(actor_id,action,resource_id,created_at) VALUES(?,?,?,?)',user.id,'production.'+action,order.id,timestamp);db.exec('COMMIT')}catch(e){db.exec('ROLLBACK');throw e}return view(order.id);
  }
  return {view,mutate};
 }
