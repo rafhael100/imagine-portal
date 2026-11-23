@@ -86,6 +86,17 @@ final readonly class OnepageApprovedBriefExportGate
                 !self::matches($afterContract, $afterBrief, $orderRef, $siteRef, $sourceVersion)) {
                 throw new RuntimeException();
             }
+            // R21: the contract may be revoked or its tenant changed while
+            // the second private briefing source or final witness is queried.
+            // Observe the live contract once more, without reading any more
+            // private bytes. This is still not a lock or commercial authority.
+            $finalContract = $this->contracts->findAuthorizedSiteOrder($orderRef);
+            if (!$finalContract instanceof SiteContractSnapshot ||
+                $finalContract != $beforeContract ||
+                $finalContract->productCode !== 'onepage' ||
+                $finalContract->orderRef !== $orderRef) {
+                throw new RuntimeException();
+            }
             return $export;
         } catch (Throwable) {
             // Never expose order, site, approvalRef, original content or cause.
