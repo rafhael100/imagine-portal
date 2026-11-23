@@ -1,0 +1,55 @@
+name: OnePage Portal contract recheck after private read R21 (CI-only)
+on:
+  push:
+    branches: ['test/onepage-contract-after-source-r21-20261122']
+    paths:
+      - '.github/workflows/onepage-contract-after-read-r21.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php'
+      - 'tests/onepage-approved-brief-export-gate-offline.php'
+      - 'docs/PORTAL-ONEPAGE-CONTRACT-AFTER-READ-R21.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/onepage-approval-before-second-read-r20-20261122']
+permissions:
+  contents: read
+concurrency:
+  group: onepage-contract-after-read-r21-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  fail-closed-after-private-read:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      ((github.event_name == 'push' &&
+        github.ref == 'refs/heads/test/onepage-contract-after-source-r21-20261122') ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == true &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'test/onepage-contract-after-source-r21-20261122' &&
+        github.event.pull_request.base.ref == 'test/onepage-approval-before-second-read-r20-20261122' &&
+        github.event.pull_request.base.sha == 'e8ada95122f5808837da9be3ec322a7e1c732ec2'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+          tools: none
+      - name: Lint the exact guard and test, then run isolated denial checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          php -l apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php
+          php -l tests/onepage-approved-brief-export-gate-offline.php
+          php tests/onepage-approved-brief-export-gate-offline.php | tee "$RUNNER_TEMP/r21.txt"
+          grep -Eq '^ONEPAGE APPROVED BRIEF SOURCE BOUNDARY PASS: [1-9][0-9]* checks; default-deny, no official approval or transport[.]$' "$RUNNER_TEMP/r21.txt"
