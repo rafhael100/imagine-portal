@@ -64,10 +64,11 @@ $contracts = new class($contract) implements PortalSiteContractSource {
     public int $calls = 0;
     public ?SiteContractSnapshot $next = null;
     public bool $denied = false;
+    public bool $deniedAfterFirst = false;
     public function __construct(public SiteContractSnapshot $current) {}
     public function findAuthorizedSiteOrder(string $orderRef): ?SiteContractSnapshot {
         ++$this->calls;
-        if ($this->denied) return null;
+        if ($this->denied || ($this->deniedAfterFirst && $this->calls > 1)) return null;
         return $this->calls > 1 && $this->next !== null ? $this->next : $this->current;
     }
 };
@@ -96,7 +97,7 @@ $witness = new class implements CurrentOnepageBriefApprovalWitness {
     }
 };
 $reset = static function() use ($contracts,$briefs,$witness,$contract,$record): void {
-    $contracts->calls=0;$contracts->next=null;$contracts->denied=false;$contracts->current=$contract;
+    $contracts->calls=0;$contracts->next=null;$contracts->denied=false;$contracts->deniedAfterFirst=false;$contracts->current=$contract;
     $briefs->calls=0;$briefs->next=null;$briefs->denied=false;$briefs->current=$record;
     $witness->calls=0;$witness->approved=true;$witness->revokeAfterFirst=false;
 };
@@ -144,6 +145,24 @@ $ok($contracts->calls===0 && $briefs->calls===0 && $witness->calls===0,
 $reset();$contracts->denied=true;
 $deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
     'contract source denies');
+$ok($briefs->calls===0 && $witness->calls===0,
+    'unauthorized initial contract must not query any private briefing or witness');
+
+$reset();$contracts->current=new SiteContractSnapshot(
+    $contract->tenantRef,'synthetic-other-order',$contract->contractRef,1,'onepage',
+);
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'unrelated authorized order context denies before briefing read');
+$ok($briefs->calls===0 && $witness->calls===0,
+    'mismatched order is rejected without reading another order briefing');
+
+$reset();$contracts->current=new SiteContractSnapshot(
+    $contract->tenantRef,$contract->orderRef,$contract->contractRef,1,'landing_page',
+);
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'landing contract cannot select private OnePage briefing');
+$ok($briefs->calls===0 && $witness->calls===0,
+    'wrong product is refused before source read, even in the same tenant');
 $reset();$briefs->denied=true;
 $deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
     'approved source denies');
@@ -160,6 +179,13 @@ $reset();$contracts->next=new SiteContractSnapshot(
 );
 $deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
     'contract revision changes between reads');
+$ok($briefs->calls===1 && $witness->calls===1,
+    'changed contract must not cause a second unauthorized briefing read');
+$reset();$contracts->deniedAfterFirst=true;
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'authorized contract becomes revoked before the second private read');
+$ok($contracts->calls===2 && $briefs->calls===1 && $witness->calls===1,
+    'revoked contract stops before accessing private briefing on second pass');
 $reset();$contracts->next=new SiteContractSnapshot(
     'synthetic-other-org',$contract->orderRef,$contract->contractRef,1,'onepage',
 );
