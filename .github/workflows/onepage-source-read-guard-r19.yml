@@ -1,0 +1,54 @@
+name: OnePage Portal source read guard R19 (CI-only)
+on:
+  push:
+    branches: ['test/onepage-source-read-guard-r19-20261122']
+    paths:
+      - '.github/workflows/onepage-source-read-guard-r19.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php'
+      - 'tests/onepage-approved-brief-export-gate-offline.php'
+      - 'docs/PORTAL-ONEPAGE-SOURCE-READ-GUARD-R19.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/portal-onepage-approved-brief-export-boundary-2026-11-19']
+permissions:
+  contents: read
+concurrency:
+  group: onepage-source-guard-r19-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  fail-closed-before-private-read:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      ((github.event_name == 'push' &&
+        github.ref == 'refs/heads/test/onepage-source-read-guard-r19-20261122') ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == true &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'test/onepage-source-read-guard-r19-20261122' &&
+        github.event.pull_request.base.ref == 'feature/portal-onepage-approved-brief-export-boundary-2026-11-19' &&
+        github.event.pull_request.base.sha == '89e309b497137cec4960b87f90a49d00bbf92843'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+          tools: none
+      - name: Lint the exact guard and test, then run isolated denial checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php
+          php -l tests/onepage-approved-brief-export-gate-offline.php
+          php tests/onepage-approved-brief-export-gate-offline.php | tee "$RUNNER_TEMP/r19.txt"
+          grep -Eq '^ONEPAGE APPROVED BRIEF SOURCE BOUNDARY PASS: [1-9][0-9]* checks; default-deny, no official approval or transport[.]$' "$RUNNER_TEMP/r19.txt"
