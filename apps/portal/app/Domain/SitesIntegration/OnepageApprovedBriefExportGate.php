@@ -69,7 +69,7 @@ final readonly class OnepageApprovedBriefExportGate
             // Revocation, tenant/order change, or product drift cancels the
             // second private read too. A closed final result is not enough.
             if (!$afterContract instanceof SiteContractSnapshot ||
-                $afterContract != $beforeContract ||
+                !self::sameContract($afterContract, $beforeContract) ||
                 $afterContract->productCode !== 'onepage' ||
                 $afterContract->orderRef !== $orderRef) {
                 throw new RuntimeException();
@@ -81,7 +81,7 @@ final readonly class OnepageApprovedBriefExportGate
             }
             $afterBrief = $this->briefs->readExact($orderRef, $siteRef, $sourceVersion);
             if (!$afterBrief instanceof ApprovedOnepageBriefSnapshot ||
-                $afterBrief != $beforeBrief ||
+                !self::sameBrief($afterBrief, $beforeBrief) ||
                 !$this->approvals->isCurrent($afterBrief) ||
                 !self::matches($afterContract, $afterBrief, $orderRef, $siteRef, $sourceVersion)) {
                 throw new RuntimeException();
@@ -92,7 +92,7 @@ final readonly class OnepageApprovedBriefExportGate
             // private bytes. This is still not a lock or commercial authority.
             $finalContract = $this->contracts->findAuthorizedSiteOrder($orderRef);
             if (!$finalContract instanceof SiteContractSnapshot ||
-                $finalContract != $beforeContract ||
+                !self::sameContract($finalContract, $beforeContract) ||
                 $finalContract->productCode !== 'onepage' ||
                 $finalContract->orderRef !== $orderRef) {
                 throw new RuntimeException();
@@ -102,6 +102,36 @@ final readonly class OnepageApprovedBriefExportGate
             // Never expose order, site, approvalRef, original content or cause.
             throw new RuntimeException('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED');
         }
+    }
+
+    /**
+     * Contract references are opaque, even when they look numeric. PHP's
+     * object == comparison treats string '01' as equal to '1', which could
+     * defer a revoked/changed contract until AFTER a private source read.
+     * Compare each typed value strictly; object identity is not required.
+     */
+    private static function sameContract(
+        SiteContractSnapshot $a,
+        SiteContractSnapshot $b,
+    ): bool {
+        return $a->tenantRef === $b->tenantRef &&
+            $a->orderRef === $b->orderRef &&
+            $a->contractRef === $b->contractRef &&
+            $a->contractRevision === $b->contractRevision &&
+            $a->productCode === $b->productCode;
+    }
+
+    /** Exact approved source and receipt identity, not PHP loose object ==. */
+    private static function sameBrief(
+        ApprovedOnepageBriefSnapshot $a,
+        ApprovedOnepageBriefSnapshot $b,
+    ): bool {
+        return self::sameContract($a->contract, $b->contract) &&
+            $a->selection === $b->selection &&
+            $a->sourceBytes === $b->sourceBytes &&
+            $a->sourceSha256 === $b->sourceSha256 &&
+            $a->approvalRef === $b->approvalRef &&
+            $a->approvalEpoch === $b->approvalEpoch;
     }
 
     private static function matches(
