@@ -74,6 +74,11 @@ final readonly class OnepageApprovedBriefExportGate
                 $afterContract->orderRef !== $orderRef) {
                 throw new RuntimeException();
             }
+            // Recheck approval/revocation *before* a second private source read.
+            // The final check below still rejects revocation during that read.
+            if (!$this->approvals->isCurrent($beforeBrief)) {
+                throw new RuntimeException();
+            }
             $afterBrief = $this->briefs->readExact($orderRef, $siteRef, $sourceVersion);
             if (!$afterBrief instanceof ApprovedOnepageBriefSnapshot ||
                 $afterBrief != $beforeBrief ||
