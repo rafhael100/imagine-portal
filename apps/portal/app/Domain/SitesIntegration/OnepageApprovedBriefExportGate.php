@@ -29,6 +29,13 @@ final readonly class OnepageApprovedBriefExportGate
      */
     public function prepare(string $orderRef, string $siteRef, int $sourceVersion): array
     {
+        // Even a trusted source adapter can accidentally echo private content
+        // before returning a denial. Contain its output on every path.
+        // This is NOT a sandbox for adapters that deliberately flush buffers.
+        $outputLevel = ob_get_level();
+        if (!ob_start()) {
+            throw new RuntimeException('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED');
+        }
         try {
             if (PHP_INT_SIZE !== 8 ||
                 preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/D', $orderRef) !== 1 ||
@@ -101,6 +108,12 @@ final readonly class OnepageApprovedBriefExportGate
         } catch (Throwable) {
             // Never expose order, site, approvalRef, original content or cause.
             throw new RuntimeException('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED');
+        } finally {
+            // Also remove buffers opened by trusted adapters (including when
+            // they throw). Do not end any output buffer owned by the caller.
+            while (ob_get_level() > $outputLevel) {
+                if (!ob_end_clean()) break;
+            }
         }
     }
 
