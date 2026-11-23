@@ -132,8 +132,8 @@ $produced=$gate->prepare($contract->orderRef,$site,12);
 $expected=OnepageBriefSnapshotCandidateEncoder::build($contract,$selection,$source);
 $ok($produced===$expected && $produced['sourceBytes']===$source,
     'explicit authorized mock sources produce only the exact same immutable candidate pair');
-$ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===3,
-    'contract and source are rechecked; witness is checked before and after second private read');
+$ok($contracts->calls===3 && $briefs->calls===2 && $witness->calls===3,
+    'contract is checked again after second private read and final witness, with no third source read');
 foreach(['authorityVerified','clientAccepted','canPublish','canAcceptRealOrders'] as $key){
     $ok($produced[$key]===false,'successful synthetic boundary never promotes '.$key);
 }
