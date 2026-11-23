@@ -1,0 +1,50 @@
+name: OnePage Portal exact typed contract and approval R22 (CI-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/onepage-contract-after-source-r21-20261122']
+    paths:
+      - '.github/workflows/onepage-strict-current-proofs-r22.yml'
+      - 'apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php'
+      - 'tests/onepage-approved-brief-export-gate-offline.php'
+      - 'docs/PORTAL-ONEPAGE-STRICT-SOURCE-PROOFS-R22.md'
+permissions:
+  contents: read
+concurrency:
+  group: onepage-strict-current-proofs-r22-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  strict-value-comparison:
+    if: >-
+      github.repository == 'rafhael100/imagine-portal' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-strict-current-proofs-r22-20261123' &&
+      github.event.pull_request.base.ref == 'test/onepage-contract-after-source-r21-20261122' &&
+      github.event.pull_request.base.sha == 'd4a737f859205004dcb3ca8273a603828b9c4b6c'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+          tools: none
+      - name: Verify exact PR commit and replay of affected boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          php -l apps/portal/app/Domain/SitesIntegration/OnepageApprovedBriefExportGate.php
+          php -l tests/onepage-approved-brief-export-gate-offline.php
+          php tests/onepage-approved-brief-export-gate-offline.php | tee "$RUNNER_TEMP/r22.txt"
+          grep -Eq '^ONEPAGE APPROVED BRIEF SOURCE BOUNDARY PASS: [1-9][0-9]* checks; default-deny, no official approval or transport[.]$' "$RUNNER_TEMP/r22.txt"
