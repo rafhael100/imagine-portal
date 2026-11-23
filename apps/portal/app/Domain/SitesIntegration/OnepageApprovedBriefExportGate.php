@@ -127,11 +127,26 @@ final readonly class OnepageApprovedBriefExportGate
         ApprovedOnepageBriefSnapshot $b,
     ): bool {
         return self::sameContract($a->contract, $b->contract) &&
-            $a->selection === $b->selection &&
+            self::sameSelection($a->selection, $b->selection) &&
             $a->sourceBytes === $b->sourceBytes &&
             $a->sourceSha256 === $b->sourceSha256 &&
             $a->approvalRef === $b->approvalRef &&
             $a->approvalEpoch === $b->approvalEpoch;
+    }
+
+    /**
+     * The already-validated seven-field source selector is an associative
+     * record, not an insertion-ordered sequence. Preserve every field name,
+     * type and exact value; never coerce IDs or revisions. The original
+     * sourceBytes and SHA-256 still require byte-for-byte equality.
+     */
+    private static function sameSelection(array $a, array $b): bool
+    {
+        if (count($a) !== count($b)) return false;
+        foreach ($a as $key => $value) {
+            if (!array_key_exists($key, $b) || $b[$key] !== $value) return false;
+        }
+        return true;
     }
 
     private static function matches(
