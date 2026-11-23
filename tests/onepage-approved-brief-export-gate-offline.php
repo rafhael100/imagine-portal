@@ -76,9 +76,13 @@ $briefs = new class($record) implements ApprovedOnepageBriefSnapshotSource {
     public int $calls = 0;
     public bool $denied = false;
     public ?ApprovedOnepageBriefSnapshot $next = null;
+    public ?Closure $onSecondRead = null;
     public function __construct(public ApprovedOnepageBriefSnapshot $current) {}
     public function readExact(string $orderRef,string $siteRef,int $sourceVersion):?ApprovedOnepageBriefSnapshot {
         ++$this->calls;
+        if ($this->calls === 2 && $this->onSecondRead !== null) {
+            ($this->onSecondRead)();
+        }
         if ($this->denied) return null;
         return $this->calls > 1 && $this->next !== null ? $this->next : $this->current;
     }
@@ -87,8 +91,13 @@ $witness = new class implements CurrentOnepageBriefApprovalWitness {
     public int $calls = 0;
     public bool $approved = true;
     public bool $revokeAfterFirst = false;
+    public bool $revokeOnSecondCheck = false;
     public function isCurrent(ApprovedOnepageBriefSnapshot $brief): bool {
         ++$this->calls;
+        if ($this->revokeOnSecondCheck && $this->calls === 2) {
+            $this->approved = false;
+            return false;
+        }
         if ($this->revokeAfterFirst && $this->calls === 1) {
             $this->approved = false; // next witness read observes the revocation
             return true;
@@ -98,8 +107,8 @@ $witness = new class implements CurrentOnepageBriefApprovalWitness {
 };
 $reset = static function() use ($contracts,$briefs,$witness,$contract,$record): void {
     $contracts->calls=0;$contracts->next=null;$contracts->denied=false;$contracts->deniedAfterFirst=false;$contracts->current=$contract;
-    $briefs->calls=0;$briefs->next=null;$briefs->denied=false;$briefs->current=$record;
-    $witness->calls=0;$witness->approved=true;$witness->revokeAfterFirst=false;
+    $briefs->calls=0;$briefs->next=null;$briefs->denied=false;$briefs->current=$record;$briefs->onSecondRead=null;
+    $witness->calls=0;$witness->approved=true;$witness->revokeAfterFirst=false;$witness->revokeOnSecondCheck=false;
 };
 $makeRecord = static function (
     ?SiteContractSnapshot $context=null, ?array $selector=null,
@@ -119,8 +128,8 @@ $produced=$gate->prepare($contract->orderRef,$site,12);
 $expected=OnepageBriefSnapshotCandidateEncoder::build($contract,$selection,$source);
 $ok($produced===$expected && $produced['sourceBytes']===$source,
     'explicit authorized mock sources produce only the exact same immutable candidate pair');
-$ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===2,
-    'contract, source and witness are rechecked around export');
+$ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===3,
+    'contract and source are rechecked; witness is checked before and after second private read');
 foreach(['authorityVerified','clientAccepted','canPublish','canAcceptRealOrders'] as $key){
     $ok($produced[$key]===false,'successful synthetic boundary never promotes '.$key);
 }
@@ -173,6 +182,19 @@ $reset();$witness->revokeAfterFirst=true;
 $deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
     'approval becomes revoked between current reads');
 $ok($witness->calls===2,'revoke scenario was reached after first positive check');
+
+$reset();$witness->revokeOnSecondCheck=true;
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'revocation before second private read denies');
+$ok($contracts->calls===2 && $briefs->calls===1 && $witness->calls===2,
+    'revocation observed on second witness check prevents another private read');
+$reset();$briefs->onSecondRead=static function() use ($witness): void {
+    $witness->approved=false;
+};
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'revocation during second private read denies export');
+$ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===3,
+    'final witness check rejects revocation occurring during private read');
 
 $reset();$contracts->next=new SiteContractSnapshot(
     $contract->tenantRef,$contract->orderRef,$contract->contractRef,2,'onepage',
