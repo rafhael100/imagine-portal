@@ -283,4 +283,33 @@ $invalid(static fn()=>new ApprovedOnepageBriefSnapshot(
     $contract,$selection,$source,hash('sha256',$source),'synthetic-approval-a',0,
 ), 'approval epoch must be positive');
 
+// R22 regression: PHP object `==` compares numeric-looking string refs
+// loosely. A changed contractRef '01' -> '1' must be rejected BEFORE a
+// second private briefing read, not only when matching after that read.
+$reset();
+$numericContract = new SiteContractSnapshot(
+    $contract->tenantRef, $contract->orderRef, '01', 1, 'onepage',
+);
+$contracts->current = $numericContract;
+$contracts->next = new SiteContractSnapshot(
+    $contract->tenantRef, $contract->orderRef, '1', 1, 'onepage',
+);
+$briefs->current = $makeRecord(context:$numericContract);
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'numeric-looking contract reference changes after initial authorized read');
+$ok($contracts->calls===2 && $briefs->calls===1 && $witness->calls===1,
+    'numeric-like contract drift denied BEFORE a second private source read');
+
+// R22 regression: same PHP loose equality would also accept approvalRef
+// '01' -> '1' in two distinct ApprovedOnepageBriefSnapshot value objects.
+// Both individually pass the offline witness stub; the gate must reject
+// the changed receipt ID rather than treating it as identical authority.
+$reset();
+$briefs->current = $makeRecord(approvalRef:'01');
+$briefs->next = $makeRecord(approvalRef:'1');
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'numeric-looking approval receipt must not be replayed as equal');
+$ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===2,
+    'approval receipt change detected before final witness or export');
+
 echo "ONEPAGE APPROVED BRIEF SOURCE BOUNDARY PASS: {$checks} checks; default-deny, no official approval or transport.\n";
