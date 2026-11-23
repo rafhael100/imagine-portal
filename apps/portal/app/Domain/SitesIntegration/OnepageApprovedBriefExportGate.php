@@ -38,6 +38,13 @@ final readonly class OnepageApprovedBriefExportGate
             }
 
             $beforeContract = $this->contracts->findAuthorizedSiteOrder($orderRef);
+            // Deny before the private read: a negative contract lookup must
+            // never disclose even a read-side effect to the briefing source.
+            if (!$beforeContract instanceof SiteContractSnapshot ||
+                $beforeContract->productCode !== 'onepage' ||
+                $beforeContract->orderRef !== $orderRef) {
+                throw new RuntimeException();
+            }
             $beforeBrief = $this->briefs->readExact($orderRef, $siteRef, $sourceVersion);
             if (!$beforeContract instanceof SiteContractSnapshot ||
                 !$beforeBrief instanceof ApprovedOnepageBriefSnapshot ||
@@ -59,10 +66,16 @@ final readonly class OnepageApprovedBriefExportGate
             // Detect a changed contract, brief, approval or revocation during
             // construction. Not a lock and not portable commercial authority.
             $afterContract = $this->contracts->findAuthorizedSiteOrder($orderRef);
-            $afterBrief = $this->briefs->readExact($orderRef, $siteRef, $sourceVersion);
+            // Revocation, tenant/order change, or product drift cancels the
+            // second private read too. A closed final result is not enough.
             if (!$afterContract instanceof SiteContractSnapshot ||
-                !$afterBrief instanceof ApprovedOnepageBriefSnapshot ||
                 $afterContract != $beforeContract ||
+                $afterContract->productCode !== 'onepage' ||
+                $afterContract->orderRef !== $orderRef) {
+                throw new RuntimeException();
+            }
+            $afterBrief = $this->briefs->readExact($orderRef, $siteRef, $sourceVersion);
+            if (!$afterBrief instanceof ApprovedOnepageBriefSnapshot ||
                 $afterBrief != $beforeBrief ||
                 !$this->approvals->isCurrent($afterBrief) ||
                 !self::matches($afterContract, $afterBrief, $orderRef, $siteRef, $sourceVersion)) {
