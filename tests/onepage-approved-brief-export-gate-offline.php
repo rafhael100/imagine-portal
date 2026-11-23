@@ -92,8 +92,12 @@ $witness = new class implements CurrentOnepageBriefApprovalWitness {
     public bool $approved = true;
     public bool $revokeAfterFirst = false;
     public bool $revokeOnSecondCheck = false;
+    public ?Closure $onFinalCheck = null;
     public function isCurrent(ApprovedOnepageBriefSnapshot $brief): bool {
         ++$this->calls;
+        if ($this->calls === 3 && $this->onFinalCheck !== null) {
+            ($this->onFinalCheck)();
+        }
         if ($this->revokeOnSecondCheck && $this->calls === 2) {
             $this->approved = false;
             return false;
@@ -108,7 +112,7 @@ $witness = new class implements CurrentOnepageBriefApprovalWitness {
 $reset = static function() use ($contracts,$briefs,$witness,$contract,$record): void {
     $contracts->calls=0;$contracts->next=null;$contracts->denied=false;$contracts->deniedAfterFirst=false;$contracts->current=$contract;
     $briefs->calls=0;$briefs->next=null;$briefs->denied=false;$briefs->current=$record;$briefs->onSecondRead=null;
-    $witness->calls=0;$witness->approved=true;$witness->revokeAfterFirst=false;$witness->revokeOnSecondCheck=false;
+    $witness->calls=0;$witness->approved=true;$witness->revokeAfterFirst=false;$witness->revokeOnSecondCheck=false;$witness->onFinalCheck=null;
 };
 $makeRecord = static function (
     ?SiteContractSnapshot $context=null, ?array $selector=null,
@@ -195,6 +199,27 @@ $deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
     'revocation during second private read denies export');
 $ok($contracts->calls===2 && $briefs->calls===2 && $witness->calls===3,
     'final witness check rejects revocation occurring during private read');
+
+// R21: R20 checks the contract before the second private read, not after it.
+// A revocation during that read must not yield an export under stale authority.
+$reset();$briefs->onSecondRead=static function() use ($contracts): void {
+    $contracts->denied=true;
+};
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'contract revoked during second private read must deny candidate');
+$ok($contracts->calls===3 && $briefs->calls===2 && $witness->calls===3,
+    'fresh third contract check observes revocation without extra private read');
+
+// A change in the final approval callback also must not bypass the contract.
+$reset();$witness->onFinalCheck=static function() use ($contracts,$contract): void {
+    $contracts->next=new SiteContractSnapshot(
+        'synthetic-other-org',$contract->orderRef,$contract->contractRef,1,'onepage',
+    );
+};
+$deny(static fn()=> $gate->prepare($contract->orderRef,$site,12),
+    'tenant changed during final approval check must deny candidate');
+$ok($contracts->calls===3 && $briefs->calls===2 && $witness->calls===3,
+    'final contract read rechecks tenant after final approval witness');
 
 $reset();$contracts->next=new SiteContractSnapshot(
     $contract->tenantRef,$contract->orderRef,$contract->contractRef,2,'onepage',
