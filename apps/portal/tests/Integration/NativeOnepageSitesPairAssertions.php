@@ -261,6 +261,35 @@ final class NativeOnepageSitesPairAssertions
             Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1),
                 'R27: a revocation committed during the source read must suppress the returned marker.');
             Assert::assertSame(5,$probe->calls);
+            // R35: the candidate source is also a callable boundary in its own
+            // right, not only when wrapped in the export gate. A trusted
+            // adapter may accidentally echo confidential bytes before denial.
+            $sites->prepare('UPDATE sites_core.db_login_bindings SET active=true WHERE login_name=?')->execute([$role]);
+            $privateOutput='synthetic-private-output-marker';
+            $probe->duringRead=static function()use($privateOutput):void {
+                echo $privateOutput;
+            };
+            $callerLevel=ob_get_level();
+            ob_start();
+            try {
+                echo 'caller-buffer';
+                $probe->candidate=$exact;
+                Assert::assertSame($exact,$seam->readExact($order->id,$receipt['siteRef'],1));
+                Assert::assertSame('caller-buffer',ob_get_contents());
+                $probe->candidate=null;
+                Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1));
+                Assert::assertSame('caller-buffer',ob_get_contents());
+                $probe->duringRead=static function()use($privateOutput):void {
+                    ob_start();
+                    echo $privateOutput;
+                    throw new RuntimeException('synthetic adapter failure');
+                };
+                Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1));
+                Assert::assertSame($callerLevel+1,ob_get_level());
+                Assert::assertSame('caller-buffer',ob_get_contents());
+            } finally {
+                while (ob_get_level()>$callerLevel) ob_end_clean();
+            }
             Assert::assertSame(0,(int)$sites->query("SELECT count(*) FROM sites_core.db_login_bindings WHERE login_name='portal_sites_pair_receipt_reader' AND active")->fetchColumn());
         } finally {
             $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
