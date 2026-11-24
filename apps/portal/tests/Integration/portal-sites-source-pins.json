@@ -1,6 +1,6 @@
 {
   "repository": "rafhael100/imagine-sites",
-  "source_commit": "9b80387fe1c580436b444a6aad2b63f3baafa37d",
+  "source_commit": "958ce49899375a99c3dee9b7f40016701a465502",
   "sha256": {
     "apps/sites/app/Integration/PortalProjectIntakeRecorder.php": "0c2f3ef5edc6b931b665edc980adba464e23523635b5c6351ac94242e7aca15d",
     "apps/sites/composer.lock": "c2b50d26ab282213d2ccc6619211795953d5b955f79cda8cc0c1748a97dae9e3",
@@ -25,6 +25,11 @@
     "contracts/publication-journal/001-journal.sql": "30797fb9b572f5feea6f30189d45b9d177e5d3bad5e4c2ce230eb73ed223a8e0",
     "contracts/release-registry/001-registry.sql": "8b50c348a21eb58fcd0628abd11a467f450c02557506bc521ad116951b20e259",
     "contracts/release-registry/003-read-binding-head.sql": "c5a62ac65d4dcad98a6ef68f7c87b80f424cd0427cd262d52cdf374789bf02a1",
-    "src/Integration/SiteProjectCommand.php": "e3d9b9e955c5eeaafa0e8ce1aada39a0c941dcc2ae78cf13a5b6873a1ffefbdd"
+    "src/Integration/SiteProjectCommand.php": "e3d9b9e955c5eeaafa0e8ce1aada39a0c941dcc2ae78cf13a5b6873a1ffefbdd",
+    "apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php": "4530f26062fb0a999290ddc76f0f655ad42e024d3955cca8844832cff807f6aa",
+    "apps/sites/app/Integration/BriefSnapshotTransaction.php": "2e4dcb331f674984e72919a73faaa3855b9725b3fc49e3b3a5a1b72310bdabdb",
+    "src/Production/BriefCandidateJson.php": "8e2155871e56b856beddfb8b3dff96fa59c684fb4819d5dda554136d9bb06ad9",
+    "apps/sites/database/migrations/2026_11_18_000015_add_portal_project_intake_reader.php": "6d3e9afbf34da218bd20f4f5a1efde9a563e556cc70f1770ec8fa33df64346cb",
+    "contracts/portal-sites/003-project-intake-receipts.sql": "b4ded1bbbb8d2a9326538077ad28cd268b3d989405904682dda844b1a127dfb4"
   }
 }
