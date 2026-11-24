@@ -63,11 +63,11 @@ CREATE POLICY fixture_confirmations ON portal_brief_rights_lab.confirmations TO 
 -- Scope is the same order/site. Hash collisions can only serialize extra pairs.
 -- No runtime source writer or new operational authority is installed.
 CREATE FUNCTION portal_brief_rights_lab.serialize_source_append()
-RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,pg_temp AS $
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,pg_temp AS $$
 BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('portal_brief_rights_lab:'||NEW.order_id::text||':'||NEW.site_id::text,0));
  RETURN NEW;
-END $;
+END $$;
 CREATE TRIGGER serialize_source_append BEFORE INSERT ON portal_brief_rights_lab.versions
  FOR EACH ROW EXECUTE FUNCTION portal_brief_rights_lab.serialize_source_append();
 REVOKE ALL ON FUNCTION portal_brief_rights_lab.serialize_source_append() FROM PUBLIC;
