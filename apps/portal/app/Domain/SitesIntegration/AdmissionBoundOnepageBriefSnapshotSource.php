@@ -49,17 +49,39 @@ final readonly class AdmissionBoundOnepageBriefSnapshotSource implements Approve
             // The independent read can take time. Recheck the native buyer's
             // contract before allowing even a private briefing read.
             $current = $this->contracts->findAuthorizedSiteOrder($orderRef);
-            if (!$current instanceof SiteContractSnapshot ||
-                $current->tenantRef !== $contract->tenantRef ||
-                $current->orderRef !== $contract->orderRef ||
-                $current->contractRef !== $contract->contractRef ||
-                $current->contractRevision !== $contract->contractRevision ||
-                $current->productCode !== $contract->productCode) {
+            if (!self::sameContract($contract, $current)) {
                 return null;
             }
-            return $this->source->readExact($orderRef, $siteRef, $sourceVersion);
+            $candidate = $this->source->readExact($orderRef, $siteRef, $sourceVersion);
+            if (!$candidate instanceof ApprovedOnepageBriefSnapshot ||
+                !self::sameContract($contract, $candidate->contract) ||
+                ($candidate->selection['siteRef'] ?? null) !== $siteRef ||
+                ($candidate->selection['sourceVersion'] ?? null) !== $sourceVersion ||
+                !hash_equals($candidate->sourceSha256, hash('sha256', $candidate->sourceBytes))) {
+                return null;
+            }
+
+            // Never pass a candidate to the caller on a stale receipt binding.
+            // Reuse the exact independent reader, then recheck native authority.
+            // These observations do not prove a distributed atomic snapshot.
+            $after = ($this->readAdmittedSite)($contract);
+            if (!is_string($after) || !hash_equals($after, $siteRef) ||
+                !self::sameContract($contract, $this->contracts->findAuthorizedSiteOrder($orderRef))) {
+                return null;
+            }
+            return $candidate;
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private static function sameContract(SiteContractSnapshot $expected, ?SiteContractSnapshot $actual): bool
+    {
+        return $actual instanceof SiteContractSnapshot &&
+            $actual->tenantRef === $expected->tenantRef &&
+            $actual->orderRef === $expected->orderRef &&
+            $actual->contractRef === $expected->contractRef &&
+            $actual->contractRevision === $expected->contractRevision &&
+            $actual->productCode === $expected->productCode;
     }
 }
