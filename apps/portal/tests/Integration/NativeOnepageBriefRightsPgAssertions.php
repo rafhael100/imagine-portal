@@ -103,6 +103,36 @@ END $$;
 ALTER FUNCTION portal_brief_rights_lab.confirm_exact(text,uuid,uuid,integer,text,boolean) OWNER TO portal_brief_rights_lab_owner;
 REVOKE ALL ON FUNCTION portal_brief_rights_lab.confirm_exact(text,uuid,uuid,integer,text,boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION portal_brief_rights_lab.confirm_exact(text,uuid,uuid,integer,text,boolean) TO portal_onepage_runtime;
+-- R32: separate read path; never INSERT/replay a confirmation to read evidence.
+-- Lab-only buyer evidence, NOT an approved snapshot or editorial witness.
+CREATE FUNCTION portal_brief_rights_lab.read_current_rights(p_session text,p_order uuid,p_site uuid,p_version integer,p_sha text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp SET row_security=on AS $$
+DECLARE native jsonb; current_version portal_brief_rights_lab.versions%ROWTYPE; evidence jsonb;
+BEGIN
+ IF p_sha IS NULL OR p_sha !~ '^[a-f0-9]{64}$'
+ OR current_setting('transaction_isolation') IS DISTINCT FROM 'read committed' THEN RETURN NULL; END IF;
+ native:=portal_onepage.read_pending_order(p_session,p_order);
+ IF native IS NULL THEN RETURN NULL; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('portal_brief_rights_lab:'||p_order::text||':'||p_site::text,0));
+ SELECT * INTO current_version FROM portal_brief_rights_lab.versions
+ WHERE order_id=p_order AND site_id=p_site ORDER BY version DESC LIMIT 1;
+ IF NOT FOUND OR current_version.version IS DISTINCT FROM p_version
+ OR current_version.source_sha IS DISTINCT FROM p_sha
+ OR current_version.company::text IS DISTINCT FROM native->>'company'
+ OR current_version.buyer::text IS DISTINCT FROM native->>'buyer'
+ OR current_version.contract_ref IS DISTINCT FROM native->>'contract_ref'
+ OR current_version.contract_revision IS DISTINCT FROM (native->>'contract_revision')::integer THEN RETURN NULL; END IF;
+ SELECT jsonb_build_object('receipt_id',c.receipt_id,'order_id',c.order_id,'site_id',c.site_id,
+  'company',c.company,'buyer',c.buyer,'version',c.version,'source_sha',c.source_sha,
+  'bytes_hex',encode(current_version.source_bytes,'hex'),'rights_declared',c.rights_declared)
+ INTO evidence FROM portal_brief_rights_lab.confirmations c
+ WHERE c.order_id=p_order AND c.site_id=p_site AND c.version=p_version AND c.source_sha=p_sha
+ AND c.company=current_version.company AND c.buyer=current_version.buyer AND c.rights_declared;
+ RETURN evidence;
+END $$;
+ALTER FUNCTION portal_brief_rights_lab.read_current_rights(text,uuid,uuid,integer,text) OWNER TO portal_brief_rights_lab_owner;
+REVOKE ALL ON FUNCTION portal_brief_rights_lab.read_current_rights(text,uuid,uuid,integer,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION portal_brief_rights_lab.read_current_rights(text,uuid,uuid,integer,text) TO portal_onepage_runtime;
 SQL);
         $port=(string)getenv('PORTAL_NATIVE_ORDER_TEST_PORT');
         Assert::assertMatchesRegularExpression('/\A[0-9]{1,5}\z/D',$port);
@@ -142,6 +172,15 @@ SQL);
             $value=$q->fetchColumn();
             return is_string($value)?$value:null;
         };
+        // A fresh runtime connection reads, never writes, the exact current rights.
+        $reader=$connect('portal_onepage_runtime');
+        $read=static function(string $ref,int $version,string $sha,?string $siteOverride=null)use($reader,$order,$site):?array {
+            $q=$reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
+            $q->execute([hash('sha256',$ref),$order->id,$siteOverride??$site,$version,$sha]);
+            $value=$q->fetchColumn();
+            return is_string($value)?json_decode($value,true,16,JSON_THROW_ON_ERROR):null;
+        };
+        Assert::assertNull($read($session,1,$sha1),'An unconfirmed revision is not current rights.');
         foreach ($deniedSessions as $denied) Assert::assertNull($confirm($denied,1,$sha1));
         Assert::assertNull($confirm($session,1,$sha1,false));
         Assert::assertNull($confirm($session,1,str_repeat('0',64)));
@@ -150,6 +189,17 @@ SQL);
         $r1=$confirm($session,1,$sha1);
         Assert::assertNotNull($r1);
         Assert::assertSame($r1,$confirm($session,1,$sha1),'Replay must preserve the exact receipt.');
+        $expected=['receipt_id'=>$r1,'order_id'=>$order->id,'site_id'=>$site,
+            'company'=>$order->companyId,'buyer'=>$order->buyerId,'version'=>1,
+            'source_sha'=>$sha1,'bytes_hex'=>bin2hex($v1),'rights_declared'=>true];
+        $actual=$read($session,1,$sha1);
+        Assert::assertIsArray($actual);
+        ksort($expected); ksort($actual);
+        Assert::assertSame($expected,$actual);
+        foreach ($deniedSessions as $denied) Assert::assertNull($read($denied,1,$sha1));
+        Assert::assertNull($read($session,1,str_repeat('0',64)));
+        Assert::assertNull($read($session,1,$sha1,$bootstrap->query('SELECT gen_random_uuid()')->fetchColumn()));
+        Assert::assertSame(1,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.confirmations')->fetchColumn());
         foreach (['SELECT * FROM portal_brief_rights_lab.versions','SELECT * FROM portal_brief_rights_lab.confirmations',
             'DELETE FROM portal_brief_rights_lab.confirmations','SET ROLE portal_brief_rights_lab_owner'] as $sql) {
             try { $runtime->exec($sql); Assert::fail('Unexpected direct fixture access'); }
@@ -193,11 +243,20 @@ SQL);
         Assert::assertNotSame($sha1,$sha2);
         Assert::assertNull($confirm($session,1,$sha1),'Old revision is no longer confirmable.');
         Assert::assertNull($confirm($session,2,$sha1),'Cannot reuse old digest.');
+        Assert::assertNull($read($session,1,$sha1),'Superseded receipt cannot disclose current bytes.');
+        Assert::assertNull($read($session,2,$sha2),'New revision still requires confirmation.');
         Assert::assertSame(1,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.confirmations')->fetchColumn());
         $r2=$confirm($session,2,$sha2);
         Assert::assertNotNull($r2);
         Assert::assertNotSame($r1,$r2);
         Assert::assertSame($r2,$confirm($session,2,$sha2));
+        $readV2=$read($session,2,$sha2);
+        Assert::assertIsArray($readV2);
+        Assert::assertSame($r2,$readV2['receipt_id']);
+        Assert::assertSame(bin2hex($v2),$readV2['bytes_hex']);
+        Assert::assertSame($sha2,$readV2['source_sha']);
+        Assert::assertNull($read($session,1,$sha1));
+        Assert::assertSame(2,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.confirmations')->fetchColumn());
         // Separate bootstrap connection for independent raw storage assertion.
         // This is not an operational reader capability or approval witness.
         $observer=$connect('portal_native_test_bootstrap');
