@@ -30,6 +30,12 @@ final readonly class AdmissionBoundOnepageBriefSnapshotSource implements Approve
 
     public function readExact(string $orderRef, string $siteRef, int $sourceVersion): ?ApprovedOnepageBriefSnapshot
     {
+        // Like the export gate, contain accidental output from trusted adapters.
+        // This is not a sandbox for an adapter that deliberately flushes buffers.
+        $outputLevel = ob_get_level();
+        if (!ob_start()) {
+            return null;
+        }
         try {
             if (PHP_INT_SIZE !== 8 ||
                 preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/D', $orderRef) !== 1 ||
@@ -72,6 +78,11 @@ final readonly class AdmissionBoundOnepageBriefSnapshotSource implements Approve
             return $candidate;
         } catch (Throwable) {
             return null;
+        } finally {
+            // Preserve any caller-owned buffer, also when a dependency throws.
+            while (ob_get_level() > $outputLevel) {
+                if (!ob_end_clean()) break;
+            }
         }
     }
 
