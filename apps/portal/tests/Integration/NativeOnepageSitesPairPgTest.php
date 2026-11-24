@@ -79,6 +79,42 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         $rightsReader=new NativeOnepageBuyerRightsLabReader($reader,$this->briefFixtureBootstrap);
         $rights=$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
         self::assertSame($evidence,$rights);
+        // R42: the reusable reader must remain independently autocommitted,
+        // even when the caller changes PDO state after construction.
+        try {
+            new NativeOnepageBuyerRightsLabReader($publisher,$this->briefFixtureBootstrap);
+            self::fail('Commercial publisher cannot instantiate buyer evidence reader.');
+        } catch (\RuntimeException $error) {
+            self::assertSame('Disposable buyer rights reader required.',$error->getMessage());
+            self::assertNull($error->getPrevious());
+        }
+        $reader->beginTransaction();
+        try {
+            try {
+                $rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
+                self::fail('Caller transaction must not disclose private evidence through the independent reader.');
+            } catch (\RuntimeException $error) {
+                self::assertSame('Disposable buyer rights reader unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+            self::assertTrue($reader->inTransaction(),'Reader must not commit or roll back caller transaction.');
+            self::assertSame(1,(int)$reader->query('SELECT 1')->fetchColumn());
+        } finally {
+            $reader->rollBack();
+        }
+        $reader->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_SILENT);
+        try {
+            try {
+                $rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
+                self::fail('Mutable silent PDO mode must be refused.');
+            } catch (\RuntimeException $error) {
+                self::assertSame('Disposable buyer rights reader unavailable.',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+        } finally {
+            $reader->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+        }
+        self::assertSame($evidence,$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']));
         foreach ([
             ['buyer'=>'00000000-0000-0000-0000-000000000000'],
             ['company'=>'00000000-0000-0000-0000-000000000000'],
