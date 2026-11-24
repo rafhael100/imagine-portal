@@ -76,7 +76,7 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         self::assertInstanceOf(SiteContractSnapshot::class,$contract);
         // R41: independent, reusable buyer-evidence reader, not an approved
         // source. Validate the persisted envelope against the actual order.
-        $rightsReader=new NativeOnepageBuyerRightsLabReader($reader);
+        $rightsReader=new NativeOnepageBuyerRightsLabReader($reader,$this->briefFixtureBootstrap);
         $rights=$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
         self::assertSame($evidence,$rights);
         foreach ([
