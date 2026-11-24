@@ -192,6 +192,48 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
             self::assertSame(5,$admissionReads);
             self::assertSame($beforeRights+1,$readCandidate->reads,'Revoked admission reader must not disclose persisted rights.');
             self::assertSame($beforeWitness+1,$witness->reads);
+            // R39: use actual persisted rights (not the R27 marker) and
+            // commit admission revocation after the private SQL read returns.
+            // The seam must suppress the bytes BEFORE editorial verification.
+            $setBinding->execute(['true',$role]);
+            $positive=$bound->readExact($order->id,$this->admittedSiteRef,(int)$current['version']);
+            self::assertInstanceOf(ApprovedOnepageBriefSnapshot::class,$positive);
+            self::assertSame($current['source_sha'],$positive->sourceSha256);
+            self::assertSame($current['bytes_hex'],bin2hex($positive->sourceBytes));
+            $revokingSource=new class($readCandidate,$setBinding,$role) implements ApprovedOnepageBriefSnapshotSource {
+                public int $calls=0;
+                public bool $readSucceeded=false;
+                public function __construct(private ApprovedOnepageBriefSnapshotSource $source,
+                    private \PDOStatement $binding,private string $role) {}
+                public function readExact(string $orderRef,string $siteRef,int $sourceVersion):?ApprovedOnepageBriefSnapshot
+                {
+                    ++$this->calls;
+                    $candidate=$this->source->readExact($orderRef,$siteRef,$sourceVersion);
+                    $this->readSucceeded=$candidate instanceof ApprovedOnepageBriefSnapshot;
+                    $this->binding->execute(['false',$this->role]);
+                    return $candidate;
+                }
+            };
+            $raceBound=new \App\Domain\SitesIntegration\AdmissionBoundOnepageBriefSnapshotSource(
+                $contracts,$readAdmission,$revokingSource);
+            $raceGate=new OnepageApprovedBriefExportGate($contracts,$raceBound,$witness);
+            $readsBeforeRace=$admissionReads;
+            $rightsBeforeRace=$readCandidate->reads;
+            $witnessBeforeRace=$witness->reads;
+            $denyExport($raceGate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+            self::assertTrue($revokingSource->readSucceeded,'Persisted bytes were actually read before revocation.');
+            self::assertSame(1,$revokingSource->calls);
+            self::assertSame($rightsBeforeRace+1,$readCandidate->reads);
+            self::assertSame($readsBeforeRace+2,$admissionReads,'Second independent receipt read must observe revocation.');
+            self::assertSame($witnessBeforeRace,$witness->reads,'Revoked admission must not expose bytes to editorial verification.');
+            $binding->execute([$role]);
+            self::assertFalse($binding->fetchColumn());
+            $binding->closeCursor();
+            // A second request after revocation must stop before private SQL.
+            $denyExport($raceGate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+            self::assertSame(1,$revokingSource->calls);
+            self::assertSame($rightsBeforeRace+1,$readCandidate->reads);
+            self::assertSame($witnessBeforeRace,$witness->reads);
             // Control: the Portal buyer still owns the same exact rights.
             // The denial above is due to the independent Sites boundary.
             $read->execute($args);
