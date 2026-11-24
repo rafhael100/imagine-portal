@@ -141,7 +141,38 @@ SQL);
             catch(PDOException $e) { Assert::assertSame('42501',$e->getCode()); }
         }
         $v2=$bytes('Segunda versão sintética, alterada',2);
-        $sha2=$seed(2,$v2);
+        // R31: concurrent source supersession must serialize with exact rights confirmation.
+        // Same fixture order/site; bootstrap is the only synthetic source writer.
+        $sha2=hash('sha256',$v2);
+        $runtime->exec("SET lock_timeout='250ms'");
+        $bootstrap->exec("SET lock_timeout='250ms'");
+        try {
+            $runtime->beginTransaction();
+            Assert::assertSame($r1,$confirm($session,1,$sha1));
+            try {
+                $seed(2,$v2);
+                Assert::fail('Source append must not pass an in-flight confirmation.');
+            } catch (PDOException $e) {
+                Assert::assertSame('55P03',$e->getCode());
+            }
+            $runtime->rollBack();
+            Assert::assertSame(1,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.versions')->fetchColumn());
+            // Reverse ordering: uncommitted source v2 must prevent a stale v1 replay.
+            $bootstrap->beginTransaction();
+            Assert::assertSame($sha2,$seed(2,$v2));
+            try {
+                $confirm($session,1,$sha1);
+                Assert::fail('Old rights replay must not pass in-flight source append.');
+            } catch (PDOException $e) {
+                Assert::assertSame('55P03',$e->getCode());
+            }
+            $bootstrap->commit();
+        } finally {
+            if ($runtime->inTransaction()) $runtime->rollBack();
+            if ($bootstrap->inTransaction()) $bootstrap->rollBack();
+            $runtime->exec("SET lock_timeout='0'");
+            $bootstrap->exec("SET lock_timeout='0'");
+        }
         Assert::assertNotSame($sha1,$sha2);
         Assert::assertNull($confirm($session,1,$sha1),'Old revision is no longer confirmable.');
         Assert::assertNull($confirm($session,2,$sha1),'Cannot reuse old digest.');
