@@ -20,6 +20,7 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
     private ?string $admittedSiteRef = null;
     private ?PDO $briefFixtureBootstrap = null;
     private array $confirmedRightsHistory = [];
+    private ?\Closure $revokeThroughPrivateRead = null;
 
     protected function afterAcceptedOrder(PDO $bootstrap,PostgresOnepageOrders $orders,OnepageAcceptedOrder $order,string $reference):void
     {
@@ -350,6 +351,63 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         foreach ($deniedReferences as $deniedReference) {
             NativeOnepageSitesPairAssertions::assertBriefBoundaryDenied($orders,$order,$deniedReference,$this->admittedSiteRef,false);
         }
+        // R40: reuse the parent's terminal native revocation, at the actual
+        // persisted byte-read boundary, after all other accepted-order tests.
+        // Unlike R39, the independent Sites receipt remains readable.
+        $this->revokeThroughPrivateRead = function(\Closure $revoke) use (
+            $contracts,$readCandidate,$readAdmission,$witness,$denyExport,$order,$current,
+            $setBinding,$role,$sitesBootstrap,$contract,&$admissionReads
+        ): void {
+            $setBinding->execute(['true',$role]);
+            try {
+                $source = new class($readCandidate,$revoke) implements ApprovedOnepageBriefSnapshotSource {
+                    public ?ApprovedOnepageBriefSnapshot $observed=null;
+                    public int $calls=0;
+                    public function __construct(private ApprovedOnepageBriefSnapshotSource $source,private \Closure $revoke) {}
+                    public function readExact(string $orderRef,string $siteRef,int $sourceVersion):?ApprovedOnepageBriefSnapshot
+                    {
+                        ++$this->calls;
+                        $this->observed=$this->source->readExact($orderRef,$siteRef,$sourceVersion);
+                        if ($this->observed !== null) ($this->revoke)();
+                        return $this->observed;
+                    }
+                };
+                $bound = new \App\Domain\SitesIntegration\AdmissionBoundOnepageBriefSnapshotSource(
+                    $contracts,$readAdmission,$source);
+                $gate = new OnepageApprovedBriefExportGate($contracts,$bound,$witness);
+                $beforeAdmission=$admissionReads;
+                $beforeWitness=$witness->reads;
+                $beforeRights=$readCandidate->reads;
+                $denyExport($gate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+                self::assertInstanceOf(ApprovedOnepageBriefSnapshot::class,$source->observed);
+                self::assertSame($current['bytes_hex'],bin2hex($source->observed->sourceBytes));
+                self::assertSame($current['source_sha'],$source->observed->sourceSha256);
+                self::assertNull($contracts->findAuthorizedSiteOrder($order->id),'Native revocation must have committed.');
+                self::assertSame($beforeAdmission+1,$admissionReads,'Revoked native authority must stop before the second Sites receipt read.');
+                self::assertSame($beforeWitness,$witness->reads);
+                self::assertSame($beforeRights+1,$readCandidate->reads);
+                self::assertSame(1,$source->calls);
+                // The historical admission is still readable independently:
+                // its existence does not override the native revocation.
+                self::assertSame($this->admittedSiteRef,$readAdmission($contract));
+                $denyExport($gate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+                self::assertSame($beforeAdmission+2,$admissionReads);
+                self::assertSame(1,$source->calls);
+                self::assertSame($beforeWitness,$witness->reads);
+                self::assertSame('blocked',$sitesBootstrap->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
+                self::assertFalse($sitesBootstrap->query('SELECT publishable FROM sites_core.site_projects')->fetchColumn());
+            } finally {
+                $setBinding->execute(['false',$role]);
+            }
+        };
+    }
+
+    protected function revokeAcceptedContract(PDO $publisher): void
+    {
+        self::assertInstanceOf(\Closure::class,$this->revokeThroughPrivateRead);
+        ($this->revokeThroughPrivateRead)(function() use ($publisher):void {
+            parent::revokeAcceptedContract($publisher);
+        });
     }
 
     protected function afterRevokedOrder(PostgresOnepageOrders $orders, OnepageAcceptedOrder $order, string $reference): void
