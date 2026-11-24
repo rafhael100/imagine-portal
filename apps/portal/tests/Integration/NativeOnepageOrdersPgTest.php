@@ -110,6 +110,10 @@ class NativeOnepageOrdersPgTest extends TestCase
 
     protected function afterAcceptedOrder(PDO $bootstrap,PostgresOnepageOrders $orders,\App\Domain\Commerce\OnepageAcceptedOrder $order,string $reference):void {}
 
+    /** Child tests may observe the already admitted order through the original native sessions. */
+    protected function afterAcceptedOrderAccessCases(PostgresOnepageOrders $orders, \App\Domain\Commerce\OnepageAcceptedOrder $order, string $reference, array $deniedReferences): void {}
+    protected function afterRevokedOrder(PostgresOnepageOrders $orders, \App\Domain\Commerce\OnepageAcceptedOrder $order, string $reference): void {}
+
     private function denySql(PDO $db,string $sql,array $args=[],string $state='42501'):void
     {
         try {$q=$db->prepare($sql);$q->execute($args);self::fail('Expected SQL refusal.');}
@@ -189,6 +193,7 @@ class NativeOnepageOrdersPgTest extends TestCase
         self::assertSame('native-order-company',$order->companyReference);self::assertSame($accepted['accepted_at'],$order->acceptedAt);
         self::assertSame($review['offer_digest'],$order->offerDigest);self::assertSame($review['terms_digest'],$order->termsDigest);
         $this->afterAcceptedOrder($this->admin,$store,$order,$session);
+        $this->afterAcceptedOrderAccessCases($store,$order,$session,[$same,$other,$pending,$manager]);
         OnepageEntryPaymentsPgAssertions::run($this->admin,$runtime,$publisher,fn(string $role):PDO=>$this->connect($role),$order,$session,$store);
         foreach ([$same,$other,$pending] as $notOwner) self::assertNull($store->findOwnedAcceptedOrder($notOwner,$accepted['id']));
         foreach (['order_terms','pending_orders','published_contracts','contract_revocations'] as $table) {
@@ -205,6 +210,7 @@ class NativeOnepageOrdersPgTest extends TestCase
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
         $runtime->rollBack();$this->admin->exec("SET lock_timeout='0'");
         $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute(['publication-onepage-v1']);
+        $this->afterRevokedOrder($store,$order,$session);
         self::assertNull($store->review($session,$draft['id']));
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
         self::assertSame('denied',$store->accept($session,'accept-key',$draft['id'],$yes)['status']);
