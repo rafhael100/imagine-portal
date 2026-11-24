@@ -218,6 +218,57 @@ final class NativeOnepageSitesPairAssertions
         Assert::assertSame(1,(int)$sites->query('SELECT count(*) FROM sites_core.portal_project_intakes')->fetchColumn());
         Assert::assertSame('blocked',$sites->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
         Assert::assertFalse($sites->query('SELECT publishable FROM sites_core.site_projects')->fetchColumn());
+
+        // R27: exercise the seam itself, not a successful export. The marker
+        // is intentionally NOT a JSON briefing and cannot grant approval.
+        // Use the same committed admission and real read-only SQL role.
+        $sites->prepare('UPDATE sites_core.db_login_bindings SET active=true WHERE login_name=?')->execute([$role]);
+        try {
+            $current=$contracts->findAuthorizedSiteOrder($order->id);
+            Assert::assertInstanceOf(SiteContractSnapshot::class,$current);
+            $marker='synthetic-not-a-briefing';
+            $make=static fn(SiteContractSnapshot $c,string $site,int $version):ApprovedOnepageBriefSnapshot =>
+                new ApprovedOnepageBriefSnapshot($c,['siteRef'=>$site,'sourceVersion'=>$version],
+                    $marker,hash('sha256',$marker),'synthetic-marker',1);
+            $probe=new class implements ApprovedOnepageBriefSnapshotSource {
+                public ?ApprovedOnepageBriefSnapshot $candidate=null;
+                public ?\Closure $duringRead=null;
+                public int $calls=0;
+                public function readExact(string $orderRef,string $siteRef,int $sourceVersion):?ApprovedOnepageBriefSnapshot
+                {
+                    ++$this->calls;
+                    if ($this->duringRead!==null) ($this->duringRead)();
+                    return $this->candidate;
+                }
+            };
+            $seam=new AdmissionBoundOnepageBriefSnapshotSource($contracts,$admitted,$probe);
+            $exact=$make($current,$receipt['siteRef'],1);
+            $probe->candidate=$exact;
+            Assert::assertSame($exact,$seam->readExact($order->id,$receipt['siteRef'],1),
+                'Positive control of candidate read ONLY; no approved briefing or export.');
+            $wrongContract=new SiteContractSnapshot($current->tenantRef,$current->orderRef,
+                $current->contractRef,$current->contractRevision+1,'onepage');
+            foreach ([$make($current,$foreignSite,1),$make($current,$receipt['siteRef'],2),
+                $make($wrongContract,$receipt['siteRef'],1)] as $wrong) {
+                $probe->candidate=$wrong;
+                Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1),
+                    'The seam must not return a different site, version or contract to its caller.');
+            }
+            $probe->candidate=$exact;
+            $probe->duringRead=static function()use($sites,$role):void {
+                $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
+            };
+            Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1),
+                'R27: a revocation committed during the source read must suppress the returned marker.');
+            Assert::assertSame(5,$probe->calls);
+            Assert::assertSame(0,(int)$sites->query("SELECT count(*) FROM sites_core.db_login_bindings WHERE login_name='portal_sites_pair_receipt_reader' AND active")->fetchColumn());
+        } finally {
+            $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
+        }
+        Assert::assertSame($before,$sites->query('SELECT to_jsonb(i)::text FROM sites_core.portal_project_intakes i')->fetchColumn());
+        Assert::assertSame(1,(int)$sites->query('SELECT count(*) FROM sites_core.portal_project_intakes')->fetchColumn());
+        Assert::assertSame('blocked',$sites->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
+        Assert::assertFalse($sites->query('SELECT publishable FROM sites_core.site_projects')->fetchColumn());
     }
 
     /**
