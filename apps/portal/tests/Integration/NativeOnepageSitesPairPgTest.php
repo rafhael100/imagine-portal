@@ -4,6 +4,13 @@ namespace Tests\Integration;
 
 use App\Domain\Commerce\OnepageAcceptedOrder;
 use App\Infrastructure\Commerce\PostgresOnepageOrders;
+use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshot;
+use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshotSource;
+use App\Domain\SitesIntegration\CurrentOnepageBriefApprovalWitness;
+use App\Domain\SitesIntegration\DenyingCurrentOnepageBriefApprovalWitness;
+use App\Domain\SitesIntegration\OnepageApprovedBriefExportGate;
+use App\Domain\SitesIntegration\SiteContractSnapshot;
+use App\Infrastructure\Commerce\PostgresPortalSiteContractSource;
 use PDO;
 use PDOException;
 
@@ -58,6 +65,74 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         self::assertSame($current['receipt_id'],$evidence['receipt_id']);
         self::assertSame($current['bytes_hex'],$evidence['bytes_hex']);
         self::assertSame($current['source_sha'],$evidence['source_sha']);
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
+        // R37: exercise the existing export gate with actual persisted buyer
+        // evidence, rather than an unrelated marker or a denying source only.
+        // Deliberately mislabel the buyer receipt as an approval in a TEST
+        // double. This is an adversarial substitution, never an official adapter.
+        $contracts = new PostgresPortalSiteContractSource($orders,$reference);
+        $contract = $contracts->findAuthorizedSiteOrder($order->id);
+        self::assertInstanceOf(SiteContractSnapshot::class,$contract);
+        $readCandidate = new class($reader,$reference,$contract,$current['source_sha']) implements ApprovedOnepageBriefSnapshotSource {
+            public int $reads=0;
+            public ?ApprovedOnepageBriefSnapshot $last=null;
+            public function __construct(private PDO $reader,private string $reference,
+                private SiteContractSnapshot $contract,private string $digest) {}
+            public function readExact(string $orderRef,string $siteRef,int $sourceVersion): ?ApprovedOnepageBriefSnapshot
+            {
+                ++$this->reads;
+                $this->last=null;
+                $q=$this->reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
+                $q->execute([hash('sha256',$this->reference),$orderRef,$siteRef,$sourceVersion,$this->digest]);
+                $raw=$q->fetchColumn();
+                $q->closeCursor();
+                if (!is_string($raw)) return null;
+                $rights=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+                // The buyer receipt is deliberately NOT an editorial approval.
+                return $this->last=new ApprovedOnepageBriefSnapshot($this->contract,[
+                    'siteRef'=>$siteRef,'sourceVersion'=>$sourceVersion,
+                    'snapshotRef'=>$rights['receipt_id'],'operationId'=>'r37-negative-only',
+                    'idempotencyKey'=>'r37-negative-only','expectedBriefRevision'=>0,
+                    'payloadRef'=>'r37-negative-only',
+                ],hex2bin($rights['bytes_hex']),$rights['source_sha'],$rights['receipt_id'],1);
+            }
+        };
+        $witness = new class implements CurrentOnepageBriefApprovalWitness {
+            public int $reads=0;
+            public function isCurrent(ApprovedOnepageBriefSnapshot $brief): bool
+            {
+                ++$this->reads;
+                return (new DenyingCurrentOnepageBriefApprovalWitness())->isCurrent($brief);
+            }
+        };
+        $denyExport = static function(OnepageApprovedBriefExportGate $gate,string $orderRef,string $siteRef,int $version):void {
+            try {
+                $gate->prepare($orderRef,$siteRef,$version);
+                self::fail('Buyer rights alone must never export an approved briefing.');
+            } catch (\RuntimeException $error) {
+                self::assertSame('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED',$error->getMessage());
+                self::assertNull($error->getPrevious());
+            }
+        };
+        $gate=new OnepageApprovedBriefExportGate($contracts,$readCandidate,$witness);
+        $denyExport($gate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+        self::assertSame(1,$readCandidate->reads);
+        self::assertSame(1,$witness->reads,'Exact persisted bytes must reach the independent denying witness.');
+        self::assertInstanceOf(ApprovedOnepageBriefSnapshot::class,$readCandidate->last);
+        self::assertSame($current['receipt_id'],$readCandidate->last->approvalRef);
+        self::assertSame($current['source_sha'],$readCandidate->last->sourceSha256);
+        self::assertSame($current['bytes_hex'],bin2hex($readCandidate->last->sourceBytes));
+        $denyExport($gate,$order->id,$this->admittedSiteRef,1);
+        self::assertSame(2,$readCandidate->reads);
+        self::assertNull($readCandidate->last);
+        self::assertSame(1,$witness->reads,'Superseded rights cannot reach editorial verification.');
+        foreach ($deniedReferences as $deniedReference) {
+            $foreignGate=new OnepageApprovedBriefExportGate(
+                new PostgresPortalSiteContractSource($orders,$deniedReference),$readCandidate,$witness);
+            $denyExport($foreignGate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+        }
+        self::assertSame(2,$readCandidate->reads,'Unauthorized buyers cannot reach the private source.');
+        self::assertSame(1,$witness->reads);
         self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
         // Control: the same exact replay remains available to the buyer before revocation.
         $query=$runtime->prepare($sql);
