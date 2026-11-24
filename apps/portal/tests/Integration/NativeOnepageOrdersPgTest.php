@@ -112,6 +112,11 @@ class NativeOnepageOrdersPgTest extends TestCase
 
     /** Child tests may observe the already admitted order through the original native sessions. */
     protected function afterAcceptedOrderAccessCases(PostgresOnepageOrders $orders, \App\Domain\Commerce\OnepageAcceptedOrder $order, string $reference, array $deniedReferences): void {}
+    protected function revokeAcceptedContract(PDO $publisher): void
+    {
+        $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute(['publication-onepage-v1']);
+    }
+
     protected function afterRevokedOrder(PostgresOnepageOrders $orders, \App\Domain\Commerce\OnepageAcceptedOrder $order, string $reference): void {}
 
     private function denySql(PDO $db,string $sql,array $args=[],string $state='42501'):void
@@ -209,7 +214,7 @@ class NativeOnepageOrdersPgTest extends TestCase
         $this->denySql($this->admin,"UPDATE public.portal_memberships SET status='suspended' WHERE identity_id=?",[$buyer],'55P03');
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
         $runtime->rollBack();$this->admin->exec("SET lock_timeout='0'");
-        $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute(['publication-onepage-v1']);
+        $this->revokeAcceptedContract($publisher);
         $this->afterRevokedOrder($store,$order,$session);
         self::assertNull($store->review($session,$draft['id']));
         self::assertNull($store->findOwnedAcceptedOrder($session,$accepted['id']));
