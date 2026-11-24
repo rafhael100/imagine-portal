@@ -134,6 +134,76 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         self::assertSame(2,$readCandidate->reads,'Unauthorized buyers cannot reach the private source.');
         self::assertSame(1,$witness->reads);
         self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
+        // R38: compose the two previously separate observations on the same
+        // order: pinned Sites receipt reader and persisted Portal buyer rights.
+        // The receipt-reader login already exists in this disposable test.
+        // Its temporary activation is a fixture control, not a new grant.
+        self::assertSame('DISPOSABLE_PG18',getenv('PORTAL_NATIVE_ORDER_TEST'));
+        $port=(string)getenv('PORTAL_NATIVE_ORDER_TEST_PORT');
+        self::assertMatchesRegularExpression('/\A[0-9]{4,5}\z/D',$port);
+        $connectSites=static function(string $role)use($port):PDO {
+            return new PDO('pgsql:host=127.0.0.1;port='.$port.';dbname=portal_sites_pair_ci;connect_timeout=3',
+                $role,'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false,PDO::ATTR_STRINGIFY_FETCHES=>false]);
+        };
+        $sitesBootstrap=$connectSites('portal_native_test_bootstrap');
+        self::assertSame('portal_native_test_bootstrap',$sitesBootstrap->query('SELECT session_user')->fetchColumn());
+        self::assertSame('portal_sites_pair_ci',$sitesBootstrap->query('SELECT current_database()')->fetchColumn());
+        self::assertSame(getenv('PORTAL_NATIVE_ORDER_TEST_DATA'),$sitesBootstrap->query('SHOW data_directory')->fetchColumn());
+        $role='portal_sites_pair_receipt_reader';
+        $binding=$sitesBootstrap->prepare('SELECT active FROM sites_core.db_login_bindings WHERE login_name=?');
+        $binding->execute([$role]);
+        self::assertFalse($binding->fetchColumn(),'R27/R35 must have restored revocation.');
+        $binding->closeCursor();
+        $wire=(new \App\Domain\SitesIntegration\SitesCreateProjectEncoder($contracts))->build(
+            $order->id,'native-pair-operation-'.$order->id,'native-pair-idempotency-'.$order->id);
+        $command=\Imagine\Sites\Integration\SiteProjectCommand::fromArray($wire);
+        $admissionReads=0;
+        $readAdmission=static function(SiteContractSnapshot $c)use($connectSites,$role,$command,&$admissionReads):?string {
+            if ($c->tenantRef!==$command->tenantRef || $c->orderRef!==$command->orderRef ||
+                $c->contractRef!==$command->contractRef || $c->contractRevision!==$command->contractRevision ||
+                $c->productCode!==$command->productCode) return null;
+            ++$admissionReads;
+            $pdo=$connectSites($role);
+            self::assertSame($role,$pdo->query('SELECT session_user')->fetchColumn());
+            self::assertSame('on',$pdo->query('SHOW default_transaction_read_only')->fetchColumn());
+            $db=new \Illuminate\Database\PostgresConnection($pdo,'portal_sites_pair_ci','',['driver'=>'pgsql']);
+            $receipt=(new \App\Integration\StoredProjectIntakeReceiptReader($db))->readExact($command);
+            return $receipt['siteRef'];
+        };
+        $setBinding=$sitesBootstrap->prepare('UPDATE sites_core.db_login_bindings SET active=?::boolean WHERE login_name=?');
+        $bound=new \App\Domain\SitesIntegration\AdmissionBoundOnepageBriefSnapshotSource($contracts,$readAdmission,$readCandidate);
+        $boundGate=new OnepageApprovedBriefExportGate($contracts,$bound,$witness);
+        $beforeRights=$readCandidate->reads;
+        $beforeWitness=$witness->reads;
+        try {
+            $setBinding->execute(['true',$role]);
+            self::assertSame($this->admittedSiteRef,$readAdmission($contract));
+            $denyExport($boundGate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+            self::assertSame(3,$admissionReads,'Independent admission must be read before and after the real rights source.');
+            self::assertSame($beforeRights+1,$readCandidate->reads);
+            self::assertSame($beforeWitness+1,$witness->reads,'The real rights still cannot replace editorial authority.');
+            self::assertSame($current['bytes_hex'],bin2hex($readCandidate->last->sourceBytes));
+            $foreignSite=$sitesBootstrap->query('SELECT gen_random_uuid()')->fetchColumn();
+            $denyExport($boundGate,$order->id,$foreignSite,(int)$current['version']);
+            self::assertSame(4,$admissionReads);
+            self::assertSame($beforeRights+1,$readCandidate->reads,'Wrong site must not reach persisted rights.');
+            $setBinding->execute(['false',$role]);
+            $denyExport($boundGate,$order->id,$this->admittedSiteRef,(int)$current['version']);
+            self::assertSame(5,$admissionReads);
+            self::assertSame($beforeRights+1,$readCandidate->reads,'Revoked admission reader must not disclose persisted rights.');
+            self::assertSame($beforeWitness+1,$witness->reads);
+            // Control: the Portal buyer still owns the same exact rights.
+            // The denial above is due to the independent Sites boundary.
+            $read->execute($args);
+            self::assertSame($evidence,json_decode((string)$read->fetchColumn(),true,16,JSON_THROW_ON_ERROR));
+            $read->closeCursor();
+        } finally {
+            $setBinding->execute(['false',$role]);
+        }
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
+        self::assertSame(1,(int)$sitesBootstrap->query('SELECT count(*) FROM sites_core.portal_project_intakes')->fetchColumn());
+        self::assertSame('blocked',$sitesBootstrap->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
+        self::assertFalse($sitesBootstrap->query('SELECT publishable FROM sites_core.site_projects')->fetchColumn());
         // Control: the same exact replay remains available to the buyer before revocation.
         $query=$runtime->prepare($sql);
         $query->execute($args);
