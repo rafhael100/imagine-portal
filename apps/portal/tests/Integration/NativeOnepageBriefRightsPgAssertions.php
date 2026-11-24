@@ -213,7 +213,28 @@ SQL);
         $sha2=hash('sha256',$v2);
         $runtime->exec("SET lock_timeout='250ms'");
         $bootstrap->exec("SET lock_timeout='250ms'");
+        $reader->exec("SET lock_timeout='250ms'");
         try {
+            // R34: byte disclosure has its own transaction boundary. Do not
+            // substitute the R31 confirmation (writer) for the R32 reader.
+            $reader->beginTransaction();
+            $duringRead=$read($session,1,$sha1);
+            Assert::assertIsArray($duringRead);
+            ksort($duringRead);
+            Assert::assertSame($actual,$duringRead);
+            try {
+                $seed(2,$v2);
+                Assert::fail('Source append must not overtake an in-flight private byte read.');
+            } catch (PDOException $e) {
+                Assert::assertSame('55P03',$e->getCode());
+            }
+            $reader->rollBack();
+            Assert::assertSame(1,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.versions')->fetchColumn());
+            Assert::assertSame(1,(int)$bootstrap->query('SELECT count(*) FROM portal_brief_rights_lab.confirmations')->fetchColumn());
+            $afterDeniedAppend=$read($session,1,$sha1);
+            Assert::assertIsArray($afterDeniedAppend);
+            ksort($afterDeniedAppend);
+            Assert::assertSame($actual,$afterDeniedAppend,'The denied append must preserve the exact v1 evidence.');
             $runtime->beginTransaction();
             Assert::assertSame($r1,$confirm($session,1,$sha1));
             try {
@@ -233,10 +254,23 @@ SQL);
             } catch (PDOException $e) {
                 Assert::assertSame('55P03',$e->getCode());
             }
+            // R34: the reader must also refuse to disclose v1 while the
+            // source append is uncommitted; a v2 selector must not expose
+            // unconfirmed bytes, even with the correct digest.
+            foreach ([[1,$sha1],[2,$sha2]] as [$candidateVersion,$candidateSha]) {
+                try {
+                    $read($session,$candidateVersion,$candidateSha);
+                    Assert::fail('Private byte read must not pass an in-flight source append.');
+                } catch (PDOException $e) {
+                    Assert::assertSame('55P03',$e->getCode());
+                }
+            }
             $bootstrap->commit();
         } finally {
+            if ($reader->inTransaction()) $reader->rollBack();
             if ($runtime->inTransaction()) $runtime->rollBack();
             if ($bootstrap->inTransaction()) $bootstrap->rollBack();
+            $reader->exec("SET lock_timeout='0'");
             $runtime->exec("SET lock_timeout='0'");
             $bootstrap->exec("SET lock_timeout='0'");
         }
