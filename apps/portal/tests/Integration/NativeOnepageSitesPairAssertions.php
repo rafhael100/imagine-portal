@@ -290,6 +290,15 @@ final class NativeOnepageSitesPairAssertions
             } finally {
                 while (ob_get_level()>$callerLevel) ob_end_clean();
             }
+            // R35 temporarily re-enabled the synthetic reader for the positive
+            // output-control case. Restore the R27 revoked state before checking it.
+            $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
+            $probe->duringRead=null;
+            $probe->candidate=$exact;
+            $callsBeforeRevokedRead=$probe->calls;
+            Assert::assertNull($seam->readExact($order->id,$receipt['siteRef'],1),
+                'Restored revocation must deny even a valid candidate without reading private bytes.');
+            Assert::assertSame($callsBeforeRevokedRead,$probe->calls);
             Assert::assertSame(0,(int)$sites->query("SELECT count(*) FROM sites_core.db_login_bindings WHERE login_name='portal_sites_pair_receipt_reader' AND active")->fetchColumn());
         } finally {
             $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
