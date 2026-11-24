@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: rafhael100/imagine-sites
-          ref: 9b80387fe1c580436b444a6aad2b63f3baafa37d
+          ref: 958ce49899375a99c3dee9b7f40016701a465502
           path: sites-source
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -73,7 +73,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C sites-source rev-parse HEAD)" = 9b80387fe1c580436b444a6aad2b63f3baafa37d
+          test "$(git -C sites-source rev-parse HEAD)" = 958ce49899375a99c3dee9b7f40016701a465502
           for app in apps/portal sites-source/apps/sites; do
             composer --working-dir="$app" validate --strict --no-check-publish
             composer --working-dir="$app" install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
