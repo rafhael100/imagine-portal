@@ -15,18 +15,53 @@ use SensitiveParameter;
  */
 final readonly class NativeOnepageBuyerRightsLabReader
 {
+    private string $port;
+
     public function __construct(private PDO $reader, PDO $bootstrap)
     {
-        // Only the already-attested bootstrap may inspect data_directory.
-        // The restricted runtime must not receive pg_read_all_settings.
-        if (getenv('PORTAL_NATIVE_ORDER_TEST') !== 'DISPOSABLE_PG18' ||
-            $bootstrap->query('SELECT session_user')->fetchColumn() !== 'portal_native_test_bootstrap' ||
-            $bootstrap->query('SHOW data_directory')->fetchColumn() !== getenv('PORTAL_NATIVE_ORDER_TEST_DATA') ||
-            $bootstrap->query('SELECT current_database()')->fetchColumn() !== 'portal_native_orders_ci' ||
-            $reader->query('SELECT current_database()')->fetchColumn() !== 'portal_native_orders_ci' ||
-            $reader->query('SELECT session_user')->fetchColumn() !== 'portal_onepage_runtime' ||
-            $reader->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM) !==
-                $bootstrap->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM)) {
+        $port=getenv('PORTAL_NATIVE_ORDER_TEST_PORT');
+        if (!is_string($port) || preg_match('/\A[0-9]{4,5}\z/D',$port)!==1) {
+            throw new \RuntimeException('Disposable buyer rights reader required.');
+        }
+        $this->port=$port;
+        try {
+            // Only the already-attested bootstrap may inspect data_directory.
+            // The restricted runtime must not receive pg_read_all_settings.
+            if ($bootstrap->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' ||
+                $bootstrap->inTransaction() ||
+                $bootstrap->query('SELECT session_user')->fetchColumn()!=='portal_native_test_bootstrap' ||
+                $bootstrap->query('SELECT current_user')->fetchColumn()!=='portal_native_test_bootstrap' ||
+                $bootstrap->query('SHOW data_directory')->fetchColumn()!==getenv('PORTAL_NATIVE_ORDER_TEST_DATA') ||
+                $bootstrap->query('SELECT current_database()')->fetchColumn()!=='portal_native_orders_ci' ||
+                !self::endpoint($bootstrap,$port)) {
+                throw new \RuntimeException();
+            }
+            $this->ready();
+        } catch (\Throwable) {
+            throw new \RuntimeException('Disposable buyer rights reader required.');
+        }
+    }
+
+    private static function endpoint(PDO $db,string $port):bool
+    {
+        $row=$db->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM);
+        return is_array($row) && $row[0]==='127.0.0.1' && (string)$row[1]===$port;
+    }
+
+    private function ready():void
+    {
+        // This independent reader owns no caller transaction. SQL-level lock
+        // tests still use their separate connections directly. Re-attest on
+        // every use because PDO state is mutable even in a readonly wrapper.
+        if (getenv('PORTAL_NATIVE_ORDER_TEST')!=='DISPOSABLE_PG18' ||
+            getenv('PORTAL_NATIVE_ORDER_TEST_PORT')!==$this->port ||
+            $this->reader->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' ||
+            $this->reader->getAttribute(PDO::ATTR_ERRMODE)!==PDO::ERRMODE_EXCEPTION ||
+            $this->reader->inTransaction() ||
+            $this->reader->query('SELECT current_database()')->fetchColumn()!=='portal_native_orders_ci' ||
+            $this->reader->query('SELECT session_user')->fetchColumn()!=='portal_onepage_runtime' ||
+            $this->reader->query('SELECT current_user')->fetchColumn()!=='portal_onepage_runtime' ||
+            !self::endpoint($this->reader,$this->port)) {
             throw new \RuntimeException('Disposable buyer rights reader required.');
         }
     }
@@ -38,12 +73,20 @@ final readonly class NativeOnepageBuyerRightsLabReader
         if (!self::uuid($site) || $version < 1 || $version > 2147483647 ||
             preg_match('/\A[a-f0-9]{64}\z/D',$reference) !== 1 ||
             preg_match('/\A[a-f0-9]{64}\z/D',$digest) !== 1) return null;
-        $q=$this->reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
         try {
-            $q->execute([hash('sha256',$reference),$order->id,$site,$version,$digest]);
-            $raw=$q->fetchColumn();
-        } finally {
-            $q->closeCursor();
+            $this->ready();
+            $q=$this->reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
+            try {
+                $q->execute([hash('sha256',$reference),$order->id,$site,$version,$digest]);
+                $raw=$q->fetchColumn();
+            } finally {
+                $q->closeCursor();
+            }
+        } catch (\Throwable) {
+            // Do not disclose driver diagnostics or private selectors to a
+            // future consumer of this lab reader. Infrastructure errors are
+            // distinct from an ordinary denied (null) evidence lookup.
+            throw new \RuntimeException('Disposable buyer rights reader unavailable.');
         }
         if (!is_string($raw) || strlen($raw)>310000) return null;
         try {
