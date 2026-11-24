@@ -59,6 +59,18 @@ GRANT SELECT ON portal_brief_rights_lab.versions TO portal_brief_rights_lab_owne
 GRANT SELECT,INSERT ON portal_brief_rights_lab.confirmations TO portal_brief_rights_lab_owner;
 CREATE POLICY fixture_versions ON portal_brief_rights_lab.versions TO portal_brief_rights_lab_owner USING(true);
 CREATE POLICY fixture_confirmations ON portal_brief_rights_lab.confirmations TO portal_brief_rights_lab_owner USING(true) WITH CHECK(true);
+-- Lab-only transaction lock shared by source INSERT and buyer confirmation.
+-- Scope is the same order/site. Hash collisions can only serialize extra pairs.
+-- No runtime source writer or new operational authority is installed.
+CREATE FUNCTION portal_brief_rights_lab.serialize_source_append()
+RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,pg_temp AS $
+BEGIN
+ PERFORM pg_advisory_xact_lock(hashtextextended('portal_brief_rights_lab:'||NEW.order_id::text||':'||NEW.site_id::text,0));
+ RETURN NEW;
+END $;
+CREATE TRIGGER serialize_source_append BEFORE INSERT ON portal_brief_rights_lab.versions
+ FOR EACH ROW EXECUTE FUNCTION portal_brief_rights_lab.serialize_source_append();
+REVOKE ALL ON FUNCTION portal_brief_rights_lab.serialize_source_append() FROM PUBLIC;
 CREATE FUNCTION portal_brief_rights_lab.confirm_exact(p_session text,p_order uuid,p_site uuid,p_version integer,p_sha text,p_rights boolean)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp SET row_security=on AS $$
 DECLARE native jsonb; current_version portal_brief_rights_lab.versions%ROWTYPE; result uuid;
@@ -68,7 +80,10 @@ BEGIN
  native:=portal_onepage.read_pending_order(p_session,p_order);
  IF native IS NULL THEN RETURN NULL; END IF;
  -- Source revisions are installed only by the isolated fixture bootstrap.
- -- This proves sequential supersession, not a concurrent source writer.
+ -- Serialize with its INSERT trigger before reading the current version.
+ -- This proof uses READ COMMITTED; it is not an official source writer.
+ IF current_setting('transaction_isolation') IS DISTINCT FROM 'read committed' THEN RETURN NULL; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('portal_brief_rights_lab:'||p_order::text||':'||p_site::text,0));
  SELECT * INTO current_version FROM portal_brief_rights_lab.versions
  WHERE order_id=p_order AND site_id=p_site ORDER BY version DESC LIMIT 1;
  IF NOT FOUND OR current_version.version IS DISTINCT FROM p_version
@@ -143,6 +158,8 @@ SQL);
         $v2=$bytes('Segunda versão sintética, alterada',2);
         // R31: concurrent source supersession must serialize with exact rights confirmation.
         // Same fixture order/site; bootstrap is the only synthetic source writer.
+        Assert::assertSame('read committed',$runtime->query('SHOW transaction_isolation')->fetchColumn());
+        Assert::assertSame('read committed',$bootstrap->query('SHOW transaction_isolation')->fetchColumn());
         $sha2=hash('sha256',$v2);
         $runtime->exec("SET lock_timeout='250ms'");
         $bootstrap->exec("SET lock_timeout='250ms'");
