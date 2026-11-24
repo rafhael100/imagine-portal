@@ -47,6 +47,53 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         $query->execute($args);
         self::assertSame($current['receipt_id'],$query->fetchColumn());
         self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
+        // R30: exercise both orders of the actual native contract lock through
+        // the rights fixture entry, not merely the underlying native reader.
+        $publication=$this->briefFixtureBootstrap->prepare('SELECT publication_ref FROM portal_onepage.pending_orders WHERE id=?::uuid');
+        $publication->execute([$order->id]);
+        $publicationRef=$publication->fetchColumn();
+        self::assertIsString($publicationRef);
+        $runtime->exec("SET lock_timeout='250ms'");
+        $publisher->exec("SET lock_timeout='250ms'");
+        try {
+            $runtime->beginTransaction();
+            $query->execute($args);
+            self::assertSame($current['receipt_id'],$query->fetchColumn());
+            $query->closeCursor();
+            try {
+                $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute([$publicationRef]);
+                self::fail('Native revocation must not pass the rights transaction lock.');
+            } catch (PDOException $error) {
+                self::assertSame('55P03',$error->getCode());
+            }
+            $runtime->rollBack();
+            // Invert the ordering: an uncommitted native revocation owns the
+            // publication lock. A rights replay must not return a stale receipt.
+            $publisher->beginTransaction();
+            $revoke=$publisher->prepare('SELECT portal_onepage.revoke_contract(?)');
+            $revoke->execute([$publicationRef]);
+            self::assertTrue($revoke->fetchColumn());
+            $revoke->closeCursor();
+            try {
+                $query->execute($args);
+                self::fail('Rights replay must not pass the in-flight native revocation.');
+            } catch (PDOException $error) {
+                self::assertSame('55P03',$error->getCode());
+            }
+            $publisher->rollBack();
+        } finally {
+            if ($runtime->inTransaction()) $runtime->rollBack();
+            if ($publisher->inTransaction()) $publisher->rollBack();
+            $runtime->exec("SET lock_timeout='0'");
+            $publisher->exec("SET lock_timeout='0'");
+        }
+        // Rollback leaves the exact current receipt usable and history intact;
+        // the parent subsequently commits the actual revocation (R29).
+        $query=$runtime->prepare($sql);
+        $query->execute($args);
+        self::assertSame($current['receipt_id'],$query->fetchColumn());
+        $query->closeCursor();
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->connectRightsFixture('portal_native_test_bootstrap')));
         // The fixture receipt cannot install an approved source or an editorial witness.
         NativeOnepageSitesPairAssertions::assertBriefBoundaryDenied($orders,$order,$reference,$this->admittedSiteRef,true);
         foreach ($deniedReferences as $deniedReference) {
