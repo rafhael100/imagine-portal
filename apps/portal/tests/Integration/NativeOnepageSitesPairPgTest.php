@@ -42,6 +42,23 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         } catch (PDOException $error) {
             self::assertSame('42501',$error->getCode());
         }
+        // R32: the same publisher cannot even read private buyer evidence.
+        $readSql='SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)';
+        try {
+            $publisher->prepare($readSql)->execute($args);
+            self::fail('Commercial publisher must not read private buyer evidence.');
+        } catch (PDOException $error) {
+            self::assertSame('42501',$error->getCode());
+        }
+        $reader=$this->connectRightsFixture('portal_onepage_runtime');
+        $read=$reader->prepare($readSql);
+        $read->execute($args);
+        $evidence=json_decode((string)$read->fetchColumn(),true,16,JSON_THROW_ON_ERROR);
+        $read->closeCursor();
+        self::assertSame($current['receipt_id'],$evidence['receipt_id']);
+        self::assertSame($current['bytes_hex'],$evidence['bytes_hex']);
+        self::assertSame($current['source_sha'],$evidence['source_sha']);
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
         // Control: the same exact replay remains available to the buyer before revocation.
         $query=$runtime->prepare($sql);
         $query->execute($args);
@@ -114,6 +131,14 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         foreach ($this->confirmedRightsHistory as $row) {
             $query->execute([hash('sha256',$reference),$order->id,$this->admittedSiteRef,(int)$row['version'],$row['source_sha']]);
             self::assertNull($query->fetchColumn(),'Revoked native contract must deny even exact rights receipt replay.');
+        }
+        // Separate, read-only operation must also deny after native revocation;
+        // no historic bytes may escape even though the receipt still exists.
+        $reader=$this->connectRightsFixture('portal_onepage_runtime');
+        $read=$reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
+        foreach ($this->confirmedRightsHistory as $row) {
+            $read->execute([hash('sha256',$reference),$order->id,$this->admittedSiteRef,(int)$row['version'],$row['source_sha']]);
+            self::assertNull($read->fetchColumn());
         }
         // Historical bytes/receipts remain intact, but they are not current authorization.
         $observer=$this->connectRightsFixture('portal_native_test_bootstrap');
