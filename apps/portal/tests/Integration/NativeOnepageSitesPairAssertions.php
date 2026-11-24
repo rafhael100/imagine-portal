@@ -4,6 +4,12 @@ namespace Tests\Integration;
 
 use App\Domain\Commerce\OnepageAcceptedOrder;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
+use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshot;
+use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshotSource;
+use App\Domain\SitesIntegration\CurrentOnepageBriefApprovalWitness;
+use App\Domain\SitesIntegration\DenyingApprovedOnepageBriefSnapshotSource;
+use App\Domain\SitesIntegration\DenyingCurrentOnepageBriefApprovalWitness;
+use App\Domain\SitesIntegration\OnepageApprovedBriefExportGate;
 use App\Infrastructure\Commerce\PostgresOnepageOrders;
 use App\Infrastructure\Commerce\PostgresPortalSiteContractSource;
 use DomainException;
@@ -15,7 +21,7 @@ use RuntimeException;
 /** Cross-repository product proof. No HTTP, fake receiver, PSP call or publication. */
 final class NativeOnepageSitesPairAssertions
 {
-    public static function run(PDO $portal,PostgresOnepageOrders $orders,OnepageAcceptedOrder $order,string $reference):void
+    public static function run(PDO $portal,PostgresOnepageOrders $orders,OnepageAcceptedOrder $order,string $reference):string
     {
         Assert::assertSame('DISPOSABLE_PG18',getenv('PORTAL_NATIVE_ORDER_TEST'));
         Assert::assertSame('portal_native_test_bootstrap',$portal->query('SELECT session_user')->fetchColumn());
@@ -126,5 +132,59 @@ final class NativeOnepageSitesPairAssertions
         Assert::assertSame('awaiting_official_authority',$saved['lifecycle_state']);
         Assert::assertSame('blocked',$sites->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
         Assert::assertSame('pending_payment',$portal->query('SELECT status FROM portal_onepage.pending_orders')->fetchColumn());
+        return $receipt['siteRef'];
+    }
+
+    /**
+     * First actual native-contract -> #976 boundary seam, still NO-GO.
+     * The exact site comes from the committed Sites receipt, NOT a caller-made UUID.
+     * Native SQL revalidates the original buyer session. Neither spy supplies bytes,
+     * an editorial decision, payment authority or a successful export.
+     */
+    public static function assertBriefBoundaryDenied(
+        PostgresOnepageOrders $orders, OnepageAcceptedOrder $order, string $reference,
+        string $siteRef, bool $contractVisible,
+    ): void {
+        $contracts = new PostgresPortalSiteContractSource($orders,$reference);
+        $snapshot = $contracts->findAuthorizedSiteOrder($order->id);
+        if ($contractVisible) {
+            Assert::assertNotNull($snapshot);
+            Assert::assertSame($order->companyReference,$snapshot->tenantRef);
+            Assert::assertSame($order->id,$snapshot->orderRef);
+            Assert::assertSame($order->contractRef,$snapshot->contractRef);
+            Assert::assertSame($order->contractRevision,$snapshot->contractRevision);
+            Assert::assertSame('onepage',$snapshot->productCode);
+        } else {
+            Assert::assertNull($snapshot);
+        }
+
+        // Instrument the real denying defaults, not an approved fixture.
+        $briefs = new class implements ApprovedOnepageBriefSnapshotSource {
+            public array $reads = [];
+            public function readExact(string $orderRef,string $siteRef,int $sourceVersion): ?ApprovedOnepageBriefSnapshot
+            {
+                $this->reads[] = [$orderRef,$siteRef,$sourceVersion];
+                return (new DenyingApprovedOnepageBriefSnapshotSource())->readExact($orderRef,$siteRef,$sourceVersion);
+            }
+        };
+        $approvals = new class implements CurrentOnepageBriefApprovalWitness {
+            public int $reads = 0;
+            public function isCurrent(ApprovedOnepageBriefSnapshot $brief): bool
+            {
+                ++$this->reads;
+                return (new DenyingCurrentOnepageBriefApprovalWitness())->isCurrent($brief);
+            }
+        };
+        // Version 1 is only an exact request selector; no approved version
+        // exists in the native store. Never construct an approved snapshot.
+        try {
+            (new OnepageApprovedBriefExportGate($contracts,$briefs,$approvals))->prepare($order->id,$siteRef,1);
+            Assert::fail('Native accepted commercial contract must not grant approved briefing export.');
+        } catch (RuntimeException $error) {
+            Assert::assertSame('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED',$error->getMessage());
+            Assert::assertNull($error->getPrevious());
+        }
+        Assert::assertSame($contractVisible ? [[$order->id,$siteRef,1]] : [],$briefs->reads);
+        Assert::assertSame(0,$approvals->reads);
     }
 }
