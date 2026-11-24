@@ -111,6 +111,53 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         self::assertSame($current['receipt_id'],$query->fetchColumn());
         $query->closeCursor();
         self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->connectRightsFixture('portal_native_test_bootstrap')));
+        // R33: the independent read exposes bytes, unlike confirm_exact.
+        // Exercise its own transaction boundary, not a replay of the R30 writer.
+        $reader->exec("SET lock_timeout='250ms'");
+        $publisher->exec("SET lock_timeout='250ms'");
+        try {
+            $reader->beginTransaction();
+            $read->execute($args);
+            self::assertSame($evidence,json_decode((string)$read->fetchColumn(),true,16,JSON_THROW_ON_ERROR));
+            $read->closeCursor();
+            try {
+                $publisher->prepare('SELECT portal_onepage.revoke_contract(?)')->execute([$publicationRef]);
+                self::fail('Revocation must serialize with the independent byte disclosure.');
+            } catch (PDOException $error) {
+                self::assertSame('55P03',$error->getCode());
+            }
+            $reader->rollBack();
+            $publisher->beginTransaction();
+            $revoke=$publisher->prepare('SELECT portal_onepage.revoke_contract(?)');
+            $revoke->execute([$publicationRef]);
+            self::assertTrue($revoke->fetchColumn());
+            $revoke->closeCursor();
+            try {
+                $read->execute($args);
+                self::fail('Independent read must not disclose bytes during uncommitted revocation.');
+            } catch (PDOException $error) {
+                self::assertSame('55P03',$error->getCode());
+            }
+            $publisher->rollBack();
+            // Reject stale transaction snapshots rather than trusting their bytes.
+            foreach (['REPEATABLE READ','SERIALIZABLE'] as $isolation) {
+                $reader->beginTransaction();
+                $reader->exec('SET TRANSACTION ISOLATION LEVEL '.$isolation);
+                $read->execute($args);
+                self::assertNull($read->fetchColumn());
+                $read->closeCursor();
+                $reader->rollBack();
+            }
+            $read->execute($args);
+            self::assertSame($evidence,json_decode((string)$read->fetchColumn(),true,16,JSON_THROW_ON_ERROR));
+            $read->closeCursor();
+        } finally {
+            if ($reader->inTransaction()) $reader->rollBack();
+            if ($publisher->inTransaction()) $publisher->rollBack();
+            $reader->exec("SET lock_timeout='0'");
+            $publisher->exec("SET lock_timeout='0'");
+        }
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->connectRightsFixture('portal_native_test_bootstrap')));
         // The fixture receipt cannot install an approved source or an editorial witness.
         NativeOnepageSitesPairAssertions::assertBriefBoundaryDenied($orders,$order,$reference,$this->admittedSiteRef,true);
         foreach ($deniedReferences as $deniedReference) {
