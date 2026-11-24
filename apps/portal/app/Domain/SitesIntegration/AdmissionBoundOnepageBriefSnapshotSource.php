@@ -70,6 +70,11 @@ final readonly class AdmissionBoundOnepageBriefSnapshotSource implements Approve
             // Never pass a candidate to the caller on a stale receipt binding.
             // Reuse the exact independent reader, then recheck native authority.
             // These observations do not prove a distributed atomic snapshot.
+            // Native authority may have disappeared while private bytes were
+            // read. Stop before another independent receipt lookup as well.
+            if (!self::sameContract($contract, $this->contracts->findAuthorizedSiteOrder($orderRef))) {
+                return null;
+            }
             $after = ($this->readAdmittedSite)($contract);
             if (!is_string($after) || !hash_equals($after, $siteRef) ||
                 !self::sameContract($contract, $this->contracts->findAuthorizedSiteOrder($orderRef))) {
