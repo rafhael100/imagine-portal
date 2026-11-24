@@ -74,21 +74,46 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         $contracts = new PostgresPortalSiteContractSource($orders,$reference);
         $contract = $contracts->findAuthorizedSiteOrder($order->id);
         self::assertInstanceOf(SiteContractSnapshot::class,$contract);
-        $readCandidate = new class($reader,$reference,$contract,$current['source_sha']) implements ApprovedOnepageBriefSnapshotSource {
+        // R41: independent, reusable buyer-evidence reader, not an approved
+        // source. Validate the persisted envelope against the actual order.
+        $rightsReader=new NativeOnepageBuyerRightsLabReader($reader);
+        $rights=$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
+        self::assertSame($evidence,$rights);
+        foreach ([
+            ['buyer'=>'00000000-0000-0000-0000-000000000000'],
+            ['company'=>'00000000-0000-0000-0000-000000000000'],
+            ['order_id'=>'00000000-0000-0000-0000-000000000000'],
+            ['site_id'=>'00000000-0000-0000-0000-000000000000'],
+            ['version'=>(string)$current['version']],
+            ['source_sha'=>str_repeat('0',64)],
+            ['bytes_hex'=>bin2hex('changed synthetic bytes')],
+            ['rights_declared'=>false],
+            ['receipt_id'=>'not-a-uuid'],
+            ['approvalRef'=>'not-buyer-evidence'],
+        ] as $drift) {
+            self::assertNull(NativeOnepageBuyerRightsLabReader::validate(
+                array_replace($rights,$drift),$order,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']));
+        }
+        foreach ($deniedReferences as $deniedReference) {
+            self::assertNull($rightsReader->read($order,$deniedReference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']));
+        }
+        self::assertNull($rightsReader->read($order,$reference,$this->admittedSiteRef,1,$current['source_sha']));
+        self::assertNull($rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],str_repeat('0',64)));
+        self::assertSame($this->confirmedRightsHistory,$this->readRightsHistory($this->briefFixtureBootstrap));
+        // Keep the adversarial approval substitution strictly inside this test.
+        $readCandidate = new class($rightsReader,$order,$reference,$contract,$current['source_sha']) implements ApprovedOnepageBriefSnapshotSource {
             public int $reads=0;
             public ?ApprovedOnepageBriefSnapshot $last=null;
-            public function __construct(private PDO $reader,private string $reference,
+            public function __construct(private NativeOnepageBuyerRightsLabReader $reader,
+                private OnepageAcceptedOrder $order,private string $reference,
                 private SiteContractSnapshot $contract,private string $digest) {}
             public function readExact(string $orderRef,string $siteRef,int $sourceVersion): ?ApprovedOnepageBriefSnapshot
             {
                 ++$this->reads;
                 $this->last=null;
-                $q=$this->reader->prepare('SELECT portal_brief_rights_lab.read_current_rights(?,?::uuid,?::uuid,?::integer,?)');
-                $q->execute([hash('sha256',$this->reference),$orderRef,$siteRef,$sourceVersion,$this->digest]);
-                $raw=$q->fetchColumn();
-                $q->closeCursor();
-                if (!is_string($raw)) return null;
-                $rights=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+                if ($orderRef!==$this->order->id) return null;
+                $rights=$this->reader->read($this->order,$this->reference,$siteRef,$sourceVersion,$this->digest);
+                if ($rights===null) return null;
                 // The buyer receipt is deliberately NOT an editorial approval.
                 return $this->last=new ApprovedOnepageBriefSnapshot($this->contract,[
                     'siteRef'=>$siteRef,'sourceVersion'=>$sourceVersion,
