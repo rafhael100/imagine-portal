@@ -15,12 +15,18 @@ use SensitiveParameter;
  */
 final readonly class NativeOnepageBuyerRightsLabReader
 {
-    public function __construct(private PDO $reader)
+    public function __construct(private PDO $reader, PDO $bootstrap)
     {
+        // Only the already-attested bootstrap may inspect data_directory.
+        // The restricted runtime must not receive pg_read_all_settings.
         if (getenv('PORTAL_NATIVE_ORDER_TEST') !== 'DISPOSABLE_PG18' ||
+            $bootstrap->query('SELECT session_user')->fetchColumn() !== 'portal_native_test_bootstrap' ||
+            $bootstrap->query('SHOW data_directory')->fetchColumn() !== getenv('PORTAL_NATIVE_ORDER_TEST_DATA') ||
+            $bootstrap->query('SELECT current_database()')->fetchColumn() !== 'portal_native_orders_ci' ||
             $reader->query('SELECT current_database()')->fetchColumn() !== 'portal_native_orders_ci' ||
             $reader->query('SELECT session_user')->fetchColumn() !== 'portal_onepage_runtime' ||
-            $reader->query('SHOW data_directory')->fetchColumn() !== getenv('PORTAL_NATIVE_ORDER_TEST_DATA')) {
+            $reader->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM) !==
+                $bootstrap->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM)) {
             throw new \RuntimeException('Disposable buyer rights reader required.');
         }
     }
