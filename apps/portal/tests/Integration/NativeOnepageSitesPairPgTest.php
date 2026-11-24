@@ -83,7 +83,11 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
             $role,'',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false,PDO::ATTR_STRINGIFY_FETCHES=>false]);
         self::assertSame($role,$pdo->query('SELECT session_user')->fetchColumn());
         self::assertSame('portal_native_orders_ci',$pdo->query('SELECT current_database()')->fetchColumn());
-        self::assertSame(getenv('PORTAL_NATIVE_ORDER_TEST_DATA'),$pdo->query('SHOW data_directory')->fetchColumn());
+        self::assertNotNull($this->briefFixtureBootstrap);
+        self::assertSame($this->briefFixtureBootstrap->query('SELECT host(inet_server_addr())')->fetchColumn(),$pdo->query('SELECT host(inet_server_addr())')->fetchColumn());
+        if ($role==='portal_native_test_bootstrap') {
+            self::assertSame(getenv('PORTAL_NATIVE_ORDER_TEST_DATA'),$pdo->query('SHOW data_directory')->fetchColumn());
+        }
         return $pdo;
     }
 
