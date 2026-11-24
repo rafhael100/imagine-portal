@@ -5,6 +5,8 @@ namespace Tests\Integration;
 use App\Domain\Commerce\OnepageAcceptedOrder;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshot;
+use App\Domain\SitesIntegration\AdmissionBoundOnepageBriefSnapshotSource;
+use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\ApprovedOnepageBriefSnapshotSource;
 use App\Domain\SitesIntegration\CurrentOnepageBriefApprovalWitness;
 use App\Domain\SitesIntegration\DenyingApprovedOnepageBriefSnapshotSource;
@@ -132,7 +134,90 @@ final class NativeOnepageSitesPairAssertions
         Assert::assertSame('awaiting_official_authority',$saved['lifecycle_state']);
         Assert::assertSame('blocked',$sites->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
         Assert::assertSame('pending_payment',$portal->query('SELECT status FROM portal_onepage.pending_orders')->fetchColumn());
+        self::assertIndependentAdmission($sites,$connect,$database,$source,$command,$receipt,$contracts,$order,$tenant);
         return $receipt['siteRef'];
+    }
+
+    /**
+     * Same committed order, no second receiver call. Use the original Sites
+     * exact receipt reader (#531) via a distinct read-only PG18 login.
+     * The underlying briefing source remains the real denying default.
+     */
+    private static function assertIndependentAdmission(
+        PDO $sites, \Closure $connect, string $database, string $source,
+        \Imagine\Sites\Integration\SiteProjectCommand $command, array $receipt,
+        PostgresPortalSiteContractSource $contracts, OnepageAcceptedOrder $order, string $tenant,
+    ): void {
+        require_once $source.'/src/Production/BriefCandidateJson.php';
+        require_once $source.'/apps/sites/app/Integration/BriefSnapshotTransaction.php';
+        require_once $source.'/apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php';
+
+        // Explicit fixture-only capability; never use the receiver login or
+        // bootstrap principal to read the receipt for the candidate gate.
+        $role='portal_sites_pair_receipt_reader';
+        $sites->exec('CREATE ROLE '.$role.' LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT');
+        $sites->exec('ALTER ROLE '.$role.' SET default_transaction_read_only TO on');
+        $sites->prepare('INSERT INTO sites_core.db_login_bindings(login_name,tenant_id,active,can_receive_project,can_read) VALUES(?,?::uuid,true,false,true)')
+            ->execute([$role,$tenant]);
+        $sites->exec('GRANT CONNECT ON DATABASE portal_sites_pair_ci TO '.$role);
+        $sites->exec('GRANT USAGE ON SCHEMA sites_core TO '.$role);
+        $sites->exec('GRANT EXECUTE ON FUNCTION sites_core.read_portal_project_intake_receipt(text,text,text,text,text,integer,text,text) TO '.$role);
+
+        $read=static function()use($connect,$database,$role,$command):array {
+            $pdo=$connect($role);
+            Assert::assertSame($role,$pdo->query('SELECT session_user')->fetchColumn());
+            Assert::assertSame('on',$pdo->query('SHOW default_transaction_read_only')->fetchColumn());
+            $db=new PostgresConnection($pdo,$database,'',['driver'=>'pgsql']);
+            return (new \App\Integration\StoredProjectIntakeReceiptReader($db))->readExact($command);
+        };
+        Assert::assertSame($receipt,$read(),'Independent receipt reader must return the exact committed admission.');
+
+        $reads=0;
+        $admitted=static function(SiteContractSnapshot $current)use($command,$read,&$reads):?string {
+            if ($current->tenantRef!==$command->tenantRef || $current->orderRef!==$command->orderRef ||
+                $current->contractRef!==$command->contractRef || $current->contractRevision!==$command->contractRevision ||
+                $current->productCode!==$command->productCode) return null;
+            ++$reads;
+            return $read()['siteRef'];
+        };
+        $briefs=new class implements ApprovedOnepageBriefSnapshotSource {
+            public array $reads=[];
+            public function readExact(string $orderRef,string $siteRef,int $sourceVersion):?ApprovedOnepageBriefSnapshot
+            {
+                $this->reads[]=[$orderRef,$siteRef,$sourceVersion];
+                return (new DenyingApprovedOnepageBriefSnapshotSource())->readExact($orderRef,$siteRef,$sourceVersion);
+            }
+        };
+        $gate=new OnepageApprovedBriefExportGate($contracts,
+            new AdmissionBoundOnepageBriefSnapshotSource($contracts,$admitted,$briefs),
+            new DenyingCurrentOnepageBriefApprovalWitness());
+        $deny=static function(string $orderRef,string $siteRef)use($gate):void {
+            try {
+                $gate->prepare($orderRef,$siteRef,1);
+                Assert::fail('Admission alone must never authorize briefing export.');
+            } catch (RuntimeException $error) {
+                Assert::assertSame('ONEPAGE_APPROVED_BRIEF_EXPORT_DENIED',$error->getMessage());
+                Assert::assertNull($error->getPrevious());
+            }
+        };
+        $before=$sites->query('SELECT to_jsonb(i)::text FROM sites_core.portal_project_intakes i')->fetchColumn();
+        $foreignSite=$sites->query('SELECT gen_random_uuid()')->fetchColumn();
+        $deny($order->id,$foreignSite);
+        Assert::assertSame(1,$reads);
+        Assert::assertSame([],$briefs->reads,'Wrong site must deny before the private briefing source.');
+        $deny($order->id,$receipt['siteRef']);
+        Assert::assertSame(2,$reads);
+        Assert::assertSame([[$order->id,$receipt['siteRef'],1]],$briefs->reads);
+
+        $sites->prepare('UPDATE sites_core.db_login_bindings SET active=false WHERE login_name=?')->execute([$role]);
+        $deny($order->id,$receipt['siteRef']);
+        Assert::assertSame(3,$reads);
+        Assert::assertSame([[$order->id,$receipt['siteRef'],1]],$briefs->reads,
+            'A revoked independent reader must not reach private briefing bytes.');
+        Assert::assertSame($before,$sites->query('SELECT to_jsonb(i)::text FROM sites_core.portal_project_intakes i')->fetchColumn());
+        Assert::assertSame(1,(int)$sites->query('SELECT count(*) FROM sites_core.portal_project_intakes')->fetchColumn());
+        Assert::assertSame('blocked',$sites->query('SELECT delivery_state FROM sites_core.site_outbox')->fetchColumn());
+        Assert::assertFalse($sites->query('SELECT publishable FROM sites_core.site_projects')->fetchColumn());
     }
 
     /**
