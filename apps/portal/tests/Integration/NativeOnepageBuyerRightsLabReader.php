@@ -16,6 +16,7 @@ use SensitiveParameter;
 final readonly class NativeOnepageBuyerRightsLabReader
 {
     private string $port;
+    private string $serverAddress;
 
     public function __construct(private PDO $reader, PDO $bootstrap)
     {
@@ -25,6 +26,7 @@ final readonly class NativeOnepageBuyerRightsLabReader
         }
         $this->port=$port;
         try {
+            $this->serverAddress=self::expectedServerAddress();
             // Only the already-attested bootstrap may inspect data_directory.
             // The restricted runtime must not receive pg_read_all_settings.
             if ($bootstrap->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' ||
@@ -33,7 +35,7 @@ final readonly class NativeOnepageBuyerRightsLabReader
                 $bootstrap->query('SELECT current_user')->fetchColumn()!=='portal_native_test_bootstrap' ||
                 $bootstrap->query('SHOW data_directory')->fetchColumn()!==getenv('PORTAL_NATIVE_ORDER_TEST_DATA') ||
                 $bootstrap->query('SELECT current_database()')->fetchColumn()!=='portal_native_orders_ci' ||
-                !self::endpoint($bootstrap,$port)) {
+                !self::endpoint($bootstrap,$port,$this->serverAddress)) {
                 throw new \RuntimeException();
             }
             $this->ready();
@@ -42,10 +44,28 @@ final readonly class NativeOnepageBuyerRightsLabReader
         }
     }
 
-    private static function endpoint(PDO $db,string $port):bool
+    private static function expectedServerAddress():string
+    {
+        // The DSN stays on loopback. In hosted CI PostgreSQL observes its
+        // own Docker service address, already inspected by the native suite.
+        if (getenv('GITHUB_ACTIONS')!=='true') return '127.0.0.1';
+        $address=getenv('PORTAL_NATIVE_ORDER_TEST_SERVER_ADDRESS');
+        if (!in_array(getenv('GITHUB_EVENT_NAME'),['pull_request','workflow_dispatch'],true) ||
+            !is_string($address) || filter_var($address,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)===false) {
+            throw new \RuntimeException();
+        }
+        $octets=array_map('intval',explode('.',$address));
+        if (!($octets[0]===10 || ($octets[0]===172 && $octets[1]>=16 && $octets[1]<=31) ||
+            ($octets[0]===192 && $octets[1]===168))) {
+            throw new \RuntimeException();
+        }
+        return $address;
+    }
+
+    private static function endpoint(PDO $db,string $port,string $address):bool
     {
         $row=$db->query('SELECT host(inet_server_addr()), inet_server_port()')->fetch(PDO::FETCH_NUM);
-        return is_array($row) && $row[0]==='127.0.0.1' && (string)$row[1]===$port;
+        return is_array($row) && $row[0]===$address && (string)$row[1]===$port;
     }
 
     private function ready():void
@@ -55,13 +75,14 @@ final readonly class NativeOnepageBuyerRightsLabReader
         // every use because PDO state is mutable even in a readonly wrapper.
         if (getenv('PORTAL_NATIVE_ORDER_TEST')!=='DISPOSABLE_PG18' ||
             getenv('PORTAL_NATIVE_ORDER_TEST_PORT')!==$this->port ||
+            self::expectedServerAddress()!==$this->serverAddress ||
             $this->reader->getAttribute(PDO::ATTR_DRIVER_NAME)!=='pgsql' ||
             $this->reader->getAttribute(PDO::ATTR_ERRMODE)!==PDO::ERRMODE_EXCEPTION ||
             $this->reader->inTransaction() ||
             $this->reader->query('SELECT current_database()')->fetchColumn()!=='portal_native_orders_ci' ||
             $this->reader->query('SELECT session_user')->fetchColumn()!=='portal_onepage_runtime' ||
             $this->reader->query('SELECT current_user')->fetchColumn()!=='portal_onepage_runtime' ||
-            !self::endpoint($this->reader,$this->port)) {
+            !self::endpoint($this->reader,$this->port,$this->serverAddress)) {
             throw new \RuntimeException('Disposable buyer rights reader required.');
         }
     }
