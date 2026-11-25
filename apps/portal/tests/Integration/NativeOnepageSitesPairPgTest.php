@@ -79,6 +79,26 @@ final class NativeOnepageSitesPairPgTest extends NativeOnepageOrdersPgTest
         $rightsReader=new NativeOnepageBuyerRightsLabReader($reader,$this->briefFixtureBootstrap);
         $rights=$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
         self::assertSame($evidence,$rights);
+        // R43: do not replace the pinned server with another private address
+        // after construction. The real hosted service is not SQL loopback.
+        if (getenv('GITHUB_ACTIONS')==='true') {
+            $attestedAddress=getenv('PORTAL_NATIVE_ORDER_TEST_SERVER_ADDRESS');
+            self::assertIsString($attestedAddress);
+            $otherAddress=$attestedAddress==='10.0.0.1'?'10.0.0.2':'10.0.0.1';
+            putenv('PORTAL_NATIVE_ORDER_TEST_SERVER_ADDRESS='.$otherAddress);
+            try {
+                try {
+                    $rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']);
+                    self::fail('Changed attested endpoint must not disclose private evidence.');
+                } catch (\RuntimeException $error) {
+                    self::assertSame('Disposable buyer rights reader unavailable.',$error->getMessage());
+                    self::assertNull($error->getPrevious());
+                }
+            } finally {
+                putenv('PORTAL_NATIVE_ORDER_TEST_SERVER_ADDRESS='.$attestedAddress);
+            }
+            self::assertSame($evidence,$rightsReader->read($order,$reference,$this->admittedSiteRef,(int)$current['version'],$current['source_sha']));
+        }
         // R42: the reusable reader must remain independently autocommitted,
         // even when the caller changes PDO state after construction.
         try {
